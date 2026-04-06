@@ -1,0 +1,62 @@
+# ppp — Personal and Pastoral Planning
+
+## Stack
+- SvelteKit (TypeScript)
+- Supabase (Postgres + Auth + Edge Functions)
+- Tailwind + shadcn-svelte
+- Vercel (deployment)
+- pdf-lib (Edge Functions for PDF generation)
+- Resend (email)
+
+## Naming Conventions
+- Svelte components: PascalCase
+- Routes: kebab-case
+- Supabase tables: snake_case
+- TypeScript types: PascalCase
+
+## Architecture Defaults
+- RLS enabled on all tables — fail closed
+- Soft delete via deleted_at TIMESTAMPTZ on every table
+- Audit log trigger on every table (trigger-driven, never app-layer writes)
+- Svelte stores for state management
+
+## Route Structure
+- /dashboard
+- /invoicing
+- /invoicing/invoices
+- /invoicing/invoices/[id]
+- /library
+- /library/add
+- /library/books/[id]
+- /projects
+- /settings
+- /settings/library
+- /settings/invoicing
+- /settings/audit-log
+- /settings/profile
+
+## Supabase Patterns
+- Always filter WHERE deleted_at IS NULL unless explicitly querying deleted records
+- Never write directly to audit_log from app layer
+- Use Supabase Edge Functions for PDF generation and email — never from client
+- Auth: email/password only (no magic link)
+- Two users: owner (full access) + viewer (library write, calendar read, no invoicing/projects)
+
+## Code Style
+- No default exports except in +page.svelte and +layout.svelte (SvelteKit convention)
+- Keep components small — extract when a component exceeds ~150 lines
+- No inline styles — Tailwind classes only
+- TypeScript strict mode — no `any`
+
+## RLS & Security
+- RLS enabled on every table — no exceptions
+- Never expose service role key on the client — Edge Functions only
+- All queries scoped to auth.uid() — never query across users
+- viewer role checked via user_permissions table — owner bypasses entirely
+- No direct table access from client for invoicing tables — owner only
+
+## Data Integrity
+- Every table gets deleted_at, created_at, updated_at, created_by unless documented exception
+- Documented exceptions: audit_log, module_registry, bible_books, categories (static/system tables)
+- soft delete only — no hard deletes from app layer
+- revertible flag set at trigger level — never set from app layer
