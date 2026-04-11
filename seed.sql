@@ -56,10 +56,23 @@ FROM
 	inserted i
 	JOIN (
 		VALUES
-			('This Week Health'::text, 0.00::numeric(10, 2), '2025-09-01'::date),
-			('Fountain of Life Church'::text, 0.00::numeric(10, 2), '2025-06-01'::date)
+			('This Week Health'::text, 100.00::numeric(10, 2), '2025-09-01'::date),
+			('Fountain of Life Church'::text, 35.00::numeric(10, 2), '2025-06-01'::date)
 	) AS v(client_name, rate, effective_from) ON v.client_name = i.name;
 
 -- Verify (optional): owner should see rows; anon should not.
 -- SELECT * FROM clients WHERE deleted_at IS NULL;
 -- SELECT * FROM client_rates WHERE deleted_at IS NULL;
+
+-- =============================================================================
+-- If you already ran an older seed with 0.00 rates, fix live rates in Studio:
+--
+-- UPDATE client_rates cr
+-- SET rate = v.rate
+-- FROM clients c
+-- JOIN (VALUES
+--   ('This Week Health'::text, 100.00::numeric(10, 2)),
+--   ('Fountain of Life Church'::text, 35.00::numeric(10, 2))
+-- ) AS v(name, rate) ON v.name = c.name
+-- WHERE cr.client_id = c.id AND cr.deleted_at IS NULL;
+-- =============================================================================
