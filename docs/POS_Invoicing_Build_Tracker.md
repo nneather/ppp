@@ -1,6 +1,6 @@
 # Personal Operations System — Invoicing Module Build Tracker
 
-_Last updated: April 11, 2026 | Module: Invoicing (1st) | Target: August 2026_
+_Last updated: April 13, 2026 | Module: Invoicing (1st) | Target: August 2026_
 
 _Session-by-session plan for building the invoicing module. Each session ends with something working end-to-end. Update Done and Notes as you go._
 
@@ -40,14 +40,15 @@ _Goal: You can log time against a client from mobile or desktop._
 
 | Task | Done | Notes |
 |------|:----:|-------|
-| `/invoicing` route — time entry list page skeleton | ☐ | Default view = current week. Toggle: day / week / month. |
-| Load time entries from Supabase — filtered by selected period, ordered by date desc | ☐ | Join `clients` for display name. Filter `deleted_at IS NULL`. |
-| Group entries by date in the list | ☐ | Visual grouping only — no schema change. |
-| Sheet component — new time entry form | ☐ | Fields: client (select), date, hours, description. Triggered from a `+` button on the list page. Not a separate route. |
-| Client rate lookup at entry creation — query `client_rates` for active rate on entry date, stamp onto `time_entries.rate` | ☐ | Rate lookup: `WHERE client_id = ? AND effective_from <= entry_date AND (effective_to IS NULL OR effective_to >= entry_date)` |
-| Edit/delete time entry — sheet reuse with pre-filled fields; delete = soft delete (`deleted_at = now()`) | ☐ | Edit triggers same sheet as create, pre-populated. |
-| Unbilled badge — count of unbilled entries per client surfaced on entry list | ☐ | Drives the dashboard tile state later. |
-| Mobile layout pass — entry form should be full-screen sheet on mobile, comfortable to fill in quickly | ☐ | Test on actual phone before declaring done. |
+| `/invoicing` route — time entry list page skeleton | ✓ | Default view = current week. Toggle: day / week / month. Done April 11. |
+| Load time entries from Supabase — filtered by selected period, ordered by date desc | ✓ | Join `clients` for display name. Filter `deleted_at IS NULL`. Done April 11. |
+| Group entries by date in the list | ✓ | Visual grouping only — no schema change. Done April 11. |
+| Sheet component — new time entry form | ✓ | Fields: client (select), date, hours, description. Triggered from a `+` button on the list page. Done April 11. |
+| Client rate lookup at entry creation — query `client_rates` for active rate on entry date, stamp onto `time_entries.rate` | ✓ | Rate lookup working. Fixed: update action now re-stamps rate when stored rate is $0. Seed rates corrected on remote. Done April 13. |
+| Edit/delete time entry — sheet reuse with pre-filled fields; delete = soft delete (`deleted_at = now()`) | ✓ | Edit triggers same sheet as create, pre-populated. Done April 11. |
+| Unbilled badge — count of unbilled entries per client surfaced on entry list | ✓ | Drives the dashboard tile state later. Done April 11. |
+| Mobile layout pass — entry form should be full-screen sheet on mobile, comfortable to fill in quickly | ✓ | Done April 13. |
+| **Hotfix:** `write_audit_log()` crash on `time_entries` UPDATE | ✓ | `NEW.status` referenced unconditionally — fails on tables without `status` column. Fixed with nested IF guard. Baseline migration created to prevent recurrence. Done April 13. |
 
 **Session exit state:** Full time entry CRUD. You can open the app on your phone, log an hour, and see it appear in the list.
 
