@@ -1,0 +1,19 @@
+-- =============================================================================
+-- Template: safe status checks inside a generic TRIGGER function
+--
+-- Problem: NEW.status / OLD.status fail when the trigger is attached to a
+-- table that has no status column (e.g. time_entries).
+--
+-- Option A — restrict by table name:
+--   IF TG_TABLE_NAME = 'invoices' THEN
+--     IF NEW.status IN ('sent', 'paid') THEN ... END IF;
+--   END IF;
+--
+-- Option B — branch without referencing NEW.status on other tables:
+--   IF to_jsonb(NEW) ? 'status' THEN
+--     IF (to_jsonb(NEW)->>'status') IN ('sent', 'paid') THEN ... END IF;
+--   END IF;
+--
+-- Prefer attaching invoice-only triggers only to public.invoices; see
+-- supabase/migrations/20260411160000_fix_set_revertible_false_scope.sql
+-- =============================================================================

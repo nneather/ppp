@@ -321,7 +321,7 @@ export const actions: Actions = {
 
 		const { data: existing, error: fetchErr } = await locals.supabase
 			.from('time_entries')
-			.select('id, client_id, date, invoice_id')
+			.select('id, client_id, date, invoice_id, rate')
 			.eq('id', id)
 			.is('deleted_at', null)
 			.maybeSingle();
@@ -333,8 +333,15 @@ export const actions: Actions = {
 			return fail(400, { message: 'Cannot edit a billed time entry.' });
 		}
 
+		const storedRate = Number(existing.rate);
+		const clientOrDateChanged =
+			existing.client_id !== client_id || existing.date !== date;
+		// Re-stamp rate when client/date change, or when row still has a zero
+		// rate (e.g. legacy seed) so a save without changing client/date fixes it.
+		const needsRateRefresh = clientOrDateChanged || !Number.isFinite(storedRate) || storedRate <= 0;
+
 		let rate = undefined as number | undefined;
-		if (existing.client_id !== client_id || existing.date !== date) {
+		if (needsRateRefresh) {
 			const rateResult = await lookupRate(locals.supabase, client_id, date);
 			if (!rateResult.ok) {
 				return fail(400, { message: rateResult.message });

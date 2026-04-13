@@ -624,3 +624,5 @@ book_topics
 | `compute_verse_abs` | `scripture_references` | Recompute `verse_start_abs`/`verse_end_abs` on INSERT or UPDATE of any chapter/verse field |
 | `audit_log_trigger` | All tables | Write to `audit_log` on INSERT/UPDATE/DELETE; set `revertible` based on operation and table |
 | `set_revertible_false` | `invoices` | Set `revertible = false` when status transitions to `sent` or `paid` |
+
+**Deploy note:** `set_revertible_false` must **not** be attached to tables without a `status` column (e.g. `time_entries`), or Postgres will error with `record "new" has no field "status"`. The baseline migration ([`supabase/migrations/00000000000000_baseline.sql`](../supabase/migrations/00000000000000_baseline.sql)) is the canonical DDL source and already contains the correct trigger scoping. Diagnostic queries: [`sql/inspect_status_triggers.sql`](../sql/inspect_status_triggers.sql). See [`supabase/README.md`](../supabase/README.md).
