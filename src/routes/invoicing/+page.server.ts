@@ -111,6 +111,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				description,
 				billable,
 				invoice_id,
+				is_one_off,
 				created_at,
 				clients!inner ( name )
 			`
@@ -178,6 +179,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			description: (row.description as string | null) ?? null,
 			billable: Boolean(row.billable),
 			invoice_id: (row.invoice_id as string | null) ?? null,
+			is_one_off: Boolean(row.is_one_off),
 			created_at: row.created_at as string
 		};
 	});
@@ -321,7 +323,7 @@ export const actions: Actions = {
 
 		const { data: existing, error: fetchErr } = await locals.supabase
 			.from('time_entries')
-			.select('id, client_id, date, invoice_id, rate')
+			.select('id, client_id, date, invoice_id, rate, is_one_off')
 			.eq('id', id)
 			.is('deleted_at', null)
 			.maybeSingle();
@@ -331,6 +333,9 @@ export const actions: Actions = {
 		}
 		if (existing.invoice_id) {
 			return fail(400, { message: 'Cannot edit a billed time entry.' });
+		}
+		if (existing.is_one_off) {
+			return fail(400, { message: 'Cannot edit a one-off charge entry.' });
 		}
 
 		const storedRate = Number(existing.rate);
@@ -379,7 +384,7 @@ export const actions: Actions = {
 
 		const { data: existing, error: fetchErr } = await locals.supabase
 			.from('time_entries')
-			.select('id, invoice_id')
+			.select('id, invoice_id, is_one_off')
 			.eq('id', id)
 			.is('deleted_at', null)
 			.maybeSingle();
@@ -389,6 +394,9 @@ export const actions: Actions = {
 		}
 		if (existing.invoice_id) {
 			return fail(400, { message: 'Cannot delete a billed time entry.' });
+		}
+		if (existing.is_one_off) {
+			return fail(400, { message: 'Cannot delete a one-off charge entry.' });
 		}
 
 		const { error } = await locals.supabase

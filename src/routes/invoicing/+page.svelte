@@ -4,6 +4,8 @@
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Plus from '@lucide/svelte/icons/plus';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import { cn } from '$lib/utils';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -18,14 +20,43 @@
 	let sheetMode = $state<'create' | 'edit'>('create');
 	let selectedEntry = $state<TimeEntryRow | null>(null);
 
-	const groups = $derived.by(() => {
-		const out: { date: string; items: TimeEntryRow[] }[] = [];
+	type ClientGroup = {
+		client_id: string;
+		client_name: string;
+		dates: { date: string; items: TimeEntryRow[] }[];
+	};
+
+	const clientGroups = $derived.by((): ClientGroup[] => {
+		const byClient = new Map<
+			string,
+			{ client_id: string; client_name: string; entries: TimeEntryRow[] }
+		>();
 		for (const e of data.entries) {
-			const last = out[out.length - 1];
-			if (last && last.date === e.date) last.items.push(e);
-			else out.push({ date: e.date, items: [e] });
+			const prev = byClient.get(e.client_id);
+			if (prev) prev.entries.push(e);
+			else
+				byClient.set(e.client_id, {
+					client_id: e.client_id,
+					client_name: e.client_name,
+					entries: [e]
+				});
 		}
-		return out;
+		const sortedClients = [...byClient.values()].sort((a, b) =>
+			a.client_name.localeCompare(b.client_name)
+		);
+		return sortedClients.map((g) => {
+			const sorted = [...g.entries].sort(
+				(a, b) =>
+					b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at)
+			);
+			const dates: { date: string; items: TimeEntryRow[] }[] = [];
+			for (const e of sorted) {
+				const last = dates[dates.length - 1];
+				if (last && last.date === e.date) last.items.push(e);
+				else dates.push({ date: e.date, items: [e] });
+			}
+			return { client_id: g.client_id, client_name: g.client_name, dates };
+		});
 	});
 
 	const periodLabel = $derived.by(() => {
@@ -125,10 +156,16 @@
 				<p class="text-sm text-muted-foreground">Time entries</p>
 			</div>
 		</div>
-		<Button type="button" class="hidden h-10 gap-2 md:inline-flex" onclick={openCreate}>
-			<Plus class="size-4" />
-			New entry
-		</Button>
+		<div class="flex w-full flex-wrap gap-2 md:w-auto md:justify-end">
+			<Button variant="outline" href="/invoicing/invoices" class="h-10 min-h-10 flex-1 gap-2 sm:flex-none">
+				<FileText class="size-4" />
+				Invoices
+			</Button>
+			<Button type="button" class="h-10 min-h-10 flex-1 gap-2 sm:flex-none" onclick={openCreate}>
+				<Plus class="size-4" />
+				New entry
+			</Button>
+		</div>
 	</header>
 
 	{#if data.error}
@@ -209,7 +246,7 @@
 		</div>
 	</div>
 
-	{#if groups.length === 0}
+	{#if clientGroups.length === 0}
 		<div
 			class="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-16 text-center text-sm text-muted-foreground"
 		>
@@ -223,41 +260,115 @@
 			</button>
 		</div>
 	{:else}
-		<ul class="space-y-8">
-			{#each groups as g (g.date)}
+		<ul class="space-y-4">
+			{#each clientGroups as cg (cg.client_id)}
 				<li>
-					<div class="mb-2 flex items-center gap-2">
-						<h2 class="text-sm font-semibold tracking-tight text-foreground">
-							{formatDayHeader(g.date)}
-						</h2>
-						<Separator class="flex-1" />
-					</div>
-					<ul class="divide-y divide-border rounded-xl border border-border bg-card shadow-sm">
-						{#each g.items as entry (entry.id)}
-							<li>
-								<button
-									type="button"
-									class="flex min-h-14 w-full touch-manipulation flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-muted/50 md:min-h-12 md:flex-row md:items-center md:justify-between md:gap-4"
-									onclick={() => openEdit(entry)}
-								>
-									<div class="min-w-0 flex-1">
-										<p class="truncate font-medium text-foreground">{entry.client_name}</p>
-										{#if entry.description}
-											<p class="line-clamp-2 text-sm text-muted-foreground">{entry.description}</p>
-										{/if}
-									</div>
-									<div
-										class="flex shrink-0 items-center gap-3 text-sm tabular-nums md:flex-col md:items-end md:gap-0.5"
-									>
-										<span class="text-muted-foreground">
-											{entry.hours}h × {money(entry.rate)}
-										</span>
-										<span class="font-semibold text-foreground">{money(lineTotal(entry))}</span>
-									</div>
-								</button>
-							</li>
-						{/each}
-					</ul>
+					<details class="group rounded-xl border border-border bg-card shadow-sm" open>
+						<summary
+							class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-semibold text-foreground marker:hidden [&::-webkit-details-marker]:hidden"
+						>
+							<span class="min-w-0 truncate">{cg.client_name}</span>
+							<span class="shrink-0 text-xs text-muted-foreground group-open:rotate-0">▼</span>
+						</summary>
+						<div class="border-t border-border px-1 pb-2">
+							<ul class="space-y-5 pt-2">
+								{#each cg.dates as g (g.date)}
+									<li>
+										<div class="mb-1.5 flex items-center gap-2 px-2">
+											<h2 class="text-xs font-semibold tracking-tight text-muted-foreground">
+												{formatDayHeader(g.date)}
+											</h2>
+											<Separator class="flex-1" />
+										</div>
+										<ul class="divide-y divide-border rounded-lg border border-border/80 bg-background">
+											{#each g.items as entry (entry.id)}
+												<li>
+													{#if entry.is_one_off}
+														<div
+															class="flex min-h-10 w-full items-start gap-2 px-3 py-2 md:min-h-9 md:items-center"
+														>
+															<div class="min-w-0 flex-1">
+																{#if entry.description}
+																	<p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+																		{entry.description}
+																	</p>
+																{:else}
+																	<p class="text-sm text-muted-foreground/80">—</p>
+																{/if}
+															</div>
+															<div
+																class="flex shrink-0 items-center gap-2 text-xs tabular-nums md:text-sm"
+															>
+																<div
+																	class="flex flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2"
+																>
+																	<span class="text-muted-foreground">
+																		{entry.hours}h × {money(entry.rate)}
+																	</span>
+																	<span class="font-semibold text-foreground"
+																		>{money(lineTotal(entry))}</span
+																	>
+																</div>
+																<span class="inline-flex shrink-0 items-center gap-1.5">
+																	<Badge variant="outline" class="text-[10px] font-normal uppercase">
+																		One-off
+																	</Badge>
+																	{#if entry.invoice_id}
+																		<CircleCheck
+																			class="size-4 text-muted-foreground"
+																			aria-label="Billed"
+																		/>
+																	{/if}
+																</span>
+															</div>
+														</div>
+													{:else}
+														<button
+															type="button"
+															class="flex min-h-10 w-full touch-manipulation items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/50 md:min-h-9 md:items-center"
+															onclick={() => openEdit(entry)}
+														>
+															<div class="min-w-0 flex-1">
+																{#if entry.description}
+																	<p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+																		{entry.description}
+																	</p>
+																{:else}
+																	<p class="text-sm text-muted-foreground/80">—</p>
+																{/if}
+															</div>
+															<div
+																class="flex shrink-0 items-center gap-2 text-xs tabular-nums md:text-sm"
+															>
+																<div
+																	class="flex flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2"
+																>
+																	<span class="text-muted-foreground">
+																		{entry.hours}h × {money(entry.rate)}
+																	</span>
+																	<span class="font-semibold text-foreground"
+																		>{money(lineTotal(entry))}</span
+																	>
+																</div>
+																<span class="inline-flex w-4 shrink-0 justify-center" aria-hidden="true">
+																	{#if entry.invoice_id}
+																		<CircleCheck
+																			class="size-4 text-muted-foreground"
+																			aria-label="Billed"
+																		/>
+																	{/if}
+																</span>
+															</div>
+														</button>
+													{/if}
+												</li>
+											{/each}
+										</ul>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					</details>
 				</li>
 			{/each}
 		</ul>

@@ -36,7 +36,44 @@ RETURNS TEXT AS $$
 	SELECT 'INV-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('invoice_number_seq')::TEXT, 4, '0');
 $$ LANGUAGE sql;
 
--- 2c. Audit log writer (fires on all tables)
+-- 2c. RLS helper: is the current user an owner?
+CREATE OR REPLACE FUNCTION public.app_is_owner()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+	SELECT EXISTS (
+		SELECT 1
+		FROM public.profiles p
+		WHERE p.id = auth.uid()
+			AND p.role = 'owner'
+			AND p.deleted_at IS NULL
+	);
+$$;
+
+-- 2d. RLS helper: is the current user a viewer with write access on a module?
+CREATE OR REPLACE FUNCTION public.app_is_viewer_writer(p_module text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+	SELECT EXISTS (
+		SELECT 1
+		FROM public.profiles p
+		JOIN public.user_permissions up ON up.user_id = p.id
+		WHERE p.id = auth.uid()
+			AND p.role = 'viewer'
+			AND p.deleted_at IS NULL
+			AND up.module = p_module
+			AND up.access_level = 'write'
+	);
+$$;
+
+-- 2e. Audit log writer (fires on all tables)
 CREATE OR REPLACE FUNCTION public.write_audit_log()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -637,19 +674,23 @@ CREATE TRIGGER trg_compute_verse_abs
 	FOR EACH ROW EXECUTE FUNCTION public.compute_verse_abs();
 
 -- ---------------------------------------------------------------------------
--- 9. Row Level Security
+-- 9. Grants
 -- ---------------------------------------------------------------------------
+GRANT EXECUTE ON FUNCTION public.generate_invoice_number() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.app_is_owner() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.app_is_viewer_writer(text) TO authenticated;
 
--- Helper: is the current user an owner?
--- Used in policy expressions below.
+-- ---------------------------------------------------------------------------
+-- 10. Row Level Security
+-- ---------------------------------------------------------------------------
 
 -- profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY profiles_owner_all ON public.profiles
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY profiles_viewer_select ON public.profiles
 	FOR SELECT USING (id = auth.uid());
@@ -658,9 +699,9 @@ CREATE POLICY profiles_viewer_select ON public.profiles
 ALTER TABLE public.user_permissions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY user_permissions_owner_all ON public.user_permissions
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY user_permissions_viewer_select ON public.user_permissions
 	FOR SELECT USING (user_id = auth.uid());
@@ -669,9 +710,9 @@ CREATE POLICY user_permissions_viewer_select ON public.user_permissions
 ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY audit_log_owner_all ON public.audit_log
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 -- module_registry (all authenticated SELECT)
 ALTER TABLE public.module_registry ENABLE ROW LEVEL SECURITY;
@@ -683,41 +724,41 @@ CREATE POLICY module_registry_select ON public.module_registry
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY clients_owner_all ON public.clients
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 -- client_rates (owner only)
 ALTER TABLE public.client_rates ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY client_rates_owner_all ON public.client_rates
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 -- time_entries (owner only)
 ALTER TABLE public.time_entries ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY time_entries_owner_all ON public.time_entries
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 -- invoices (owner only)
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY invoices_owner_all ON public.invoices
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 -- invoice_line_items (owner only)
 ALTER TABLE public.invoice_line_items ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY invoice_line_items_owner_all ON public.invoice_line_items
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 -- bible_books (all authenticated SELECT)
 ALTER TABLE public.bible_books ENABLE ROW LEVEL SECURITY;
@@ -732,14 +773,13 @@ CREATE POLICY ancient_texts_select ON public.ancient_texts
 	FOR SELECT USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY ancient_texts_owner_insert ON public.ancient_texts
-	FOR INSERT WITH CHECK (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR INSERT
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY ancient_texts_owner_update ON public.ancient_texts
-	FOR UPDATE USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR UPDATE
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 -- people (all SELECT; owner + viewer(write) full)
 ALTER TABLE public.people ENABLE ROW LEVEL SECURITY;
@@ -748,22 +788,14 @@ CREATE POLICY people_select ON public.people
 	FOR SELECT USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY people_owner_all ON public.people
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY people_viewer_write ON public.people
-	FOR ALL USING (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR ALL
+	USING  (public.app_is_viewer_writer('library'))
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 -- series (same as people)
 ALTER TABLE public.series ENABLE ROW LEVEL SECURITY;
@@ -772,22 +804,14 @@ CREATE POLICY series_select ON public.series
 	FOR SELECT USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY series_owner_all ON public.series
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY series_viewer_write ON public.series
-	FOR ALL USING (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR ALL
+	USING  (public.app_is_viewer_writer('library'))
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 -- categories (all authenticated SELECT)
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
@@ -799,88 +823,55 @@ CREATE POLICY categories_select ON public.categories
 ALTER TABLE public.books ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY books_owner_all ON public.books
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY books_viewer_select ON public.books
 	FOR SELECT USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY books_viewer_insert ON public.books
-	FOR INSERT WITH CHECK (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR INSERT
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 CREATE POLICY books_viewer_update ON public.books
-	FOR UPDATE USING (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR UPDATE
+	USING  (public.app_is_viewer_writer('library'))
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 -- book_authors (owner + viewer(write) full)
 ALTER TABLE public.book_authors ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY book_authors_owner_all ON public.book_authors
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY book_authors_viewer_write ON public.book_authors
-	FOR ALL USING (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR ALL
+	USING  (public.app_is_viewer_writer('library'))
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 -- book_categories (owner + viewer(write) full)
 ALTER TABLE public.book_categories ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY book_categories_owner_all ON public.book_categories
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY book_categories_viewer_write ON public.book_categories
-	FOR ALL USING (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR ALL
+	USING  (public.app_is_viewer_writer('library'))
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 -- essays (owner full; viewer SELECT)
 ALTER TABLE public.essays ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY essays_owner_all ON public.essays
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY essays_viewer_select ON public.essays
 	FOR SELECT USING (auth.uid() IS NOT NULL);
@@ -889,9 +880,9 @@ CREATE POLICY essays_viewer_select ON public.essays
 ALTER TABLE public.essay_authors ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY essay_authors_owner_all ON public.essay_authors
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY essay_authors_viewer_select ON public.essay_authors
 	FOR SELECT USING (auth.uid() IS NOT NULL);
@@ -900,114 +891,64 @@ CREATE POLICY essay_authors_viewer_select ON public.essay_authors
 ALTER TABLE public.book_bible_coverage ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY book_bible_coverage_owner_all ON public.book_bible_coverage
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY book_bible_coverage_viewer_write ON public.book_bible_coverage
-	FOR ALL USING (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR ALL
+	USING  (public.app_is_viewer_writer('library'))
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 -- book_ancient_coverage (owner + viewer(write) full)
 ALTER TABLE public.book_ancient_coverage ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY book_ancient_coverage_owner_all ON public.book_ancient_coverage
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY book_ancient_coverage_viewer_write ON public.book_ancient_coverage
-	FOR ALL USING (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR ALL
+	USING  (public.app_is_viewer_writer('library'))
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 -- scripture_references (owner full; viewer SELECT + INSERT + UPDATE)
 ALTER TABLE public.scripture_references ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY scripture_references_owner_all ON public.scripture_references
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY scripture_references_viewer_select ON public.scripture_references
 	FOR SELECT USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY scripture_references_viewer_insert ON public.scripture_references
-	FOR INSERT WITH CHECK (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR INSERT
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 CREATE POLICY scripture_references_viewer_update ON public.scripture_references
-	FOR UPDATE USING (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR UPDATE
+	USING  (public.app_is_viewer_writer('library'))
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 -- book_topics (owner full; viewer SELECT + INSERT + UPDATE)
 ALTER TABLE public.book_topics ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY book_topics_owner_all ON public.book_topics
-	FOR ALL USING (
-		EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner' AND p.deleted_at IS NULL)
-	);
+	FOR ALL
+	USING  (public.app_is_owner())
+	WITH CHECK (public.app_is_owner());
 
 CREATE POLICY book_topics_viewer_select ON public.book_topics
 	FOR SELECT USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY book_topics_viewer_insert ON public.book_topics
-	FOR INSERT WITH CHECK (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR INSERT
+	WITH CHECK (public.app_is_viewer_writer('library'));
 
 CREATE POLICY book_topics_viewer_update ON public.book_topics
-	FOR UPDATE USING (
-		EXISTS (
-			SELECT 1 FROM public.profiles p
-			JOIN public.user_permissions up ON up.user_id = p.id
-			WHERE p.id = auth.uid()
-				AND p.role = 'viewer'
-				AND p.deleted_at IS NULL
-				AND up.module = 'library'
-				AND up.access_level = 'write'
-		)
-	);
+	FOR UPDATE
+	USING  (public.app_is_viewer_writer('library'))
+	WITH CHECK (public.app_is_viewer_writer('library'));
