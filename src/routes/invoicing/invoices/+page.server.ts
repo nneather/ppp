@@ -189,11 +189,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 			console.error(unbilledRes.error);
 		}
 
-		const unbilledBounds: UnbilledBounds[] = [...boundsByClient.entries()].map(([client_id, b]) => ({
-			client_id,
-			min_date: b.min,
-			max_date: b.max
-		}));
+		const unbilledBounds: UnbilledBounds[] = [...boundsByClient.entries()].map(
+			([client_id, b]) => ({
+				client_id,
+				min_date: b.min,
+				max_date: b.max
+			})
+		);
 
 		const unbilledSummary: UnbilledCount[] = [...summaryMap.entries()].map(([client_id, v]) => ({
 			client_id,
@@ -317,7 +319,8 @@ export const actions: Actions = {
 
 		if (entryRows.length === 0 && oneOffLines.length === 0) {
 			return fail(400, {
-				message: 'No unbilled time entries in this range and no one-off lines. Add entries or a line item.'
+				message:
+					'No unbilled time entries in this range and no one-off lines. Add entries or a line item.'
 			});
 		}
 
@@ -325,15 +328,14 @@ export const actions: Actions = {
 		if (rpcErr || invoiceNumber == null || typeof invoiceNumber !== 'string') {
 			console.error(rpcErr);
 			return fail(500, {
-				message: rpcErr?.message ?? 'Could not generate invoice number. Ask an admin to grant EXECUTE on generate_invoice_number.'
+				message:
+					rpcErr?.message ??
+					'Could not generate invoice number. Ask an admin to grant EXECUTE on generate_invoice_number.'
 			});
 		}
 
 		/** Group unbilled hours by locked rate (one line per rate). */
-		const byRate = new Map<
-			string,
-			{ rate: number; hours: number; entryIds: string[] }
-		>();
+		const byRate = new Map<string, { rate: number; hours: number; entryIds: string[] }>();
 		for (const e of entryRows) {
 			const rate = Number(e.rate);
 			const hours = Number(e.hours);

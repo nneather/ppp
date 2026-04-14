@@ -46,8 +46,7 @@
 		);
 		return sortedClients.map((g) => {
 			const sorted = [...g.entries].sort(
-				(a, b) =>
-					b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at)
+				(a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at)
 			);
 			const dates: { date: string; items: TimeEntryRow[] }[] = [];
 			for (const e of sorted) {
@@ -157,7 +156,11 @@
 			</div>
 		</div>
 		<div class="flex w-full flex-wrap gap-2 md:w-auto md:justify-end">
-			<Button variant="outline" href="/invoicing/invoices" class="h-10 min-h-10 flex-1 gap-2 sm:flex-none">
+			<Button
+				variant="outline"
+				href="/invoicing/invoices"
+				class="h-10 min-h-10 flex-1 gap-2 sm:flex-none"
+			>
 				<FileText class="size-4" />
 				Invoices
 			</Button>
@@ -280,7 +283,9 @@
 											</h2>
 											<Separator class="flex-1" />
 										</div>
-										<ul class="divide-y divide-border rounded-lg border border-border/80 bg-background">
+										<ul
+											class="divide-y divide-border rounded-lg border border-border/80 bg-background"
+										>
 											{#each g.items as entry (entry.id)}
 												<li>
 													{#if entry.is_one_off}
@@ -289,7 +294,9 @@
 														>
 															<div class="min-w-0 flex-1">
 																{#if entry.description}
-																	<p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+																	<p
+																		class="line-clamp-2 text-sm leading-snug text-muted-foreground"
+																	>
 																		{entry.description}
 																	</p>
 																{:else}
@@ -310,7 +317,10 @@
 																	>
 																</div>
 																<span class="inline-flex shrink-0 items-center gap-1.5">
-																	<Badge variant="outline" class="text-[10px] font-normal uppercase">
+																	<Badge
+																		variant="outline"
+																		class="text-[10px] font-normal uppercase"
+																	>
 																		One-off
 																	</Badge>
 																	{#if entry.invoice_id}
@@ -330,7 +340,9 @@
 														>
 															<div class="min-w-0 flex-1">
 																{#if entry.description}
-																	<p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+																	<p
+																		class="line-clamp-2 text-sm leading-snug text-muted-foreground"
+																	>
 																		{entry.description}
 																	</p>
 																{:else}
@@ -350,7 +362,10 @@
 																		>{money(lineTotal(entry))}</span
 																	>
 																</div>
-																<span class="inline-flex w-4 shrink-0 justify-center" aria-hidden="true">
+																<span
+																	class="inline-flex w-4 shrink-0 justify-center"
+																	aria-hidden="true"
+																>
 																	{#if entry.invoice_id}
 																		<CircleCheck
 																			class="size-4 text-muted-foreground"

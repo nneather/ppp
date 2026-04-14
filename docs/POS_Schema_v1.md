@@ -19,6 +19,7 @@ _Generated: April 2026 | Feeds schema session in Cursor (Week 5–6 environment 
 ## Core
 
 ### `profiles`
+
 Mirrors `auth.users`. One row per user.
 
 ```sql
@@ -33,6 +34,7 @@ profiles
 ```
 
 **RLS:**
+
 - Owner: full access
 - Viewer: SELECT own row only (`WHERE id = auth.uid()`)
 - No `created_by` — identity table, not user-created content
@@ -40,6 +42,7 @@ profiles
 ---
 
 ### `user_permissions`
+
 Granular per-module access for viewer role. Owner bypasses this table entirely via RLS.
 
 ```sql
@@ -55,6 +58,7 @@ user_permissions
 ```
 
 **RLS:**
+
 - Owner: full access
 - Viewer: SELECT own rows only (`WHERE user_id = auth.uid()`)
 - No INSERT/UPDATE from app layer for viewer — owner-managed only
@@ -62,12 +66,14 @@ user_permissions
 - No `created_by` — system-managed
 
 **Notes:**
+
 - August seed: one row per module per viewer with appropriate access_level
 - Future multi-tenant: add `instance_id` column to scope permissions per tenant without refactoring
 
 ---
 
 ### `audit_log`
+
 Trigger-driven. No app-layer writes.
 
 ```sql
@@ -88,6 +94,7 @@ audit_log
 **RLS:** Owner only. No viewer access. No `deleted_at`, `created_at`, `updated_at`, or `created_by` — append-only system table.
 
 **Revertible = false for:**
+
 - Cross-module FK operations
 - Status transitions (e.g. invoice marked `sent`)
 - Ancient text canonical merges
@@ -95,6 +102,7 @@ audit_log
 ---
 
 ### `module_registry`
+
 One row per module. Drives sidebar nav and dashboard tiles.
 
 ```sql
@@ -116,6 +124,7 @@ module_registry
 ## Invoicing
 
 ### `clients`
+
 Seed data only for August — no CRUD UI.
 
 ```sql
@@ -136,6 +145,7 @@ clients
 ---
 
 ### `client_rates`
+
 Effective-dated rates per client and optional service type.
 
 ```sql
@@ -154,6 +164,7 @@ client_rates
 
 **RLS:** Owner only. Viewer: no access.
 **Notes:**
+
 - August seed: one row per client, `effective_from = project start date`, `effective_to = null`
 - At time entry creation: app looks up active rate for client + service_type on that date and stamps onto `time_entries.rate`
 - `service_type` free text for August; normalize to lookup table post-August if needed
@@ -208,6 +219,7 @@ invoices
 **RLS:** Owner only. Viewer: no access.
 
 **Invoice number generation:**
+
 ```sql
 CREATE SEQUENCE invoice_number_seq;
 
@@ -218,6 +230,7 @@ $$ LANGUAGE sql;
 ```
 
 **Notes:**
+
 - `subtotal`/`total` stored at generation time — keeps PDFs stable if rates change
 - Status transitions (`sent`, `paid`) set `revertible = false` in audit log trigger
 
@@ -247,6 +260,7 @@ invoice_line_items
 ## Library
 
 ### `bible_books`
+
 Seed data. Reference table for fixed Bible book list.
 
 ```sql
@@ -263,6 +277,7 @@ bible_books
 ---
 
 ### `ancient_texts`
+
 Canonical reference table for ancient non-biblical sources.
 
 ```sql
@@ -278,13 +293,15 @@ ancient_texts
 
 **RLS:** All authenticated users SELECT. Owner INSERT/UPDATE.
 **Notes:**
+
 - UI does fuzzy match against `canonical_name` and `abbreviations` on entry — prompts "Did you mean X?" before creating a new record
 - Merging two canonical entries sets `revertible = false` in audit log — UI warns before proceeding
-- Seed data covers common sources: Josephus (*Antiquities*, *Jewish War*), Philo, main Apostolic Fathers, Apocrypha books
+- Seed data covers common sources: Josephus (_Antiquities_, _Jewish War_), Philo, main Apostolic Fathers, Apocrypha books
 
 ---
 
 ### `people`
+
 Authors, editors, translators.
 
 ```sql
@@ -318,6 +335,7 @@ series
 ---
 
 ### `categories`
+
 Physical shelving categories. Seed data only.
 
 ```sql
@@ -377,6 +395,7 @@ books
 ---
 
 ### `book_authors`
+
 Junction: books ↔ people.
 
 ```sql
@@ -392,6 +411,7 @@ book_authors
 ---
 
 ### `book_categories`
+
 Junction: books ↔ categories (many-to-many beyond primary).
 
 ```sql
@@ -405,6 +425,7 @@ book_categories
 ---
 
 ### `book_bible_coverage`
+
 Which Bible books a given book or essay primarily covers. Drives commentary/survey surfacing in scripture search.
 
 ```sql
@@ -429,6 +450,7 @@ book_bible_coverage
 ---
 
 ### `book_ancient_coverage`
+
 Which ancient non-biblical texts a given book or essay engages.
 
 ```sql
@@ -451,6 +473,7 @@ book_ancient_coverage
 ---
 
 ### `essays`
+
 Chapters or signed entries in edited volumes.
 
 ```sql
@@ -471,6 +494,7 @@ essays
 ---
 
 ### `essay_authors`
+
 Junction: essays ↔ people.
 
 ```sql
@@ -486,6 +510,7 @@ essay_authors
 ---
 
 ### `scripture_references`
+
 Verse-level and range-level references with page locations. Core research index.
 
 ```sql
@@ -522,6 +547,7 @@ scripture_references
 **Trigger — abs value computation:** Fires on INSERT and UPDATE of any chapter/verse field. Recomputes `verse_start_abs` and `verse_end_abs`. When `needs_review` is set to false (reviewed), trigger also stamps `updated_at` and records the change in audit log.
 
 **Overlap query pattern:**
+
 ```sql
 -- Overlapping search (default): Philippians 2:1–11
 WHERE bible_book = 'Philippians'
@@ -539,6 +565,7 @@ WHERE bible_book = 'Philippians'
 ---
 
 ### `book_topics`
+
 Topical index with page locations.
 
 ```sql
@@ -567,6 +594,7 @@ book_topics
 **RLS:** Owner: full access. Viewer: SELECT + INSERT + UPDATE (library write).
 
 **Notes:**
+
 - Topic autocomplete in UI suggests existing topics as user types — prevents fragmentation before synonym layer
 - `topic_synonyms` table deferred post-August (see Post-August section)
 
@@ -574,55 +602,55 @@ book_topics
 
 ## Post-August Items (Tracked Here for Schema Continuity)
 
-| Item | Notes |
-|------|-------|
-| `topic_synonyms` table | `canonical_topic TEXT`, `synonym TEXT` — expand topic search at query time without changing `book_topics` |
-| `service_type` normalization | Normalize `client_rates.service_type` to a lookup table when needed |
-| Multi-tenant `instance_id` | Add to `user_permissions` to scope per-tenant without refactoring |
-| Essay pagination | Revisit if reprinted essays ever need independent page sequences |
-| `user_permissions` complexity | Expand access model when second friend is added (fall 2026) |
-| Ancient text `abbreviations` search | UI fuzzy match; no schema change needed |
-| AI topic synonym suggestions | Expand `topic_synonyms` via AI; data accumulates in `book_topics` in the meantime |
+| Item                                | Notes                                                                                                     |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `topic_synonyms` table              | `canonical_topic TEXT`, `synonym TEXT` — expand topic search at query time without changing `book_topics` |
+| `service_type` normalization        | Normalize `client_rates.service_type` to a lookup table when needed                                       |
+| Multi-tenant `instance_id`          | Add to `user_permissions` to scope per-tenant without refactoring                                         |
+| Essay pagination                    | Revisit if reprinted essays ever need independent page sequences                                          |
+| `user_permissions` complexity       | Expand access model when second friend is added (fall 2026)                                               |
+| Ancient text `abbreviations` search | UI fuzzy match; no schema change needed                                                                   |
+| AI topic synonym suggestions        | Expand `topic_synonyms` via AI; data accumulates in `book_topics` in the meantime                         |
 
 ---
 
 ## RLS Summary
 
-| Table | Owner | Viewer |
-|-------|-------|--------|
-| `profiles` | Full | SELECT own row |
-| `user_permissions` | Full | SELECT own rows |
-| `audit_log` | Full | No access |
-| `module_registry` | SELECT | SELECT |
-| `clients` | Full | No access |
-| `client_rates` | Full | No access |
-| `time_entries` | Full | No access |
-| `invoices` | Full | No access |
-| `invoice_line_items` | Full | No access |
-| `bible_books` | SELECT | SELECT |
-| `ancient_texts` | Full | SELECT |
-| `people` | Full | Full |
-| `series` | Full | Full |
-| `categories` | SELECT | SELECT |
-| `books` | Full | SELECT + INSERT + UPDATE |
-| `book_authors` | Full | Full |
-| `book_categories` | Full | Full |
-| `book_bible_coverage` | Full | Full |
-| `book_ancient_coverage` | Full | Full |
-| `essays` | Full | SELECT |
-| `essay_authors` | Full | SELECT |
-| `scripture_references` | Full | SELECT + INSERT + UPDATE |
-| `book_topics` | Full | SELECT + INSERT + UPDATE |
+| Table                   | Owner  | Viewer                   |
+| ----------------------- | ------ | ------------------------ |
+| `profiles`              | Full   | SELECT own row           |
+| `user_permissions`      | Full   | SELECT own rows          |
+| `audit_log`             | Full   | No access                |
+| `module_registry`       | SELECT | SELECT                   |
+| `clients`               | Full   | No access                |
+| `client_rates`          | Full   | No access                |
+| `time_entries`          | Full   | No access                |
+| `invoices`              | Full   | No access                |
+| `invoice_line_items`    | Full   | No access                |
+| `bible_books`           | SELECT | SELECT                   |
+| `ancient_texts`         | Full   | SELECT                   |
+| `people`                | Full   | Full                     |
+| `series`                | Full   | Full                     |
+| `categories`            | SELECT | SELECT                   |
+| `books`                 | Full   | SELECT + INSERT + UPDATE |
+| `book_authors`          | Full   | Full                     |
+| `book_categories`       | Full   | Full                     |
+| `book_bible_coverage`   | Full   | Full                     |
+| `book_ancient_coverage` | Full   | Full                     |
+| `essays`                | Full   | SELECT                   |
+| `essay_authors`         | Full   | SELECT                   |
+| `scripture_references`  | Full   | SELECT + INSERT + UPDATE |
+| `book_topics`           | Full   | SELECT + INSERT + UPDATE |
 
 ---
 
 ## Trigger Summary
 
-| Trigger | Tables | Purpose |
-|---------|--------|---------|
-| `set_updated_at` | All tables with `updated_at` | Maintain updated_at on every UPDATE |
-| `compute_verse_abs` | `scripture_references` | Recompute `verse_start_abs`/`verse_end_abs` on INSERT or UPDATE of any chapter/verse field |
-| `audit_log_trigger` | All tables | Write to `audit_log` on INSERT/UPDATE/DELETE; set `revertible` based on operation and table |
-| `set_revertible_false` | `invoices` | Set `revertible = false` when status transitions to `sent` or `paid` |
+| Trigger                | Tables                       | Purpose                                                                                     |
+| ---------------------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
+| `set_updated_at`       | All tables with `updated_at` | Maintain updated_at on every UPDATE                                                         |
+| `compute_verse_abs`    | `scripture_references`       | Recompute `verse_start_abs`/`verse_end_abs` on INSERT or UPDATE of any chapter/verse field  |
+| `audit_log_trigger`    | All tables                   | Write to `audit_log` on INSERT/UPDATE/DELETE; set `revertible` based on operation and table |
+| `set_revertible_false` | `invoices`                   | Set `revertible = false` when status transitions to `sent` or `paid`                        |
 
 **Deploy note:** `set_revertible_false` must **not** be attached to tables without a `status` column (e.g. `time_entries`), or Postgres will error with `record "new" has no field "status"`. The baseline migration ([`supabase/migrations/00000000000000_baseline.sql`](../supabase/migrations/00000000000000_baseline.sql)) is the canonical DDL source and already contains the correct trigger scoping. Diagnostic queries: [`sql/inspect_status_triggers.sql`](../sql/inspect_status_triggers.sql). See [`supabase/README.md`](../supabase/README.md).

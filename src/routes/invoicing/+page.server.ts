@@ -339,8 +339,7 @@ export const actions: Actions = {
 		}
 
 		const storedRate = Number(existing.rate);
-		const clientOrDateChanged =
-			existing.client_id !== client_id || existing.date !== date;
+		const clientOrDateChanged = existing.client_id !== client_id || existing.date !== date;
 		// Re-stamp rate when client/date change, or when row still has a zero
 		// rate (e.g. legacy seed) so a save without changing client/date fixes it.
 		const needsRateRefresh = clientOrDateChanged || !Number.isFinite(storedRate) || storedRate <= 0;

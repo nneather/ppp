@@ -90,7 +90,11 @@
 				</div>
 			</div>
 		</div>
-		<Button type="button" class="hidden h-10 gap-2 md:inline-flex" onclick={() => (sheetOpen = true)}>
+		<Button
+			type="button"
+			class="hidden h-10 gap-2 md:inline-flex"
+			onclick={() => (sheetOpen = true)}
+		>
 			<Plus class="size-4" />
 			Generate invoice
 		</Button>
@@ -163,7 +167,9 @@
 			</button>
 		</div>
 	{:else if filteredInvoices.length === 0}
-		<p class="rounded-lg border border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+		<p
+			class="rounded-lg border border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground"
+		>
 			No invoices match this filter.
 		</p>
 	{:else}
@@ -190,14 +196,15 @@
 								</a>
 								<p class="mt-0.5 text-muted-foreground sm:hidden">{inv.client_name}</p>
 							</td>
-							<td class="hidden px-2 py-3 text-muted-foreground sm:table-cell">{inv.client_name}</td>
+							<td class="hidden px-2 py-3 text-muted-foreground sm:table-cell">{inv.client_name}</td
+							>
 							<td class="hidden px-2 py-3 text-muted-foreground md:table-cell">
 								{formatPeriod(inv.period_start, inv.period_end)}
 							</td>
 							<td class="px-2 py-3">
 								<Badge variant={statusVariant(inv.status)} class="capitalize">{inv.status}</Badge>
 							</td>
-							<td class="px-4 py-3 text-right tabular-nums font-medium text-foreground">
+							<td class="px-4 py-3 text-right font-medium text-foreground tabular-nums">
 								{money(inv.total)}
 							</td>
 						</tr>

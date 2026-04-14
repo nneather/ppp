@@ -81,7 +81,10 @@
 		return { start: toYMD(prevMon), end: toYMD(prevSun) };
 	}
 
-	function monthSpanFromBounds(minDateStr: string, maxDateStr: string): { start: string; end: string } {
+	function monthSpanFromBounds(
+		minDateStr: string,
+		maxDateStr: string
+	): { start: string; end: string } {
 		const minD = parseYMD(minDateStr);
 		const maxD = parseYMD(maxDateStr);
 		if (!minD || !maxD) {
@@ -142,16 +145,16 @@
 		JSON.stringify(
 			oneOffs
 				.filter(
-					(o) =>
-						o.description.trim() ||
-						o.quantity.trim() ||
-						o.unit_price.trim() ||
-						o.date.trim()
+					(o) => o.description.trim() || o.quantity.trim() || o.unit_price.trim() || o.date.trim()
 				)
 				.map((o) => {
 					const dateRaw = o.date.trim();
 					const date =
-						dateRaw && parseYMD(dateRaw) ? dateRaw : periodEnd && parseYMD(periodEnd) ? periodEnd : '';
+						dateRaw && parseYMD(dateRaw)
+							? dateRaw
+							: periodEnd && parseYMD(periodEnd)
+								? periodEnd
+								: '';
 					return {
 						date,
 						description: o.description.trim(),
@@ -193,9 +196,7 @@
 		};
 	});
 
-	const canSubmit = $derived(
-		Boolean(clientId) && (rangePreview.count > 0 || hasValidOneOffs)
-	);
+	const canSubmit = $derived(Boolean(clientId) && (rangePreview.count > 0 || hasValidOneOffs));
 
 	$effect(() => {
 		if (!browser) return;
@@ -271,14 +272,16 @@
 		<Sheet.Header class="border-b border-border px-4 pt-2 pb-4">
 			<Sheet.Title>Generate invoice</Sheet.Title>
 			<Sheet.Description class="text-muted-foreground">
-				Choose client and billing period. Unbilled time entries in range become line items; add optional
-				one-off lines.
+				Choose client and billing period. Unbilled time entries in range become line items; add
+				optional one-off lines.
 			</Sheet.Description>
 		</Sheet.Header>
 
 		<div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
 			{#if clients.length === 0}
-				<p class="text-sm text-muted-foreground">No clients found. Seed clients in Supabase first.</p>
+				<p class="text-sm text-muted-foreground">
+					No clients found. Seed clients in Supabase first.
+				</p>
 			{:else}
 				{#if formMessage?.message}
 					<p
@@ -289,7 +292,12 @@
 					</p>
 				{/if}
 
-				<form method="POST" action="?/generate" use:enhance={submitEnhance} class="flex flex-col gap-5">
+				<form
+					method="POST"
+					action="?/generate"
+					use:enhance={submitEnhance}
+					class="flex flex-col gap-5"
+				>
 					<input type="hidden" name="one_offs" value={oneOffsJson} />
 
 					<div class="space-y-2">
@@ -347,7 +355,8 @@
 							<p class="tabular-nums">
 								<strong>{rangePreview.count}</strong> unbilled
 								{rangePreview.count === 1 ? 'entry' : 'entries'} in this range —{' '}
-								<strong>{rangePreview.hours}</strong>h, <strong>{money(rangePreview.amount)}</strong>
+								<strong>{rangePreview.hours}</strong>h,
+								<strong>{money(rangePreview.amount)}</strong>
 							</p>
 						{:else}
 							<p class="text-amber-800 dark:text-amber-200/90">
@@ -366,8 +375,8 @@
 							</Button>
 						</div>
 						<p class="text-xs text-muted-foreground">
-							Optional. Set charge date, quantity × unit price (e.g. fixed fee). Included in the same
-							invoice.
+							Optional. Set charge date, quantity × unit price (e.g. fixed fee). Included in the
+							same invoice.
 						</p>
 						{#if oneOffs.length === 0}
 							<p class="text-sm text-muted-foreground">No one-off lines.</p>
