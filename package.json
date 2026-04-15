@@ -11,7 +11,14 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check .",
-		"format": "prettier --write ."
+		"format": "prettier --write .",
+		"supabase:deploy-pdf": "supabase functions deploy generate-invoice-pdf",
+		"supabase:send-invoice": "supabase functions deploy send-invoice",
+		"supabase:deploy-functions": "supabase functions deploy generate-invoice-pdf && supabase functions deploy send-invoice",
+		"supabase:start": "supabase start",
+		"supabase:stop": "supabase stop",
+		"supabase:db:reset": "supabase db reset",
+		"supabase:migration:up": "supabase migration up"
 	},
 	"devDependencies": {
 		"@fontsource-variable/geist": "^5.2.8",

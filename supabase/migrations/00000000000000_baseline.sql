@@ -36,44 +36,7 @@ RETURNS TEXT AS $$
 	SELECT 'INV-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('invoice_number_seq')::TEXT, 4, '0');
 $$ LANGUAGE sql;
 
--- 2c. RLS helper: is the current user an owner?
-CREATE OR REPLACE FUNCTION public.app_is_owner()
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-	SELECT EXISTS (
-		SELECT 1
-		FROM public.profiles p
-		WHERE p.id = auth.uid()
-			AND p.role = 'owner'
-			AND p.deleted_at IS NULL
-	);
-$$;
-
--- 2d. RLS helper: is the current user a viewer with write access on a module?
-CREATE OR REPLACE FUNCTION public.app_is_viewer_writer(p_module text)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-	SELECT EXISTS (
-		SELECT 1
-		FROM public.profiles p
-		JOIN public.user_permissions up ON up.user_id = p.id
-		WHERE p.id = auth.uid()
-			AND p.role = 'viewer'
-			AND p.deleted_at IS NULL
-			AND up.module = p_module
-			AND up.access_level = 'write'
-	);
-$$;
-
--- 2e. Audit log writer (fires on all tables)
+-- 2c. Audit log writer (fires on all tables)
 CREATE OR REPLACE FUNCTION public.write_audit_log()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -522,7 +485,48 @@ CREATE TABLE IF NOT EXISTS public.book_topics (
 );
 
 -- ---------------------------------------------------------------------------
--- 6. Triggers — updated_at
+-- 6. RLS helper functions (depend on profiles + user_permissions)
+-- ---------------------------------------------------------------------------
+
+-- 6a. RLS helper: is the current user an owner?
+CREATE OR REPLACE FUNCTION public.app_is_owner()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+	SELECT EXISTS (
+		SELECT 1
+		FROM public.profiles p
+		WHERE p.id = auth.uid()
+			AND p.role = 'owner'
+			AND p.deleted_at IS NULL
+	);
+$$;
+
+-- 6b. RLS helper: is the current user a viewer with write access on a module?
+CREATE OR REPLACE FUNCTION public.app_is_viewer_writer(p_module text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+	SELECT EXISTS (
+		SELECT 1
+		FROM public.profiles p
+		JOIN public.user_permissions up ON up.user_id = p.id
+		WHERE p.id = auth.uid()
+			AND p.role = 'viewer'
+			AND p.deleted_at IS NULL
+			AND up.module = p_module
+			AND up.access_level = 'write'
+	);
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 7. Triggers — updated_at
 -- ---------------------------------------------------------------------------
 CREATE TRIGGER trg_profiles_updated_at
 	BEFORE UPDATE ON public.profiles

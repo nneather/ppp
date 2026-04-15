@@ -364,6 +364,13 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# User JWTs may be ES256; gateway verify_jwt can fail. Auth is enforced in-function via GET /auth/v1/user.
+[functions.generate-invoice-pdf]
+verify_jwt = false
+
+[functions.send-invoice]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

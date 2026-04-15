@@ -50,6 +50,31 @@ async function requireOwner(
 	return (data as { role: string }).role === 'owner';
 }
 
+/** Resolves the current user id via GoTrue (supports ES256); avoids local JWT verify in Edge. */
+async function getUserIdFromAuthApi(
+	supabaseUrl: string,
+	anonKey: string,
+	authHeader: string
+): Promise<string | null> {
+	const base = supabaseUrl.replace(/\/$/, '');
+	const res = await fetch(`${base}/auth/v1/user`, {
+		headers: {
+			Authorization: authHeader,
+			apikey: anonKey
+		}
+	});
+	if (!res.ok) return null;
+	let body: unknown;
+	try {
+		body = await res.json();
+	} catch {
+		return null;
+	}
+	if (!body || typeof body !== 'object') return null;
+	const id = (body as { id?: unknown }).id;
+	return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
 function buildEmailHtml(opts: {
 	invoiceNumber: string;
 	clientName: string;
@@ -108,19 +133,13 @@ Deno.serve(async (req) => {
 		return jsonResponse({ error: 'Unauthorized' }, 401);
 	}
 
-	const userClient = createClient(supabaseUrl, anonKey, {
-		global: { headers: { Authorization: authHeader } }
-	});
-	const {
-		data: { user },
-		error: userErr
-	} = await userClient.auth.getUser();
-	if (userErr || !user) {
+	const userId = await getUserIdFromAuthApi(supabaseUrl, anonKey, authHeader);
+	if (!userId) {
 		return jsonResponse({ error: 'Unauthorized' }, 401);
 	}
 
 	const admin = createClient(supabaseUrl, serviceKey);
-	if (!(await requireOwner(admin, user.id))) {
+	if (!(await requireOwner(admin, userId))) {
 		return jsonResponse({ error: 'Forbidden' }, 403);
 	}
 

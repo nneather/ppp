@@ -87,7 +87,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const { data: lineRows, error: liErr } = await supabase
 		.from('invoice_line_items')
-		.select('id, description, quantity, unit_price, total, is_one_off, sort_order')
+		.select(
+			'id, description, quantity, unit_price, total, is_one_off, sort_order, start_date, end_date'
+		)
 		.eq('invoice_id', id)
 		.order('sort_order', { ascending: true });
 
@@ -106,7 +108,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		unit_price: l.unit_price != null ? Number(l.unit_price) : null,
 		total: Number(l.total),
 		is_one_off: Boolean(l.is_one_off),
-		sort_order: Number(l.sort_order)
+		sort_order: Number(l.sort_order),
+		start_date: (l.start_date as string | null) ?? null,
+		end_date: (l.end_date as string | null) ?? null
 	}));
 
 	const deleted_at = row.deleted_at as string | null;

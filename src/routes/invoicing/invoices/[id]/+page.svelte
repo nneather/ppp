@@ -214,8 +214,10 @@
 				<thead>
 					<tr class="border-b border-border bg-muted/40 text-left text-muted-foreground">
 						<th class="px-4 py-3 font-medium">Description</th>
-						<th class="hidden w-24 px-2 py-3 text-right font-medium sm:table-cell">Qty</th>
-						<th class="hidden w-28 px-2 py-3 text-right font-medium md:table-cell">Rate</th>
+						<th class="hidden w-28 px-2 py-3 text-right font-medium sm:table-cell">Start</th>
+						<th class="hidden w-28 px-2 py-3 text-right font-medium sm:table-cell">End</th>
+						<th class="hidden w-20 px-2 py-3 text-right font-medium md:table-cell">Qty</th>
+						<th class="hidden w-28 px-2 py-3 text-right font-medium lg:table-cell">Rate</th>
 						<th class="w-28 px-4 py-3 text-right font-medium">Amount</th>
 					</tr>
 				</thead>
@@ -228,13 +230,19 @@
 									<Badge variant="outline" class="ml-2 align-middle text-[0.65rem]">One-off</Badge>
 								{/if}
 							</td>
+							<td class="hidden px-2 py-3 text-right text-muted-foreground tabular-nums sm:table-cell">
+								{line.start_date ?? '—'}
+							</td>
+							<td class="hidden px-2 py-3 text-right text-muted-foreground tabular-nums sm:table-cell">
+								{line.end_date ?? '—'}
+							</td>
 							<td
-								class="hidden px-2 py-3 text-right text-muted-foreground tabular-nums sm:table-cell"
+								class="hidden px-2 py-3 text-right text-muted-foreground tabular-nums md:table-cell"
 							>
 								{line.quantity != null ? line.quantity : '—'}
 							</td>
 							<td
-								class="hidden px-2 py-3 text-right text-muted-foreground tabular-nums md:table-cell"
+								class="hidden px-2 py-3 text-right text-muted-foreground tabular-nums lg:table-cell"
 							>
 								{line.unit_price != null ? money(line.unit_price) : '—'}
 							</td>

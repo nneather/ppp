@@ -15,8 +15,21 @@ WITH owner AS (
 	LIMIT 1
 ),
 inserted AS (
-	INSERT INTO clients (name, email, billing_contact, created_by)
-	SELECT v.name, v.email, v.billing_contact, o.id
+	INSERT INTO clients (
+		name,
+		email,
+		billing_contact,
+		address_line_1,
+		address_line_2,
+		created_by
+	)
+	SELECT
+		v.name,
+		v.email,
+		v.billing_contact,
+		v.address_line_1,
+		v.address_line_2,
+		o.id
 	FROM
 		owner o
 		CROSS JOIN (
@@ -24,14 +37,18 @@ inserted AS (
 				(
 					'This Week Health'::text,
 					NULL::text,
-					NULL::text
+					'Sarah Svartstrom'::text,
+					'Edgemere Way S'::text,
+					'Naples, FL 34105'::text
 				),
 				(
 					'Fountain of Life Church'::text,
 					NULL::text,
-					NULL::text
+					NULL::text,
+					'633 W. Badger Rd.'::text,
+					'Madison, WI 53713'::text
 				)
-		) AS v(name, email, billing_contact)
+		) AS v(name, email, billing_contact, address_line_1, address_line_2)
 	RETURNING
 		id,
 		name
