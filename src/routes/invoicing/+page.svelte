@@ -105,6 +105,14 @@
 		return Math.round(entry.hours * entry.rate * 100) / 100;
 	}
 
+	function clientGroupTotal(cg: ClientGroup): number {
+		let t = 0;
+		for (const d of cg.dates) {
+			for (const e of d.items) t += lineTotal(e);
+		}
+		return Math.round(t * 100) / 100;
+	}
+
 	function searchFor(view: PeriodView, date: string): string {
 		const u = new URLSearchParams();
 		u.set('view', view);
@@ -271,7 +279,12 @@
 							class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-semibold text-foreground marker:hidden [&::-webkit-details-marker]:hidden"
 						>
 							<span class="min-w-0 truncate">{cg.client_name}</span>
-							<span class="shrink-0 text-xs text-muted-foreground group-open:rotate-0">▼</span>
+							<span class="flex shrink-0 items-center gap-2">
+								<span class="text-sm font-semibold tabular-nums text-foreground"
+									>{money(clientGroupTotal(cg))}</span
+								>
+								<span class="text-xs text-muted-foreground group-open:rotate-0">▼</span>
+							</span>
 						</summary>
 						<div class="border-t border-border px-1 pb-2">
 							<ul class="space-y-5 pt-2">
