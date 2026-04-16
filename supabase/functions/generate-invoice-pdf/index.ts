@@ -106,6 +106,31 @@ function wrapText(text: string, maxChars: number): string[] {
 	return lines.length ? lines : [''];
 }
 
+/** DB fields may contain embedded newlines; pdf-lib drawText does not lay them out as separate lines */
+function splitDbMultiline(raw: string | null | undefined): string[] {
+	const s = raw?.trim();
+	if (!s) return [];
+	return s
+		.split(/\n+/)
+		.map((t) => t.trim())
+		.filter(Boolean);
+}
+
+/** Recipient / company / street / city lines for the TO block (order: contact, org, address, email) */
+function buildToRecipientLines(c: ClientRow): string[] {
+	const lines: string[] = [];
+	for (const p of splitDbMultiline(c.billing_contact)) lines.push(p);
+	const company = c.name?.trim() ?? '';
+	if (company && !lines.some((l) => l.toLowerCase() === company.toLowerCase())) {
+		lines.push(company);
+	}
+	for (const p of splitDbMultiline(c.address_line_1)) lines.push(p);
+	for (const p of splitDbMultiline(c.address_line_2)) lines.push(p);
+	for (const p of splitDbMultiline(c.email)) lines.push(p);
+	if (lines.length === 0) lines.push(c.name?.trim() || 'Client');
+	return lines;
+}
+
 function roundMoney(n: number): number {
 	return Math.round(n * 100) / 100;
 }
@@ -331,6 +356,14 @@ Deno.serve(async (req) => {
 	let activePage = pdfDoc.addPage(pageSize);
 	let y = height - margin;
 
+	function ensureSpace(needed: number) {
+		if (y < margin + needed) {
+			activePage = pdfDoc.addPage(pageSize);
+			y = height - margin;
+			y = drawTableHeader(activePage, y);
+		}
+	}
+
 	// --- Right column: invoice title & meta (aligned top) ---
 	let metaY = height - margin;
 	metaY -= 14;
@@ -383,16 +416,16 @@ Deno.serve(async (req) => {
 	activePage.drawText('TO:', { x: margin, y, size: 10, font: fontBold });
 	activePage.drawText('FOR:', { x: mid, y, size: 10, font: fontBold });
 	y -= 13;
-	const toLines: string[] = [];
-	if (client.billing_contact?.trim()) toLines.push(client.billing_contact.trim());
-	if (client.name?.trim()) toLines.push(client.name.trim());
-	if (client.address_line_1?.trim()) toLines.push(client.address_line_1.trim());
-	if (client.address_line_2?.trim()) toLines.push(client.address_line_2.trim());
-	if (client.email?.trim()) toLines.push(client.email.trim());
-	const toUse = toLines.length ? toLines : [client.name ?? 'Client'];
+	const toLogical = buildToRecipientLines(client);
+	const toColWidthPts = mid - margin - 10;
+	const toColMaxChars = Math.max(28, Math.floor(toColWidthPts / 5.2));
+	const toDrawLines: string[] = [];
+	for (const logical of toLogical) {
+		toDrawLines.push(...wrapText(logical, toColMaxChars));
+	}
 
-	for (let ti = 0; ti < toUse.length; ti++) {
-		const tl = toUse[ti]!;
+	for (let ti = 0; ti < toDrawLines.length; ti++) {
+		const tl = toDrawLines[ti]!;
 		activePage.drawText(safePdfText(tl), { x: margin, y, size: 9, font });
 		if (ti === 0) {
 			activePage.drawText(safePdfText(serviceForLabel), { x: mid, y, size: 9, font });
@@ -405,14 +438,6 @@ Deno.serve(async (req) => {
 	y -= 18;
 
 	y = drawTableHeader(activePage, y);
-
-	function ensureSpace(needed: number) {
-		if (y < margin + needed) {
-			activePage = pdfDoc.addPage(pageSize);
-			y = height - margin;
-			y = drawTableHeader(activePage, y);
-		}
-	}
 
 	for (const line of lineItems) {
 		const descRaw =

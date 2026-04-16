@@ -32,34 +32,6 @@ function roundMoney(n: number): number {
 	return Math.round(n * 100) / 100;
 }
 
-function pad2(n: number): string {
-	return String(n).padStart(2, '0');
-}
-
-function toYMDFromDate(d: Date): string {
-	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-/** Monday of the week containing `d` (local calendar week, Mon–Sun). */
-function mondayOfWeek(d: Date): Date {
-	const day = d.getDay();
-	const diffToMonday = (day + 6) % 7;
-	return new Date(d.getFullYear(), d.getMonth(), d.getDate() - diffToMonday);
-}
-
-function sundayAfterMonday(mon: Date): Date {
-	return new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
-}
-
-/** Monday and Sunday (YYYY-MM-DD) for the week containing `ymd`. */
-function weekBoundsForYmd(ymd: string): { mon: string; sun: string } | null {
-	const d = parseYMD(ymd);
-	if (!d) return null;
-	const mon = mondayOfWeek(d);
-	const sun = sundayAfterMonday(mon);
-	return { mon: toYMDFromDate(mon), sun: toYMDFromDate(sun) };
-}
-
 function parseOneOffs(
 	raw: string | null,
 	defaultChargeDate: string
@@ -364,30 +336,17 @@ export const actions: Actions = {
 			});
 		}
 
-		/** Group unbilled hours by calendar week (Mon–Sun) and rate. */
-		const byWeekRate = new Map<
-			string,
-			{ weekStart: string; weekEnd: string; rate: number; hours: number; entryIds: string[] }
-		>();
+		/** Group unbilled hours by rate across the billing period. */
+		const byRate = new Map<string, { rate: number; hours: number }>();
 		for (const e of entryRows) {
-			const dateStr = String((e as { date: string }).date ?? '');
-			const bounds = weekBoundsForYmd(dateStr);
-			if (!bounds) continue;
 			const rate = Number(e.rate);
 			const hours = Number(e.hours);
-			const key = `${bounds.mon}|${rate.toFixed(4)}`;
-			const prev = byWeekRate.get(key);
+			const key = rate.toFixed(4);
+			const prev = byRate.get(key);
 			if (prev) {
 				prev.hours += hours;
-				prev.entryIds.push(e.id as string);
 			} else {
-				byWeekRate.set(key, {
-					weekStart: bounds.mon,
-					weekEnd: bounds.sun,
-					rate,
-					hours,
-					entryIds: [e.id as string]
-				});
+				byRate.set(key, { rate, hours });
 			}
 		}
 
@@ -401,14 +360,9 @@ export const actions: Actions = {
 			end_date: string;
 		}[] = [];
 
-		const weekRateKeys = [...byWeekRate.keys()].sort((a, b) => {
-			const [weekA, rateA] = a.split('|');
-			const [weekB, rateB] = b.split('|');
-			if (weekA !== weekB) return weekA.localeCompare(weekB);
-			return Number(rateA) - Number(rateB);
-		});
-		for (const key of weekRateKeys) {
-			const g = byWeekRate.get(key)!;
+		const rateKeys = [...byRate.keys()].sort((a, b) => Number(a) - Number(b));
+		for (const key of rateKeys) {
+			const g = byRate.get(key)!;
 			const qty = roundMoney(g.hours);
 			const unit = roundMoney(g.rate);
 			const total = roundMoney(qty * unit);
@@ -418,8 +372,8 @@ export const actions: Actions = {
 				unit_price: unit,
 				total,
 				is_one_off: false,
-				start_date: g.weekStart,
-				end_date: g.weekEnd
+				start_date: period_start,
+				end_date: period_end
 			});
 		}
 

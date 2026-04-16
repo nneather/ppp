@@ -49,9 +49,9 @@ export type InvoiceLineItemRow = {
 	total: number;
 	is_one_off: boolean;
 	sort_order: number;
-	/** Weekly/service period start (YYYY-MM-DD), null for legacy rows */
+	/** Service period / billing window start (YYYY-MM-DD), null for legacy rows */
 	start_date: string | null;
-	/** Weekly/service period end (YYYY-MM-DD), null for legacy rows */
+	/** Service period / billing window end (YYYY-MM-DD), null for legacy rows */
 	end_date: string | null;
 };
 
