@@ -22,7 +22,7 @@ type InvoiceRow = {
 
 type ClientRow = {
 	name: string;
-	email: string | null;
+	email: string[] | null;
 	billing_contact: string | null;
 	address_line_1: string | null;
 	address_line_2: string | null;
@@ -126,7 +126,11 @@ function buildToRecipientLines(c: ClientRow): string[] {
 	}
 	for (const p of splitDbMultiline(c.address_line_1)) lines.push(p);
 	for (const p of splitDbMultiline(c.address_line_2)) lines.push(p);
-	for (const p of splitDbMultiline(c.email)) lines.push(p);
+	const emails = Array.isArray(c.email) ? c.email : [];
+	for (const addr of emails) {
+		const t = String(addr ?? '').trim();
+		if (t) lines.push(t);
+	}
 	if (lines.length === 0) lines.push(c.name?.trim() || 'Client');
 	return lines;
 }

@@ -3,6 +3,9 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import { cn } from '$lib/utils';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
 
 	type Tile = {
 		href: string;
@@ -31,9 +34,22 @@
 			icon: FolderKanban
 		}
 	];
+
+	function tileStat(href: string): string {
+		if (href === '/invoicing') {
+			if (data.unbilledCount == null) return '–';
+			return String(data.unbilledCount);
+		}
+		return '–';
+	}
 </script>
 
 <div class="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
+	{#if data.dashboardError}
+		<p class="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+			{data.dashboardError}
+		</p>
+	{/if}
 	<section
 		class="mb-8 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm md:p-5"
 		aria-labelledby="project-status-heading"
@@ -65,7 +81,9 @@
 					<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
 						{statLabel}
 					</p>
-					<p class="mt-2 text-3xl font-semibold text-foreground tabular-nums">–</p>
+					<p class="mt-2 text-3xl font-semibold text-foreground tabular-nums" aria-live="polite">
+						{tileStat(href)}
+					</p>
 				</a>
 			</li>
 		{/each}

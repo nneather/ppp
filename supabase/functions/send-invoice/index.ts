@@ -46,6 +46,19 @@ function normalizeEmailList(v: unknown): string[] {
 	return [];
 }
 
+/** Client `email` column: text[] (first = primary To, rest merged into CC when no explicit To). */
+function normalizeClientEmailsFromDb(v: unknown): string[] {
+	if (Array.isArray(v)) {
+		return v
+			.map((x) => String(x ?? '').trim())
+			.filter((s) => s.length > 0);
+	}
+	if (typeof v === 'string') {
+		return normalizeEmailList(v);
+	}
+	return [];
+}
+
 function escapeHtml(s: string): string {
 	return s
 		.replace(/&/g, '&amp;')
@@ -231,7 +244,7 @@ Deno.serve(async (req) => {
 		return jsonResponse({ error: 'Could not load client' }, 500);
 	}
 
-	const client = clientRow as { name: string; email: string | null };
+	const client = clientRow as { name: string; email: unknown };
 
 	let toEmail: string;
 	let subjectPrefix = '';
@@ -242,22 +255,27 @@ Deno.serve(async (req) => {
 		toEmail = testRecipient;
 		subjectPrefix = '[TEST] ';
 	} else {
-		const clientEmail = client.email?.trim() ?? '';
+		const clientEmails = normalizeClientEmailsFromDb(client.email);
 		if (explicitTo) {
 			if (!isValidEmail(explicitTo)) {
 				return jsonResponse({ error: 'Invalid To email address' }, 400);
 			}
 			toEmail = explicitTo;
+			ccList = [...ccListRaw];
 		} else {
-			if (!clientEmail) {
+			if (clientEmails.length === 0) {
 				return jsonResponse({ error: 'Client has no email address' }, 400);
 			}
-			if (!isValidEmail(clientEmail)) {
-				return jsonResponse({ error: 'Invalid client email address' }, 400);
+			for (const addr of clientEmails) {
+				if (!isValidEmail(addr)) {
+					return jsonResponse({ error: 'Invalid client email address' }, 400);
+				}
 			}
-			toEmail = clientEmail;
+			toEmail = clientEmails[0];
+			// Additional client recipients go to CC before user-supplied CC
+			ccList = [...clientEmails.slice(1), ...ccListRaw];
 		}
-		for (const addr of ccListRaw) {
+		for (const addr of ccList) {
 			if (!isValidEmail(addr)) {
 				return jsonResponse({ error: 'Invalid email in CC' }, 400);
 			}
@@ -267,7 +285,6 @@ Deno.serve(async (req) => {
 				return jsonResponse({ error: 'Invalid email in BCC' }, 400);
 			}
 		}
-		ccList = ccListRaw;
 		bccList = bccListRaw;
 	}
 

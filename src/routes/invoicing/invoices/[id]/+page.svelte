@@ -291,7 +291,9 @@
 			<Button type="button" class="w-full sm:w-auto" onclick={openSendDialog}>Send invoice</Button>
 
 			<Dialog.Root bind:open={sendOpen}>
-				<Dialog.Content class="sm:max-w-lg">
+				<Dialog.Content
+					class="sm:max-w-lg max-h-[min(90dvh,calc(100dvh-2rem))] overflow-y-auto overscroll-contain"
+				>
 					<Dialog.Header>
 						<Dialog.Title>Send invoice</Dialog.Title>
 						<Dialog.Description>

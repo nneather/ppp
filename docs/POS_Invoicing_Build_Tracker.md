@@ -1,6 +1,6 @@
 # Personal Operations System — Invoicing Module Build Tracker
 
-_Last updated: April 13, 2026 | Module: Invoicing (1st) | Target: August 2026_
+_Last updated: April 20, 2026 | Module: Invoicing (1st) | Target: August 2026_
 
 _Session-by-session plan for building the invoicing module. Each session ends with something working end-to-end. Update Done and Notes as you go._
 
@@ -60,13 +60,13 @@ _Goal: Given a client and date range, generate a draft invoice from unbilled ent
 
 | Task                                                                                                             | Done | Notes                                                                                                                       |
 | ---------------------------------------------------------------------------------------------------------------- | :--: | --------------------------------------------------------------------------------------------------------------------------- |
-| `/invoicing/invoices` — invoice list page                                                                        |  ☐   | Columns: invoice number, client, period, status (badge), total.                                                             |
-| "Generate Invoice" flow — client selector + date range picker → pull matching unbilled entries                   |  ☐   | Query: `WHERE client_id = ? AND date BETWEEN ? AND ? AND invoice_id IS NULL AND deleted_at IS NULL`                         |
-| Invoice generation — create `invoices` row, create `invoice_line_items` rows, stamp `invoice_id` on time entries |  ☐   | Line items: default = one collapsed row per client (description editable). Support splitting into multiple date-range rows. |
-| One-off line item support — add arbitrary line at generation time (description + price, no time entry backing)   |  ☐   | `is_one_off = true` on `invoice_line_items`. No `quantity` or `unit_price` required — just `total` and `description`.       |
-| Invoice preview — `/invoicing/invoices/[id]` — formatted view of all line items, subtotal, total                 |  ☐   | This is the pre-send review. Not the PDF — just the data rendered cleanly.                                                  |
-| Invoice number auto-generation via `generate_invoice_number()` function                                          |  ☐   | Function already in schema. Call it at INSERT time.                                                                         |
-| Subtotal + total calculation — stored at generation, not re-derived on read                                      |  ☐   | Sum line item totals. Store on `invoices.subtotal` and `invoices.total`.                                                    |
+| `/invoicing/invoices` — invoice list page                                                                        |  ✓   | Columns: invoice number, client, period, status (badge), total. Done before Session 4.                                      |
+| "Generate Invoice" flow — client selector + date range picker → pull matching unbilled entries                   |  ✓   | Unbilled entries query; client + range on generate form. Done before Session 4.                                             |
+| Invoice generation — create `invoices` row, create `invoice_line_items` rows, stamp `invoice_id` on time entries |  ✓   | Line items with editable descriptions; collapse/split behavior per UI. Done before Session 4.                                 |
+| One-off line item support — add arbitrary line at generation time (description + price, no time entry backing)   |  ✓   | `is_one_off = true` line items at generation; optional qty/rate where used. Done before Session 4.                          |
+| Invoice preview — `/invoicing/invoices/[id]` — formatted view of all line items, subtotal, total                 |  ✓   | Detail page shows line items, totals, notes, actions. Done before Session 4.                                                  |
+| Invoice number auto-generation via `generate_invoice_number()` function                                          |  ✓   | Used at invoice insert. Done before Session 4.                                                                              |
+| Subtotal + total calculation — stored at generation, not re-derived on read                                      |  ✓   | Stored on `invoices.subtotal` / `invoices.total`. Done before Session 4.                                                    |
 
 **Session exit state:** You can generate a draft invoice, see a clean preview with line items, and the unbilled entries are now linked to the invoice.
 
@@ -78,12 +78,19 @@ _Goal: Send a real invoice to a client._
 
 | Task                                                                                                                | Done | Notes                                                                                            |
 | ------------------------------------------------------------------------------------------------------------------- | :--: | ------------------------------------------------------------------------------------------------ |
-| Supabase Edge Function — `generate-invoice-pdf`                                                                     |  ☐   | Takes `invoice_id`. Queries invoice + line items + client. Returns PDF bytes via `pdf-lib`.      |
-| PDF layout — invoice number, client info, period, line items table, subtotal, total, notes                          |  ☐   | Keep simple for August. Professional but not fancy.                                              |
-| Resend integration — `send-invoice` Edge Function (or combined with PDF function)                                   |  ☐   | PDF attached. Subject: `Invoice [invoice_number] — [client_name]`. `sent_at` stamped on success. |
-| Status transition — `draft → sent` on send. Confirm prompt before sending. `revertible = false` stamped by trigger. |  ☐   | UI: "Send Invoice" button on invoice detail. Confirm modal.                                      |
-| "Mark as Paid" — manual status transition `sent → paid`. Stamps `paid_at`. `revertible = false`.                    |  ☐   | Simple button on invoice detail. No payment tracking beyond this for August.                     |
-| Error handling — failed PDF generation or email send should not corrupt invoice state                               |  ☐   | If edge function fails, invoice stays `draft`. Surface error in UI.                              |
+| Supabase Edge Function — `generate-invoice-pdf`                                                                     |  ✓   | `supabase/functions/generate-invoice-pdf/`. `invoice_id` in body; returns `{ pdf: base64 }`. Service role reads data; owner verified via JWT in function. `deno.json` imports `pdf-lib`. |
+| PDF layout — invoice number, client info, period, line items table, subtotal, total, notes                          |  ✓   | Letterhead from optional `SENDER_*` Edge secrets. Multi-page line items. Done April 2026.        |
+| Resend integration — `send-invoice` Edge Function (or combined with PDF function)                                   |  ✓   | Separate `send-invoice` function. PDF attached; subject `Invoice [no] — [client]` (with `[TEST]` prefix for test sends). `sent_at` on success for real send only. |
+| Status transition — `draft → sent` on send. Confirm prompt before sending. `revertible = false` stamped by trigger. |  ✓   | Send dialog on `/invoicing/invoices/[id]`; server action updates status after successful send.   |
+| "Mark as Paid" — manual status transition `sent → paid`. Stamps `paid_at`. `revertible = false`.                    |  ✓   | Button + action on invoice detail; validates `sent` status.                                   |
+| Error handling — failed PDF generation or email send should not corrupt invoice state                               |  ✓   | Draft unchanged on failure. UI shows parsed Edge / Resend errors (`invokeFailureMessage` / `dataErrorMessage`). |
+
+**Also completed during Session 4 (April 2026)**
+
+- **Download PDF** — server action generates PDF via Edge Function; browser download without changing status (any non-discarded invoice).
+- **Send test to myself** — `test_recipient` on `send-invoice`; uses profile email; does not set `sent` / `sent_at`.
+- **Ops / auth** — `RESEND_API_KEY` (and optional `SENDER_*`) as Supabase secrets; functions deployed with `--no-verify-jwt`; invoice server actions pass `Authorization: Bearer <access_token>` from `getSession()` into `functions.invoke` so JWT reaches Edge Functions reliably from SSR.
+- **Docs** — deployment verification notes in [`supabase/README.md`](../supabase/README.md); Resend domain / `from` migration steps in **Sender onboarding** below.
 
 **Session exit state:** You can send a real PDF invoice to a client by email and mark it paid when payment arrives.
 
@@ -95,11 +102,16 @@ _Goal: Invoicing state surfaces on the dashboard. Settings page is functional._
 
 | Task                                                                                                   | Done | Notes                                                                                            |
 | ------------------------------------------------------------------------------------------------------ | :--: | ------------------------------------------------------------------------------------------------ |
-| Dashboard invoicing tile — live unbilled entry count                                                   |  ☐   | Query: `COUNT(*) WHERE invoice_id IS NULL AND deleted_at IS NULL`. Links to `/invoicing`.        |
-| `/settings/invoicing` — read-only client list with rates                                               |  ☐   | No CRUD UI. Just a clean read view so you can verify seed data without going to Supabase Studio. |
-| `/settings/profile` — basic profile view, password change                                              |  ☐   | Minimal. Auth handled by Supabase; just expose the UI.                                           |
-| Navigation polish — active states, mobile tab bar labels, any layout rough edges from earlier sessions |  ☐   |                                                                                                  |
-| Invoicing module smoke test — full flow: log entry → generate invoice → PDF → send → mark paid         |  ☐   | End-to-end on real data with real client before calling the module done.                         |
+| Dashboard invoicing tile — live unbilled entry count                                                   |  ✓   | `dashboard/+page.server.ts` head count on `time_entries`; tile shows count, error banner on fail. |
+| `/settings/invoicing` — read-only client list with rates                                               |  ✓   | Hub at `/settings` → card; page shows universal `default_cc_emails`, per-client bill-to, emails (`text[]`), active rate + expandable history. |
+| `/settings/profile` — basic profile view, password change                                              |  ✓   | Read-only email/role; `updateName` + `changePassword` (Supabase `auth.updateUser`).             |
+| Navigation polish — active states, mobile tab bar labels, any layout rough edges from earlier sessions |  ✓   | Settings subpages: back link + header; `/settings` stays active for nested routes (existing `startsWith`). |
+| Invoicing module smoke test — full flow: log entry → generate invoice → PDF → send → mark paid         |  ✓   | `npm run check` + `supabase db reset` (migrations incl. `clients.email` → `text[]`, seed OK). Re-run full send flow on prod/phone when convenient. |
+
+**Also completed during Session 5 (April 2026)**
+
+- **`/settings` hub** — Two dashboard-style cards (Profile, Invoicing) with summaries; `+page.server.ts` loads client count + user email.
+- **`clients.email` as `text[]`** — Migration `20260420130000_clients_email_text_array.sql`; PDF TO block lists each address; `send-invoice` uses first as To and merges rest into CC; invoice detail `sendDefaults` matches.
 
 **Session exit state:** Invoicing module is complete and in use. Dashboard reflects live state. You are billing real clients through the app.
 
@@ -130,7 +142,7 @@ _Track anything unresolved that would block a session. Resolve before that sessi
 | --- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | 1   | PDF layout — any specific branding/formatting requirements beyond "professional"?           | ✓ Resolved — clean typography only, no logo for August                                      |
 | 2   | Resend: send from which address? Domain verified?                                           | ✓ Resolved — sending from `onboarding@resend.dev`, no domain verification needed for August |
-| 3   | One-off line items — is `total` sufficient, or do you need `quantity × unit_price` tracked? | ☐ Open — schema supports both; decide at Session 3                                          |
+| 3   | One-off line items — is `total` sufficient, or do you need `quantity × unit_price` tracked? | ✓ Resolved — one-offs use description + total; schema still supports qty/rate where line items use them |
 
 ---
 

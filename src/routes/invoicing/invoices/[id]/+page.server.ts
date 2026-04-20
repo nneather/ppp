@@ -61,6 +61,17 @@ function parseEmailList(raw: string): string[] {
 		.filter((s) => s.length > 0);
 }
 
+/** `clients.email` is text[]; tolerate legacy string for local dev. */
+function normalizeClientEmailsFromDb(v: unknown): string[] {
+	if (Array.isArray(v)) {
+		return v.map((e) => String(e).trim()).filter((e) => e.length > 0);
+	}
+	if (typeof v === 'string') {
+		return parseEmailList(v);
+	}
+	return [];
+}
+
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
@@ -113,12 +124,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	const rel = row.clients as
-		| { name: string; email: string | null }
-		| { name: string; email: string | null }[]
+		| { name: string; email: unknown }
+		| { name: string; email: unknown }[]
 		| null;
 	const clientRow = Array.isArray(rel) ? rel[0] : rel;
 	const client_name = clientRow?.name;
-	const clientEmail = clientRow?.email?.trim() ?? '';
+	const clientEmails = normalizeClientEmailsFromDb(clientRow?.email);
 
 	const { data: profileRow, error: profileErr } = await supabase
 		.from('profiles')
@@ -169,8 +180,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	};
 
 	const sendDefaults = {
-		to: clientEmail,
-		cc: defaultCc,
+		to: clientEmails[0] ?? '',
+		cc: [...clientEmails.slice(1), ...defaultCc],
 		bcc: [] as string[]
 	};
 

@@ -25,7 +25,7 @@ inserted AS (
 	)
 	SELECT
 		v.name,
-		v.email,
+		COALESCE(v.email, ARRAY[]::text[]),
 		v.billing_contact,
 		v.address_line_1,
 		v.address_line_2,
@@ -36,14 +36,14 @@ inserted AS (
 			VALUES
 				(
 					'This Week Health'::text,
-					NULL::text,
+					ARRAY[]::text[],
 					'Sarah Svartstrom'::text,
 					'Edgemere Way S'::text,
 					'Naples, FL 34105'::text
 				),
 				(
 					'Fountain of Life Church'::text,
-					NULL::text,
+					ARRAY[]::text[],
 					NULL::text,
 					'633 W. Badger Rd.'::text,
 					'Madison, WI 53713'::text

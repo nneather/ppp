@@ -24,13 +24,14 @@ Mirrors `auth.users`. One row per user.
 
 ```sql
 profiles
-  id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE
-  email           TEXT NOT NULL
-  full_name       TEXT
-  role            TEXT NOT NULL CHECK (role IN ('owner', 'viewer')) DEFAULT 'owner'
-  deleted_at      TIMESTAMPTZ
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                  UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE
+  email               TEXT NOT NULL
+  full_name           TEXT
+  role                TEXT NOT NULL CHECK (role IN ('owner', 'viewer')) DEFAULT 'owner'
+  default_cc_emails   TEXT[] NOT NULL DEFAULT '{}'  -- pre-fill CC on invoice send
+  deleted_at          TIMESTAMPTZ
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 ```
 
 **RLS:**
@@ -38,6 +39,8 @@ profiles
 - Owner: full access
 - Viewer: SELECT own row only (`WHERE id = auth.uid()`)
 - No `created_by` — identity table, not user-created content
+
+**Notes:** `default_cc_emails` is owner-managed (Supabase for August); surfaced read-only under Settings → Invoicing.
 
 ---
 
@@ -131,8 +134,10 @@ Seed data only for August — no CRUD UI.
 clients
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid()
   name                TEXT NOT NULL
-  email               TEXT
+  email               TEXT[] NOT NULL DEFAULT '{}'  -- invoice To + extra recipients (PDF / send)
   billing_contact     TEXT
+  address_line_1      TEXT
+  address_line_2      TEXT
   deleted_at          TIMESTAMPTZ
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -140,7 +145,7 @@ clients
 ```
 
 **RLS:** Owner only. Viewer: no access.
-**Notes:** `default_rate` removed — superseded by `client_rates`.
+**Notes:** `default_rate` removed — superseded by `client_rates`. First element of `email` is the primary invoice recipient; additional elements are merged into CC when sending (unless the UI overrides To).
 
 ---
 
