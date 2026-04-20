@@ -47,6 +47,20 @@ async function invokeFailureMessage(data: unknown, err: unknown): Promise<string
 	return edgeFunctionErrorMessage(err, data);
 }
 
+/** Basic validation for invoice recipient fields (must match edge function expectations). */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidEmail(s: string): boolean {
+	return EMAIL_RE.test(s);
+}
+
+function parseEmailList(raw: string): string[] {
+	return raw
+		.split(',')
+		.map((s) => s.trim())
+		.filter((s) => s.length > 0);
+}
+
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
@@ -71,7 +85,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			paid_at,
 			created_at,
 			deleted_at,
-			clients!inner ( name )
+			clients!inner ( name, email )
 		`
 		)
 		.eq('id', id)
@@ -98,8 +112,28 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		error(500, 'Could not load line items.');
 	}
 
-	const rel = row.clients as { name: string } | { name: string }[] | null;
-	const client_name = Array.isArray(rel) ? rel[0]?.name : rel?.name;
+	const rel = row.clients as
+		| { name: string; email: string | null }
+		| { name: string; email: string | null }[]
+		| null;
+	const clientRow = Array.isArray(rel) ? rel[0] : rel;
+	const client_name = clientRow?.name;
+	const clientEmail = clientRow?.email?.trim() ?? '';
+
+	const { data: profileRow, error: profileErr } = await supabase
+		.from('profiles')
+		.select('default_cc_emails')
+		.eq('id', user.id)
+		.maybeSingle();
+
+	if (profileErr) {
+		console.error(profileErr);
+	}
+
+	const defaultCcRaw = (profileRow as { default_cc_emails?: string[] } | null)?.default_cc_emails;
+	const defaultCc = Array.isArray(defaultCcRaw)
+		? defaultCcRaw.map((e) => String(e).trim()).filter((e) => e.length > 0)
+		: [];
 
 	const line_items: InvoiceLineItemRow[] = (lineRows ?? []).map((l) => ({
 		id: l.id as string,
@@ -134,7 +168,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		line_items
 	};
 
-	return { invoice: detail };
+	const sendDefaults = {
+		to: clientEmail,
+		cc: defaultCc,
+		bcc: [] as string[]
+	};
+
+	return { invoice: detail, sendDefaults };
 };
 
 export const actions: Actions = {
@@ -284,6 +324,23 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const custom_message = String(formData.get('custom_message') ?? '');
+		const toRaw = String(formData.get('to') ?? '').trim();
+		const ccList = parseEmailList(String(formData.get('cc') ?? ''));
+		const bccList = parseEmailList(String(formData.get('bcc') ?? ''));
+
+		if (!toRaw || !isValidEmail(toRaw)) {
+			return fail(400, { sendError: 'Enter a valid To email address.' });
+		}
+		for (const addr of ccList) {
+			if (!isValidEmail(addr)) {
+				return fail(400, { sendError: 'Invalid email in CC.' });
+			}
+		}
+		for (const addr of bccList) {
+			if (!isValidEmail(addr)) {
+				return fail(400, { sendError: 'Invalid email in BCC.' });
+			}
+		}
 
 		const {
 			data: { session }
@@ -315,7 +372,10 @@ export const actions: Actions = {
 			body: {
 				invoice_id: id,
 				pdf_base64: pdf,
-				custom_message
+				custom_message,
+				to: toRaw,
+				cc: ccList,
+				bcc: bccList
 			},
 			headers: authHeaders
 		});

@@ -18,7 +18,15 @@
 		"supabase:start": "supabase start",
 		"supabase:stop": "supabase stop",
 		"supabase:db:reset": "supabase db reset",
-		"supabase:migration:up": "supabase migration up"
+		"supabase:migration:up": "supabase migration up",
+		"supabase:db:push:staging": "dotenv -e .env -- bash -c 'supabase link --project-ref $SUPABASE_STAGING_REF && supabase db push'",
+		"supabase:db:push:prod": "dotenv -e .env -- bash -c 'supabase link --project-ref $SUPABASE_PROD_REF && supabase db push'",
+		"supabase:db:push:prod:dry": "dotenv -e .env -- bash -c 'supabase link --project-ref $SUPABASE_PROD_REF && supabase db push --dry-run'",
+		"supabase:deploy-functions:staging": "dotenv -e .env -- bash -c 'supabase functions deploy generate-invoice-pdf --project-ref $SUPABASE_STAGING_REF && supabase functions deploy send-invoice --project-ref $SUPABASE_STAGING_REF'",
+		"supabase:deploy-functions:prod": "dotenv -e .env -- bash -c 'supabase functions deploy generate-invoice-pdf --project-ref $SUPABASE_PROD_REF && supabase functions deploy send-invoice --project-ref $SUPABASE_PROD_REF'",
+		"supabase:ship:staging": "npm run check && npm run supabase:db:reset && npm run supabase:db:push:staging && npm run supabase:deploy-functions:staging",
+		"supabase:ship:prod": "npm run check && npm run supabase:db:push:prod:dry && echo '\\nDry run OK. Review above, then run: npm run supabase:ship:prod:apply'",
+		"supabase:ship:prod:apply": "npm run check && npm run supabase:db:push:prod && npm run supabase:deploy-functions:prod"
 	},
 	"devDependencies": {
 		"@fontsource-variable/geist": "^5.2.8",
@@ -30,6 +38,7 @@
 		"@tailwindcss/vite": "^4.1.18",
 		"bits-ui": "^2.17.3",
 		"clsx": "^2.1.1",
+		"dotenv-cli": "^11.0.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.4.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",

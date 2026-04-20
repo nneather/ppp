@@ -5,6 +5,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Separator } from '$lib/components/ui/separator';
 	import type { PageProps } from './$types';
@@ -38,6 +39,9 @@
 	let markPaidPending = $state(false);
 	let sendOpen = $state(false);
 	let emailBody = $state('');
+	let toEmail = $state('');
+	let ccEmails = $state('');
+	let bccEmails = $state('');
 	/** Shown after a successful test send (cleared when opening the dialog again). */
 	let testSentNotice = $state<string | null>(null);
 
@@ -50,6 +54,9 @@
 	function openSendDialog() {
 		emailBody = defaultEmailBody();
 		testSentNotice = null;
+		toEmail = data.sendDefaults.to;
+		ccEmails = data.sendDefaults.cc.join(', ');
+		bccEmails = data.sendDefaults.bcc.join(', ');
 		sendOpen = true;
 	}
 
@@ -324,6 +331,42 @@
 							</p>
 						{/if}
 						<form method="POST" use:enhance={sendDialogEnhance} class="space-y-3">
+							<div class="space-y-2">
+								<Label for="invoice_email_to">To</Label>
+								<Input
+									id="invoice_email_to"
+									name="to"
+									type="email"
+									autocomplete="email"
+									required
+									bind:value={toEmail}
+									placeholder="client@example.com"
+								/>
+							</div>
+							<div class="space-y-2">
+								<Label for="invoice_email_cc">CC</Label>
+								<Input
+									id="invoice_email_cc"
+									name="cc"
+									type="text"
+									bind:value={ccEmails}
+									placeholder="name@example.com, other@example.com"
+									aria-describedby="invoice_email_cc_hint"
+								/>
+								<p id="invoice_email_cc_hint" class="text-xs text-muted-foreground">
+									Default CC comes from your profile setting. Separate multiple addresses with commas.
+								</p>
+							</div>
+							<div class="space-y-2">
+								<Label for="invoice_email_bcc">BCC</Label>
+								<Input
+									id="invoice_email_bcc"
+									name="bcc"
+									type="text"
+									bind:value={bccEmails}
+									placeholder="Optional"
+								/>
+							</div>
 							<div class="space-y-2">
 								<Label for="custom_message">Email message</Label>
 								<textarea

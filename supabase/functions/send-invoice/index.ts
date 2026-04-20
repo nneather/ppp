@@ -21,6 +21,31 @@ function money(n: number): string {
 	return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 }
 
+function isValidEmail(s: string): boolean {
+	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
+function normalizeEmailList(v: unknown): string[] {
+	if (Array.isArray(v)) {
+		const out: string[] = [];
+		for (const x of v) {
+			if (typeof x !== 'string') continue;
+			for (const part of x.split(',')) {
+				const t = part.trim();
+				if (t.length > 0) out.push(t);
+			}
+		}
+		return out;
+	}
+	if (typeof v === 'string') {
+		return v
+			.split(',')
+			.map((s) => s.trim())
+			.filter((s) => s.length > 0);
+	}
+	return [];
+}
+
 function escapeHtml(s: string): string {
 	return s
 		.replace(/&/g, '&amp;')
@@ -148,6 +173,9 @@ Deno.serve(async (req) => {
 		pdf_base64?: string;
 		custom_message?: string;
 		test_recipient?: string;
+		to?: string;
+		cc?: unknown;
+		bcc?: unknown;
 	};
 	try {
 		body = await req.json();
@@ -159,6 +187,9 @@ Deno.serve(async (req) => {
 	const pdfBase64 = body.pdf_base64?.trim();
 	const customMessage = body.custom_message ?? '';
 	const testRecipient = body.test_recipient?.trim();
+	const explicitTo = typeof body.to === 'string' ? body.to.trim() : '';
+	const ccListRaw = normalizeEmailList(body.cc);
+	const bccListRaw = normalizeEmailList(body.bcc);
 
 	if (!invoiceId || !pdfBase64) {
 		return jsonResponse({ error: 'invoice_id and pdf_base64 are required' }, 400);
@@ -204,15 +235,40 @@ Deno.serve(async (req) => {
 
 	let toEmail: string;
 	let subjectPrefix = '';
+	let ccList: string[] = [];
+	let bccList: string[] = [];
+
 	if (testRecipient) {
 		toEmail = testRecipient;
 		subjectPrefix = '[TEST] ';
 	} else {
-		const clientEmail = client.email?.trim();
-		if (!clientEmail) {
-			return jsonResponse({ error: 'Client has no email address' }, 400);
+		const clientEmail = client.email?.trim() ?? '';
+		if (explicitTo) {
+			if (!isValidEmail(explicitTo)) {
+				return jsonResponse({ error: 'Invalid To email address' }, 400);
+			}
+			toEmail = explicitTo;
+		} else {
+			if (!clientEmail) {
+				return jsonResponse({ error: 'Client has no email address' }, 400);
+			}
+			if (!isValidEmail(clientEmail)) {
+				return jsonResponse({ error: 'Invalid client email address' }, 400);
+			}
+			toEmail = clientEmail;
 		}
-		toEmail = clientEmail;
+		for (const addr of ccListRaw) {
+			if (!isValidEmail(addr)) {
+				return jsonResponse({ error: 'Invalid email in CC' }, 400);
+			}
+		}
+		for (const addr of bccListRaw) {
+			if (!isValidEmail(addr)) {
+				return jsonResponse({ error: 'Invalid email in BCC' }, 400);
+			}
+		}
+		ccList = ccListRaw;
+		bccList = bccListRaw;
 	}
 
 	const total = num(invoice.total);
@@ -231,19 +287,27 @@ Deno.serve(async (req) => {
 	const safeFileBase = invoice.invoice_number.replace(/[^a-zA-Z0-9._-]+/g, '_');
 	const filename = `${safeFileBase || 'invoice'}.pdf`;
 
+	const resendPayload: Record<string, unknown> = {
+		from: 'onboarding@resend.dev',
+		to: [toEmail],
+		subject: `${subjectPrefix}Invoice ${invoice.invoice_number} — ${client.name}`,
+		html,
+		attachments: [{ filename, content: pdfBase64 }]
+	};
+	if (!testRecipient && ccList.length > 0) {
+		resendPayload.cc = ccList;
+	}
+	if (!testRecipient && bccList.length > 0) {
+		resendPayload.bcc = bccList;
+	}
+
 	const resendRes = await fetch('https://api.resend.com/emails', {
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${resendKey}`,
 			'Content-Type': 'application/json'
 		},
-		body: JSON.stringify({
-			from: 'onboarding@resend.dev',
-			to: [toEmail],
-			subject: `${subjectPrefix}Invoice ${invoice.invoice_number} — ${client.name}`,
-			html,
-			attachments: [{ filename, content: pdfBase64 }]
-		})
+		body: JSON.stringify(resendPayload)
 	});
 
 	if (!resendRes.ok) {

@@ -31,17 +31,47 @@ If `supabase start` still fails, run `supabase start --debug` and check Docker D
 
 ## Workflow
 
+Two hosted environments: **staging** and **prod**, each a separate Supabase project with fully isolated data. Project refs live in a gitignored `.env` at the repo root:
+
 ```
-# Link to remote (first time)
-supabase link
+SUPABASE_STAGING_REF=...
+SUPABASE_PROD_REF=...
+```
 
-# Create a new migration
+### Everyday command (one-shot)
+
+```bash
+# 1. Author the migration
 supabase migration new add_foo_column
+# ...edit supabase/migrations/<timestamp>_add_foo_column.sql...
 
-# Push migrations to remote
-supabase db push
+# 2. Ship to staging: local check + local reset + push staging + deploy functions to staging
+npm run supabase:ship:staging
 
-# Reproduce the full DB locally (requires Docker)
+# 3. Smoke-test the app against staging, then preview what would hit prod (dry run, no writes)
+npm run supabase:ship:prod
+
+# 4. If the dry-run output looks right, apply to prod
+npm run supabase:ship:prod:apply
+```
+
+The `ship:prod` step is a dry run that **cannot** mutate prod; only `ship:prod:apply` writes. Supabase CLI still prompts Y/N on the real push.
+
+### Granular commands (still available)
+
+| Command                                  | Target   | What it does                                                                 |
+| ---------------------------------------- | -------- | ---------------------------------------------------------------------------- |
+| `npm run supabase:db:reset`              | local    | Drop local DB, replay all migrations, run `seed.sql`. Destroys local data.   |
+| `npm run supabase:migration:up`          | local    | Apply only new migrations. Keeps local data.                                 |
+| `npm run supabase:db:push:staging`       | staging  | Push pending migrations to the staging project.                              |
+| `npm run supabase:db:push:prod:dry`      | prod     | Dry-run push against prod (lists pending, changes nothing).                  |
+| `npm run supabase:db:push:prod`          | prod     | Push pending migrations to the prod project. Prompts Y/N.                    |
+| `npm run supabase:deploy-functions:staging` | staging | Deploy both Edge Functions to staging.                                      |
+| `npm run supabase:deploy-functions:prod`    | prod    | Deploy both Edge Functions to prod.                                         |
+
+### First-time local setup (Docker required)
+
+```bash
 npm run supabase:start
 npm run supabase:db:reset
 ```
