@@ -1,0 +1,43 @@
+---
+description: Supabase Edge Function conventions
+globs: supabase/functions/**
+alwaysApply: false
+---
+
+# Edge function conventions
+
+## Soft-delete handling
+
+Edge Functions render historical artifacts (PDFs, audit exports, reprints, resends). They **must not** filter parent records by `deleted_at IS NULL`. A soft-deleted client should still produce its historical invoices.
+
+```ts
+// ❌ BAD — breaks reprints after a client is soft-deleted
+const { data: client } = await supabase
+  .from('clients').select('*').eq('id', invoice.client_id)
+  .is('deleted_at', null).single();
+
+// ✅ GOOD
+const { data: client } = await supabase
+  .from('clients').select('*').eq('id', invoice.client_id).single();
+```
+
+## Error isolation
+
+PDF generation and email send are separate failure domains. Keep them in separate functions (or separate try/catch blocks with distinct status codes). A failed email send must not corrupt invoice state — the caller should be able to retry.
+
+## Env vars
+
+Read via `Deno.env.get('NAME')`. Required vars must be declared at the top and validated before use. Add new vars to:
+
+1. The function source (validation block at top)
+2. `.env.local` (real values, gitignored)
+3. The `supabase secrets set` step in deploy notes
+4. The decision-log entry for that session
+
+## Auth context
+
+Edge Functions run with the service role unless explicitly proxying the user JWT. When acting on behalf of a user, forward the `Authorization` header and create a per-request client. Service-role queries bypass RLS — keep their scope narrow and explicit.
+
+## Deploy
+
+`npm run supabase:deploy-functions` deploys both functions. Add new functions to that script.

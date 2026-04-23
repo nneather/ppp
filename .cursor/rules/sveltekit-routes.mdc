@@ -1,0 +1,56 @@
+---
+description: SvelteKit page server and form action conventions
+globs: src/routes/**/+page.server.ts,src/routes/**/+page.svelte,src/routes/**/+layout.server.ts,src/routes/**/+layout.svelte
+alwaysApply: false
+---
+
+# Route conventions
+
+## Auth gate at the top of every protected `load`
+
+```ts
+export const load: PageServerLoad = async ({ locals }) => {
+  const { user } = await locals.safeGetSession();
+  if (!user) redirect(303, '/login');
+  // ...
+};
+```
+
+`locals.safeGetSession` and `locals.supabase` are set up in `src/hooks.server.ts`.
+
+## Form action result shape
+
+Every form action returns either a `fail()` or a success object with a `kind` discriminator so the page can route the result.
+
+```ts
+return fail(400, { kind: 'createClient', message: 'Client name is required.' });
+return { kind: 'createClient', success: true as const };
+
+// For per-row actions, include the row id:
+return fail(404, { kind: 'updateClient', clientId: id, message: 'Client not found.' });
+return { kind: 'updateClient', clientId: id, success: true as const };
+```
+
+In the `.svelte` file, narrow on `form?.kind === 'createClient'` to surface success/error in the right component.
+
+## Parallel queries in `load`
+
+Use `Promise.all` for independent queries; log `.error` per result; never throw from `load` for a recoverable miss.
+
+```ts
+const [clientsRes, ratesRes] = await Promise.all([
+  supabase.from('clients').select(...).is('deleted_at', null),
+  supabase.from('client_rates').select(...).is('deleted_at', null)
+]);
+if (clientsRes.error) console.error(clientsRes.error);
+```
+
+## Defaults for every query
+
+- Filter `WHERE deleted_at IS NULL` unless explicitly querying deleted rows.
+- Order results explicitly — never rely on insert order.
+- Map raw rows to a typed view-model in `load` so the `.svelte` file never sees `Record<string, unknown>`.
+
+## Mobile-first
+
+Forms render in `Sheet` (full-screen on mobile, side-drawer on desktop). Reach for `Dialog` only for confirmations and small modal pickers. See `.cursor/rules/components.mdc` for the component inventory.

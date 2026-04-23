@@ -1,0 +1,40 @@
+---
+description: Core stack, conventions, and entry points. Always applied.
+alwaysApply: true
+---
+
+# ppp — Always-on rules
+
+Read [AGENTS.md](mdc:AGENTS.md) before starting any non-trivial task. It contains the session-start template, carry-forward inventory, and decision-log location.
+
+## Stack
+
+- SvelteKit (Svelte 5, runes mode) + TypeScript strict
+- Supabase (Postgres + Auth + Edge Functions) — single hosted project, prod only
+- Tailwind v4 + shadcn-svelte (Nova preset, Zinc base)
+- pdf-lib in Edge Functions for PDFs; Resend for email
+- Vercel deployment
+
+## Naming
+
+- Svelte components: `PascalCase` filenames in `src/lib/components/`
+- Routes: kebab-case directories
+- Postgres tables: `snake_case`
+- TypeScript types: `PascalCase`
+
+## Non-negotiables
+
+- RLS enabled on every table — fail closed. No exceptions.
+- Soft delete via `deleted_at TIMESTAMPTZ` on every table except documented exceptions (`audit_log`, `module_registry`, `bible_books`, `categories`).
+- Audit log is trigger-driven only. Never write to `audit_log` from app code.
+- `revertible` flag is set by triggers, never by app code.
+- Service role key never reaches the client — Edge Functions only.
+- Two roles: `owner` (full access) and `viewer` (per-module via `user_permissions`).
+- Generated DB types live in `src/lib/types/database.ts`. Regenerate with `npm run supabase:gen-types`. Never hand-write `Database` types.
+
+## Code style
+
+- No `any`. No default exports except SvelteKit's required ones (`+page.svelte`, `+layout.svelte`, `+page.server.ts` exports).
+- Tailwind classes only — no inline `style=`.
+- Extract a component when a `.svelte` file passes ~150 lines.
+- Comments explain non-obvious intent, never narrate the code.

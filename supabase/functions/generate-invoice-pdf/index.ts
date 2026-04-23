@@ -275,11 +275,11 @@ Deno.serve(async (req) => {
 		return jsonResponse({ error: 'Invoice not found' }, 404);
 	}
 
+	// Allow PDF regeneration after client soft-delete (existing invoices stay accessible).
 	const { data: clientRow, error: clientErr } = await admin
 		.from('clients')
 		.select('name, email, billing_contact, address_line_1, address_line_2')
 		.eq('id', invoice.client_id)
-		.is('deleted_at', null)
 		.maybeSingle();
 
 	if (clientErr || !clientRow) {

@@ -1,0 +1,37 @@
+---
+description: Reusable component inventory and patterns. Use these, do not reinvent.
+globs: src/lib/components/**,src/routes/**/*.svelte
+alwaysApply: false
+---
+
+# Component inventory — reuse before creating
+
+If you reach for one of these capabilities, use the existing component.
+
+| Capability | Component |
+|---|---|
+| Multi-value text/email input with chips | [src/lib/components/email-chips-editor.svelte](mdc:src/lib/components/email-chips-editor.svelte) |
+| Destructive confirm with typed message | [src/lib/components/confirm-dialog.svelte](mdc:src/lib/components/confirm-dialog.svelte) |
+| Entity create/edit form in a sheet | [src/lib/components/client-form-sheet.svelte](mdc:src/lib/components/client-form-sheet.svelte) |
+| Child-record (effective-dated) form sheet | [src/lib/components/rate-form-sheet.svelte](mdc:src/lib/components/rate-form-sheet.svelte) |
+| Global setting modal | [src/lib/components/default-cc-dialog.svelte](mdc:src/lib/components/default-cc-dialog.svelte) |
+| Single sheet shared by create + edit | [src/lib/components/time-entry-sheet.svelte](mdc:src/lib/components/time-entry-sheet.svelte) |
+| "Generate derived record" wizard | [src/lib/components/generate-invoice-sheet.svelte](mdc:src/lib/components/generate-invoice-sheet.svelte) |
+
+shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator) live under `src/lib/components/ui/`.
+
+## Patterns
+
+- **Sheet vs Dialog**: forms → `Sheet` (full-screen on mobile, drawer on desktop). Confirmations and small pickers → `Dialog`. Default to `Sheet`.
+- **Create + edit share one sheet**: take an optional `entity` prop; "create" mode = `entity == null`. See `time-entry-sheet.svelte`.
+- **Bindable props for v-model-style state**: `let { open = $bindable(false), value = $bindable<T[]>([]) } = $props();`
+- **Form actions inside components**: use `use:enhance` and call back to the page via `onSuccess` / `onError` callback props.
+- **Svelte 5 runes**: `$state`, `$props`, `$bindable`, `$derived`, `$effect`. Do not use Svelte 4 reactive `$:` syntax.
+
+## When to add a new component
+
+- The pattern doesn't match any row in the inventory above
+- A `.svelte` file exceeds ~150 lines
+- The same JSX appears in 2+ pages
+
+When you add one, update this rule.

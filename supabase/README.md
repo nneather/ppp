@@ -1,82 +1,95 @@
 # Supabase — ppp
 
-This folder is the **single source of truth** for the database schema.
+This folder is the **single source of truth** for the database schema and Edge Functions.
+
+## Hosted project (prod only)
+
+There is **one** Supabase project. The project ref lives in `.env` (gitignored):
+
+```
+SUPABASE_REF=objtrdmmqlndtfddtzan
+```
+
+The Svelte app reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` from **`.env.local`** (gitignored). Those **must** match the same project as `SUPABASE_REF` and the CLI link, or writes will silently hit the wrong database.
+
+### Sanity check (run often)
+
+```bash
+npm run supabase:doctor
+```
+
+Prints the CLI-linked ref, the ref parsed from `PUBLIC_SUPABASE_URL`, and `SUPABASE_REF`. Exits with an error if they differ — then run:
+
+```bash
+npm run supabase:link
+```
 
 ## Migrations
 
 All schema changes live in `supabase/migrations/` as numbered SQL files:
 
 - `00000000000000_baseline.sql` — full schema: tables, indexes, functions, triggers, RLS policies
-- Future changes: `supabase migration new <name>`, edit the generated file, then `supabase db push`
+- New changes: `supabase migration new <name>`, edit the generated file, then push (below)
 
-## Seed data
-
-`supabase/seed.sql` runs automatically on `supabase db reset`. It inserts starter clients and rates.
-
-## Local stack (Docker required)
-
-Local commands (`supabase start`, `supabase db reset`, `supabase migration up`) need **Docker Desktop** (or Docker Engine) running so the CLI can talk to `unix:///var/run/docker.sock`. Without Docker, `db reset` fails with “Cannot connect to the Docker daemon…”. Without a running stack, `migration up` fails with **connection refused** on `127.0.0.1:54322` because Postgres is not up yet.
-
-**Recovery order**
-
-1. Install [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/) if needed, then start it and wait until it is fully running.
-2. From the repo root: `npm run supabase:start` (or `supabase start`) and wait until services are healthy.
-3. Then either:
-   - **Clean DB + run all migrations + seed:** `npm run supabase:db:reset` (or `supabase db reset`)
-   - **Apply only pending migrations** (keeps existing local data): `npm run supabase:migration:up` (or `supabase migration up`)
-
-If `supabase start` still fails, run `supabase start --debug` and check Docker Desktop **Settings → Resources** (CPU, memory, disk).
-
-**Without local Docker:** use a [hosted](https://supabase.com/dashboard) project, `supabase link`, and apply schema with `supabase db push` or the SQL editor — do not expect `127.0.0.1:54322` to work until the local stack exists.
-
-## Workflow
-
-Two hosted environments: **staging** and **prod**, each a separate Supabase project with fully isolated data. Project refs live in a gitignored `.env` at the repo root:
-
-```
-SUPABASE_STAGING_REF=...
-SUPABASE_PROD_REF=...
-```
-
-### Everyday command (one-shot)
+### Ship schema + functions
 
 ```bash
 # 1. Author the migration
 supabase migration new add_foo_column
 # ...edit supabase/migrations/<timestamp>_add_foo_column.sql...
 
-# 2. Ship to staging: local check + local reset + push staging + deploy functions to staging
-npm run supabase:ship:staging
+# 2. Dry run (lists pending migrations; does not write)
+npm run supabase:ship
 
-# 3. Smoke-test the app against staging, then preview what would hit prod (dry run, no writes)
-npm run supabase:ship:prod
-
-# 4. If the dry-run output looks right, apply to prod
-npm run supabase:ship:prod:apply
+# 3. If the dry-run output looks right, apply migrations + deploy both Edge Functions
+npm run supabase:ship:apply
 ```
 
-The `ship:prod` step is a dry run that **cannot** mutate prod; only `ship:prod:apply` writes. Supabase CLI still prompts Y/N on the real push.
+Granular commands:
 
-### Granular commands (still available)
+| Command                     | What it does                                              |
+| --------------------------- | --------------------------------------------------------- |
+| `npm run supabase:link`     | Link CLI to the project in `SUPABASE_REF`                 |
+| `npm run supabase:doctor`   | Fail if CLI link / env URL / `SUPABASE_REF` disagree      |
+| `npm run supabase:db:push:dry` | Dry-run `db push` (no writes)                        |
+| `npm run supabase:db:push`  | Push pending migrations to the linked project             |
+| `npm run supabase:deploy-functions` | Deploy `generate-invoice-pdf` and `send-invoice` |
 
-| Command                                  | Target   | What it does                                                                 |
-| ---------------------------------------- | -------- | ---------------------------------------------------------------------------- |
-| `npm run supabase:db:reset`              | local    | Drop local DB, replay all migrations, run `seed.sql`. Destroys local data.   |
-| `npm run supabase:migration:up`          | local    | Apply only new migrations. Keeps local data.                                 |
-| `npm run supabase:db:push:staging`       | staging  | Push pending migrations to the staging project.                              |
-| `npm run supabase:db:push:prod:dry`      | prod     | Dry-run push against prod (lists pending, changes nothing).                  |
-| `npm run supabase:db:push:prod`          | prod     | Push pending migrations to the prod project. Prompts Y/N.                    |
-| `npm run supabase:deploy-functions:staging` | staging | Deploy both Edge Functions to staging.                                      |
-| `npm run supabase:deploy-functions:prod`    | prod    | Deploy both Edge Functions to prod.                                         |
+**No local Docker stack** — do not use `supabase start` / `supabase db reset` in this repo; `[db.seed]` is disabled in `config.toml`.
 
-### First-time local setup (Docker required)
+## First-time account (owner profile)
 
-```bash
-npm run supabase:start
-npm run supabase:db:reset
+RLS requires a row in `public.profiles` with `role = 'owner'` for the signed-in user. A database trigger (`handle_new_user` on `auth.users`) creates that row on first signup.
+
+1. Ensure `.env.local` points at this project (same ref as `SUPABASE_REF`).
+2. Run `npm run dev`, open `/login`, and sign up (e.g. `parker.neathery@gmail.com`).
+3. Confirm in Studio (optional): **Authentication → Users** and **Table Editor → profiles** — one row, `role = owner`.
+
+If a user exists in **Authentication** but not in **profiles**, run in the SQL editor:
+
+```sql
+INSERT INTO public.profiles (id, email)
+SELECT u.id, COALESCE(u.email, '')
+FROM auth.users u
+LEFT JOIN public.profiles p ON p.id = u.id
+WHERE p.id IS NULL
+ON CONFLICT (id) DO NOTHING;
 ```
 
-## Edge Functions (invoicing — Session 4)
+To force owner for a specific email:
+
+```sql
+UPDATE public.profiles
+SET role = 'owner', deleted_at = NULL
+WHERE lower(trim(email)) = lower('parker.neathery@gmail.com');
+```
+
+## Dashboard (manual)
+
+- **Auth / signups:** [Auth providers](https://supabase.com/dashboard/project/objtrdmmqlndtfddtzan/auth/providers) — ensure Email is enabled; adjust email confirmation as you prefer.
+- **Delete old staging project** (after prod works for you): [Staging settings](https://supabase.com/dashboard/project/nvhqzcpscgbbetrwkhuv/settings/general) → scroll to **Delete project** (only when you no longer need that project).
+
+## Edge Functions (invoicing)
 
 Functions live under `supabase/functions/`:
 
@@ -96,73 +109,36 @@ supabase secrets set \
   SENDER_EMAIL="you@example.com" \
   SENDER_ADDRESS_LINE_1="123 Main St" \
   SENDER_ADDRESS_LINE_2="City, ST 00000" \
-  SENDER_TAGLINE="Your tagline"
+  SENDER_TAGLINE="Your tagline" \
   SENDER_PHONE="+1 555 000 0000"
 ```
 
 - **`RESEND_API_KEY`** — Required for `send-invoice`. For development you can use `onboarding@resend.dev` as the sender address (no domain verification).
-- **`SENDER_*`** — Used on the PDF letterhead (`generate-invoice-pdf`). Optional lines can be omitted. If unset, defaults match N. P. Neathery Consulting (name, tagline, address, phone). `SENDER_EMAIL` is optional on the PDF. Override **`INVOICE_SERVICE_LABEL`**, **`INVOICE_PAYABLE_TO`**, **`INVOICE_TERMS`**, or **`INVOICE_THANK_YOU`** to customize the “FOR” line and footer text.
+- **`SENDER_*`** — Used on the PDF letterhead (`generate-invoice-pdf`). Optional lines can be omitted. If unset, defaults match N. P. Neathery Consulting (name, tagline, address, phone). `SENDER_EMAIL` is optional on the PDF. Override **`INVOICE_SERVICE_LABEL`**, **`INVOICE_PAYABLE_TO`**, **`INVOICE_TERMS`**, or **`INVOICE_THANK_YOU`** to customize the “FOR” line and footer text.
 - **`SUPABASE_URL`** and **`SUPABASE_SERVICE_ROLE_KEY`** are injected automatically in Edge Functions; do not set them manually.
 
 ### PDF layout looks unchanged after code changes
 
-The Svelte app calls **`functions.invoke('generate-invoice-pdf', …)`** on the Supabase project URL from your env (usually **hosted** `*.supabase.co`). The browser does **not** run the TypeScript in `supabase/functions/` — only whatever was **last deployed** to that project runs.
+The Svelte app calls **`functions.invoke('generate-invoice-pdf', …)`** on the Supabase project URL from your env. The browser does **not** run the TypeScript in `supabase/functions/` — only whatever was **last deployed** to that project runs.
 
-After editing [`supabase/functions/generate-invoice-pdf/index.ts`](./functions/generate-invoice-pdf/index.ts), redeploy from the repo root:
-
-```bash
-npm run supabase:deploy-pdf
-# same as: supabase functions deploy generate-invoice-pdf
-
-npm run supabase:send-invoice
-# same as: supabase functions deploy send-invoice
-
-npm run supabase:deploy-functions
-# deploys both PDF and send-invoice functions
-```
-
-If you use **local** Supabase (`supabase start` + `PUBLIC_SUPABASE_URL` pointing at `http://127.0.0.1:54321`), Edge Functions hot-reload from disk; if you still see stale output, run `supabase stop` then `supabase start`.
-
-### Deploy
+After editing function code, redeploy:
 
 ```bash
 npm run supabase:deploy-functions
-# or individually:
-npm run supabase:deploy-pdf
-npm run supabase:send-invoice
 ```
 
 ### Deployment verification (before testing in the app)
 
-Run through this checklist once per environment (hosted project):
-
-1. **Confirm both functions appear** in the Supabase Dashboard → **Edge Functions** (each should show as deployed / active).
-2. **Set secrets** with `supabase secrets set ...` (or Dashboard → **Project Settings** → **Edge Functions** → **Secrets**) — at minimum `RESEND_API_KEY` and `SENDER_*` as needed.
+1. **Confirm both functions appear** in the Supabase Dashboard → **Edge Functions**.
+2. **Set secrets** with `supabase secrets set ...` (or Dashboard → **Edge Functions → Secrets**) — at minimum `RESEND_API_KEY` and `SENDER_*` as needed.
 3. **Resend sandbox:** emails from `onboarding@resend.dev` may only reach **your Resend account email** until you verify your own domain. Use **Send test to myself** on the invoice detail page to verify the pipeline before sending to a client’s address.
 4. **Watch logs:** Dashboard → **Edge Functions** → select a function → **Logs** if `invoke` returns a non-2xx status.
 
-### Local testing
-
-```bash
-npm run supabase:start
-supabase functions serve --env-file ./supabase/.env.local
-```
-
-Create `supabase/.env.local` (gitignored) with the same variables as above for local serves.
-
 ## Troubleshooting
-
-### `Cannot connect to the Docker daemon` (`supabase db reset`)
-
-Docker is not running or not installed. Start **Docker Desktop**, confirm `docker info` works in a terminal, then run `npm run supabase:start` before `npm run supabase:db:reset`.
 
 ### `Unsupported JWT algorithm ES256` (PDF download / Edge Functions)
 
-Hosted projects may issue **ES256** access tokens. Invoicing functions use **`verify_jwt = false`** in [`config.toml`](./config.toml) and validate the caller with **`GET /auth/v1/user`** inside the function so Auth verifies the token. After pulling these changes, **redeploy** both functions (`npm run supabase:deploy-functions`).
-
-### `connect: connection refused` on `127.0.0.1:54322` (`supabase migration up`)
-
-The local Supabase stack is not running (Postgres listens on `54322` only after `supabase start`). Run `npm run supabase:start` first, then `npm run supabase:migration:up`.
+Hosted projects may issue **ES256** access tokens. Invoicing functions use **`verify_jwt = false`** in [`config.toml`](./config.toml) and validate the caller with **`GET /auth/v1/user`** inside the function. After pulling these changes, **redeploy** both functions (`npm run supabase:deploy-functions`).
 
 ### `record "new" has no field "status"` on time_entries
 
@@ -175,3 +151,7 @@ WHERE proname = 'write_audit_log' AND pronamespace = 'public'::regnamespace;
 ```
 
 Diagnostic queries: [`sql/inspect_status_triggers.sql`](../sql/inspect_status_triggers.sql)
+
+### Invoicing saves “succeed” but nothing persists
+
+Run `npm run supabase:doctor`. If it passes, check **Table Editor → profiles** for your user id with `role = owner`. See **First-time account** above.

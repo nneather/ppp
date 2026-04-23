@@ -153,7 +153,7 @@ _Use this when moving off the Resend sandbox (`onboarding@resend.dev`). Sandbox 
 1. **Add a domain** in [Resend](https://resend.com) → Domains → Add domain (e.g. `yourdomain.com`).
 2. **Add DNS records** (SPF/DKIM) at your DNS host as shown in Resend.
 3. **Wait for verification** (minutes to hours for DNS propagation).
-4. **Update the Edge Function** [`supabase/functions/send-invoice/index.ts`](../supabase/functions/send-invoice/index.ts): change `from` from `onboarding@resend.dev` to an address at your verified domain (e.g. `invoicing@yourdomain.com`). Redeploy: `supabase functions deploy send-invoice`.
+4. **Update the Edge Function** [`supabase/functions/send-invoice/index.ts`](../supabase/functions/send-invoice/index.ts): change `from` from `onboarding@resend.dev` to an address at your verified domain (e.g. `invoicing@yourdomain.com`). Redeploy: `npm run supabase:deploy-functions`.
 5. **Optional:** set `reply_to` in the Resend payload to your personal inbox so client replies reach you.
 6. **Align letterhead:** set `SENDER_EMAIL` (and other `SENDER_*` secrets) to match your professional sender identity on the PDF.
 7. **Smoke test:** use **Download PDF** and **Send test to myself** on a draft invoice, then send to a real client address.

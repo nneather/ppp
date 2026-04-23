@@ -232,11 +232,11 @@ Deno.serve(async (req) => {
 		deleted_at: string | null;
 	};
 
+	// Allow re-send after client soft-delete (existing invoices stay accessible).
 	const { data: clientRow, error: clientErr } = await admin
 		.from('clients')
 		.select('name, email')
 		.eq('id', invoice.client_id)
-		.is('deleted_at', null)
 		.maybeSingle();
 
 	if (clientErr || !clientRow) {

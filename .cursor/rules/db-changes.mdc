@@ -1,0 +1,60 @@
+---
+description: Migration and seed checklist. Applies to anything in supabase/migrations or seed.sql.
+globs: supabase/migrations/**,supabase/seed.sql
+alwaysApply: false
+---
+
+# Migration checklist
+
+Every migration must satisfy this list before being committed.
+
+## Required for every new table
+
+- [ ] `id UUID PRIMARY KEY DEFAULT gen_random_uuid()` (unless joining table with composite PK)
+- [ ] `deleted_at TIMESTAMPTZ` (skip only if in documented exception list)
+- [ ] `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`
+- [ ] `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` + `set_updated_at` trigger
+- [ ] `created_by UUID REFERENCES profiles(id)` (skip only for system tables)
+- [ ] `audit_log_trigger` attached
+- [ ] Indexes for any FK or hot filter column
+
+## RLS — use the helpers, never inline
+
+Inline `EXISTS (SELECT FROM profiles ...)` inside RLS triggers nested-RLS failures on cross-table writes. See migration `20260413150000_rls_all_policies_use_helpers.sql` for the fix.
+
+```sql
+-- ✅ GOOD
+CREATE POLICY foo_owner_all ON public.foo
+  FOR ALL
+  USING  (public.app_is_owner())
+  WITH CHECK (public.app_is_owner());
+
+CREATE POLICY foo_viewer_write ON public.foo
+  FOR ALL
+  USING  (public.app_is_viewer_writer('library'))
+  WITH CHECK (public.app_is_viewer_writer('library'));
+
+-- ❌ BAD — nested RLS
+CREATE POLICY foo_owner_all ON public.foo
+  FOR ALL
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'owner'));
+```
+
+For viewer-write modules (`library` today, others later), add **separate** `INSERT` and `UPDATE` policies — `FOR ALL` with `USING` blocks reads in some bits-ui paths.
+
+## Schema-shape gotchas to check before writing
+
+These bit the invoicing build. Verify analogues in any new module:
+
+- Multi-value contact fields (emails, phones) — start as `text[]` not scalar
+- Per-user defaults (CC lists, notification prefs) — column on `profiles`, not a separate table
+- Address fields — `address_line_1`, `address_line_2`, `city`, `region`, `postal_code`, `country` — decide once, apply everywhere
+- "Ad hoc" / one-off rows on ledger tables — explicit `is_one_off boolean NOT NULL DEFAULT false`
+
+## Workflow
+
+1. Write migration file: `YYYYMMDDHHMMSS_short_description.sql`. Use `IF NOT EXISTS` / `IF EXISTS` guards.
+2. Update `supabase/seed.sql` if seeding is implied.
+3. `npm run supabase:db:push:dry` — review the diff.
+4. `npm run supabase:gen-types` — regenerate `src/lib/types/database.ts` in the same commit.
+5. Edge functions consuming the affected table: re-check `deleted_at` filtering. Soft-deleted parent records still need to load for historical artifacts (PDFs, audit log, reprints).

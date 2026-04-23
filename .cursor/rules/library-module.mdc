@@ -1,0 +1,58 @@
+---
+description: Library module conventions — polymorphic FKs, viewer-write, search-first
+globs: src/routes/library/**,src/routes/settings/library/**,supabase/migrations/**library**
+alwaysApply: false
+---
+
+# Library module rules
+
+The library module differs structurally from invoicing. Build with these defaults.
+
+## Polymorphic `(book_id OR essay_id)` is everywhere
+
+`scripture_references`, `book_topics`, `book_bible_coverage`, `book_ancient_coverage` all have a CHECK enforcing exactly one of `book_id` / `essay_id`.
+
+- TypeScript: model as a discriminated union, never as `{ book_id?: string; essay_id?: string }`.
+
+  ```ts
+  type Source = { kind: 'book'; bookId: string } | { kind: 'essay'; essayId: string };
+  ```
+
+- UI: build **one** `<SourcePicker>` component and reuse across all four tables. Do not invent four versions.
+
+## Viewer has write access (unlike invoicing)
+
+The `viewer` role can `INSERT` and `UPDATE` on `books`, `scripture_references`, `book_topics`, `people`, `series`, and the coverage/junction tables. RLS uses `app_is_viewer_writer('library')`.
+
+Every library session must include a "viewer can / cannot do X" acceptance line. Seed a viewer user and the corresponding `user_permissions` row in Session 0; do not defer.
+
+## Search is the primary verb
+
+Library is a search module, not a CRUD module. The scripture overlap query is the central UX:
+
+```sql
+WHERE bible_book = ?
+  AND verse_start_abs <= ?  -- search range end as (chapter*1000 + verse)
+  AND verse_end_abs >= ?    -- search range start
+```
+
+`verse_start_abs` / `verse_end_abs` are computed by trigger. Never compute them in app code.
+
+A working search UI on seed data should land by Session 2 or 3, not at the end.
+
+## Canonicalization patterns
+
+Two surfaces share the same shape — build one component, use twice:
+
+- `ancient_texts.canonical_name` + `abbreviations[]` with fuzzy "Did you mean X?" before insert
+- `book_topics.topic` (`CHECK (topic = lower(trim(topic)))`) with autocomplete against existing topics
+
+Component name: `<CanonicalizingCombobox>` (or similar). Inputs: existing values, fuzzy match function, "create new" callback.
+
+## OCR / image ingest pipeline
+
+`scripture_references` has `source_image_url`, `confidence_score`, `needs_review`, `review_note` — clearly anticipating an image-ingest pipeline. **Decide explicitly per session**: either build it (image upload → Edge Function OCR → staging rows with `needs_review = true`) or defer it and require manual entry. Do not leave ambiguous.
+
+## Genre + language enums
+
+`books.genre` and `books.language` are constrained. Treat as Settings concerns or named constants in `src/lib/types/library.ts` — do not improvise free-text lists in forms.
