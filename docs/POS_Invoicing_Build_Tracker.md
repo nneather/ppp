@@ -143,6 +143,7 @@ _Track anything unresolved that would block a session. Resolve before that sessi
 | 1   | PDF layout — any specific branding/formatting requirements beyond "professional"?           | ✓ Resolved — clean typography only, no logo for August                                      |
 | 2   | Resend: send from which address? Domain verified?                                           | ✓ Resolved — sending from `onboarding@resend.dev`, no domain verification needed for August |
 | 3   | One-off line items — is `total` sufficient, or do you need `quantity × unit_price` tracked? | ✓ Resolved — one-offs use description + total; schema still supports qty/rate where line items use them |
+| 4   | Rotate Supabase JWT signing secret + Resend API key once the invoicing module is fully in production use | ☐ Open — both keys have not been rotated since initial setup. Plan: end-of-invoicing checklist. Anon JWT lives in `.env.local`; rotating the JWT secret will sign out current sessions, so coordinate with a deploy. Resend key can be rotated independently via Resend dashboard + `npx supabase secrets set` + `npm run supabase:deploy-functions`. |
 
 ---
 

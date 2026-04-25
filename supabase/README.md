@@ -2,6 +2,8 @@
 
 This folder is the **single source of truth** for the database schema and Edge Functions.
 
+For a **go-live checklist**, hosting env vars, and why `db push` uses `link` first, see [`docs/Supabase_deployment_and_go_live.md`](../docs/Supabase_deployment_and_go_live.md).
+
 ## Hosted project (prod only)
 
 There is **one** Supabase project. The project ref lives in `.env` (gitignored):
