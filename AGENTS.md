@@ -52,6 +52,7 @@ End-of-session deliverables:
 - **Multi-value text fields**: `text[]` columns + `EmailChipsEditor`-style component.
 - **Per-user defaults**: column on `profiles`, not a separate table.
 - **Edge Function soft-delete handling**: do not filter parents by `deleted_at` — historical artifacts must reload.
+- **Audit log UI**: `/settings/audit-log` (`src/routes/settings/audit-log/`). Module-scoped via the `_INVOICING_TABLES` / `_LIBRARY_TABLES` whitelists in `+page.server.ts`. When a new module ships, extend `_LIBRARY_TABLES` (or add a new whitelist) and add the matching option to the module `<select>`. Revert is UPDATE-only and additionally gated by `_REVERTIBLE_TABLES`; library tables are intentionally excluded — see [docs/decisions/001-audit-log-ui.md](docs/decisions/001-audit-log-ui.md).
 
 ### Scripts
 

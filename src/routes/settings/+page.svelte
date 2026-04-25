@@ -1,30 +1,51 @@
 <script lang="ts">
 	import CircleUser from '@lucide/svelte/icons/circle-user';
 	import Receipt from '@lucide/svelte/icons/receipt';
+	import ScrollText from '@lucide/svelte/icons/scroll-text';
 	import { cn } from '$lib/utils';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	const cards = $derived([
-		{
-			href: '/settings/profile' as const,
-			title: 'Profile',
-			description: 'Name and password',
-			icon: CircleUser,
-			summary: data.userEmail || 'Signed in'
-		},
-		{
-			href: '/settings/invoicing' as const,
-			title: 'Invoicing',
-			description: 'Clients, rates, and defaults',
-			icon: Receipt,
-			summary:
-				data.clientCount != null
-					? `${data.clientCount} client${data.clientCount === 1 ? '' : 's'}`
-					: '—'
+	type Card = {
+		href: string;
+		title: string;
+		description: string;
+		icon: typeof CircleUser;
+		summary: string;
+	};
+
+	const cards = $derived.by((): Card[] => {
+		const list: Card[] = [
+			{
+				href: '/settings/profile',
+				title: 'Profile',
+				description: 'Name and password',
+				icon: CircleUser,
+				summary: data.userEmail || 'Signed in'
+			},
+			{
+				href: '/settings/invoicing',
+				title: 'Invoicing',
+				description: 'Clients, rates, and defaults',
+				icon: Receipt,
+				summary:
+					data.clientCount != null
+						? `${data.clientCount} client${data.clientCount === 1 ? '' : 's'}`
+						: '—'
+			}
+		];
+		if (data.isOwner) {
+			list.push({
+				href: '/settings/audit-log',
+				title: 'Audit log',
+				description: 'Every change across the app',
+				icon: ScrollText,
+				summary: 'Owner-only'
+			});
 		}
-	]);
+		return list;
+	});
 </script>
 
 <svelte:head>

@@ -5,23 +5,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
-	const { count, error } = await locals.supabase
-		.from('clients')
-		.select('id', { count: 'exact', head: true })
-		.is('deleted_at', null);
+	const supabase = locals.supabase;
 
-	if (error) {
-		console.error(error);
-		return {
-			userEmail: user.email ?? '',
-			clientCount: null as number | null,
-			settingsHubError: 'Could not load client count.'
-		};
-	}
+	const [clientsRes, profileRes] = await Promise.all([
+		supabase.from('clients').select('id', { count: 'exact', head: true }).is('deleted_at', null),
+		supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+	]);
+
+	if (clientsRes.error) console.error(clientsRes.error);
+	if (profileRes.error) console.error(profileRes.error);
+
+	const role = (profileRes.data?.role as string | null) ?? null;
+	const isOwner = role === 'owner';
 
 	return {
 		userEmail: user.email ?? '',
-		clientCount: count ?? 0,
-		settingsHubError: null as string | null
+		clientCount: clientsRes.error ? (null as number | null) : (clientsRes.count ?? 0),
+		isOwner,
+		settingsHubError: clientsRes.error ? 'Could not load client count.' : (null as string | null)
 	};
 };

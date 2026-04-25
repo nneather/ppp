@@ -110,6 +110,40 @@ Run `npm run supabase:doctor`. See **First-time account** in `supabase/README.md
 **PDF or email unchanged after editing function code**  
 Redeploy: `npm run supabase:deploy-functions`. The browser runs whatever was last deployed to the project URL in env.
 
+## Key rotation runbook
+
+Rotate end-to-end after any suspected exposure, when offboarding a collaborator, or as a periodic hygiene step (recommended: every 6 months).
+
+### Resend API key (low risk — do this independently)
+
+1. **Resend dashboard** → API Keys → revoke the old key, create a new one (`re_NEW...`).
+2. Update the Supabase Edge Function secret on the production project:
+
+   ```bash
+   npx supabase secrets set --project-ref "$SUPABASE_REF" RESEND_API_KEY=re_NEW...
+   ```
+
+3. Redeploy functions so they pick up the new secret:
+
+   ```bash
+   npm run supabase:deploy-functions
+   ```
+
+4. Update `.env.local` so local dev keeps working (same key, or a Resend test key if you want to isolate dev sends).
+5. Smoke test: open a draft invoice → **Send test to myself**. Check Resend dashboard for the delivered event.
+
+### Supabase JWT signing secret (signs out all sessions)
+
+This invalidates every existing access/refresh token. Do it during a maintenance window.
+
+1. Notify any active users.
+2. Supabase Dashboard → Project Settings → API → **Reset JWT secret**. This rotates the secret used to sign and verify session JWTs.
+3. The **anon key** and **service_role key** are *not* changed by this step (they are separate API keys exposed in the same dashboard panel). No `.env.local` change required for those unless you also rotate them via "Roll" buttons next to each key.
+4. If you rotated the anon key as well, update `PUBLIC_SUPABASE_ANON_KEY` in:
+   - `.env.local` for local dev.
+   - Vercel (or whichever host) **Production** env vars. Redeploy so the new key reaches the browser bundle.
+5. Force a fresh sign-in on each device (the existing tokens will already be invalid).
+
 ## Optional: old staging project
 
 If you previously used a separate Supabase project for experiments, delete it from the Dashboard only when you no longer need it. See the staging delete note in [`supabase/README.md`](../supabase/README.md) (Dashboard link there).

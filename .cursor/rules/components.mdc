@@ -17,6 +17,7 @@ If you reach for one of these capabilities, use the existing component.
 | Global setting modal | [src/lib/components/default-cc-dialog.svelte](mdc:src/lib/components/default-cc-dialog.svelte) |
 | Single sheet shared by create + edit | [src/lib/components/time-entry-sheet.svelte](mdc:src/lib/components/time-entry-sheet.svelte) |
 | "Generate derived record" wizard | [src/lib/components/generate-invoice-sheet.svelte](mdc:src/lib/components/generate-invoice-sheet.svelte) |
+| Audit log row with collapsible JSONB diff | [src/lib/components/audit-row.svelte](mdc:src/lib/components/audit-row.svelte) |
 
 shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator) live under `src/lib/components/ui/`.
 

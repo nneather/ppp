@@ -1,6 +1,6 @@
 # Personal Operations System — Invoicing Module Build Tracker
 
-_Last updated: April 20, 2026 | Module: Invoicing (1st) | Target: August 2026_
+_Last updated: April 25, 2026 | Module: Invoicing (1st) | Target: August 2026_
 
 _Session-by-session plan for building the invoicing module. Each session ends with something working end-to-end. Update Done and Notes as you go._
 
@@ -123,14 +123,21 @@ _Goal: Settings → Audit Log is functional for invoicing (and ready for subsequ
 
 | Task                                                                                           | Done | Notes                                                    |
 | ---------------------------------------------------------------------------------------------- | :--: | -------------------------------------------------------- |
-| `/settings/audit-log` — query `audit_log` table, newest first                                  |  ☐   | Owner only. Viewer gets 403.                             |
-| Module filter — filter by `table_name` (map to module: invoicing tables → Invoicing filter)    |  ☐   | Filter chips or select. AND logic if multiple active.    |
-| Search — by `record_id` and `changed_by`                                                       |  ☐   | Simple text input.                                       |
-| Row display — operation badge (INSERT/UPDATE/DELETE), table, old → new diff (JSONB), who, when |  ☐   | Diff: show key-level changes only, not full JSON dump.   |
-| Revert button — visible only when `revertible = true`. Confirm before executing.               |  ☐   | Revert = apply `old_data` back to the record via UPDATE. |
-| Test revert on a time entry edit                                                               |  ☐   | Verify the trigger's `revertible` flag is set correctly. |
+| `/settings/audit-log` — query `audit_log` table, newest first                                  |  ✓   | Owner-only via server-side `profiles.role` gate + RLS. Friendly load error for non-owners. Done April 25. |
+| Module filter — filter by `table_name` (map to module: invoicing tables → Invoicing filter)    |  ✓   | URL-driven `module=all|invoicing|library` select. Whitelists in `+page.server.ts` (`_INVOICING_TABLES` / `_LIBRARY_TABLES`). |
+| Search — by `record_id` and `changed_by`                                                       |  ✓   | Two URL-synced text inputs. UUID format validated server-side. |
+| Row display — operation badge (INSERT/UPDATE/DELETE), table, old → new diff (JSONB), who, when |  ✓   | Extracted `<AuditRow>` component (`src/lib/components/audit-row.svelte`). Key-level diff via `JSON.stringify` compare; skips `updated_at`. INSERT/DELETE expand into a sorted key/value dump. Display name = `profiles.full_name` || email. |
+| Revert button — visible only when `revertible = true`. Confirm before executing.               |  ✓   | Visible only when `revertible && operation === 'UPDATE' && table ∈ _REVERTIBLE_TABLES`. Wired through `ConfirmDialog`. Server action re-checks owner role, table whitelist, invoice-status guard; strips `id/created_at/created_by/updated_at/verse_*_abs` before patching. |
+| Test revert on a time entry edit                                                               |  ✓   | Verified in browser: edited time entry's `description` reverts; new audit row appended for the revert itself. |
 
 **Session exit state:** Audit log is live. You can see every invoicing action and revert eligible changes.
+
+**Also completed during Session 6 (April 2026)**
+
+- **Settings hub card** — owner-only "Audit log" card on `/settings`, gated via `profiles.role` returned from the hub `+page.server.ts` (no RLS-only blank state for non-owners).
+- **Key rotation runbook** — Resend + Supabase JWT secret procedures filed in [`docs/Supabase_deployment_and_go_live.md`](Supabase_deployment_and_go_live.md). Rotation itself is interactive and is left for the next maintenance window (see Open Questions #4).
+- **Decision log** — [`docs/decisions/001-audit-log-ui.md`](decisions/001-audit-log-ui.md) captures the revert design (UPDATE-only, table whitelist, immutable-field strip list, invoice status guard) and the diff approach.
+- **Library handoff** — [`docs/POS_Library_Session_0.md`](POS_Library_Session_0.md) seeded with schema audit checklist, Open Questions per major entity, viewer seeding plan, and the OCR / canonicalization decision points.
 
 ---
 
@@ -143,7 +150,7 @@ _Track anything unresolved that would block a session. Resolve before that sessi
 | 1   | PDF layout — any specific branding/formatting requirements beyond "professional"?           | ✓ Resolved — clean typography only, no logo for August                                      |
 | 2   | Resend: send from which address? Domain verified?                                           | ✓ Resolved — sending from `onboarding@resend.dev`, no domain verification needed for August |
 | 3   | One-off line items — is `total` sufficient, or do you need `quantity × unit_price` tracked? | ✓ Resolved — one-offs use description + total; schema still supports qty/rate where line items use them |
-| 4   | Rotate Supabase JWT signing secret + Resend API key once the invoicing module is fully in production use | ☐ Open — both keys have not been rotated since initial setup. Plan: end-of-invoicing checklist. Anon JWT lives in `.env.local`; rotating the JWT secret will sign out current sessions, so coordinate with a deploy. Resend key can be rotated independently via Resend dashboard + `npx supabase secrets set` + `npm run supabase:deploy-functions`. |
+| 4   | Rotate Supabase JWT signing secret + Resend API key once the invoicing module is fully in production use | ☐ Open — runbook filed in [`Supabase_deployment_and_go_live.md`](Supabase_deployment_and_go_live.md#key-rotation-runbook). Resend key rotation is independent and ~5 min; Supabase JWT secret rotation invalidates all sessions, so schedule with a deploy window. Execute when convenient; both procedures are now scripted. |
 
 ---
 
