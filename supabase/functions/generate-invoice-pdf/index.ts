@@ -76,14 +76,17 @@ function formatInvoiceDateShort(iso: string): string {
 	return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
 }
 
-/** WinAnsi-safe subset for StandardFonts */
+/** WinAnsi-safe subset for StandardFonts. Allows bullet (U+2022) which Helvetica
+ * encodes natively at WinAnsi 0x95 and which we use as a separator in contact
+ * lines.
+ */
 function safePdfText(s: string): string {
 	return s
 		.replace(/\r\n/g, '\n')
 		.replace(/[\u2018\u2019]/g, "'")
 		.replace(/[\u201c\u201d]/g, '"')
 		.replace(/[\u2013\u2014]/g, '-')
-		.replace(/[^\x20-\x7E\n]/g, '?');
+		.replace(/[^\x20-\x7E\n\u2022]/g, '?');
 }
 
 function wrapText(text: string, maxChars: number): string[] {
@@ -368,50 +371,86 @@ Deno.serve(async (req) => {
 		}
 	}
 
-	// --- Right column: invoice title & meta (aligned top) ---
-	let metaY = height - margin;
-	metaY -= 14;
+	// --- Top section: left letterhead and right invoice meta share a baseline ---
+	// Both columns start at `topY` so the company name and "INVOICE" title align
+	// optically. Line heights are uniform at 12pt for body rows, 14pt only
+	// after the bold title line.
+	const topY = height - margin;
+	const TITLE_SIZE = 14;
+	const META_SIZE = 9;
+	const BODY_SIZE = 10;
+	const TAGLINE_SIZE = 9;
+	const ROW = 12;
+	const TITLE_ROW = 14;
+	const grayInk = rgb(0.45, 0.45, 0.45);
+
+	// Right column: INVOICE title + invoice/date meta, top-aligned with sender name.
+	let metaY = topY;
 	activePage.drawText('INVOICE', {
-		x: innerRight - fontBold.widthOfTextAtSize('INVOICE', 11),
+		x: innerRight - fontBold.widthOfTextAtSize('INVOICE', TITLE_SIZE),
 		y: metaY,
-		size: 11,
+		size: TITLE_SIZE,
 		font: fontBold
 	});
-	metaY -= 13;
+	metaY -= TITLE_ROW + 4;
 	const invMeta = `INVOICE: ${invoice.invoice_number}`;
-	activePage.drawText(safePdfText(invMeta), {
-		x: innerRight - font.widthOfTextAtSize(safePdfText(invMeta), 9),
+	const invMetaSafe = safePdfText(invMeta);
+	activePage.drawText(invMetaSafe, {
+		x: innerRight - font.widthOfTextAtSize(invMetaSafe, META_SIZE),
 		y: metaY,
-		size: 9,
+		size: META_SIZE,
 		font
 	});
-	metaY -= 12;
+	metaY -= ROW;
 	const dateMeta = `DATE: ${formatInvoiceDateShort(invoice.created_at)}`;
-	activePage.drawText(safePdfText(dateMeta), {
-		x: innerRight - font.widthOfTextAtSize(safePdfText(dateMeta), 9),
+	const dateMetaSafe = safePdfText(dateMeta);
+	activePage.drawText(dateMetaSafe, {
+		x: innerRight - font.widthOfTextAtSize(dateMetaSafe, META_SIZE),
 		y: metaY,
-		size: 9,
+		size: META_SIZE,
 		font
 	});
 
-	// --- Left: letterhead ---
-	const headerStartY = height - margin;
-	y = headerStartY;
-	activePage.drawText(safePdfText(senderName), { x: margin, y, size: 14, font: fontBold });
-	y -= 16;
-	activePage.drawText(safePdfText(senderTagline), { x: margin, y, size: 9, font: fontItalic });
-	y -= 12;
-	activePage.drawText(safePdfText(senderLine1), { x: margin, y, size: 10, font });
-	y -= 12;
-	activePage.drawText(safePdfText(senderLine2), { x: margin, y, size: 10, font });
-	y -= 12;
-	activePage.drawText(safePdfText(senderPhone), { x: margin, y, size: 10, font });
-	if (senderEmail) {
-		y -= 12;
-		activePage.drawText(safePdfText(senderEmail), { x: margin, y, size: 9, font });
+	// Left column: company name, tagline (gray italic), address, contact row.
+	y = topY;
+	activePage.drawText(safePdfText(senderName), {
+		x: margin,
+		y,
+		size: TITLE_SIZE,
+		font: fontBold
+	});
+	y -= TITLE_ROW + 4;
+	if (senderTagline) {
+		activePage.drawText(safePdfText(senderTagline), {
+			x: margin,
+			y,
+			size: TAGLINE_SIZE,
+			font: fontItalic,
+			color: grayInk
+		});
+		y -= ROW + 4;
+	}
+	activePage.drawText(safePdfText(senderLine1), { x: margin, y, size: BODY_SIZE, font });
+	y -= ROW;
+	activePage.drawText(safePdfText(senderLine2), { x: margin, y, size: BODY_SIZE, font });
+	y -= ROW;
+
+	// Combine phone + email into a single contact row when both are present;
+	// strip a redundant "Phone: " prefix so the bullet separator carries the meaning.
+	const phoneClean = senderPhone.replace(/^\s*phone\s*:\s*/i, '').trim();
+	const contactBits: string[] = [];
+	if (phoneClean) contactBits.push(phoneClean);
+	if (senderEmail) contactBits.push(senderEmail);
+	if (contactBits.length) {
+		activePage.drawText(safePdfText(contactBits.join('  \u2022  ')), {
+			x: margin,
+			y,
+			size: BODY_SIZE,
+			font
+		});
 	}
 
-	y = Math.min(y, metaY) - 20;
+	y = Math.min(y, metaY) - 22;
 	drawHRule(activePage, margin, innerRight, y + 8, 0.75);
 	y -= 20;
 
