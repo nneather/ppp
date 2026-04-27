@@ -56,3 +56,16 @@ Component name: `<CanonicalizingCombobox>` (or similar). Inputs: existing values
 ## Genre + language enums
 
 `books.genre` and `books.language` are constrained. Treat as Settings concerns or named constants in `src/lib/types/library.ts` — do not improvise free-text lists in forms.
+
+## Patterns landed in Session 1
+
+- **Diff-based junction sync.** `syncAuthors` / `syncCategories` in `src/lib/library/server/book-actions.ts` compute insert / update / delete sets relative to current rows. Audit log shows minimal diffs. Reuse this shape for any future junction with sort_order or extra columns.
+- **Inline create-via-fetch.** `submitPersonDialog` in `book-form-sheet.svelte` shows the pattern for creating a sub-entity mid-form-fill: POST to `?/createPerson` via `fetch`, parse the action response with `deserialize` from `$app/forms`, then mutate local state. Pattern reuses for any "+ New X" affordance inside another sheet.
+- **Inline B14 dedup hint** is a yellow caption beneath the picker once a person is selected; it is the Session 1 stand-in for the full `<CanonicalizingCombobox>` (Session 5).
+- **Action duplication via shared helpers.** Both `/library/+page.server.ts` and `/library/books/[id]/+page.server.ts` host `updateBook` / `softDeleteBook` / `undoSoftDeleteBook` / `createPerson`. The implementations live in `src/lib/library/server/book-actions.ts`; the per-route handlers are 4-line wrappers. Cleaner than posting cross-route from a shared form sheet, which loses host-page form state.
+- **Pre-regen migration columns.** When a delta migration is staged but unapplied:
+  - **Never** name the new columns in supabase-js SELECT lists. PostgREST 42703s on absent columns, and `as never` casts only protect TypeScript, not runtime.
+  - **Conditionally** include new columns in INSERT/UPDATE payloads only when the value is populated. `bookColumnsPayload` and `createPersonAction` show the pattern.
+  - **Tag** with `// TODO post-delta-vN` so the cleanup is greppable after `npm run supabase:gen-types` runs.
+  - **Cross-check** loaders against `00000000000000_baseline.sql` (and any later applied migrations), not against the schema doc — Session 1 lost time to `series.deleted_at` / `people.deleted_at` not actually being in baseline despite the doc claiming the convention.
+- **Soft-delete UX = 10s undo toast.** Soft-delete fires immediately, toast offers Undo for 10s, otherwise redirect to list with `?deleted=<id>` so the list page can surface a follow-up banner.

@@ -50,6 +50,7 @@ These bit the invoicing build. Verify analogues in any new module:
 - Per-user defaults (CC lists, notification prefs) — column on `profiles`, not a separate table
 - Address fields — `address_line_1`, `address_line_2`, `city`, `region`, `postal_code`, `country` — decide once, apply everywhere
 - "Ad hoc" / one-off rows on ledger tables — explicit `is_one_off boolean NOT NULL DEFAULT false`
+- Composite-PK junction tables — `write_audit_log()` resolves `record_id` via `to_jsonb(NEW)->>'id'` with COALESCE fallback to `book_id` / `essay_id`. Adding a junction whose parent is neither (e.g. `client_id`-keyed) requires extending the COALESCE chain in a follow-up migration.
 
 ## Workflow
 

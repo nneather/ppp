@@ -18,6 +18,9 @@ If you reach for one of these capabilities, use the existing component.
 | Single sheet shared by create + edit | [src/lib/components/time-entry-sheet.svelte](mdc:src/lib/components/time-entry-sheet.svelte) |
 | "Generate derived record" wizard | [src/lib/components/generate-invoice-sheet.svelte](mdc:src/lib/components/generate-invoice-sheet.svelte) |
 | Audit log row with collapsible JSONB diff | [src/lib/components/audit-row.svelte](mdc:src/lib/components/audit-row.svelte) |
+| Book entity form (create + edit) with author + category junctions | [src/lib/components/book-form-sheet.svelte](mdc:src/lib/components/book-form-sheet.svelte) |
+| Polymorphic `(book_id OR essay_id)` source picker (essay branch stubbed pre-essays-UI) | [src/lib/components/source-picker.svelte](mdc:src/lib/components/source-picker.svelte) |
+| Embedded scripture-reference sub-form (manual entry; no upload yet) | [src/lib/components/scripture-reference-form.svelte](mdc:src/lib/components/scripture-reference-form.svelte) |
 
 shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator) live under `src/lib/components/ui/`.
 

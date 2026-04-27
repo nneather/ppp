@@ -53,6 +53,12 @@ End-of-session deliverables:
 - **Per-user defaults**: column on `profiles`, not a separate table.
 - **Edge Function soft-delete handling**: do not filter parents by `deleted_at` — historical artifacts must reload.
 - **Audit log UI**: `/settings/audit-log` (`src/routes/settings/audit-log/`). Module-scoped via the `_INVOICING_TABLES` / `_LIBRARY_TABLES` whitelists in `+page.server.ts`. When a new module ships, extend `_LIBRARY_TABLES` (or add a new whitelist) and add the matching option to the module `<select>`. Revert is UPDATE-only and additionally gated by `_REVERTIBLE_TABLES`; library tables are intentionally excluded — see [docs/decisions/001-audit-log-ui.md](docs/decisions/001-audit-log-ui.md).
+- **Library helpers** at `src/lib/library/`:
+  - `src/lib/types/library.ts` — closed enums (`GENRES`, `LANGUAGES`, `READING_STATUSES`, `AUTHOR_ROLES`) + view-models (`BookListRow`, `BookDetail`, `PersonRow`, etc.). Reuse before improvising.
+  - `src/lib/library/polymorphic.ts` — `PolymorphicParent` discriminated union + `validateXor` + `insertPolymorphicRow<T>`. Reused by `scripture_references`, `book_topics`, `book_bible_coverage`, `book_ancient_coverage`. **Do not invent four versions** per [.cursor/rules/library-module.mdc](.cursor/rules/library-module.mdc).
+  - `src/lib/library/server/loaders.ts` — `loadBookList`, `loadBookDetail`, `loadCategories`, `loadSeries`, `loadPeople`, `loadPersonBookCounts`, `personDisplayShort/Long`. Used by `/library` and `/library/books/[id]`.
+  - `src/lib/library/server/book-actions.ts` — `createBookAction`, `updateBookAction`, `softDeleteBookAction`, `undoSoftDeleteBookAction`, `createPersonAction`. Returns `{ kind, success?, message?, bookId?|personId? }`.
+  - `src/lib/library/server/scripture-actions.ts` — same shape for `scripture_references` (Session 2 prep).
 
 ### Scripts
 
