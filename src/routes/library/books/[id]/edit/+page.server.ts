@@ -8,9 +8,10 @@ import {
 	loadSeries
 } from '$lib/library/server/loaders';
 import {
+	createPersonAction,
 	softDeleteBookAction,
 	undoSoftDeleteBookAction,
-	updateReadingStatusAction
+	updateBookAction
 } from '$lib/library/server/book-actions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -46,6 +47,18 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
+	updateBook: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'updateBook' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return updateBookAction(locals.supabase, user.id, fd);
+	},
+	createPerson: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'createPerson' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return createPersonAction(locals.supabase, user.id, fd);
+	},
 	softDeleteBook: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
 		if (!user)
@@ -53,10 +66,6 @@ export const actions: Actions = {
 		const fd = await request.formData();
 		const id = String(fd.get('id') ?? '').trim();
 		const result = await softDeleteBookAction(locals.supabase, fd);
-		// Detail page no longer exists after the delete (loadBookDetail returns
-		// null → 404). Redirect to the list, which renders the 10s undo toast.
-		// Pre-Session-1.5 this returned a success object and the page rerender
-		// 404'd before the toast could mount.
 		if (result && 'success' in result && result.success && id) {
 			redirect(303, `/library?deleted=${encodeURIComponent(id)}`);
 		}
@@ -68,12 +77,5 @@ export const actions: Actions = {
 			return fail(401, { kind: 'undoSoftDeleteBook' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return undoSoftDeleteBookAction(locals.supabase, fd);
-	},
-	updateReadingStatus: async ({ request, locals }) => {
-		const { user } = await locals.safeGetSession();
-		if (!user)
-			return fail(401, { kind: 'updateReadingStatus' as const, message: 'Unauthorized' });
-		const fd = await request.formData();
-		return updateReadingStatusAction(locals.supabase, fd);
 	}
 };

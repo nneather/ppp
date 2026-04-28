@@ -18,7 +18,7 @@ If you reach for one of these capabilities, use the existing component.
 | Single sheet shared by create + edit | [src/lib/components/time-entry-sheet.svelte](mdc:src/lib/components/time-entry-sheet.svelte) |
 | "Generate derived record" wizard | [src/lib/components/generate-invoice-sheet.svelte](mdc:src/lib/components/generate-invoice-sheet.svelte) |
 | Audit log row with collapsible JSONB diff | [src/lib/components/audit-row.svelte](mdc:src/lib/components/audit-row.svelte) |
-| Book entity form (create + edit) with author + category junctions | [src/lib/components/book-form-sheet.svelte](mdc:src/lib/components/book-form-sheet.svelte) |
+| Book entity form (create + edit) with author + category junctions — used inside dedicated `/library/books/new` + `/library/books/[id]/edit` pages (not a sheet) | [src/lib/components/book-form.svelte](mdc:src/lib/components/book-form.svelte) |
 | Polymorphic `(book_id OR essay_id)` source picker (essay branch stubbed pre-essays-UI) | [src/lib/components/source-picker.svelte](mdc:src/lib/components/source-picker.svelte) |
 | Embedded scripture-reference sub-form (manual entry; no upload yet) | [src/lib/components/scripture-reference-form.svelte](mdc:src/lib/components/scripture-reference-form.svelte) |
 | Typeahead person picker with B14 dedup warnings + inline create | [src/lib/components/person-autocomplete.svelte](mdc:src/lib/components/person-autocomplete.svelte) |
@@ -27,10 +27,10 @@ shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator
 
 ## Patterns
 
-- **Sheet vs Dialog**: forms → `Sheet` (full-screen on mobile, drawer on desktop). Confirmations and small pickers → `Dialog`. Default to `Sheet`.
-- **Create + edit share one sheet**: take an optional `entity` prop; "create" mode = `entity == null`. See `time-entry-sheet.svelte`.
+- **Sheet vs Dialog vs dedicated page**: small/medium forms (≤~10 fields) → `Sheet` (full-screen on mobile, drawer on desktop). Confirmations and small pickers → `Dialog`. **Large forms (~20+ fields with junctions)** → dedicated page route (`/foo/new`, `/foo/[id]/edit`) with a presentational `<XForm>` component shared by both. The right-side drawer caps at `max-w-2xl` and gets cramped past about 10 fields; pages can use 2-col desktop layouts and breathe. See `book-form.svelte` + `/library/books/new` + `/library/books/[id]/edit` for the canonical full-page pattern.
+- **Create + edit share one form/sheet**: take an optional `entity` prop; "create" mode = `entity == null`. See `time-entry-sheet.svelte` (sheet) and `book-form.svelte` (page-hosted).
 - **Bindable props for v-model-style state**: `let { open = $bindable(false), value = $bindable<T[]>([]) } = $props();`
-- **Form actions inside components**: use `use:enhance` and call back to the page via `onSuccess` / `onError` callback props.
+- **Form actions inside components**: use `use:enhance` and call back to the page via `onSaved` / `onSuccess` / `onError` callback props. For full-page forms also expose `onDirtyChange` so the host page can wire `beforeNavigate` for unsaved-edit confirmation.
 - **Svelte 5 runes**: `$state`, `$props`, `$bindable`, `$derived`, `$effect`. Do not use Svelte 4 reactive `$:` syntax.
 
 ## When to add a new component

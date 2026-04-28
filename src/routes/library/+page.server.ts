@@ -8,11 +8,9 @@ import {
 	loadSeries
 } from '$lib/library/server/loaders';
 import {
-	createBookAction,
 	createPersonAction,
 	softDeleteBookAction,
 	undoSoftDeleteBookAction,
-	updateBookAction,
 	updateReadingStatusAction
 } from '$lib/library/server/book-actions';
 
@@ -45,18 +43,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-	createBook: async ({ request, locals }) => {
-		const { user } = await locals.safeGetSession();
-		if (!user) return fail(401, { kind: 'createBook' as const, message: 'Unauthorized' });
-		const fd = await request.formData();
-		return createBookAction(locals.supabase, user.id, fd);
-	},
-	updateBook: async ({ request, locals }) => {
-		const { user } = await locals.safeGetSession();
-		if (!user) return fail(401, { kind: 'updateBook' as const, message: 'Unauthorized' });
-		const fd = await request.formData();
-		return updateBookAction(locals.supabase, user.id, fd);
-	},
 	softDeleteBook: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
 		if (!user)

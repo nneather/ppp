@@ -331,3 +331,161 @@ None. The Authors column blank, series tooltip blank, and `<PersonAutocomplete>`
 - [x] `.cursor/rules/db-changes.mdc` — "Migrations are immutable" workflow note added.
 - [x] [`docs/POS_Library_Build_Tracker.md`](../POS_Library_Build_Tracker.md) — Session 1.5d annotated.
 - [x] No new env vars introduced.
+
+## Session 1.5e book form promoted to dedicated pages (2026-04-28)
+
+User testing of the chip-mode autocomplete from Session 1.5d surfaced a bigger UX problem the chip redesign couldn't fix on its own: the entire `<BookFormSheet>` was just too cramped for a 30-field form. The right-side sheet caps at `max-w-2xl` (672px); after subtracting the per-author row's chevrons + Role select w-32 + X button, the Person input only got ~280px wide, which caused the autocomplete dropdown to wrap names mid-word AND the Cancel overlay button to overlap the placeholder text. The "— None —" select label was truncated to "— Nor..." in the Classification section for the same reason. Pure CSS tweaks would have been treating symptoms.
+
+### Built
+
+- **New `<BookForm>` presentational component** in [`src/lib/components/book-form.svelte`](../../src/lib/components/book-form.svelte). Hosts every field, the inline Add-person Dialog, and the `submitEnhance` lifecycle. Drops the `actionPath` prop (form actions are local to the host page now). Adds `onDirtyChange(d)` callback so the host page can wire `beforeNavigate`. Same `untrack(() => currentFormSnapshot())` fix from Session 1.5c is preserved on the seed `$effect`.
+- **Two dedicated page routes**:
+  - [`/library/books/new/+page.server.ts`](../../src/routes/library/books/new/+page.server.ts) + [`+page.svelte`](../../src/routes/library/books/new/+page.svelte): hosts `createBook` + `createPerson` actions; renders `<BookForm mode="create">` inside a `max-w-5xl` page wrapper with a back-to-`/library` breadcrumb.
+  - [`/library/books/[id]/edit/+page.server.ts`](../../src/routes/library/books/%5Bid%5D/edit/+page.server.ts) + [`+page.svelte`](../../src/routes/library/books/%5Bid%5D/edit/+page.svelte): hosts `updateBook` + `createPerson` + `softDeleteBook`/`undoSoftDeleteBook` (the soft-delete pair is here so a future Delete button on the edit page works without a separate route hop). Renders `<BookForm mode="edit" book={data.book}>` with a back-to-detail breadcrumb.
+- **Two-column desktop layout inside `<BookForm>`** — Identity (title + subtitle) and Authors stay full-width because they're highest-priority. The middle of the form splits via `lg:grid-cols-2`: Classification + State on the left, Publication + Reprint + Identifiers/Shelf on the right. Personal notes and the Save bar span full width below. Net effect: about 50% more horizontal room AND ~40% less total scroll height vs the old sheet.
+- **Author row redesigned** in `<BookForm>` — replaced the heavy bordered card with a lighter `border-l-2 + bg-muted/20` left-accent stripe. `<PersonAutocomplete>` now occupies the full row width on its own line; Role select + chevrons + X drop to a second row underneath. Up/down chevrons render `invisible` (not `hidden`) when only one author row exists so the layout stays stable.
+- **`<PersonAutocomplete>` Cancel-overlap fix** — the `<Input>` gets `pr-20` whenever a value is set so the absolutely-positioned Cancel button no longer collides with the "Search by name…" placeholder text.
+- **Entry points rewired**:
+  - `/library/+page.svelte`: "Add book" → `<Button href="/library/books/new">` (Button supports `href` natively, becomes an `<a>`). Removed the `<BookFormSheet>` instance + `createSheetOpen` state.
+  - `/library/books/[id]/+page.svelte`: "Edit" → `<Button href={`/library/books/${data.book.id}/edit`}>`. Removed the `<BookFormSheet>` instance + `editSheetOpen` state.
+- **Server actions trimmed**:
+  - `/library/+page.server.ts` — dropped `createBook` and `updateBook` actions (now live in the dedicated routes). Kept `softDeleteBook` / `undoSoftDeleteBook` / `createPerson` / `updateReadingStatus`.
+  - `/library/books/[id]/+page.server.ts` — dropped `updateBook` and `createPerson`. Kept `softDeleteBook` / `undoSoftDeleteBook` / `updateReadingStatus`.
+- **Dirty-form interception via `beforeNavigate`** in both new and edit pages. `<BookForm>` exposes its dirty state through `onDirtyChange(d)`. The host pages wire `beforeNavigate(({ cancel, to, type }) => …)` to `cancel()` and pop a `<ConfirmDialog>` whenever the user tries to leave with unsaved edits. Covers browser back, breadcrumb click, link click — all routed through SvelteKit navigation. Successful save sets `confirmedDiscard = true` before the `goto()` so the prompt doesn't fire on the success path.
+- **`<BookFormSheet>` deleted** ([`src/lib/components/book-form-sheet.svelte`](../../src/lib/components/book-form-sheet.svelte)) — fully unused after the rewire.
+
+### Decided (non-obvious)
+
+- **Page routes vs polishing the sheet**: the user explicitly asked for the bigger refactor (Path A from the plan). The right call given the form's size; cosmetic CSS tweaks to the sheet would not have changed the structural width constraint.
+- **2-col desktop layout, not 1-col centered**: user picked this. Reduces total scroll height by ~40% (Publication's 6 fields were the worst offender for vertical real-estate), and parallel columns let the eye scan related groups (Classification + State are conceptual siblings; Publication + Reprint + Identifiers are the bibliographic spine).
+- **Identity + Authors stay full-width above the 2-col grid**: these are the most important fields and benefit from horizontal room. Authors needs the full width so the autocomplete dropdown can render names without wrapping.
+- **Soft-delete + undo stays on the detail page** (not moved to edit). Editing a book and deleting a book are different intents; "I'm done editing" → click cancel/save, not "I want to remove this from my library." Edit page still hosts the actions because we may add a Delete button on the edit screen later, but the primary affordance lives on detail.
+- **Successful save re-baselines the snapshot** before calling `onSaved`. Otherwise the post-save `goto('/library/books/<id>')` triggers `beforeNavigate` with `dirty=true` and pops the discard confirm. The form component flips `initialSnapshot = currentFormSnapshot()` inside the success branch of the submit enhancer; the host page also sets `confirmedDiscard = true` defensively before calling `goto()`.
+- **`Button href=` instead of wrapping `<a>` around `<Button>`**: shadcn Button renders as `<a>` natively when given `href`, preserving all variant styles. Cleaner than nested-anchor hacks.
+
+### New components / patterns added
+
+- **Pattern: large entity forms as dedicated pages**. New rule under `.cursor/rules/components.mdc` Patterns: forms ≤ ~10 fields → Sheet, ~20+ fields with junctions → dedicated page route + presentational `<XForm>` component shared between create + edit. Codified in `.cursor/rules/library-module.mdc` "Large entity forms ship as dedicated pages, not sheets."
+- **Pattern: `beforeNavigate` dirty-form confirm**. Replaces the controlled-Sheet `onOpenChange` interceptor for page-hosted forms. Cleaner because it covers ALL navigation paths (back/breadcrumb/link/programmatic goto), not just outside-click dismissal of a Sheet. The form component owns the `dirty` derivation; the host page owns the `beforeNavigate` + ConfirmDialog. The sheet pattern stays valid for sheet-hosted forms — `beforeNavigate` doesn't fire on Sheet outside-click.
+- **`<BookForm>` registered** in `.cursor/rules/components.mdc`. `<BookFormSheet>` row removed.
+
+### Schema changes
+
+None.
+
+### Open questions surfaced
+
+None.
+
+### Surprises (read these before the next session)
+
+14. **shadcn Button supports `href` natively, no asChild needed.** `<Button href="/foo">…</Button>` renders as `<a href="/foo">` with all variant styles applied. Avoid wrapping `<Button>` in an outer `<a>` (nested anchors / focus weirdness). The component sniffs for `href` and switches the rendered tag.
+15. **`beforeNavigate` callback receives `to: NavigationTarget | null`**, where the URL lives at `to.url` (a `URL` object). Don't conflate it with `to: URL` (older Svelte docs sometimes do). The full type is in `@sveltejs/kit`. When firing a programmatic `goto(pendingNav)` after the user confirms discard, pass the URL object directly — `goto` accepts both strings and URLs.
+
+### Carry-forward updates
+
+- [x] `<BookFormSheet>` deleted.
+- [x] `.cursor/rules/components.mdc` — `<BookForm>` registered, `<BookFormSheet>` row removed; Patterns section updated for "Sheet vs Dialog vs dedicated page" and `onDirtyChange` callback prop.
+- [x] `.cursor/rules/library-module.mdc` — controlled-Sheet dirty-form pattern replaced with `beforeNavigate` pattern; new "Large entity forms ship as dedicated pages" rule added.
+- [x] [`docs/POS_Library_Build_Tracker.md`](../POS_Library_Build_Tracker.md) — Session 1.5e annotated.
+- [x] No schema or env-var changes.
+
+## Session 1.5f author quick-create + form polish (2026-04-28)
+
+After Session 1.5e landed the page-hosted form, user testing showed the Add-author flow was still slower than necessary: every new person required clicking "+ Create" → typing in the dialog → submitting. Most of the time the typeahead text WAS the new person's name. Plus citation styles use "Last, First" form, not "First Last", and middle initials are common.
+
+### Built
+
+- **Smart `parseTypedName` parser** in [`src/lib/components/book-form.svelte`](../../src/lib/components/book-form.svelte). Handles three input shapes:
+  - "Robert Bauckham" → first / last
+  - "John Q. Smith" / "John Q Smith" → first / middle / last (single-letter penultimate token detected as middle initial; trailing dot stripped)
+  - "Bauckham, Richard J." → comma-split first; same middle-initial detection on the right side of the comma
+  - Fallback: 3+ tokens with no detectable initial → first = "all but last".
+- **`onAutoCreate` blur callback on `<PersonAutocomplete>`** ([`src/lib/components/person-autocomplete.svelte`](../../src/lib/components/person-autocomplete.svelte)). New optional prop. After the existing 150ms close-dropdown delay, fires when value is null + queryRaw is non-empty + no exact match + onAutoCreate provided + not suppressed by an explicit "+ Create" click. Suppression flag (`suppressAutoCreate`) prevents the dialog path from also triggering the silent path.
+- **`handleAutoCreatePerson(rowKey, text)` in `<BookForm>`** — silent fetch to `?/createPerson` with the parsed first/middle/last. Optimistic exact-match short-circuit so race conditions or typed-already-exists names don't create duplicates. On success, append to local `people` and assign the row's person_id. On failure, log to console; the dropdown's "+ Create" row remains the manual fallback.
+- **Author row collapsed to single horizontal row**. Layout: `[autocomplete flex-1] [Role w-40] [chevrons + X]`. Stacks vertically below the `sm` breakpoint. The Session 1.5e two-row layout was a defensive choice while the form was still cramped; with the page width restored to ~880px, single-row is cleaner and scales nicely as authors stack.
+- **Removed "Optional —" help text** under Title and Primary category. The whole form is "save anything, flag what's missing" — calling out individual optionality was redundant.
+
+### Decided (non-obvious)
+
+- **Auto-create requires only a last name.** A single-token entry like "Bauckham" creates `{ last: 'Bauckham', first: null }`. Server-side, last_name is the only required field. The user can later edit to add first/middle. We considered requiring 2+ tokens before auto-creating, but that would silently swallow legitimate single-name imports (e.g. "Augustine") and feel inconsistent.
+- **Auto-create does NOT call B14 dedup-warning** before submit. The existing `dedupHints[row.key]` rendering surfaces collisions AFTER the row's person_id is set, so accidental duplicates are visible immediately. Pre-flight blocking would interrupt the tab-flow that's the entire point of this change.
+- **`+ Create` dialog stays.** It's the keyboard-explicit path (Enter on the dropdown row) and the "I want to add suffix / specifically check the dialog" path. The auto-create on blur is the optimistic default; the dialog is the audited fallback.
+- **Single-row author layout** rather than 2-row from 1.5e. With page width restored, the chip-mode autocomplete is visually compact, and a one-line-per-author layout makes scanning a 5-author list way easier than the 1.5e double-decker (which felt visually noisy).
+
+### New components / patterns added
+
+- **Pattern: "type-and-tab" silent create** for autocomplete pickers where the user is more likely to be entering a new value than picking an existing one. The autocomplete fires `onAutoCreate(text)` on blur; the host parses + silently submits to a `?/createX` action; collision warnings render after the fact via the existing dedup-hint slot. Reusable for the future `<CanonicalizingCombobox>` (Session 5) where new ancient_text or topic entries are similarly common.
+
+### Schema changes
+
+None.
+
+### Open questions surfaced
+
+None.
+
+### Surprises (read these before the next session)
+
+None new.
+
+### Carry-forward updates
+
+- [x] `<BookForm>` `parseTypedName` extended to return `middle?` and accept comma-flip + initial detection.
+- [x] `<PersonAutocomplete>` `onAutoCreate` prop added; suppress flag prevents double-fire with `+ Create`.
+- [x] [`docs/POS_Library_Build_Tracker.md`](../POS_Library_Build_Tracker.md) — Session 1.5f annotated.
+- [x] No schema or env-var changes.
+
+## Session 1.5g auto-create gate fix + default search row (2026-04-28)
+
+User testing surfaced that the Session 1.5f auto-create-on-tab-away never actually fired silently — every typed name still required clicking "+ Create" in the dropdown. Plus the Authors section starting empty (with a "No authors yet" paragraph) added a click cost before any author entry could begin.
+
+### Built
+
+- **Auto-create gate fix** in [`src/lib/components/person-autocomplete.svelte`](../../src/lib/components/person-autocomplete.svelte). `handleBlur`'s gate compared `value === null` strictly, but `<BookForm>` seeds new author rows with `person_id: ''` (empty string). Empty string fails the strict null check, so the auto-create branch was silently skipped every time. Changed to `!value`, matching the truthy-check convention used everywhere else in the file (`showInput`, `selectedPerson`). JSDoc comment updated accordingly.
+- **Default-visible search row** in [`src/lib/components/book-form.svelte`](../../src/lib/components/book-form.svelte). After the seed `$effect` runs, if `authorRows.length === 0` (true for create mode and edit mode of bookless books), append one starter row `{ key: 'seed-...', person_id: '', role: 'author' }`. Removed the `{#if authorRows.length === 0}<p>No authors yet…</p>{/if}` paragraph since the seeded row IS the empty state. Empty seed rows are still filtered out by `authorsJson.filter((a) => a.person_id.length > 0)` and don't trip `hasAnyField` (which uses `.some((a) => a.person_id)`), so submit semantics are unchanged.
+
+### Decided (non-obvious)
+
+- **`!value` vs changing `person_id: ''` to `null`.** Both fix the bug. The autocomplete fix is one-line, scoped, and matches the file's existing convention. Changing the seed value would ripple through `AuthorRow` types, `authorsJson` filter, `dirty` snapshot comparison, and `hasAnyField` check — much wider blast radius for the same outcome.
+- **Seed in the same `$effect` that handles the edit pre-fill** rather than in a separate `$effect` or `onMount`. Single seed point, runs after the edit-branch population, so books-with-zero-authors and create-mode both fall through to the same conditional seed.
+
+### Surprises (read these before the next session)
+
+16. **`$bindable<string | null>` props with hosts that seed empty strings.** When a Svelte 5 component declares `value = $bindable<string | null>(null)` but the host seeds with empty string (`person_id: ''`), strict `value === null` checks inside the component will silently no-op for every brand-new row. Always use truthy/falsy checks (`!value`, `value` for present) instead of strict null comparisons unless the seed contract is enforced upstream. Burned us in 1.5g; the rest of `<PersonAutocomplete>` already used `!value` consistently — `handleBlur` was the lone outlier.
+
+### Carry-forward updates
+
+- [x] `<PersonAutocomplete>.handleBlur` gate changed to `!value`; JSDoc comment matches.
+- [x] `<BookForm>` Authors section seeds one empty row by default; empty-state paragraph removed.
+- [x] [`docs/POS_Library_Build_Tracker.md`](../POS_Library_Build_Tracker.md) — Session 1.5g annotated.
+- [x] No schema, env-var, or rule-file changes.
+
+## Session 1.5h BookForm seed-effect re-run hotfix (2026-04-28)
+
+User testing of the 1.5g default-search-row change immediately surfaced a regression: editing an existing book ("IVP Greek") got "stuck" — the back-link URL would update but the page wouldn't render, typed field changes vanished mid-interaction, and added authors disappeared the moment the user clicked anywhere else. Root cause was a one-line oversight in the 1.5g seed addition.
+
+### Built
+
+- **`untrack` wrapper around the seed-if-empty length check** in [`src/lib/components/book-form.svelte`](../../src/lib/components/book-form.svelte). The 1.5g seed block read `authorRows.length` directly inside the same `$effect` that pre-fills fields from `book` and baselines `initialSnapshot`. Svelte 5 `$effect` tracks every state read in its body, so `authorRows.length` joined `mode` + `book` in the dep set. Every subsequent mutation of `authorRows` (Add author, Remove author, `handleAutoCreatePerson`) re-fired the seed effect:
+  1. Edit branch re-pre-filled all fields from `book`, silently wiping any user edits to title / publisher / etc.
+  2. `initialSnapshot = untrack(() => currentFormSnapshot())` re-baselined to the just-wiped state.
+  3. `dirty` $derived recomputed and flipped back to false.
+  4. The page-level `onDirtyChange` callback flipped page.dirty between true/false on every interaction, confusing the `beforeNavigate` interceptor.
+  Fix: wrap the length probe in `untrack(() => authorRows.length === 0)`, mirroring the existing `untrack(() => currentFormSnapshot())` line directly underneath.
+
+### Decided (non-obvious)
+
+- **Surgical untrack vs effect refactor**. Could have split the seed/baseline into a separate `$effect` that runs once via a `let seeded = false` guard, or refactored the pre-fill effect to only re-run when `book.id` changes. Both are bigger surgery than the one-line untrack, and don't add value for this bug. Defer that refactor until / unless invalidate-driven re-pre-fills bite in a future flow.
+- **Date.now() in the seed key is fine.** The seed only fires once per mount now (since the length probe doesn't trigger re-runs), so the key never collides with itself across calls. SSR isn't an issue because BookForm only mounts client-side after hydration of the parent route.
+
+### Surprises (read these before the next session)
+
+17. **Any state read inside an init/seed `$effect` body — even a `.length` probe or an array-prop deref — adds it to the effect's dep set and re-fires the effect on changes.** Same shape of trap as Session 1.5c. The fix is the same too: wrap the read in `untrack(() => …)` from `svelte`. This is now the second time a one-line probe in the seed effect has caused a wide-radius reactivity cascade — promote the rule into the library-module conventions and watch for it in any future entity-form component.
+
+### Carry-forward updates
+
+- [x] `<BookForm>` seed-if-empty length check wrapped in `untrack`.
+- [x] [`docs/POS_Library_Build_Tracker.md`](../POS_Library_Build_Tracker.md) — Session 1.5h annotated.
+- [x] [`.cursor/rules/library-module.mdc`](../../.cursor/rules/library-module.mdc) — Session 1.5c untrack note extended to call out probe-style reads (`.length`, indexer access, etc.).
+- [x] No schema or env-var changes.

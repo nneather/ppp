@@ -17,7 +17,7 @@
 	 *   - Chip mode (value !== null && !searchMode): shows the selected
 	 *     person's full name as a button-styled "chip" with a Change
 	 *     affordance. Click anywhere on the chip to switch to search mode.
-	 *   - Search mode (value === null OR user clicked Change): shows the
+	 *   - Search mode (value is null/empty OR user clicked Change): shows the
 	 *     input + dropdown of matches. If a person was previously selected,
 	 *     a small Cancel link restores the chip without changing the value.
 	 *
@@ -40,13 +40,17 @@
 		people,
 		personBookCounts,
 		onCreate,
+		onAutoCreate,
 		placeholder = 'Search by name…',
 		ariaLabel = 'Person'
 	}: {
 		value?: string | null;
 		people: PersonRow[];
 		personBookCounts: Record<string, number>;
+		/** Fired when the user clicks the explicit "+ Create" dropdown row. Host typically opens a confirmation Dialog. */
 		onCreate?: (rawText: string) => void;
+		/** Fired on input blur when the typed text doesn't match anyone — host should silently create the person without a dialog. */
+		onAutoCreate?: (rawText: string) => void;
 		placeholder?: string;
 		ariaLabel?: string;
 	} = $props();
@@ -59,6 +63,10 @@
 	 * was already selected. False = chip mode (the default once a value exists). */
 	let searchMode = $state(false);
 	let prevValue = $state<string | null>(null);
+	/** Set true by handleCreate so the immediately-following blur doesn't
+	 * also fire onAutoCreate (which would create the person twice — once via
+	 * the dialog, once via the silent blur path). Cleared after 200ms. */
+	let suppressAutoCreate = $state(false);
 
 	const selectedPerson = $derived.by<PersonRow | null>(() => {
 		if (!value) return null;
@@ -148,6 +156,10 @@
 		const text = queryRaw.trim();
 		if (!text || !onCreate) return;
 		dropdownOpen = false;
+		suppressAutoCreate = true;
+		setTimeout(() => {
+			suppressAutoCreate = false;
+		}, 200);
 		onCreate(text);
 		// queryRaw stays so the user can see what they typed if the dialog
 		// is cancelled. If the dialog succeeds and value is set, the
@@ -220,6 +232,22 @@
 		// Delay so click on a dropdown item registers before dropdown unmounts.
 		setTimeout(() => {
 			dropdownOpen = false;
+			// Auto-create on tab-away: if the user typed something, no person
+			// matches exactly, no value is selected, and the host opted in
+			// via onAutoCreate, fire the silent-create handler. The selectPerson
+			// path sets value first so this branch naturally skips. The
+			// "+ Create" path sets suppressAutoCreate to avoid double-fire.
+			if (
+				!suppressAutoCreate &&
+				!value &&
+				queryRaw.trim().length > 0 &&
+				!hasExactMatch &&
+				onAutoCreate
+			) {
+				const text = queryRaw;
+				queryRaw = '';
+				onAutoCreate(text);
+			}
 		}, 150);
 	}
 </script>
@@ -250,7 +278,7 @@
 			bind:ref={inputEl}
 			bind:value={queryRaw}
 			{placeholder}
-			class="h-11 w-full text-base"
+			class={cn('h-11 w-full text-base', value && 'pr-20')}
 			aria-label={ariaLabel}
 			aria-autocomplete="list"
 			aria-expanded={dropdownOpen}

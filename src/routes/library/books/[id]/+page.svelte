@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
-	import BookFormSheet from '$lib/components/book-form-sheet.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -18,18 +16,10 @@
 	import type { ReadingStatus } from '$lib/types/library';
 	import type { PageProps } from './$types';
 
-	let { data, form }: PageProps = $props();
+	let { data }: PageProps = $props();
 
-	let editSheetOpen = $state(false);
 	let deletePending = $state(false);
 	let statusOptimistic = $state<ReadingStatus | null>(null);
-
-	const formMessage = $derived.by(() => {
-		const f = form as { kind?: string; message?: string } | null;
-		if (!f) return null;
-		if (f.kind === 'updateBook') return f;
-		return null;
-	});
 
 	const effectiveStatus = $derived<ReadingStatus>(
 		statusOptimistic ?? data.book.reading_status
@@ -71,11 +61,6 @@
 			deletePending = false;
 		};
 	};
-
-	async function onSaved() {
-		await invalidateAll();
-		editSheetOpen = false;
-	}
 
 	function fmtYearChunk(): string {
 		const parts: string[] = [];
@@ -137,7 +122,7 @@
 			{/if}
 		</div>
 		<div class="flex flex-wrap gap-2">
-			<Button variant="outline" onclick={() => (editSheetOpen = true)}>
+			<Button variant="outline" href={`/library/books/${data.book.id}/edit`}>
 				<Pencil class="size-4" /> Edit
 			</Button>
 			<form method="POST" action="?/softDeleteBook" use:enhance={deleteEnhance} class="contents">
@@ -275,16 +260,3 @@
 		</aside>
 	</div>
 </div>
-
-<BookFormSheet
-	bind:open={editSheetOpen}
-	mode="edit"
-	book={data.book}
-	people={data.people}
-	personBookCounts={data.personBookCounts}
-	categories={data.categories}
-	series={data.series}
-	{formMessage}
-	{onSaved}
-/>
-

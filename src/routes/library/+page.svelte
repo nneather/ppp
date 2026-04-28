@@ -4,7 +4,6 @@
 	import { invalidateAll, goto } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
-	import BookFormSheet from '$lib/components/book-form-sheet.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Plus from '@lucide/svelte/icons/plus';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
@@ -14,16 +13,7 @@
 	import type { ReadingStatus } from '$lib/types/library';
 	import type { PageProps } from './$types';
 
-	let { data, form }: PageProps = $props();
-
-	let createSheetOpen = $state(false);
-
-	const formMessage = $derived.by(() => {
-		const f = form as { kind?: string; message?: string } | null;
-		if (!f) return null;
-		if (f.kind === 'createBook') return f;
-		return null;
-	});
+	let { data }: PageProps = $props();
 
 	// 10s undo toast for soft-deletes coming back from the detail-page redirect.
 	let undoToastVisible = $state(false);
@@ -115,11 +105,6 @@
 			};
 		};
 	}
-
-	async function onSaved(bookId: string) {
-		await invalidateAll();
-		goto(`/library/books/${bookId}`);
-	}
 </script>
 
 <svelte:head>
@@ -136,7 +121,7 @@
 			{data.books.length} book{data.books.length === 1 ? '' : 's'}
 		</span>
 		<div class="ml-auto">
-			<Button type="button" onclick={() => (createSheetOpen = true)} class="gap-2">
+			<Button href="/library/books/new" class="gap-2">
 				<Plus class="size-4" /> Add book
 			</Button>
 		</div>
@@ -146,7 +131,7 @@
 		<div class="mt-10 rounded-xl border border-dashed border-border p-8 text-center">
 			<BookOpen class="mx-auto size-8 text-muted-foreground" />
 			<p class="mt-3 text-sm text-muted-foreground">No books yet. Add one to get started.</p>
-			<Button class="mt-4" onclick={() => (createSheetOpen = true)}>
+			<Button href="/library/books/new" class="mt-4">
 				<Plus class="size-4" /> Add book
 			</Button>
 		</div>
@@ -294,18 +279,6 @@
 		</div>
 	{/if}
 </div>
-
-<BookFormSheet
-	bind:open={createSheetOpen}
-	mode="create"
-	book={null}
-	people={data.people}
-	personBookCounts={data.personBookCounts}
-	categories={data.categories}
-	series={data.series}
-	{formMessage}
-	{onSaved}
-/>
 
 {#if undoToastVisible && undoToastBookId}
 	<div
