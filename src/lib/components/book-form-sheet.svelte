@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { untrack } from 'svelte';
 	import { enhance, deserialize } from '$app/forms';
 	import { invalidate } from '$app/navigation';
 	import type { ActionResult, SubmitFunction } from '@sveltejs/kit';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import PersonAutocomplete from '$lib/components/person-autocomplete.svelte';
+	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import { cn } from '$lib/utils.js';
 	import {
 		AUTHOR_ROLES,
@@ -32,7 +36,6 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
-	import UserPlus from '@lucide/svelte/icons/user-plus';
 
 	type FormMessage = { message?: string } | null | undefined;
 
@@ -90,7 +93,7 @@
 	let extra_category_ids = $state<string[]>([]);
 	let series_id = $state<string>('');
 	let volume_number = $state('');
-	let genre = $state<Genre>('General');
+	let genre = $state<Genre | ''>('');
 	let language = $state<Language>('english');
 	let isbn = $state('');
 	let barcode = $state('');
@@ -99,7 +102,7 @@
 	let borrowed_to = $state('');
 	let personal_notes = $state('');
 	let rating = $state('');
-	let needs_review = $state(false);
+	let needs_review = $state<boolean>(false);
 	let needs_review_note = $state('');
 	let page_count = $state('');
 	let authorRows = $state<AuthorRow[]>([]);
@@ -111,17 +114,136 @@
 	let newPersonLast = $state('');
 	let newPersonSuffix = $state('');
 	let personDialogMessage = $state<string | null>(null);
+	let personDialogMessageTone = $state<'error' | 'warning'>('error');
 	let personDialogPending = $state(false);
+	/** Set true after user confirms past a B14 collision warning so the next
+	 * submit skips the duplicate-name check. */
+	let personDialogConfirmedDuplicate = $state(false);
 	/** When set, the next-created person auto-fills this author row's person_id. */
 	let pendingAuthorRowKey = $state<string | null>(null);
 
 	let sheetSide = $state<'bottom' | 'right'>('bottom');
 	let pending = $state(false);
 
+	// Dirty-form confirm: snapshot the form state on open; if any field has
+	// changed at dismiss time, intercept and prompt before closing. See the
+	// `dirty-form-confirm` pattern in `.cursor/rules/library-module.mdc`.
+	let initialSnapshot = $state<string>('');
+	let confirmCloseOpen = $state(false);
+	/** Bypass the dirty check on the next close (set after Discard or Save). */
+	let forceClose = $state(false);
+
+	function currentFormSnapshot(): string {
+		return JSON.stringify({
+			title,
+			subtitle,
+			publisher,
+			publisher_location,
+			year,
+			edition,
+			total_volumes,
+			original_year,
+			reprint_publisher,
+			reprint_location,
+			reprint_year,
+			primary_category_id,
+			extra_category_ids,
+			series_id,
+			volume_number,
+			genre,
+			language,
+			isbn,
+			barcode,
+			shelving_location,
+			reading_status,
+			borrowed_to,
+			personal_notes,
+			rating,
+			needs_review,
+			needs_review_note,
+			page_count,
+			authorRows: authorRows.map((a) => ({ person_id: a.person_id, role: a.role }))
+		});
+	}
+
+	const dirty = $derived(open && currentFormSnapshot() !== initialSnapshot);
+
+	/** Save bar — at least one field must be set. Defaults like
+	 * language='english' / reading_status='unread' don't count. */
+	const hasAnyField = $derived(
+		[
+			title,
+			subtitle,
+			publisher,
+			publisher_location,
+			year,
+			edition,
+			total_volumes,
+			original_year,
+			reprint_publisher,
+			reprint_location,
+			reprint_year,
+			volume_number,
+			isbn,
+			barcode,
+			shelving_location,
+			personal_notes,
+			page_count,
+			borrowed_to,
+			rating,
+			needs_review_note
+		].some((v) => String(v ?? '').trim().length > 0) ||
+			authorRows.some((a) => a.person_id) ||
+			extra_category_ids.length > 0 ||
+			!!primary_category_id ||
+			!!series_id ||
+			!!genre ||
+			needs_review === true
+	);
+
+	/** Mirror server-side `computeMissingImportant`. Surfaced as the amber
+	 * "Will be auto-flagged for review" preview under the Save button. */
+	const missingImportantPreview = $derived.by<string[]>(() => {
+		const out: string[] = [];
+		if (!title.trim()) out.push('title');
+		if (authorRows.filter((a) => a.role === 'author' && a.person_id).length === 0)
+			out.push('author');
+		if (!genre) out.push('genre');
+		if (!year || String(year).trim().length === 0) out.push('year');
+		if (!publisher.trim()) out.push('publisher');
+		return out;
+	});
+
+	function handleOpenChange(next: boolean) {
+		if (next) {
+			open = true;
+			return;
+		}
+		if (forceClose) {
+			forceClose = false;
+			open = false;
+			return;
+		}
+		if (dirty) {
+			confirmCloseOpen = true;
+			return; // do not commit close until user confirms
+		}
+		open = false;
+	}
+
+	function discardChangesAndClose() {
+		confirmCloseOpen = false;
+		forceClose = true;
+		open = false;
+	}
+
 	const formAction = $derived(`${actionPath}?/${mode === 'create' ? 'createBook' : 'updateBook'}`);
 	const personActionPath = $derived(`${actionPath}?/createPerson`);
 
-	const categorySelectItems = $derived(categories.map((c) => ({ value: c.id, label: c.name })));
+	const categorySelectItems = $derived([
+		{ value: '', label: '— None —' },
+		...categories.map((c) => ({ value: c.id, label: c.name }))
+	]);
 	const seriesSelectItems = $derived([
 		{ value: '', label: '— None —' },
 		...series.map((s) => ({
@@ -129,7 +251,10 @@
 			label: s.abbreviation ? `${s.abbreviation} — ${s.name}` : s.name
 		}))
 	]);
-	const genreSelectItems = $derived(GENRES.map((g) => ({ value: g, label: g })));
+	const genreSelectItems = $derived([
+		{ value: '', label: '— None —' },
+		...GENRES.map((g) => ({ value: g, label: g }))
+	]);
 	const languageSelectItems = $derived(
 		LANGUAGES.map((l) => ({ value: l, label: LANGUAGE_LABELS[l] }))
 	);
@@ -139,14 +264,11 @@
 	const authorRoleSelectItems = $derived(
 		AUTHOR_ROLES.map((r) => ({ value: r, label: AUTHOR_ROLE_LABELS[r] }))
 	);
-	const peopleSelectItems = $derived([
-		{ value: '', label: '— Pick a person —' },
-		...people.map((p) => ({ value: p.id, label: personLabel(p) }))
-	]);
 
 	const primaryCategoryLabel = $derived.by(() => {
+		if (!primary_category_id) return '— None —';
 		const found = categories.find((c) => c.id === primary_category_id);
-		return found?.name ?? 'Pick category';
+		return found?.name ?? '— None —';
 	});
 	const seriesLabel = $derived.by(() => {
 		if (!series_id) return '— None —';
@@ -157,12 +279,15 @@
 	const languageLabel = $derived(LANGUAGE_LABELS[language]);
 	const readingStatusLabel = $derived(READING_STATUS_LABELS[reading_status]);
 
-	function personLabel(p: PersonRow): string {
-		const segs = [p.first_name, p.middle_name, p.last_name, p.suffix]
-			.filter((s): s is string => s != null && s.trim().length > 0);
-		const base = segs.length === 0 ? p.last_name : segs.join(' ');
-		const count = personBookCounts[p.id] ?? 0;
-		return count > 0 ? `${base} (${count})` : base;
+	/** Best-effort name parse: "Robert Bauckham" → { first: 'Robert', last: 'Bauckham' }.
+	 * Single token = treated as a last name. Used to pre-fill the Add-person dialog
+	 * when the user creates a new person from the autocomplete typeahead. */
+	function parseTypedName(text: string): { first?: string; last?: string } {
+		const trimmed = text.trim();
+		if (!trimmed) return {};
+		const parts = trimmed.split(/\s+/);
+		if (parts.length === 1) return { last: parts[0] };
+		return { first: parts.slice(0, -1).join(' '), last: parts[parts.length - 1] };
 	}
 
 	const dedupHints = $derived.by(() => {
@@ -217,7 +342,7 @@
 	$effect(() => {
 		if (!open) return;
 		if (mode === 'edit' && book) {
-			title = book.title;
+			title = book.title ?? '';
 			subtitle = book.subtitle ?? '';
 			publisher = book.publisher ?? '';
 			publisher_location = book.publisher_location ?? '';
@@ -228,11 +353,11 @@
 			reprint_publisher = book.reprint_publisher ?? '';
 			reprint_location = book.reprint_location ?? '';
 			reprint_year = book.reprint_year != null ? String(book.reprint_year) : '';
-			primary_category_id = book.primary_category_id;
+			primary_category_id = book.primary_category_id ?? '';
 			extra_category_ids = book.category_ids.filter((id) => id !== book.primary_category_id);
 			series_id = book.series_id ?? '';
 			volume_number = book.volume_number ?? '';
-			genre = (book.genre as Genre) ?? 'General';
+			genre = (book.genre as Genre | null) ?? '';
 			language = book.language;
 			isbn = book.isbn ?? '';
 			barcode = book.barcode ?? '';
@@ -261,11 +386,14 @@
 			reprint_publisher = '';
 			reprint_location = '';
 			reprint_year = '';
-			primary_category_id = categories[0]?.id ?? '';
+			// Primary category is nullable (Session 1.5b) — start blank rather
+			// than auto-picking the first category, since "Theology" is the wrong
+			// default for most books. User can leave blank if uncertain.
+			primary_category_id = '';
 			extra_category_ids = [];
 			series_id = '';
 			volume_number = '';
-			genre = 'General';
+			genre = '';
 			language = 'english';
 			isbn = '';
 			barcode = '';
@@ -279,6 +407,12 @@
 			page_count = '';
 			authorRows = [];
 		}
+		// Baseline snapshot so the dirty-form confirm only fires for changes
+		// the user has actually made since opening. Wrap in untrack so the
+		// snapshot's reads of every form $state var don't add those vars to
+		// this $effect's dep set — otherwise every keystroke would re-fire
+		// the effect and reset the form (bug from Session 1.5b).
+		initialSnapshot = untrack(() => currentFormSnapshot());
 	});
 
 	function addAuthorRow() {
@@ -307,24 +441,66 @@
 			: [...extra_category_ids, id];
 	}
 
-	function openPersonDialog(rowKey: string | null) {
+	export function openPersonDialog(rowKey: string | null, prefill?: { first?: string; last?: string }) {
 		pendingAuthorRowKey = rowKey;
-		newPersonFirst = '';
+		newPersonFirst = prefill?.first ?? '';
 		newPersonMiddle = '';
-		newPersonLast = '';
+		newPersonLast = prefill?.last ?? '';
 		newPersonSuffix = '';
 		personDialogMessage = null;
+		personDialogMessageTone = 'error';
+		personDialogConfirmedDuplicate = false;
 		personDialogOpen = true;
+	}
+
+	// Re-arm the B14 collision check whenever the user edits the name fields
+	// after seeing the warning. Otherwise a confirmed-duplicate flag could leak
+	// across a typo-corrected resubmit and bypass a new collision.
+	$effect(() => {
+		newPersonFirst;
+		newPersonLast;
+		if (personDialogConfirmedDuplicate) {
+			personDialogConfirmedDuplicate = false;
+		}
+		if (personDialogMessageTone === 'warning') {
+			personDialogMessage = null;
+		}
+	});
+
+	function findCollidingPeople(first: string, last: string): PersonRow[] {
+		const lastLower = last.trim().toLowerCase();
+		if (!lastLower) return [];
+		const initial = first.trim().charAt(0).toLowerCase();
+		return people.filter(
+			(p) =>
+				p.last_name.toLowerCase() === lastLower &&
+				(p.first_name?.trim().charAt(0).toLowerCase() ?? '') === initial
+		);
 	}
 
 	async function submitPersonDialog() {
 		if (!browser) return;
 		if (newPersonLast.trim().length === 0) {
 			personDialogMessage = 'Last name is required.';
+			personDialogMessageTone = 'error';
 			return;
+		}
+		// B14: warn before creating a person whose last_name + first_initial
+		// matches an existing one. User must explicitly confirm.
+		if (!personDialogConfirmedDuplicate) {
+			const collisions = findCollidingPeople(newPersonFirst, newPersonLast);
+			if (collisions.length > 0) {
+				const names = collisions
+					.map((p) => [p.first_name, p.last_name].filter(Boolean).join(' '))
+					.join(', ');
+				personDialogMessage = `Already in your library: ${names}. Continue creating a separate person?`;
+				personDialogMessageTone = 'warning';
+				return;
+			}
 		}
 		personDialogPending = true;
 		personDialogMessage = null;
+		personDialogMessageTone = 'error';
 		try {
 			const fd = new FormData();
 			fd.append('first_name', newPersonFirst);
@@ -394,6 +570,10 @@
 			if (result.type === 'success') {
 				const data = (result.data ?? {}) as { kind?: string; bookId?: string };
 				const bookId = data.bookId;
+				// Re-baseline so the next open of an empty form doesn't see leftover
+				// dirty state, and bypass the close-confirm since the save committed.
+				initialSnapshot = currentFormSnapshot();
+				forceClose = true;
 				open = false;
 				if (bookId) onSaved?.(bookId);
 			}
@@ -401,7 +581,7 @@
 	};
 </script>
 
-<Sheet.Root bind:open>
+<Sheet.Root open={open} onOpenChange={handleOpenChange}>
 	<Sheet.Content
 		side={sheetSide}
 		class={cn(
@@ -449,14 +629,17 @@
 					{#each extra_category_ids as cid (cid)}
 						<input type="hidden" name="category_ids" value={cid} />
 					{/each}
-					<input type="hidden" name="category_ids" value={primary_category_id} />
+					{#if primary_category_id}
+						<input type="hidden" name="category_ids" value={primary_category_id} />
+					{/if}
 
 					<!-- Identity -->
 					<section class="flex flex-col gap-4">
 						<h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Identity</h3>
 						<div class="space-y-2">
-							<Label for="bf-title">Title <span class="text-destructive">*</span></Label>
-							<Input id="bf-title" name="title" bind:value={title} required class="h-11 text-base" />
+							<Label for="bf-title">Title</Label>
+							<p class="text-xs text-muted-foreground">Optional — fill in later if unknown.</p>
+							<Input id="bf-title" name="title" bind:value={title} class="h-11 text-base" />
 						</div>
 						<div class="space-y-2">
 							<Label for="bf-subtitle">Subtitle</Label>
@@ -468,24 +651,15 @@
 					<section class="flex flex-col gap-3">
 						<div class="flex items-center justify-between">
 							<h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Authors</h3>
-							<div class="flex gap-2">
-								<Button type="button" size="sm" variant="outline" onclick={addAuthorRow}>
-									<Plus class="size-4" /> Author
-								</Button>
-								<Button
-									type="button"
-									size="sm"
-									variant="outline"
-									onclick={() => openPersonDialog(null)}
-								>
-									<UserPlus class="size-4" /> New person
-								</Button>
-							</div>
+							<Button type="button" size="sm" variant="outline" onclick={addAuthorRow}>
+								<Plus class="size-4" /> Add author
+							</Button>
 						</div>
 
 						{#if authorRows.length === 0}
 							<p class="text-sm text-muted-foreground">
-								No authors yet. "Add author" picks an existing person; "New person" adds one to the library.
+								No authors yet. Click "Add author" then type a name — pick an existing
+								person or create a new one inline.
 							</p>
 						{/if}
 
@@ -514,28 +688,14 @@
 											<ChevronDown class="size-4" />
 										</Button>
 									</div>
-									<div class="flex-1 space-y-2">
-										<Label for={`author-person-${row.key}`} class="text-xs text-muted-foreground">
-											Person
-										</Label>
-										<Select.Root type="single" bind:value={row.person_id} items={peopleSelectItems}>
-											<Select.Trigger
-												id={`author-person-${row.key}`}
-												size="default"
-												class="h-11 w-full justify-between px-3"
-											>
-												<span data-slot="select-value" class="truncate text-left">
-													{peopleSelectItems.find((p) => p.value === row.person_id)?.label ?? '— Pick a person —'}
-												</span>
-											</Select.Trigger>
-											<Select.Content class="max-h-72">
-												{#each peopleSelectItems as p (p.value)}
-													<Select.Item value={p.value} label={p.label} class="min-h-10 py-2">
-														{p.label}
-													</Select.Item>
-												{/each}
-											</Select.Content>
-										</Select.Root>
+									<div class="min-w-0 flex-1 space-y-2">
+										<Label class="text-xs text-muted-foreground">Person</Label>
+										<PersonAutocomplete
+											bind:value={row.person_id}
+											{people}
+											{personBookCounts}
+											onCreate={(text) => openPersonDialog(row.key, parseTypedName(text))}
+										/>
 									</div>
 									<div class="space-y-2">
 										<Label for={`author-role-${row.key}`} class="text-xs text-muted-foreground">
@@ -584,12 +744,17 @@
 						<h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Classification</h3>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="space-y-2">
-								<Label for="bf-genre">Genre <span class="text-destructive">*</span></Label>
+								<Label for="bf-genre">Genre</Label>
 								<Select.Root type="single" bind:value={genre} items={genreSelectItems}>
 									<Select.Trigger id="bf-genre" size="default" class="h-11 w-full justify-between px-3">
-										<span data-slot="select-value" class="truncate text-left">{genre}</span>
+										<span data-slot="select-value" class="truncate text-left">
+											{genre || '— None —'}
+										</span>
 									</Select.Trigger>
 									<Select.Content class="max-h-72">
+										<Select.Item value="" label="— None —" class="min-h-10 py-2 text-muted-foreground">
+											— None —
+										</Select.Item>
 										{#each GENRES as g (g)}
 											<Select.Item value={g} label={g} class="min-h-10 py-2">{g}</Select.Item>
 										{/each}
@@ -614,12 +779,16 @@
 						</div>
 
 						<div class="space-y-2">
-							<Label for="bf-primary-cat">Primary category <span class="text-destructive">*</span></Label>
+							<Label for="bf-primary-cat">Primary category</Label>
+							<p class="text-xs text-muted-foreground">Optional — leave as "None" if unsure.</p>
 							<Select.Root type="single" bind:value={primary_category_id} items={categorySelectItems}>
 								<Select.Trigger id="bf-primary-cat" size="default" class="h-11 w-full justify-between px-3">
 									<span data-slot="select-value" class="truncate text-left">{primaryCategoryLabel}</span>
 								</Select.Trigger>
 								<Select.Content class="max-h-72">
+									<Select.Item value="" label="— None —" class="min-h-10 py-2 text-muted-foreground">
+										— None —
+									</Select.Item>
 									{#each categories as c (c.id)}
 										<Select.Item value={c.id} label={c.name} class="min-h-10 py-2">{c.name}</Select.Item>
 									{/each}
@@ -896,9 +1065,18 @@
 					</section>
 
 					<Sheet.Footer class="mt-2 flex-col gap-2 border-0 p-0 sm:flex-col">
-						<Button type="submit" class="h-12 w-full text-base" disabled={pending || !primary_category_id}>
+						<Button type="submit" class="h-12 w-full text-base" disabled={pending || !hasAnyField}>
 							{pending ? 'Saving…' : mode === 'create' ? 'Save book' : 'Update book'}
 						</Button>
+						{#if !pending && !hasAnyField}
+							<p class="text-center text-xs text-muted-foreground">
+								Add at least one detail (title, ISBN, an author, anything) before saving.
+							</p>
+						{:else if !pending && missingImportantPreview.length > 0 && !needs_review}
+							<p class="text-center text-xs text-amber-700 dark:text-amber-300">
+								Will be auto-flagged for review (missing: {missingImportantPreview.join(', ')}).
+							</p>
+						{/if}
 					</Sheet.Footer>
 				</form>
 			{/if}
@@ -906,53 +1084,72 @@
 	</Sheet.Content>
 </Sheet.Root>
 
-{#if personDialogOpen}
-	<div
-		class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
-		role="dialog"
-		aria-modal="true"
-	>
-		<div class="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg">
-			<h2 class="text-lg font-semibold tracking-tight">Add person</h2>
-			<p class="mt-1 text-sm text-muted-foreground">
+<Dialog.Root bind:open={personDialogOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Add person</Dialog.Title>
+			<Dialog.Description>
 				Last name is required. First / middle / suffix are optional but help with citations later.
+			</Dialog.Description>
+		</Dialog.Header>
+
+		{#if personDialogMessage}
+			<p
+				class={cn(
+					'rounded-md border px-3 py-2 text-sm',
+					personDialogMessageTone === 'warning'
+						? 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200'
+						: 'border-destructive/30 bg-destructive/10 text-destructive'
+				)}
+				role={personDialogMessageTone === 'warning' ? 'status' : 'alert'}
+			>
+				{personDialogMessage}
 			</p>
-			{#if personDialogMessage}
-				<p
-					class="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-					role="alert"
-				>
-					{personDialogMessage}
-				</p>
-			{/if}
-			<div class="mt-4 flex flex-col gap-3">
-				<div class="space-y-2">
-					<Label for="np-first">First name</Label>
-					<Input id="np-first" bind:value={newPersonFirst} class="h-11 text-base" />
-				</div>
-				<div class="space-y-2">
-					<Label for="np-middle">Middle name</Label>
-					<Input id="np-middle" bind:value={newPersonMiddle} class="h-11 text-base" />
-				</div>
-				<div class="space-y-2">
-					<Label for="np-last">Last name <span class="text-destructive">*</span></Label>
-					<Input id="np-last" bind:value={newPersonLast} class="h-11 text-base" required />
-				</div>
-				<div class="space-y-2">
-					<Label for="np-suffix">Suffix</Label>
-					<Input id="np-suffix" bind:value={newPersonSuffix} placeholder="Jr., III" class="h-11 text-base" />
-				</div>
+		{/if}
+
+		<div class="flex flex-col gap-3">
+			<div class="space-y-2">
+				<Label for="np-first">First name</Label>
+				<Input id="np-first" bind:value={newPersonFirst} class="h-11 text-base" />
 			</div>
-			<div class="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+			<div class="space-y-2">
+				<Label for="np-middle">Middle name</Label>
+				<Input id="np-middle" bind:value={newPersonMiddle} class="h-11 text-base" />
+			</div>
+			<div class="space-y-2">
+				<Label for="np-last">Last name <span class="text-destructive">*</span></Label>
+				<Input id="np-last" bind:value={newPersonLast} class="h-11 text-base" required />
+			</div>
+			<div class="space-y-2">
+				<Label for="np-suffix">Suffix</Label>
+				<Input id="np-suffix" bind:value={newPersonSuffix} placeholder="Jr., III" class="h-11 text-base" />
+			</div>
+		</div>
+
+		<Dialog.Footer class="flex-col gap-2 sm:flex-row sm:justify-end">
+			<Button
+				type="button"
+				variant="outline"
+				class="h-11"
+				onclick={() => (personDialogOpen = false)}
+				disabled={personDialogPending}
+			>
+				Cancel
+			</Button>
+			{#if personDialogMessageTone === 'warning' && personDialogMessage}
 				<Button
 					type="button"
-					variant="outline"
+					variant="default"
 					class="h-11"
-					onclick={() => (personDialogOpen = false)}
+					onclick={() => {
+						personDialogConfirmedDuplicate = true;
+						submitPersonDialog();
+					}}
 					disabled={personDialogPending}
 				>
-					Cancel
+					{personDialogPending ? 'Saving…' : 'Continue anyway'}
 				</Button>
+			{:else}
 				<Button
 					type="button"
 					class="h-11"
@@ -961,7 +1158,17 @@
 				>
 					{personDialogPending ? 'Saving…' : 'Add person'}
 				</Button>
-			</div>
-		</div>
-	</div>
-{/if}
+			{/if}
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<ConfirmDialog
+	bind:open={confirmCloseOpen}
+	title="Discard unsaved changes?"
+	description="You have unsaved edits to this book. Closing will lose them."
+	confirmLabel="Discard"
+	cancelLabel="Keep editing"
+	destructive
+	onConfirm={discardChangesAndClose}
+/>

@@ -51,11 +51,25 @@ These bit the invoicing build. Verify analogues in any new module:
 - Address fields — `address_line_1`, `address_line_2`, `city`, `region`, `postal_code`, `country` — decide once, apply everywhere
 - "Ad hoc" / one-off rows on ledger tables — explicit `is_one_off boolean NOT NULL DEFAULT false`
 - Composite-PK junction tables — `write_audit_log()` resolves `record_id` via `to_jsonb(NEW)->>'id'` with COALESCE fallback to `book_id` / `essay_id`. Adding a junction whose parent is neither (e.g. `client_id`-keyed) requires extending the COALESCE chain in a follow-up migration.
+- **Idempotent seed files** — junction inserts must look up parent rows by natural key (e.g. `WHERE b.title = '…' AND b.deleted_at IS NULL`) rather than depending on the parent INSERT firing in the same statement. The old pattern `WITH ins AS (INSERT … RETURNING id) INSERT INTO junction SELECT FROM ins, …` silently produces zero junction rows when the parent INSERT was deduped by `WHERE NOT EXISTS`, leaving entities un-attached after re-runs. See `supabase/seed/library_smoke_data.sql` for the canonical re-runnable shape.
 
 ## Workflow
 
 1. Write migration file: `YYYYMMDDHHMMSS_short_description.sql`. Use `IF NOT EXISTS` / `IF EXISTS` guards.
 2. Update `supabase/seed.sql` if seeding is implied.
 3. `npm run supabase:db:push:dry` — review the diff.
-4. `npm run supabase:gen-types` — regenerate `src/lib/types/database.ts` in the same commit.
-5. Edge functions consuming the affected table: re-check `deleted_at` filtering. Soft-deleted parent records still need to load for historical artifacts (PDFs, audit log, reprints).
+4. `npm run supabase:db:push` to apply.
+5. `npm run supabase:gen-types` — regenerate `src/lib/types/database.ts` in the same commit.
+6. Edge functions consuming the affected table: re-check `deleted_at` filtering. Soft-deleted parent records still need to load for historical artifacts (PDFs, audit log, reprints).
+
+## Migrations are immutable by filename
+
+Supabase tracks applied migrations by filename in `supabase_migrations.schema_migrations`. **Subsequent `supabase db push` calls that include the same filename — even with edited SQL inside — are silently skipped.** This is intentional (idempotency / reproducibility for shared environments) but bites HARD when you amend a migration after first applying it: the new SQL never runs against any environment that already saw the original.
+
+Surfaced in Session 1.5d when `library_delta_v1.sql` was edited to add `people / series.deleted_at`, then `db push` no-op'd, leaving the columns missing in prod for days. The Authors column in `/library` was blank as a downstream consequence.
+
+Rules:
+
+- **Never edit a migration file after it's been applied** to any environment you don't fully control. If you need to change the schema, write a NEW migration file (`YYYYMMDDHHMMSS_recovery_or_extension.sql`) with idempotent guards (`IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS`, `CREATE OR REPLACE`).
+- **The only exception** is editing a migration BEFORE its first push, which is fine.
+- If you discover an applied migration was incomplete or wrong, write a recovery migration. The recovery file's idempotent guards make it safe to apply on environments that already have the desired state (no-op) AND on environments that were missed (catches up).

@@ -92,7 +92,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.from('clients')
 			.select('id, name')
 			.is('deleted_at', null)
-			.order('created_at', { ascending: true }),
+			.order('sort_rank', { ascending: true, nullsFirst: false })
+			.order('name', { ascending: true }),
 		supabase
 			.from('invoices')
 			.select(

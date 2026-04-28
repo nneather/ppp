@@ -12,7 +12,8 @@ import {
 	createPersonAction,
 	softDeleteBookAction,
 	undoSoftDeleteBookAction,
-	updateBookAction
+	updateBookAction,
+	updateReadingStatusAction
 } from '$lib/library/server/book-actions';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -75,5 +76,12 @@ export const actions: Actions = {
 		if (!user) return fail(401, { kind: 'createPerson' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return createPersonAction(locals.supabase, user.id, fd);
+	},
+	updateReadingStatus: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'updateReadingStatus' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return updateReadingStatusAction(locals.supabase, fd);
 	}
 };

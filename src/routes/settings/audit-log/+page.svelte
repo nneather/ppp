@@ -261,11 +261,23 @@
 
 <ConfirmDialog
 	bind:open={confirmOpen}
-	title="Revert this change?"
+	title={confirmRow?.displayOperation === 'SOFT_DELETE'
+		? 'Restore this entry?'
+		: confirmRow?.displayOperation === 'SOFT_RESTORE'
+			? 'Re-delete this entry?'
+			: 'Revert this change?'}
 	description={confirmRow
-		? `Apply the prior state of ${confirmRow.table_name} (id ${confirmRow.record_id.slice(0, 8)}…) back to the record. The revert itself is also audited.`
+		? confirmRow.displayOperation === 'SOFT_DELETE'
+			? `Restore ${confirmRow.entityLabel ?? confirmRow.table_name} (it will reappear in the list). The restore itself is audited.`
+			: confirmRow.displayOperation === 'SOFT_RESTORE'
+				? `Re-soft-delete ${confirmRow.entityLabel ?? confirmRow.table_name}. The action itself is audited.`
+				: `Apply the prior state of ${confirmRow.table_name} (${confirmRow.entityLabel ?? `id ${confirmRow.record_id.slice(0, 8)}…`}) back to the record. The revert itself is also audited.`
 		: ''}
-	confirmLabel="Revert"
+	confirmLabel={confirmRow?.displayOperation === 'SOFT_DELETE'
+		? 'Restore'
+		: confirmRow?.displayOperation === 'SOFT_RESTORE'
+			? 'Re-delete'
+			: 'Revert'}
 	destructive
 	pending={confirmPending}
 	onConfirm={submitRevert}

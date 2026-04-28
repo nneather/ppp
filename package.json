@@ -17,6 +17,7 @@
 		"supabase:db:push:dry": "dotenv -e .env -- bash -c 'supabase link --project-ref $SUPABASE_REF && supabase db push --dry-run'",
 		"supabase:db:push": "dotenv -e .env -- bash -c 'supabase link --project-ref $SUPABASE_REF && supabase db push'",
 		"supabase:deploy-functions": "dotenv -e .env -- bash -c 'supabase functions deploy generate-invoice-pdf --project-ref $SUPABASE_REF && supabase functions deploy send-invoice --project-ref $SUPABASE_REF'",
+		"supabase:gen-types": "dotenv -e .env -- bash -c 'supabase gen types typescript --project-id $SUPABASE_REF --schema public > src/lib/types/database.ts'",
 		"supabase:ship": "npm run check && npm run supabase:db:push:dry && echo '\\nDry run OK. Review above, then run: npm run supabase:ship:apply'",
 		"supabase:ship:apply": "npm run check && npm run supabase:db:push && npm run supabase:deploy-functions"
 	},

@@ -335,12 +335,17 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const custom_message = String(formData.get('custom_message') ?? '');
-		const toRaw = String(formData.get('to') ?? '').trim();
+		const toList = parseEmailList(String(formData.get('to') ?? ''));
 		const ccList = parseEmailList(String(formData.get('cc') ?? ''));
 		const bccList = parseEmailList(String(formData.get('bcc') ?? ''));
 
-		if (!toRaw || !isValidEmail(toRaw)) {
-			return fail(400, { sendError: 'Enter a valid To email address.' });
+		if (toList.length === 0) {
+			return fail(400, { sendError: 'Enter at least one To email address.' });
+		}
+		for (const addr of toList) {
+			if (!isValidEmail(addr)) {
+				return fail(400, { sendError: `Invalid To email address: ${addr}` });
+			}
 		}
 		for (const addr of ccList) {
 			if (!isValidEmail(addr)) {
@@ -384,7 +389,7 @@ export const actions: Actions = {
 				invoice_id: id,
 				pdf_base64: pdf,
 				custom_message,
-				to: toRaw,
+				to: toList,
 				cc: ccList,
 				bcc: bccList
 			},

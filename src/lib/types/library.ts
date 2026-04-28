@@ -106,20 +106,22 @@ export type BookAuthorAssignment = {
 
 export type BookListRow = {
 	id: string;
-	title: string;
+	title: string | null;
 	subtitle: string | null;
-	genre: string;
+	genre: string | null;
 	reading_status: ReadingStatus;
 	needs_review: boolean;
 	primary_category_name: string | null;
 	series_abbreviation: string | null;
+	/** Full series name; surfaced as a hover tooltip on the abbreviation chip. */
+	series_name: string | null;
 	volume_number: string | null;
 	authors_label: string | null;
 };
 
 export type BookDetail = {
 	id: string;
-	title: string;
+	title: string | null;
 	subtitle: string | null;
 	publisher: string | null;
 	publisher_location: string | null;
@@ -130,14 +132,14 @@ export type BookDetail = {
 	reprint_publisher: string | null;
 	reprint_location: string | null;
 	reprint_year: number | null;
-	primary_category_id: string;
-	primary_category_name: string;
+	primary_category_id: string | null;
+	primary_category_name: string | null;
 	category_ids: string[];
 	series_id: string | null;
 	series_name: string | null;
 	series_abbreviation: string | null;
 	volume_number: string | null;
-	genre: string;
+	genre: string | null;
 	language: Language;
 	isbn: string | null;
 	barcode: string | null;

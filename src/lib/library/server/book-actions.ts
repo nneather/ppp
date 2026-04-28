@@ -15,12 +15,11 @@ import type { AuthorRole, Genre, Language, ReadingStatus } from '$lib/types/libr
  * submits the *new* desired state, the action diffs against current rows, and
  * emits INSERT + DELETE (and UPDATE for sort_order) accordingly.
  *
- * NOTE: `needs_review_note` and `page_count` are introduced by
- * `library_delta_v1.sql`. The current `src/lib/types/database.ts` does not yet
- * include them. We cast at the supabase boundary with `as never` per the
- * pattern in `src/routes/settings/audit-log/+page.server.ts` so the build
- * compiles today; after the user runs `npm run supabase:gen-types` post-apply,
- * the casts can be removed in a follow-up commit.
+ * NOTE: payloads are typed as Record<string, unknown> for ergonomic form-data
+ * parsing, then cast to `never` at the supabase-js boundary. supabase-js's
+ * generic Insert/Update typings would otherwise require building the payload
+ * as a literal of the generated DB shape, which fights the diff-based junction
+ * sync. Pattern matches `src/routes/settings/audit-log/+page.server.ts`.
  */
 
 export type ActionKind =
@@ -37,7 +36,7 @@ export type AuthorAssignmentInput = {
 };
 
 export type BookFormPayload = {
-	title: string;
+	title: string | null;
 	subtitle: string | null;
 	publisher: string | null;
 	publisher_location: string | null;
@@ -48,11 +47,11 @@ export type BookFormPayload = {
 	reprint_publisher: string | null;
 	reprint_location: string | null;
 	reprint_year: number | null;
-	primary_category_id: string;
+	primary_category_id: string | null;
 	category_ids: string[];
 	series_id: string | null;
 	volume_number: string | null;
-	genre: Genre;
+	genre: Genre | null;
 	language: Language;
 	isbn: string | null;
 	barcode: string | null;
@@ -66,6 +65,14 @@ export type BookFormPayload = {
 	page_count: number | null;
 	authors: AuthorAssignmentInput[];
 };
+
+/**
+ * Important fields whose absence triggers auto-flag-for-review. Surfaced in
+ * the form's amber preview so the user knows what will be flagged before they
+ * Save. The list is the same on both sides.
+ */
+export const IMPORTANT_FIELDS = ['title', 'author', 'genre', 'year', 'publisher'] as const;
+export type ImportantField = (typeof IMPORTANT_FIELDS)[number];
 
 const GENRE_SET: ReadonlySet<string> = new Set(GENRES);
 const LANGUAGE_SET: ReadonlySet<string> = new Set(LANGUAGES);
@@ -128,16 +135,54 @@ export type ParseResult =
 	| { ok: true; payload: BookFormPayload }
 	| { ok: false; message: string };
 
+/**
+ * Compute which IMPORTANT_FIELDS are missing from a parsed payload. Used by
+ * both the auto-flag logic at save time and the form's pre-save preview hint.
+ */
+export function computeMissingImportant(p: {
+	title: string | null;
+	genre: string | null;
+	year: number | null;
+	publisher: string | null;
+	authors: AuthorAssignmentInput[];
+}): ImportantField[] {
+	const out: ImportantField[] = [];
+	if (!p.title) out.push('title');
+	if (p.authors.filter((a) => a.role === 'author').length === 0) out.push('author');
+	if (!p.genre) out.push('genre');
+	if (p.year == null) out.push('year');
+	if (!p.publisher) out.push('publisher');
+	return out;
+}
+
+/**
+ * Merge an auto-generated "Missing: …" review note with whatever the user
+ * had previously written. If the existing note is empty or itself an old
+ * auto-line, replace it. Otherwise prepend the new auto-line and keep the
+ * user's text below.
+ */
+function mergeReviewNote(existing: string | null, autoLine: string | null): string | null {
+	if (!autoLine) return existing;
+	const trimmed = existing?.trim() ?? '';
+	if (!trimmed || /^Missing:\s/.test(trimmed)) return autoLine;
+	return `${autoLine}\n\n${existing}`;
+}
+
 export function parseBookForm(fd: FormData): ParseResult {
-	const title = String(fd.get('title') ?? '').trim();
-	if (!title) return { ok: false, message: 'Title is required.' };
-	if (title.length > 500) return { ok: false, message: 'Title is too long.' };
+	const title = trimOrNull(fd.get('title'));
+	if (title != null && title.length > 500) {
+		return { ok: false, message: 'Title is too long (500 char max).' };
+	}
 
-	const primary_category_id = String(fd.get('primary_category_id') ?? '').trim();
-	if (!primary_category_id) return { ok: false, message: 'Primary category is required.' };
+	// primary_category_id is nullable per 20260428160000 — empty = unset.
+	const primary_category_id = trimOrNull(fd.get('primary_category_id'));
 
-	const genre = String(fd.get('genre') ?? '').trim();
-	if (!GENRE_SET.has(genre)) return { ok: false, message: 'Pick a genre from the list.' };
+	// genre is nullable per 20260428170000 — empty = unset; otherwise must be in the list.
+	const genreRaw = String(fd.get('genre') ?? '').trim();
+	const genre: string | null = genreRaw.length > 0 ? genreRaw : null;
+	if (genre != null && !GENRE_SET.has(genre)) {
+		return { ok: false, message: 'Pick a genre from the list.' };
+	}
 
 	const language = String(fd.get('language') ?? '').trim();
 	if (!LANGUAGE_SET.has(language))
@@ -158,7 +203,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 		.getAll('category_ids')
 		.map((v) => String(v).trim())
 		.filter((v) => v.length > 0);
-	if (!category_ids.includes(primary_category_id)) {
+	if (primary_category_id && !category_ids.includes(primary_category_id)) {
 		category_ids.unshift(primary_category_id);
 	}
 
@@ -178,35 +223,96 @@ export function parseBookForm(fd: FormData): ParseResult {
 		seen.add(key);
 	}
 
+	const subtitle = trimOrNull(fd.get('subtitle'));
+	const publisher = trimOrNull(fd.get('publisher'));
+	const publisher_location = trimOrNull(fd.get('publisher_location'));
+	const edition = trimOrNull(fd.get('edition'));
+	const reprint_publisher = trimOrNull(fd.get('reprint_publisher'));
+	const reprint_location = trimOrNull(fd.get('reprint_location'));
+	const series_id = trimOrNull(fd.get('series_id'));
+	const volume_number = trimOrNull(fd.get('volume_number'));
+	const isbn = trimOrNull(fd.get('isbn'));
+	const barcode = trimOrNull(fd.get('barcode'));
+	const shelving_location = trimOrNull(fd.get('shelving_location'));
+	const borrowed_to = trimOrNull(fd.get('borrowed_to'));
+	const personal_notes = trimOrNull(fd.get('personal_notes'));
+	const userNeedsReview = parseBoolean(fd.get('needs_review'));
+	const userReviewNote = trimOrNull(fd.get('needs_review_note'));
+
+	// Save bar: at least one field (any identifying scalar OR a relation).
+	// Defaults like language='english' / reading_status='unread' / needs_review=false
+	// don't count — they're always present.
+	const hasAnyField =
+		title != null ||
+		subtitle != null ||
+		publisher != null ||
+		publisher_location != null ||
+		year != null ||
+		edition != null ||
+		total_volumes != null ||
+		original_year != null ||
+		reprint_publisher != null ||
+		reprint_location != null ||
+		reprint_year != null ||
+		volume_number != null ||
+		isbn != null ||
+		barcode != null ||
+		shelving_location != null ||
+		borrowed_to != null ||
+		personal_notes != null ||
+		page_count != null ||
+		rating != null ||
+		userReviewNote != null ||
+		userNeedsReview ||
+		genre != null ||
+		primary_category_id != null ||
+		series_id != null ||
+		category_ids.length > 0 ||
+		authors.length > 0;
+	if (!hasAnyField) {
+		return {
+			ok: false,
+			message: 'Add at least one detail (title, ISBN, an author, anything) before saving.'
+		};
+	}
+
+	// Auto-flag for review when important identifying/citation fields are
+	// missing. The eventual review queue (Tracker_1 Session 6) consumes this.
+	const missingImportant = computeMissingImportant({ title, genre, year, publisher, authors });
+	const autoLine =
+		missingImportant.length > 0 ? `Missing: ${missingImportant.join(', ')}` : null;
+	const finalNeedsReview = userNeedsReview || missingImportant.length > 0;
+	const finalReviewNote = mergeReviewNote(userReviewNote, autoLine);
+
 	return {
 		ok: true,
 		payload: {
 			title,
-			subtitle: trimOrNull(fd.get('subtitle')),
-			publisher: trimOrNull(fd.get('publisher')),
-			publisher_location: trimOrNull(fd.get('publisher_location')),
+			subtitle,
+			publisher,
+			publisher_location,
 			year,
-			edition: trimOrNull(fd.get('edition')),
+			edition,
 			total_volumes,
 			original_year,
-			reprint_publisher: trimOrNull(fd.get('reprint_publisher')),
-			reprint_location: trimOrNull(fd.get('reprint_location')),
+			reprint_publisher,
+			reprint_location,
 			reprint_year,
 			primary_category_id,
 			category_ids: Array.from(new Set(category_ids)),
-			series_id: trimOrNull(fd.get('series_id')),
-			volume_number: trimOrNull(fd.get('volume_number')),
-			genre: genre as Genre,
+			series_id,
+			volume_number,
+			genre: genre as Genre | null,
 			language: language as Language,
-			isbn: trimOrNull(fd.get('isbn')),
-			barcode: trimOrNull(fd.get('barcode')),
-			shelving_location: trimOrNull(fd.get('shelving_location')),
+			isbn,
+			barcode,
+			shelving_location,
 			reading_status: reading_status as ReadingStatus,
-			borrowed_to: trimOrNull(fd.get('borrowed_to')),
-			personal_notes: trimOrNull(fd.get('personal_notes')),
+			borrowed_to,
+			personal_notes,
 			rating,
-			needs_review: parseBoolean(fd.get('needs_review')),
-			needs_review_note: trimOrNull(fd.get('needs_review_note')),
+			needs_review: finalNeedsReview,
+			needs_review_note: finalReviewNote,
 			page_count,
 			authors
 		}
@@ -214,7 +320,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 }
 
 function bookColumnsPayload(p: BookFormPayload): Record<string, unknown> {
-	const base: Record<string, unknown> = {
+	return {
 		title: p.title,
 		subtitle: p.subtitle,
 		publisher: p.publisher,
@@ -238,13 +344,10 @@ function bookColumnsPayload(p: BookFormPayload): Record<string, unknown> {
 		borrowed_to: p.borrowed_to,
 		personal_notes: p.personal_notes,
 		rating: p.rating,
-		needs_review: p.needs_review
+		needs_review: p.needs_review,
+		needs_review_note: p.needs_review_note,
+		page_count: p.page_count
 	};
-	// Pre-delta-v1 these columns don't exist; only emit when populated so the
-	// payload doesn't reference absent columns and trigger a 42703.
-	if (p.needs_review_note != null) base.needs_review_note = p.needs_review_note;
-	if (p.page_count != null) base.page_count = p.page_count;
-	return base;
 }
 
 async function syncCategories(
@@ -502,6 +605,42 @@ export async function softDeleteBookAction(supabase: SupabaseClient, fd: FormDat
 	return { kind: 'softDeleteBook' as const, bookId: id, success: true as const };
 }
 
+export async function updateReadingStatusAction(supabase: SupabaseClient, fd: FormData) {
+	const id = String(fd.get('id') ?? '').trim();
+	if (!id)
+		return fail(400, { kind: 'updateReadingStatus' as const, message: 'Missing book id.' });
+
+	const status = String(fd.get('reading_status') ?? '').trim();
+	if (!READING_STATUS_SET.has(status)) {
+		return fail(400, {
+			kind: 'updateReadingStatus' as const,
+			bookId: id,
+			message: 'Invalid reading status.'
+		});
+	}
+
+	const { error } = await supabase
+		.from('books')
+		.update({ reading_status: status })
+		.eq('id', id);
+
+	if (error) {
+		console.error(error);
+		return fail(500, {
+			kind: 'updateReadingStatus' as const,
+			bookId: id,
+			message: error.message ?? 'Could not update reading status.'
+		});
+	}
+
+	return {
+		kind: 'updateReadingStatus' as const,
+		bookId: id,
+		readingStatus: status,
+		success: true as const
+	};
+}
+
 export async function undoSoftDeleteBookAction(supabase: SupabaseClient, fd: FormData) {
 	const id = String(fd.get('id') ?? '').trim();
 	if (!id)
@@ -534,15 +673,13 @@ export async function createPersonAction(
 	const middle_name = trimOrNull(fd.get('middle_name'));
 	const suffix = trimOrNull(fd.get('suffix'));
 
-	// Pre-delta-v1 `middle_name` and `suffix` columns don't exist; only emit
-	// when populated so the INSERT shape doesn't reference absent columns.
-	const insertPayload: Record<string, unknown> = {
+	const insertPayload = {
 		last_name,
 		first_name,
+		middle_name,
+		suffix,
 		created_by: userId
 	};
-	if (middle_name != null) insertPayload.middle_name = middle_name;
-	if (suffix != null) insertPayload.suffix = suffix;
 
 	const { data: inserted, error } = await supabase
 		.from('people')

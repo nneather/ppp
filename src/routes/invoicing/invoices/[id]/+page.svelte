@@ -338,12 +338,16 @@
 								<Input
 									id="invoice_email_to"
 									name="to"
-									type="email"
+									type="text"
 									autocomplete="email"
 									required
 									bind:value={toEmail}
-									placeholder="client@example.com"
+									placeholder="client@example.com, other@example.com"
+									aria-describedby="invoice_email_to_hint"
 								/>
+								<p id="invoice_email_to_hint" class="text-xs text-muted-foreground">
+									Separate multiple addresses with commas. All recipients will appear on the To line.
+								</p>
 							</div>
 							<div class="space-y-2">
 								<Label for="invoice_email_cc">CC</Label>

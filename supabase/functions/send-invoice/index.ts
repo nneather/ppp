@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
 		pdf_base64?: string;
 		custom_message?: string;
 		test_recipient?: string;
-		to?: string;
+		to?: unknown;
 		cc?: unknown;
 		bcc?: unknown;
 	};
@@ -200,7 +200,9 @@ Deno.serve(async (req) => {
 	const pdfBase64 = body.pdf_base64?.trim();
 	const customMessage = body.custom_message ?? '';
 	const testRecipient = body.test_recipient?.trim();
-	const explicitTo = typeof body.to === 'string' ? body.to.trim() : '';
+	// `to` accepts a comma-delimited string OR an array (mixed array+commas also OK).
+	// All resolved addresses go on the To line of the email so recipients can see each other.
+	const explicitToList = normalizeEmailList(body.to);
 	const ccListRaw = normalizeEmailList(body.cc);
 	const bccListRaw = normalizeEmailList(body.bcc);
 
@@ -246,21 +248,23 @@ Deno.serve(async (req) => {
 
 	const client = clientRow as { name: string; email: unknown };
 
-	let toEmail: string;
+	let toList: string[];
 	let subjectPrefix = '';
 	let ccList: string[] = [];
 	let bccList: string[] = [];
 
 	if (testRecipient) {
-		toEmail = testRecipient;
+		toList = [testRecipient];
 		subjectPrefix = '[TEST] ';
 	} else {
 		const clientEmails = normalizeClientEmailsFromDb(client.email);
-		if (explicitTo) {
-			if (!isValidEmail(explicitTo)) {
-				return jsonResponse({ error: 'Invalid To email address' }, 400);
+		if (explicitToList.length > 0) {
+			for (const addr of explicitToList) {
+				if (!isValidEmail(addr)) {
+					return jsonResponse({ error: `Invalid To email address: ${addr}` }, 400);
+				}
 			}
-			toEmail = explicitTo;
+			toList = explicitToList;
 			ccList = [...ccListRaw];
 		} else {
 			if (clientEmails.length === 0) {
@@ -271,8 +275,8 @@ Deno.serve(async (req) => {
 					return jsonResponse({ error: 'Invalid client email address' }, 400);
 				}
 			}
-			toEmail = clientEmails[0];
-			// Additional client recipients go to CC before user-supplied CC
+			// Default behavior preserved: primary client email is To, the rest auto-CC.
+			toList = [clientEmails[0]];
 			ccList = [...clientEmails.slice(1), ...ccListRaw];
 		}
 		for (const addr of ccList) {
@@ -306,7 +310,7 @@ Deno.serve(async (req) => {
 
 	const resendPayload: Record<string, unknown> = {
 		from: 'onboarding@resend.dev',
-		to: [toEmail],
+		to: toList,
 		subject: `${subjectPrefix}Invoice ${invoice.invoice_number} — ${client.name}`,
 		html,
 		attachments: [{ filename, content: pdfBase64 }]

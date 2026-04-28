@@ -46,11 +46,10 @@ export async function loadCategories(supabase: SupabaseClient): Promise<Category
 }
 
 export async function loadSeries(supabase: SupabaseClient): Promise<SeriesRow[]> {
-	// TODO post-delta-v1: re-add `.is('deleted_at', null)` filter once
-	// 20260425160000_library_delta_v1.sql adds the column to series.
 	const { data, error } = await supabase
 		.from('series')
 		.select('id, name, abbreviation')
+		.is('deleted_at', null)
 		.order('name', { ascending: true });
 	if (error) {
 		console.error(error);
@@ -63,13 +62,10 @@ export async function loadSeries(supabase: SupabaseClient): Promise<SeriesRow[]>
 }
 
 export async function loadPeople(supabase: SupabaseClient): Promise<PersonRow[]> {
-	// TODO post-delta-v1: include `middle_name, suffix, aliases` in SELECT and
-	// re-add `.is('deleted_at', null)` filter. Pre-migration the columns don't
-	// exist yet; PostgREST rejects SELECTs that name absent columns, so we
-	// load only baseline columns and synthesize defaults in the mapper.
 	const { data, error } = await supabase
 		.from('people')
-		.select('id, first_name, last_name')
+		.select('id, first_name, last_name, middle_name, suffix, aliases')
+		.is('deleted_at', null)
 		.order('last_name', { ascending: true })
 		.order('first_name', { ascending: true });
 	if (error) {
@@ -77,14 +73,14 @@ export async function loadPeople(supabase: SupabaseClient): Promise<PersonRow[]>
 		return [];
 	}
 	return (data ?? []).map((p) => {
-		const r = p as unknown as Pick<RawPerson, 'id' | 'first_name' | 'last_name'>;
+		const r = p as unknown as RawPerson;
 		return {
 			id: r.id,
 			first_name: r.first_name ?? null,
-			middle_name: null,
+			middle_name: r.middle_name ?? null,
 			last_name: r.last_name,
-			suffix: null,
-			aliases: []
+			suffix: r.suffix ?? null,
+			aliases: Array.isArray(r.aliases) ? r.aliases : []
 		};
 	});
 }
@@ -108,9 +104,9 @@ export async function loadPersonBookCounts(
 
 type RawBookListRow = {
 	id: string;
-	title: string;
+	title: string | null;
 	subtitle: string | null;
-	genre: string;
+	genre: string | null;
 	reading_status: string;
 	needs_review: boolean;
 	volume_number: string | null;
@@ -120,6 +116,16 @@ type RawBookListRow = {
 		| { person_id: string; sort_order: number; role: string }[]
 		| null;
 };
+
+/**
+ * Sort key with leading articles stripped — "The Book of Exodus" sorts under
+ * "B" not "T". Keep the displayed title untouched. Lowercase for stable
+ * locale-aware comparison. Nullable input → empty key (sorts to top).
+ */
+function titleSortKey(title: string | null): string {
+	if (!title) return '';
+	return title.replace(/^(the|a|an)\s+/i, '').toLocaleLowerCase();
+}
 
 function asArrayOrSingle<T>(v: T | T[] | null | undefined): T[] {
 	if (v == null) return [];
@@ -146,8 +152,7 @@ export async function loadBookList(
 			book_authors ( person_id, sort_order, role )
 		`
 		)
-		.is('deleted_at', null)
-		.order('title', { ascending: true });
+		.is('deleted_at', null);
 	if (error) {
 		console.error(error);
 		return [];
@@ -155,7 +160,7 @@ export async function loadBookList(
 
 	const peopleMap = new Map(people.map((p) => [p.id, p]));
 
-	return (data ?? []).map((raw) => {
+	const rows = (data ?? []).map((raw) => {
 		const r = raw as unknown as RawBookListRow;
 		const cat = asArrayOrSingle(r.categories)[0] ?? null;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
@@ -173,22 +178,27 @@ export async function loadBookList(
 
 		return {
 			id: r.id,
-			title: r.title,
+			title: r.title ?? null,
 			subtitle: r.subtitle ?? null,
-			genre: r.genre,
+			genre: r.genre ?? null,
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 			needs_review: Boolean(r.needs_review),
 			primary_category_name: cat?.name ?? null,
 			series_abbreviation: ser?.abbreviation ?? null,
+			series_name: ser?.name ?? null,
 			volume_number: r.volume_number ?? null,
 			authors_label
-		};
+		} satisfies BookListRow;
 	});
+
+	// Article-stripped sort: "The Book of Exodus" → "B", not "T".
+	rows.sort((a, b) => titleSortKey(a.title).localeCompare(titleSortKey(b.title)));
+	return rows;
 }
 
 type RawBookDetail = {
 	id: string;
-	title: string;
+	title: string | null;
 	subtitle: string | null;
 	publisher: string | null;
 	publisher_location: string | null;
@@ -199,10 +209,10 @@ type RawBookDetail = {
 	reprint_publisher: string | null;
 	reprint_location: string | null;
 	reprint_year: number | null;
-	primary_category_id: string;
+	primary_category_id: string | null;
 	series_id: string | null;
 	volume_number: string | null;
-	genre: string;
+	genre: string | null;
 	language: string;
 	isbn: string | null;
 	barcode: string | null;
@@ -235,8 +245,6 @@ export async function loadBookDetail(
 	id: string,
 	people: PersonRow[]
 ): Promise<BookDetail | null> {
-	// TODO post-delta-v1: include `needs_review_note, page_count` in SELECT.
-	// Pre-migration the columns don't exist; defaults are synthesized below.
 	const { data, error } = await supabase
 		.from('books')
 		.select(
@@ -266,6 +274,8 @@ export async function loadBookDetail(
 			personal_notes,
 			rating,
 			needs_review,
+			needs_review_note,
+			page_count,
 			deleted_at,
 			created_at,
 			updated_at,
@@ -273,7 +283,7 @@ export async function loadBookDetail(
 			series ( id, name, abbreviation ),
 			book_categories ( category_id ),
 			book_authors ( person_id, role, sort_order )
-		` as never
+		`
 		)
 		.eq('id', id)
 		.maybeSingle();
@@ -303,7 +313,7 @@ export async function loadBookDetail(
 	const cat = asArrayOrSingle(r.primary_category)[0] ?? null;
 	return {
 		id: r.id,
-		title: r.title,
+		title: r.title ?? null,
 		subtitle: r.subtitle ?? null,
 		publisher: r.publisher ?? null,
 		publisher_location: r.publisher_location ?? null,
@@ -314,14 +324,14 @@ export async function loadBookDetail(
 		reprint_publisher: r.reprint_publisher ?? null,
 		reprint_location: r.reprint_location ?? null,
 		reprint_year: r.reprint_year ?? null,
-		primary_category_id: r.primary_category_id,
-		primary_category_name: cat?.name ?? '—',
+		primary_category_id: r.primary_category_id ?? null,
+		primary_category_name: cat?.name ?? null,
 		category_ids: (r.book_categories ?? []).map((c) => c.category_id),
 		series_id: r.series_id ?? null,
 		series_name: r.series?.name ?? null,
 		series_abbreviation: r.series?.abbreviation ?? null,
 		volume_number: r.volume_number ?? null,
-		genre: r.genre,
+		genre: r.genre ?? null,
 		language: (r.language as Language) ?? 'english',
 		isbn: r.isbn ?? null,
 		barcode: r.barcode ?? null,
@@ -339,11 +349,19 @@ export async function loadBookDetail(
 	};
 }
 
+/**
+ * Compact display for list views: "First Last" (with middle initial if any).
+ * Example: "Richard Bauckham", "F. F. Bruce", "John T. McNeill".
+ *
+ * Long form (`personDisplayLong`) is for citation-shaped detail views and
+ * picker labels — full first + middle + last + suffix.
+ */
 export function personDisplayShort(p: PersonRow): string {
 	const first = (p.first_name ?? '').trim();
-	const initial = first ? `${first.charAt(0)}.` : '';
-	const parts = [p.last_name, initial].filter((s) => s.length > 0);
-	return parts.join(', ');
+	const middle = (p.middle_name ?? '').trim();
+	const middleInitial = middle ? `${middle.charAt(0)}.` : '';
+	const parts = [first, middleInitial, p.last_name].filter((s) => s.length > 0);
+	return parts.join(' ');
 }
 
 export function personDisplayLong(p: PersonRow): string {

@@ -65,7 +65,8 @@
 			billing_contact: null,
 			address_line_1: null,
 			address_line_2: null,
-			email: []
+			email: [],
+			sort_rank: null
 		};
 		clientSheetOpen = true;
 	}
@@ -78,7 +79,8 @@
 			billing_contact: c.billing_contact,
 			address_line_1: c.address_line_1,
 			address_line_2: c.address_line_2,
-			email: [...c.email]
+			email: [...c.email],
+			sort_rank: c.sort_rank
 		};
 		clientSheetOpen = true;
 	}

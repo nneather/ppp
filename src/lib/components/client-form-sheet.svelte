@@ -16,6 +16,7 @@
 		address_line_1: string | null;
 		address_line_2: string | null;
 		email: string[];
+		sort_rank: number | null;
 	};
 
 	let {
@@ -38,6 +39,7 @@
 	let addressLine1 = $state('');
 	let addressLine2 = $state('');
 	let emails = $state<string[]>([]);
+	let sortRank = $state('');
 
 	$effect(() => {
 		if (!browser) return;
@@ -57,6 +59,7 @@
 		addressLine1 = initial?.address_line_1 ?? '';
 		addressLine2 = initial?.address_line_2 ?? '';
 		emails = initial?.email ? [...initial.email] : [];
+		sortRank = initial?.sort_rank != null ? String(initial.sort_rank) : '';
 	});
 
 	const formAction = $derived(mode === 'create' ? '?/createClient' : '?/updateClient');
@@ -161,6 +164,25 @@
 					label="Invoice recipient email(s)"
 					placeholder="billing@client.com"
 				/>
+
+				<div class="space-y-2">
+					<Label for="cl-sort-rank">Sort priority</Label>
+					<Input
+						id="cl-sort-rank"
+						name="sort_rank"
+						type="number"
+						inputmode="numeric"
+						min="0"
+						max="9999"
+						step="1"
+						bind:value={sortRank}
+						class="h-12 min-h-12 text-base"
+					/>
+					<p class="text-xs text-muted-foreground">
+						Lower numbers appear first in customer pickers. Leave blank to sort alphabetically at
+						the end.
+					</p>
+				</div>
 
 				<Sheet.Footer class="mt-2 flex-col gap-2 border-0 p-0 sm:flex-col">
 					<Button type="submit" class="h-12 w-full text-base" disabled={pending || !name.trim()}>

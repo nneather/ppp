@@ -21,6 +21,7 @@ If you reach for one of these capabilities, use the existing component.
 | Book entity form (create + edit) with author + category junctions | [src/lib/components/book-form-sheet.svelte](mdc:src/lib/components/book-form-sheet.svelte) |
 | Polymorphic `(book_id OR essay_id)` source picker (essay branch stubbed pre-essays-UI) | [src/lib/components/source-picker.svelte](mdc:src/lib/components/source-picker.svelte) |
 | Embedded scripture-reference sub-form (manual entry; no upload yet) | [src/lib/components/scripture-reference-form.svelte](mdc:src/lib/components/scripture-reference-form.svelte) |
+| Typeahead person picker with B14 dedup warnings + inline create | [src/lib/components/person-autocomplete.svelte](mdc:src/lib/components/person-autocomplete.svelte) |
 
 shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator) live under `src/lib/components/ui/`.
 

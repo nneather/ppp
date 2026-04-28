@@ -45,7 +45,10 @@
 	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
-	import type { AuditLogRow, AuditOperation } from '../../routes/settings/audit-log/+page.server';
+	import type {
+		AuditDisplayOperation,
+		AuditLogRow
+	} from '../../routes/settings/audit-log/+page.server';
 
 	let {
 		row,
@@ -61,10 +64,37 @@
 
 	const diff = $derived(diffKeys(row.old_data, row.new_data));
 
-	function badgeVariant(op: AuditOperation): BadgeVariant {
+	function badgeVariant(op: AuditDisplayOperation): BadgeVariant {
 		if (op === 'INSERT') return 'secondary';
-		if (op === 'DELETE') return 'destructive';
+		if (op === 'DELETE' || op === 'SOFT_DELETE') return 'destructive';
+		if (op === 'SOFT_RESTORE') return 'secondary';
 		return 'default';
+	}
+
+	function operationLabel(op: AuditDisplayOperation): string {
+		switch (op) {
+			case 'SOFT_DELETE':
+				return 'DELETE';
+			case 'SOFT_RESTORE':
+				return 'RESTORE';
+			default:
+				return op;
+		}
+	}
+
+	function summaryText(op: AuditDisplayOperation, diffLen: number): string {
+		switch (op) {
+			case 'INSERT':
+				return 'Created';
+			case 'DELETE':
+				return 'Hard deleted';
+			case 'SOFT_DELETE':
+				return 'Soft deleted';
+			case 'SOFT_RESTORE':
+				return 'Restored';
+			default:
+				return `${diffLen} field${diffLen === 1 ? '' : 's'}`;
+		}
 	}
 
 	function relativeTime(iso: string): string {
@@ -91,10 +121,15 @@
 <article class="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
 	<header class="flex flex-wrap items-start justify-between gap-3">
 		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-			<Badge variant={badgeVariant(row.operation)} class="font-mono uppercase">
-				{row.operation}
+			<Badge variant={badgeVariant(row.displayOperation)} class="font-mono uppercase">
+				{operationLabel(row.displayOperation)}
 			</Badge>
 			<span class="font-mono text-sm font-medium text-foreground">{row.table_name}</span>
+			{#if row.entityLabel}
+				<span class="truncate text-sm text-foreground" title={row.entityLabel}>
+					— {row.entityLabel}
+				</span>
+			{/if}
 			<span
 				class="text-xs text-muted-foreground"
 				title={new Date(row.changed_at).toLocaleString()}
@@ -116,7 +151,11 @@
 					onclick={() => onRevert(row)}
 				>
 					<Undo2 class="size-3.5" />
-					Revert
+					{row.displayOperation === 'SOFT_DELETE'
+						? 'Restore'
+						: row.displayOperation === 'SOFT_RESTORE'
+							? 'Re-delete'
+							: 'Revert'}
 				</Button>
 			{/if}
 			<Button
@@ -129,11 +168,7 @@
 				aria-controls={`audit-${row.id}-detail`}
 			>
 				<ChevronDown class={cn('size-4 transition-transform', expanded && 'rotate-180')} />
-				{row.operation === 'UPDATE'
-					? `${diff.length} field${diff.length === 1 ? '' : 's'}`
-					: row.operation === 'INSERT'
-						? 'Created'
-						: 'Deleted'}
+				{summaryText(row.displayOperation, diff.length)}
 			</Button>
 		</div>
 	</header>

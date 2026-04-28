@@ -376,14 +376,16 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           edition: string | null
-          genre: string
+          genre: string | null
           id: string
           isbn: string | null
           language: string
           needs_review: boolean
+          needs_review_note: string | null
           original_year: number | null
+          page_count: number | null
           personal_notes: string | null
-          primary_category_id: string
+          primary_category_id: string | null
           publisher: string | null
           publisher_location: string | null
           rating: number | null
@@ -394,7 +396,7 @@ export type Database = {
           series_id: string | null
           shelving_location: string | null
           subtitle: string | null
-          title: string
+          title: string | null
           total_volumes: number | null
           updated_at: string
           volume_number: string | null
@@ -407,14 +409,16 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           edition?: string | null
-          genre: string
+          genre?: string | null
           id?: string
           isbn?: string | null
           language?: string
           needs_review?: boolean
+          needs_review_note?: string | null
           original_year?: number | null
+          page_count?: number | null
           personal_notes?: string | null
-          primary_category_id: string
+          primary_category_id?: string | null
           publisher?: string | null
           publisher_location?: string | null
           rating?: number | null
@@ -425,7 +429,7 @@ export type Database = {
           series_id?: string | null
           shelving_location?: string | null
           subtitle?: string | null
-          title: string
+          title?: string | null
           total_volumes?: number | null
           updated_at?: string
           volume_number?: string | null
@@ -438,14 +442,16 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           edition?: string | null
-          genre?: string
+          genre?: string | null
           id?: string
           isbn?: string | null
           language?: string
           needs_review?: boolean
+          needs_review_note?: string | null
           original_year?: number | null
+          page_count?: number | null
           personal_notes?: string | null
-          primary_category_id?: string
+          primary_category_id?: string | null
           publisher?: string | null
           publisher_location?: string | null
           rating?: number | null
@@ -456,7 +462,7 @@ export type Database = {
           series_id?: string | null
           shelving_location?: string | null
           subtitle?: string | null
-          title?: string
+          title?: string | null
           total_volumes?: number | null
           updated_at?: string
           volume_number?: string | null
@@ -572,6 +578,7 @@ export type Database = {
           email: string[]
           id: string
           name: string
+          sort_rank: number | null
           updated_at: string
         }
         Insert: {
@@ -584,6 +591,7 @@ export type Database = {
           email?: string[]
           id?: string
           name: string
+          sort_rank?: number | null
           updated_at?: string
         }
         Update: {
@@ -596,6 +604,7 @@ export type Database = {
           email?: string[]
           id?: string
           name?: string
+          sort_rank?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -856,27 +865,39 @@ export type Database = {
       }
       people: {
         Row: {
+          aliases: string[]
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           first_name: string | null
           id: string
           last_name: string
+          middle_name: string | null
+          suffix: string | null
           updated_at: string
         }
         Insert: {
+          aliases?: string[]
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           first_name?: string | null
           id?: string
           last_name: string
+          middle_name?: string | null
+          suffix?: string | null
           updated_at?: string
         }
         Update: {
+          aliases?: string[]
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           first_name?: string | null
           id?: string
           last_name?: string
+          middle_name?: string | null
+          suffix?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1025,6 +1046,7 @@ export type Database = {
           abbreviation: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           id: string
           name: string
           updated_at: string
@@ -1033,6 +1055,7 @@ export type Database = {
           abbreviation?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           id?: string
           name: string
           updated_at?: string
@@ -1041,6 +1064,7 @@ export type Database = {
           abbreviation?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           id?: string
           name?: string
           updated_at?: string
@@ -1168,6 +1192,27 @@ export type Database = {
       app_is_owner: { Args: never; Returns: boolean }
       app_is_viewer_writer: { Args: { p_module: string }; Returns: boolean }
       generate_invoice_number: { Args: never; Returns: string }
+      search_scripture_refs: {
+        Args: { p_bible_book: string; p_chapter?: number; p_verse?: number }
+        Returns: {
+          bible_book: string
+          book_id: string
+          book_subtitle: string
+          book_title: string
+          chapter_end: number
+          chapter_start: number
+          confidence_score: number
+          essay_id: string
+          manual_entry: boolean
+          needs_review: boolean
+          page_end: string
+          page_start: string
+          ref_id: string
+          review_note: string
+          verse_end: number
+          verse_start: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

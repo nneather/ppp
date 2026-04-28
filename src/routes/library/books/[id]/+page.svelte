@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
-	import { invalidateAll, goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
 	import BookFormSheet from '$lib/components/book-form-sheet.svelte';
@@ -10,10 +9,10 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import {
 		AUTHOR_ROLE_LABELS,
 		LANGUAGE_LABELS,
+		READING_STATUSES,
 		READING_STATUS_LABELS
 	} from '$lib/types/library';
 	import type { ReadingStatus } from '$lib/types/library';
@@ -22,12 +21,8 @@
 	let { data, form }: PageProps = $props();
 
 	let editSheetOpen = $state(false);
-
-	let undoToastVisible = $state(false);
-	let undoToastBookId = $state<string | null>(null);
-	let undoTimer = $state<number | null>(null);
-	let undoPending = $state(false);
 	let deletePending = $state(false);
+	let statusOptimistic = $state<ReadingStatus | null>(null);
 
 	const formMessage = $derived.by(() => {
 		const f = form as { kind?: string; message?: string } | null;
@@ -35,6 +30,21 @@
 		if (f.kind === 'updateBook') return f;
 		return null;
 	});
+
+	const effectiveStatus = $derived<ReadingStatus>(
+		statusOptimistic ?? data.book.reading_status
+	);
+
+	const statusSubmit: SubmitFunction = ({ formData }) => {
+		const next = formData.get('reading_status');
+		if (typeof next === 'string') {
+			statusOptimistic = next as ReadingStatus;
+		}
+		return async ({ update }) => {
+			await update({ reset: false });
+			statusOptimistic = null;
+		};
+	};
 
 	function statusToneClasses(s: ReadingStatus): string {
 		switch (s) {
@@ -51,51 +61,16 @@
 		}
 	}
 
+	// Detail-page delete: server action returns redirect(303, '/library?deleted=...')
+	// after a successful soft-delete, which use:enhance follows automatically.
+	// The list page renders the 10s undo toast.
 	const deleteEnhance: SubmitFunction = () => {
 		deletePending = true;
-		return async ({ result, update }) => {
+		return async ({ update }) => {
+			await update({ reset: false });
 			deletePending = false;
-			await update({ reset: false });
-			if (result.type === 'success') {
-				const r = (result.data ?? {}) as { kind?: string; bookId?: string };
-				if (r.bookId) {
-					undoToastBookId = r.bookId;
-					undoToastVisible = true;
-					if (undoTimer != null) clearTimeout(undoTimer);
-					undoTimer = window.setTimeout(() => {
-						undoToastVisible = false;
-						if (browser) goto(`/library?deleted=${r.bookId}`);
-					}, 10_000);
-				}
-			}
 		};
 	};
-
-	const undoEnhance: SubmitFunction = () => {
-		undoPending = true;
-		return async ({ result, update }) => {
-			undoPending = false;
-			if (undoTimer != null) {
-				clearTimeout(undoTimer);
-				undoTimer = null;
-			}
-			await update({ reset: false });
-			if (result.type === 'success') {
-				undoToastVisible = false;
-				undoToastBookId = null;
-				await invalidateAll();
-			}
-		};
-	};
-
-	function dismissUndoNow() {
-		if (undoTimer != null) {
-			clearTimeout(undoTimer);
-			undoTimer = null;
-		}
-		undoToastVisible = false;
-		if (undoToastBookId) goto(`/library?deleted=${undoToastBookId}`);
-	}
 
 	async function onSaved() {
 		await invalidateAll();
@@ -113,7 +88,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.book.title} — Library — ppp</title>
+	<title>{data.book.title ?? '(untitled)'} — Library — ppp</title>
 </svelte:head>
 
 <div class="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-8">
@@ -125,7 +100,9 @@
 		<div class="min-w-0 flex-1">
 			<div class="flex items-center gap-2 text-muted-foreground">
 				<BookOpen class="size-5" />
-				<span class="text-xs uppercase tracking-wide">{data.book.genre}</span>
+				{#if data.book.genre}
+					<span class="text-xs uppercase tracking-wide">{data.book.genre}</span>
+				{/if}
 				{#if data.book.needs_review}
 					<span
 						class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
@@ -135,7 +112,12 @@
 				{/if}
 			</div>
 			<h1 class="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-				{data.book.title}{#if data.book.volume_number}<span class="text-muted-foreground">, vol. {data.book.volume_number}</span>{/if}
+				{#if data.book.title}
+					{data.book.title}
+				{:else}
+					<span class="italic text-muted-foreground">(untitled book)</span>
+				{/if}
+				{#if data.book.volume_number}<span class="text-muted-foreground">, vol. {data.book.volume_number}</span>{/if}
 			</h1>
 			{#if data.book.subtitle}
 				<p class="mt-1 text-base text-muted-foreground">{data.book.subtitle}</p>
@@ -204,13 +186,23 @@
 			{/if}
 
 			<dt class="font-medium text-muted-foreground">Primary category</dt>
-			<dd>{data.book.primary_category_name}</dd>
+			<dd>
+				{#if data.book.primary_category_name}
+					{data.book.primary_category_name}
+				{:else}
+					<span class="text-muted-foreground italic">(uncategorized)</span>
+				{/if}
+			</dd>
 
-			{#if data.book.category_ids.length > 1}
+			{#if data.book.category_ids.length > (data.book.primary_category_id ? 1 : 0)}
 				<dt class="font-medium text-muted-foreground">Other categories</dt>
 				<dd>
 					{data.categories
-						.filter((c) => data.book.category_ids.includes(c.id) && c.id !== data.book.primary_category_id)
+						.filter(
+							(c) =>
+								data.book.category_ids.includes(c.id) &&
+								c.id !== data.book.primary_category_id
+						)
 						.map((c) => c.name)
 						.join(', ') || '—'}
 				</dd>
@@ -249,11 +241,25 @@
 		<aside class="flex flex-col gap-3">
 			<div class="rounded-xl border border-border bg-card p-4 text-card-foreground">
 				<div class="text-xs uppercase tracking-wide text-muted-foreground">Reading status</div>
-				<span
-					class={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-xs ${statusToneClasses(data.book.reading_status)}`}
+				<form
+					method="POST"
+					action="?/updateReadingStatus"
+					use:enhance={statusSubmit}
+					class="mt-2"
 				>
-					{READING_STATUS_LABELS[data.book.reading_status]}
-				</span>
+					<input type="hidden" name="id" value={data.book.id} />
+					<select
+						name="reading_status"
+						value={effectiveStatus}
+						onchange={(e) => (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit()}
+						class={`w-full rounded-md border bg-background px-2 py-1.5 text-sm ${statusToneClasses(effectiveStatus)}`}
+						aria-label="Reading status"
+					>
+						{#each READING_STATUSES as s (s)}
+							<option value={s}>{READING_STATUS_LABELS[s]}</option>
+						{/each}
+					</select>
+				</form>
 				{#if data.book.rating}
 					<p class="mt-3 text-xs uppercase tracking-wide text-muted-foreground">Rating</p>
 					<p class="text-lg font-semibold">{data.book.rating} / 5</p>
@@ -282,19 +288,3 @@
 	{onSaved}
 />
 
-{#if undoToastVisible && undoToastBookId}
-	<div
-		class="fixed inset-x-0 bottom-20 z-50 mx-auto flex w-full max-w-sm items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-card-foreground shadow-lg md:bottom-6"
-		role="status"
-	>
-		<Trash2 class="size-4 text-muted-foreground" />
-		<span class="flex-1">Book deleted.</span>
-		<form method="POST" action="?/undoSoftDeleteBook" use:enhance={undoEnhance}>
-			<input type="hidden" name="id" value={undoToastBookId} />
-			<Button type="submit" size="sm" variant="outline" disabled={undoPending} class="gap-1">
-				<Undo2 class="size-3.5" /> {undoPending ? 'Undoing…' : 'Undo'}
-			</Button>
-		</form>
-		<Button type="button" size="sm" variant="ghost" onclick={dismissUndoNow}>Dismiss</Button>
-	</div>
-{/if}

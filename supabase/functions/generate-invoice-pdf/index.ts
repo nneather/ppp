@@ -119,7 +119,10 @@ function splitDbMultiline(raw: string | null | undefined): string[] {
 		.filter(Boolean);
 }
 
-/** Recipient / company / street / city lines for the TO block (order: contact, org, address, email) */
+/** Recipient / company / street / city lines for the TO block (order: contact, org, address).
+ * Email addresses are intentionally omitted from the printed letterhead — they are
+ * still used by `send-invoice` for delivery, just not surfaced on the PDF.
+ */
 function buildToRecipientLines(c: ClientRow): string[] {
 	const lines: string[] = [];
 	for (const p of splitDbMultiline(c.billing_contact)) lines.push(p);
@@ -129,11 +132,6 @@ function buildToRecipientLines(c: ClientRow): string[] {
 	}
 	for (const p of splitDbMultiline(c.address_line_1)) lines.push(p);
 	for (const p of splitDbMultiline(c.address_line_2)) lines.push(p);
-	const emails = Array.isArray(c.email) ? c.email : [];
-	for (const addr of emails) {
-		const t = String(addr ?? '').trim();
-		if (t) lines.push(t);
-	}
 	if (lines.length === 0) lines.push(c.name?.trim() || 'Client');
 	return lines;
 }

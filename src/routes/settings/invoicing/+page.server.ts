@@ -17,6 +17,7 @@ export type ClientCardData = {
 	address_line_1: string | null;
 	address_line_2: string | null;
 	email: string[];
+	sort_rank: number | null;
 	rates: ClientRateRow[];
 	activeRate: ClientRateRow | null;
 	invoiceCount: number;
@@ -104,8 +105,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		supabase.from('profiles').select('default_cc_emails').eq('id', user.id).maybeSingle(),
 		supabase
 			.from('clients')
-			.select('id, name, billing_contact, address_line_1, address_line_2, email')
+			.select('id, name, billing_contact, address_line_1, address_line_2, email, sort_rank')
 			.is('deleted_at', null)
+			.order('sort_rank', { ascending: true, nullsFirst: false })
 			.order('name', { ascending: true }),
 		supabase
 			.from('client_rates')
@@ -169,6 +171,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				? activeCandidates.reduce((best, r) => (r.effective_from > best.effective_from ? r : best))
 				: null;
 
+		const rawRank = (c as { sort_rank?: unknown }).sort_rank;
+		const sort_rank =
+			typeof rawRank === 'number' && Number.isFinite(rawRank) ? Math.trunc(rawRank) : null;
+
 		return {
 			id,
 			name: c.name as string,
@@ -176,6 +182,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			address_line_1: (c.address_line_1 as string | null) ?? null,
 			address_line_2: (c.address_line_2 as string | null) ?? null,
 			email: normalizeEmailArray(c.email),
+			sort_rank,
 			rates,
 			activeRate,
 			invoiceCount: invoiceCounts.get(id) ?? 0,
@@ -199,6 +206,7 @@ type ClientFormFields = {
 	address_line_1: string | null;
 	address_line_2: string | null;
 	email: string[];
+	sort_rank: number | null;
 };
 
 function readClientFields(fd: FormData): { ok: true; fields: ClientFormFields } | { ok: false; message: string } {
@@ -215,6 +223,19 @@ function readClientFields(fd: FormData): { ok: true; fields: ClientFormFields } 
 	const emailErr = validateEmails(email);
 	if (emailErr) return { ok: false, message: emailErr };
 
+	const sortRankRaw = String(fd.get('sort_rank') ?? '').trim();
+	let sort_rank: number | null = null;
+	if (sortRankRaw.length > 0) {
+		const n = Number(sortRankRaw);
+		if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > 9999) {
+			return {
+				ok: false,
+				message: 'Sort priority must be a whole number between 0 and 9999.'
+			};
+		}
+		sort_rank = n;
+	}
+
 	return {
 		ok: true,
 		fields: {
@@ -222,7 +243,8 @@ function readClientFields(fd: FormData): { ok: true; fields: ClientFormFields } 
 			billing_contact: trimOrNull('billing_contact'),
 			address_line_1: trimOrNull('address_line_1'),
 			address_line_2: trimOrNull('address_line_2'),
-			email
+			email,
+			sort_rank
 		}
 	};
 }
