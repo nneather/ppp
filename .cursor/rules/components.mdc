@@ -20,10 +20,11 @@ If you reach for one of these capabilities, use the existing component.
 | Audit log row with collapsible JSONB diff | [src/lib/components/audit-row.svelte](mdc:src/lib/components/audit-row.svelte) |
 | Book entity form (create + edit) with author + category junctions — used inside dedicated `/library/books/new` + `/library/books/[id]/edit` pages (not a sheet) | [src/lib/components/book-form.svelte](mdc:src/lib/components/book-form.svelte) |
 | Polymorphic `(book_id OR essay_id)` source picker (essay branch stubbed pre-essays-UI) | [src/lib/components/source-picker.svelte](mdc:src/lib/components/source-picker.svelte) |
-| Embedded scripture-reference sub-form (manual entry; no upload yet) | [src/lib/components/scripture-reference-form.svelte](mdc:src/lib/components/scripture-reference-form.svelte) |
+| Embedded scripture-reference sub-form — create + per-row inline edit (`existingRef` + `onCancel` props), browser-side image upload to `library-scripture-images` (downscale + signed-URL preview); host page handles soft-delete via `<ConfirmDialog>` | [src/lib/components/scripture-reference-form.svelte](mdc:src/lib/components/scripture-reference-form.svelte) |
 | Typeahead person picker with B14 dedup warnings + inline create | [src/lib/components/person-autocomplete.svelte](mdc:src/lib/components/person-autocomplete.svelte) |
+| Underline-the-mnemonic-letter label helper (used inside `<Button hotkey>` and standalone) | [src/lib/components/hotkey-label.svelte](mdc:src/lib/components/hotkey-label.svelte) |
 
-shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator) live under `src/lib/components/ui/`.
+shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator) live under `src/lib/components/ui/`. The `Button` accepts a `hotkey` prop (Cmd+letter from the reserved set `s u d e g b`, or the special string `Escape` for Cancel) and an optional `label` prop; together they wire the chord, an underlined-letter label, and a tooltip. **Cancel buttons use `hotkey="Escape"`** (bare Esc; bubble phase, defaults-prevented bail). Anchors (`href`) skip the dev-warn but can still take a hotkey. Full convention: [.cursor/rules/hotkeys.mdc](mdc:.cursor/rules/hotkeys.mdc).
 
 ## Patterns
 

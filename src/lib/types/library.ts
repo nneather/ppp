@@ -161,3 +161,33 @@ export type PersonDedupHint = {
 	person: PersonRow;
 	book_count: number;
 };
+
+/**
+ * Scripture reference view-model — what `loadScriptureRefsForBook` returns.
+ *
+ * `verse_start_abs` / `verse_end_abs` are intentionally omitted: they're
+ * trigger-computed from chapter/verse columns (see `compute_verse_abs` in
+ * `00000000000000_baseline.sql`) and the UI never reads them directly. Search
+ * pulls them through `search_scripture_refs(...)` instead.
+ *
+ * `source_image_url` stores the bucket *object path* (not a public URL); the
+ * loader generates a 1h signed URL alongside it on every load.
+ */
+export type ScriptureRefRow = {
+	id: string;
+	book_id: string | null;
+	essay_id: string | null;
+	bible_book: string;
+	chapter_start: number | null;
+	verse_start: number | null;
+	chapter_end: number | null;
+	verse_end: number | null;
+	page_start: string;
+	page_end: string | null;
+	confidence_score: number | null;
+	needs_review: boolean;
+	review_note: string | null;
+	source_image_url: string | null;
+	source_image_signed_url: string | null;
+	created_at: string;
+};

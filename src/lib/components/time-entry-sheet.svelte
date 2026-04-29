@@ -198,9 +198,13 @@
 					</div>
 
 					<Sheet.Footer class="mt-2 flex-col gap-2 border-0 p-0 sm:flex-col">
-						<Button type="submit" class="h-12 w-full text-base" disabled={pending || !clientId}>
-							{pending ? 'Saving…' : mode === 'create' ? 'Save entry' : 'Update entry'}
-						</Button>
+						<Button
+							type="submit"
+							class="h-12 w-full text-base"
+							disabled={pending || !clientId}
+							hotkey={mode === 'create' ? 's' : 'u'}
+							label={pending ? 'Saving…' : mode === 'create' ? 'Save entry' : 'Update entry'}
+						/>
 						{#if mode === 'edit' && entry}
 							<Button
 								type="button"
@@ -208,9 +212,9 @@
 								class="h-12 w-full text-base"
 								disabled={pending}
 								onclick={handleDelete}
-							>
-								Delete
-							</Button>
+								hotkey="d"
+								label="Delete"
+							/>
 						{/if}
 					</Sheet.Footer>
 				</form>

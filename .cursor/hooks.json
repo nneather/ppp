@@ -4,6 +4,9 @@
 		"afterFileEdit": [
 			{
 				"command": ".cursor/hooks/migration-type-drift.sh"
+			},
+			{
+				"command": ".cursor/hooks/hotkey-missing.sh"
 			}
 		]
 	}

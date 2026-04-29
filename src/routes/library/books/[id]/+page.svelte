@@ -1,22 +1,27 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
+	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Plus from '@lucide/svelte/icons/plus';
 	import {
 		AUTHOR_ROLE_LABELS,
 		LANGUAGE_LABELS,
 		READING_STATUSES,
 		READING_STATUS_LABELS
 	} from '$lib/types/library';
-	import type { ReadingStatus } from '$lib/types/library';
+	import type { ReadingStatus, ScriptureRefRow, BookListRow } from '$lib/types/library';
+	import ScriptureReferenceForm from '$lib/components/scripture-reference-form.svelte';
+	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 
 	let deletePending = $state(false);
 	let statusOptimistic = $state<ReadingStatus | null>(null);
@@ -51,9 +56,6 @@
 		}
 	}
 
-	// Detail-page delete: server action returns redirect(303, '/library?deleted=...')
-	// after a successful soft-delete, which use:enhance follows automatically.
-	// The list page renders the 10s undo toast.
 	const deleteEnhance: SubmitFunction = () => {
 		deletePending = true;
 		return async ({ update }) => {
@@ -70,6 +72,174 @@
 		const yearStr = data.book.year != null ? String(data.book.year) : '';
 		return [head, yearStr].filter((s) => s.length > 0).join(', ');
 	}
+
+	// -------------------------------------------------------------------------
+	// Scripture references section
+	// -------------------------------------------------------------------------
+
+	// `<SourcePicker lockedBookId>` reads the label from the books prop, so
+	// pass a single-entry list synthesized from the current detail.
+	const sourcePickerBooks: BookListRow[] = $derived([
+		{
+			id: data.book.id,
+			title: data.book.title,
+			subtitle: data.book.subtitle,
+			genre: data.book.genre,
+			reading_status: data.book.reading_status,
+			needs_review: data.book.needs_review,
+			primary_category_name: data.book.primary_category_name,
+			series_abbreviation: data.book.series_abbreviation,
+			series_name: data.book.series_name,
+			volume_number: data.book.volume_number,
+			authors_label:
+				data.book.authors
+					.filter((a) => a.role === 'author')
+					.map((a) => a.person_label)
+					.join(', ') || null
+		}
+	]);
+
+	// Optimistic local list — start from server state, mutate on add/edit/delete
+	// for snappy feedback. After invalidateAll the canonical state takes over.
+	// Keep `refs` in sync with `data.scriptureRefs` via $effect; the warning
+	// "state_referenced_locally" is suppressed by initializing to [] then
+	// hydrating in the effect (which tracks data.scriptureRefs as a dep).
+	let refs = $state<ScriptureRefRow[]>([]);
+	$effect(() => {
+		refs = data.scriptureRefs;
+	});
+
+	let addOpen = $state(false);
+	let editingId = $state<string | null>(null);
+	let pendingDeleteId = $state<string | null>(null);
+	let confirmDeleteOpen = $state(false);
+
+	const formMessage = $derived.by(() => {
+		const f = form as { kind?: string; message?: string; refId?: string } | null;
+		if (!f) return null;
+		if (
+			f.kind === 'createScriptureRef' ||
+			f.kind === 'updateScriptureRef' ||
+			f.kind === 'softDeleteScriptureRef'
+		) {
+			return f;
+		}
+		return null;
+	});
+
+	// Group refs by bible_book in canon order (driven by data.bibleBookNames).
+	type RefGroup = { bible_book: string; rows: ScriptureRefRow[] };
+	const groupedRefs = $derived.by<RefGroup[]>(() => {
+		const map = new Map<string, ScriptureRefRow[]>();
+		for (const r of refs) {
+			const arr = map.get(r.bible_book) ?? [];
+			arr.push(r);
+			map.set(r.bible_book, arr);
+		}
+		const out: RefGroup[] = [];
+		for (const name of data.bibleBookNames) {
+			const rows = map.get(name);
+			if (rows && rows.length > 0) {
+				out.push({ bible_book: name, rows });
+				map.delete(name);
+			}
+		}
+		// Any leftover (orphan bible_book strings) sort alphabetically at the end.
+		for (const [name, rows] of [...map.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+			out.push({ bible_book: name, rows });
+		}
+		return out;
+	});
+
+	function fmtRef(r: ScriptureRefRow): string {
+		const cs = r.chapter_start;
+		const vs = r.verse_start;
+		const ce = r.chapter_end;
+		const ve = r.verse_end;
+		if (cs == null && ce == null) return r.bible_book; // whole book
+		const startPart =
+			cs != null && vs != null
+				? `${cs}:${vs}`
+				: cs != null
+					? `${cs}`
+					: '';
+		const endPart =
+			ce != null && ve != null
+				? `${ce}:${ve}`
+				: ce != null
+					? `${ce}`
+					: '';
+		// Collapse same-chapter ranges: 2:1–11 instead of 2:1–2:11.
+		let rangeText = startPart;
+		if (endPart && endPart !== startPart) {
+			if (cs != null && ce != null && cs === ce && ve != null && ve !== vs) {
+				rangeText = `${startPart}–${ve}`;
+			} else {
+				rangeText = `${startPart}–${endPart}`;
+			}
+		}
+		return `${r.bible_book} ${rangeText}`.trim();
+	}
+
+	function fmtPages(r: ScriptureRefRow): string {
+		if (!r.page_start) return '';
+		const end = r.page_end ?? '';
+		return end && end !== r.page_start
+			? `pp. ${r.page_start}–${end}`
+			: `p. ${r.page_start}`;
+	}
+
+	function startEdit(id: string) {
+		editingId = id;
+		addOpen = false;
+	}
+
+	function cancelEdit() {
+		editingId = null;
+	}
+
+	async function onCreated(refId: string) {
+		addOpen = false;
+		await invalidateAll();
+	}
+
+	async function onUpdated(refId: string) {
+		editingId = null;
+		await invalidateAll();
+	}
+
+	function requestDelete(id: string) {
+		pendingDeleteId = id;
+		confirmDeleteOpen = true;
+	}
+
+	let deleteRefPending = $state(false);
+	let deleteFormEl = $state<HTMLFormElement | null>(null);
+	let deleteIdField = $state<HTMLInputElement | null>(null);
+
+	function confirmDelete() {
+		if (!pendingDeleteId || !deleteFormEl || !deleteIdField) return;
+		deleteIdField.value = pendingDeleteId;
+		deleteFormEl.requestSubmit();
+	}
+
+	const deleteRefEnhance: SubmitFunction = () => {
+		deleteRefPending = true;
+		const removingId = pendingDeleteId;
+		// Optimistic remove.
+		if (removingId) refs = refs.filter((r) => r.id !== removingId);
+		return async ({ result }) => {
+			deleteRefPending = false;
+			confirmDeleteOpen = false;
+			pendingDeleteId = null;
+			if (result.type === 'success') {
+				await invalidateAll();
+			} else {
+				// Revert optimistic remove on failure by reloading.
+				await invalidateAll();
+			}
+		};
+	};
 </script>
 
 <svelte:head>
@@ -122,13 +292,14 @@
 			{/if}
 		</div>
 		<div class="flex flex-wrap gap-2">
-			<Button variant="outline" href={`/library/books/${data.book.id}/edit`}>
-				<Pencil class="size-4" /> Edit
+			<Button variant="outline" href={`/library/books/${data.book.id}/edit`} hotkey="e">
+				<Pencil class="size-4" /> <HotkeyLabel label="Edit" mnemonic="e" />
 			</Button>
 			<form method="POST" action="?/softDeleteBook" use:enhance={deleteEnhance} class="contents">
 				<input type="hidden" name="id" value={data.book.id} />
-				<Button type="submit" variant="destructive" disabled={deletePending}>
-					<Trash2 class="size-4" /> {deletePending ? 'Deleting…' : 'Delete'}
+				<Button type="submit" variant="destructive" disabled={deletePending} hotkey="d">
+					<Trash2 class="size-4" />
+					<HotkeyLabel label={deletePending ? 'Deleting…' : 'Delete'} mnemonic="d" />
 				</Button>
 			</form>
 		</div>
@@ -259,4 +430,183 @@
 			{/if}
 		</aside>
 	</div>
+
+	<!-- ------------------------------------------------------------------- -->
+	<!-- Scripture references                                                  -->
+	<!-- ------------------------------------------------------------------- -->
+	<section class="mt-10" aria-labelledby="scripture-refs-heading">
+		<div class="flex items-center justify-between gap-3">
+			<h2
+				id="scripture-refs-heading"
+				class="text-lg font-semibold tracking-tight text-foreground"
+			>
+				Scripture references
+				{#if refs.length > 0}
+					<span class="ml-1 text-sm font-normal text-muted-foreground">({refs.length})</span>
+				{/if}
+			</h2>
+			{#if !addOpen}
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onclick={() => {
+						addOpen = true;
+						editingId = null;
+					}}
+				>
+					<Plus class="size-4" /> Add
+				</Button>
+			{/if}
+		</div>
+
+		{#if refs.length === 0 && !addOpen}
+			<p class="mt-4 rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+				No scripture references yet. Click <strong class="font-semibold text-foreground">Add</strong> to log a passage you found discussed in this book.
+			</p>
+		{/if}
+
+		{#if groupedRefs.length > 0}
+			<div class="mt-4 space-y-6">
+				{#each groupedRefs as group (group.bible_book)}
+					<div>
+						<h3
+							id={`scripture-group-${group.bible_book}`}
+							class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+						>
+							{group.bible_book}
+						</h3>
+						<ul class="flex flex-col gap-3">
+							{#each group.rows as ref (ref.id)}
+								<li id={`ref-${ref.id}`}>
+									{#if editingId === ref.id}
+										<ScriptureReferenceForm
+											books={sourcePickerBooks}
+											bibleBookNames={data.bibleBookNames}
+											lockedBookId={data.book.id}
+											userId={data.userId}
+											existingRef={ref}
+											{formMessage}
+											onSaved={onUpdated}
+											onCancel={cancelEdit}
+										/>
+									{:else}
+										<article
+											class="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card p-3 text-card-foreground"
+										>
+											<div class="flex min-w-0 flex-1 items-start gap-3">
+												{#if ref.source_image_signed_url}
+													<a
+														href={ref.source_image_signed_url}
+														target="_blank"
+														rel="noopener noreferrer"
+														class="shrink-0"
+														aria-label="Open page image in a new tab"
+													>
+														<img
+															src={ref.source_image_signed_url}
+															alt="Source page"
+															class="size-16 rounded-md border border-border object-cover"
+															loading="lazy"
+														/>
+													</a>
+												{/if}
+												<div class="min-w-0 flex-1">
+													<div class="flex flex-wrap items-center gap-2">
+														<span class="font-medium text-foreground">
+															{fmtRef(ref)}
+														</span>
+														<span class="text-sm text-muted-foreground">
+															{fmtPages(ref)}
+														</span>
+														{#if ref.needs_review}
+															<span
+																class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
+															>
+																<AlertCircle class="size-3" /> Needs review
+															</span>
+														{/if}
+													</div>
+													{#if ref.review_note}
+														<p class="mt-1 text-xs text-muted-foreground">
+															{ref.review_note}
+														</p>
+													{/if}
+												</div>
+											</div>
+											<div class="flex shrink-0 gap-1">
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													onclick={() => startEdit(ref.id)}
+													aria-label={`Edit ${fmtRef(ref)}`}
+												>
+													<Pencil class="size-4" /> Edit
+												</Button>
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													onclick={() => requestDelete(ref.id)}
+													aria-label={`Delete ${fmtRef(ref)}`}
+													class="text-destructive hover:text-destructive"
+												>
+													<Trash2 class="size-4" />
+												</Button>
+											</div>
+										</article>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		{#if addOpen}
+			<div class="mt-4">
+				<ScriptureReferenceForm
+					books={sourcePickerBooks}
+					bibleBookNames={data.bibleBookNames}
+					lockedBookId={data.book.id}
+					userId={data.userId}
+					{formMessage}
+					onSaved={onCreated}
+					onCancel={() => (addOpen = false)}
+				/>
+				<div class="mt-2 flex justify-end">
+					<Button type="button" variant="ghost" size="sm" onclick={() => (addOpen = false)}>
+						Close add form
+					</Button>
+				</div>
+			</div>
+		{/if}
+	</section>
 </div>
+
+<!-- Hidden delete form: confirm dialog drives requestSubmit() against this. -->
+<form
+	method="POST"
+	action="?/softDeleteScriptureRef"
+	use:enhance={deleteRefEnhance}
+	bind:this={deleteFormEl}
+	class="hidden"
+>
+	<input type="hidden" name="id" value="" bind:this={deleteIdField} />
+</form>
+
+<ConfirmDialog
+	bind:open={confirmDeleteOpen}
+	title="Delete scripture reference?"
+	description="This soft-deletes the row. You can restore it from the audit log if needed."
+	confirmLabel="Delete"
+	cancelLabel="Keep"
+	destructive
+	pending={deleteRefPending}
+	onConfirm={confirmDelete}
+	onCancel={() => {
+		pendingDeleteId = null;
+	}}
+/>

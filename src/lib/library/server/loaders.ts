@@ -8,8 +8,13 @@ import type {
 	BookAuthorAssignment,
 	ReadingStatus,
 	Language,
-	AuthorRole
+	AuthorRole,
+	ScriptureRefRow
 } from '$lib/types/library';
+import {
+	SCRIPTURE_IMAGES_BUCKET,
+	SCRIPTURE_IMAGES_SIGNED_URL_TTL
+} from '$lib/library/storage';
 
 /**
  * Shared load helpers for book list + detail pages.
@@ -362,6 +367,126 @@ export function personDisplayShort(p: PersonRow): string {
 	const middleInitial = middle ? `${middle.charAt(0)}.` : '';
 	const parts = [first, middleInitial, p.last_name].filter((s) => s.length > 0);
 	return parts.join(' ');
+}
+
+// ---------------------------------------------------------------------------
+// Scripture references
+// ---------------------------------------------------------------------------
+
+type RawScriptureRefRow = {
+	id: string;
+	book_id: string | null;
+	essay_id: string | null;
+	bible_book: string;
+	chapter_start: number | null;
+	verse_start: number | null;
+	chapter_end: number | null;
+	verse_end: number | null;
+	page_start: string;
+	page_end: string | null;
+	confidence_score: number | null;
+	needs_review: boolean;
+	review_note: string | null;
+	source_image_url: string | null;
+	created_at: string;
+};
+
+/**
+ * 66 bible_book names in canon order. Drives both the `<Select>` in
+ * `<ScriptureReferenceForm>` AND the canon-ordered grouping on the book
+ * detail page (so groups render Genesis → Revelation, not alphabetical).
+ */
+export async function loadBibleBookNames(supabase: SupabaseClient): Promise<string[]> {
+	const { data, error } = await supabase
+		.from('bible_books')
+		.select('name, sort_order')
+		.order('sort_order', { ascending: true });
+	if (error) {
+		console.error(error);
+		return [];
+	}
+	return (data ?? []).map((r) => (r as { name: string }).name);
+}
+
+/**
+ * Load all live scripture_references for a book, ordered by `verse_start_abs`
+ * so the detail-page list reads in scripture order. Generates a 1h signed
+ * URL for any row that has `source_image_url` populated.
+ *
+ * `verse_start_abs` itself is not surfaced — it's a trigger-computed column
+ * the UI doesn't need; only the ORDER BY + the eventual `search_scripture_refs`
+ * RPC consume it directly.
+ */
+export async function loadScriptureRefsForBook(
+	supabase: SupabaseClient,
+	bookId: string
+): Promise<ScriptureRefRow[]> {
+	const { data, error } = await supabase
+		.from('scripture_references')
+		.select(
+			`
+			id,
+			book_id,
+			essay_id,
+			bible_book,
+			chapter_start,
+			verse_start,
+			chapter_end,
+			verse_end,
+			page_start,
+			page_end,
+			confidence_score,
+			needs_review,
+			review_note,
+			source_image_url,
+			created_at
+		`
+		)
+		.eq('book_id', bookId)
+		.is('deleted_at', null)
+		.order('verse_start_abs', { ascending: true })
+		.order('created_at', { ascending: true });
+
+	if (error) {
+		console.error(error);
+		return [];
+	}
+
+	const rows = (data ?? []) as unknown as RawScriptureRefRow[];
+
+	// Sign in parallel; null path → null URL.
+	const signed = await Promise.all(
+		rows.map(async (r) => {
+			if (!r.source_image_url) return null;
+			const { data: s, error: sErr } = await supabase.storage
+				.from(SCRIPTURE_IMAGES_BUCKET)
+				.createSignedUrl(r.source_image_url, SCRIPTURE_IMAGES_SIGNED_URL_TTL);
+			if (sErr) {
+				console.error('[loadScriptureRefsForBook] signed URL error', sErr);
+				return null;
+			}
+			return s?.signedUrl ?? null;
+		})
+	);
+
+	return rows.map((r, i) => ({
+		id: r.id,
+		book_id: r.book_id,
+		essay_id: r.essay_id,
+		bible_book: r.bible_book,
+		chapter_start: r.chapter_start,
+		verse_start: r.verse_start,
+		chapter_end: r.chapter_end,
+		verse_end: r.verse_end,
+		page_start: r.page_start,
+		page_end: r.page_end,
+		confidence_score: r.confidence_score,
+		needs_review: Boolean(r.needs_review),
+		review_note: r.review_note,
+		source_image_url: r.source_image_url,
+		source_image_signed_url: signed[i],
+		created_at: r.created_at
+	}));
 }
 
 export function personDisplayLong(p: PersonRow): string {

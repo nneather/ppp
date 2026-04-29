@@ -48,17 +48,22 @@
 			</div>
 		{/if}
 		<Dialog.Footer class="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-			<Button type="button" variant="outline" onclick={handleCancel} disabled={pending}>
-				{cancelLabel}
-			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				onclick={handleCancel}
+				disabled={pending}
+				hotkey="Escape"
+				label={cancelLabel}
+			/>
 			<Button
 				type="button"
 				variant={destructive ? 'destructive' : 'default'}
 				onclick={onConfirm}
 				disabled={pending}
-			>
-				{pending ? 'Working…' : confirmLabel}
-			</Button>
+				hotkey={destructive ? 'd' : 's'}
+				label={pending ? 'Working…' : confirmLabel}
+			/>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

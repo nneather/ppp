@@ -447,9 +447,13 @@
 					</div>
 
 					<Sheet.Footer class="mt-2 flex-col gap-2 border-0 p-0 sm:flex-col">
-						<Button type="submit" class="h-12 w-full text-base" disabled={pending || !canSubmit}>
-							{pending ? 'Generating…' : 'Generate draft invoice'}
-						</Button>
+						<Button
+							type="submit"
+							class="h-12 w-full text-base"
+							disabled={pending || !canSubmit}
+							hotkey="g"
+							label={pending ? 'Generating…' : 'Generate draft invoice'}
+						/>
 					</Sheet.Footer>
 				</form>
 			{/if}

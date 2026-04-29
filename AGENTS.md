@@ -9,6 +9,7 @@ The Cursor rules in `.cursor/rules/*.mdc` are loaded automatically by Cursor; if
 - [.cursor/rules/sveltekit-routes.mdc](.cursor/rules/sveltekit-routes.mdc) — page server / form action shape
 - [.cursor/rules/edge-functions.mdc](.cursor/rules/edge-functions.mdc) — Edge Function conventions
 - [.cursor/rules/components.mdc](.cursor/rules/components.mdc) — component inventory
+- [.cursor/rules/hotkeys.mdc](.cursor/rules/hotkeys.mdc) — Mod+letter chord conventions
 - [.cursor/rules/library-module.mdc](.cursor/rules/library-module.mdc) — library specifics
 
 ## How to start a build session
@@ -53,12 +54,14 @@ End-of-session deliverables:
 - **Per-user defaults**: column on `profiles`, not a separate table.
 - **Edge Function soft-delete handling**: do not filter parents by `deleted_at` — historical artifacts must reload.
 - **Audit log UI**: `/settings/audit-log` (`src/routes/settings/audit-log/`). Module-scoped via the `_INVOICING_TABLES` / `_LIBRARY_TABLES` whitelists in `+page.server.ts`. When a new module ships, extend `_LIBRARY_TABLES` (or add a new whitelist) and add the matching option to the module `<select>`. Revert is UPDATE-only and additionally gated by `_REVERTIBLE_TABLES`; library tables are intentionally excluded — see [docs/decisions/001-audit-log-ui.md](docs/decisions/001-audit-log-ui.md).
+- **Hotkeys**: every primary-action button (Save, Update, Delete, Edit, Generate) needs a `hotkey` prop on `<Button>` drawn from the reserved set: `s u d e g`, plus `b` as a per-label mnemonic (e.g. "New **B**ook"). **Cancel = `hotkey="Escape"`** (bare Esc, bubble-phase, bails on `event.defaultPrevented` so open autocomplete dropdowns win). **Anchors (`href`) skip the dev-warn but can still take a hotkey.** Letters that conflict with browser/OS chords (`n t w r q l p f m h`) or with clipboard / select-all in inputs (`c x v z y a`) are explicitly NOT registered. Reserved letters live in `src/lib/hotkeys/registry.ts`. Convention + rationale: [.cursor/rules/hotkeys.mdc](.cursor/rules/hotkeys.mdc). Enforcement: dev-only `console.warn` in the Button component + `.cursor/hooks/hotkey-missing.sh` afterFileEdit hook.
 - **Library helpers** at `src/lib/library/`:
-  - `src/lib/types/library.ts` — closed enums (`GENRES`, `LANGUAGES`, `READING_STATUSES`, `AUTHOR_ROLES`) + view-models (`BookListRow`, `BookDetail`, `PersonRow`, etc.). Reuse before improvising.
+  - `src/lib/types/library.ts` — closed enums (`GENRES`, `LANGUAGES`, `READING_STATUSES`, `AUTHOR_ROLES`) + view-models (`BookListRow`, `BookDetail`, `PersonRow`, `ScriptureRefRow`, etc.). Reuse before improvising.
   - `src/lib/library/polymorphic.ts` — `PolymorphicParent` discriminated union + `validateXor` + `insertPolymorphicRow<T>`. Reused by `scripture_references`, `book_topics`, `book_bible_coverage`, `book_ancient_coverage`. **Do not invent four versions** per [.cursor/rules/library-module.mdc](.cursor/rules/library-module.mdc).
-  - `src/lib/library/server/loaders.ts` — `loadBookList`, `loadBookDetail`, `loadCategories`, `loadSeries`, `loadPeople`, `loadPersonBookCounts`, `personDisplayShort/Long`. Used by `/library` and `/library/books/[id]`.
-  - `src/lib/library/server/book-actions.ts` — `createBookAction`, `updateBookAction`, `softDeleteBookAction`, `undoSoftDeleteBookAction`, `createPersonAction`. Returns `{ kind, success?, message?, bookId?|personId? }`.
-  - `src/lib/library/server/scripture-actions.ts` — same shape for `scripture_references` (Session 2 prep).
+  - `src/lib/library/storage.ts` — `SCRIPTURE_IMAGES_BUCKET`, `SCRIPTURE_IMAGES_SIGNED_URL_TTL`, `scriptureImagePath({ userId, bookId, ext })`. Single source of truth for the `library-scripture-images` bucket name + path convention; imported from both server (signed-URL generation in loaders) and browser (upload in form components).
+  - `src/lib/library/server/loaders.ts` — `loadBookList`, `loadBookDetail`, `loadCategories`, `loadSeries`, `loadPeople`, `loadPersonBookCounts`, `loadBibleBookNames`, `loadScriptureRefsForBook` (with per-row 1h signed-URL generation), `personDisplayShort/Long`. Used by `/library` and `/library/books/[id]`.
+  - `src/lib/library/server/book-actions.ts` — `createBookAction`, `updateBookAction`, `softDeleteBookAction`, `undoSoftDeleteBookAction`, `createPersonAction`, `updateReadingStatusAction`. Returns `{ kind, success?, message?, bookId?|personId? }`.
+  - `src/lib/library/server/scripture-actions.ts` — same shape for `scripture_references`: `createScriptureRefAction`, `updateScriptureRefAction`, `softDeleteScriptureRefAction`. Wired into `/library/books/[id]` Session 2.
 
 ### Scripts
 

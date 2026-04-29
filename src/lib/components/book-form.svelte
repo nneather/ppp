@@ -478,92 +478,6 @@
 		);
 	}
 
-	function formatParsedNameForCompare(parsed: {
-		first?: string;
-		middle?: string;
-		last?: string;
-	}): string {
-		return [parsed.first, parsed.middle, parsed.last]
-			.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
-			.join(' ')
-			.toLowerCase();
-	}
-
-	/**
-	 * Silent person-create on tab-away from the typeahead. Skips the modal
-	 * dialog (which is reserved for the explicit "+ Create" dropdown row).
-	 *
-	 * Flow:
-	 *   1. Parse the typed text via parseTypedName.
-	 *   2. Bail if no last name (need at least that to satisfy server-side
-	 *      `last_name` required check).
-	 *   3. Optimistic exact-match against local `people` — if a person whose
-	 *      full display matches case-insensitively exists, just select them
-	 *      (saves a needless duplicate-create on round-trip race conditions).
-	 *   4. Otherwise POST to ?/createPerson silently; on success, append to
-	 *      local `people` and assign the row's person_id. The existing
-	 *      `dedupHints[row.key]` rendering will surface any B14 collision
-	 *      after the fact.
-	 *   5. On failure: log to console; the dropdown's "+ Create" row stays
-	 *      as the manual fallback.
-	 */
-	async function handleAutoCreatePerson(rowKey: string, text: string) {
-		if (!browser) return;
-		const parsed = parseTypedName(text);
-		if (!parsed.last) return;
-
-		const target = formatParsedNameForCompare(parsed);
-		const existing = people.find((p) => formatPersonLong(p).toLowerCase() === target);
-		if (existing) {
-			authorRows = authorRows.map((a) =>
-				a.key === rowKey ? { ...a, person_id: existing.id } : a
-			);
-			return;
-		}
-
-		try {
-			const fd = new FormData();
-			fd.append('first_name', parsed.first ?? '');
-			fd.append('middle_name', parsed.middle ?? '');
-			fd.append('last_name', parsed.last);
-			fd.append('suffix', '');
-			const resp = await fetch(personActionPath, {
-				method: 'POST',
-				headers: { 'x-sveltekit-action': 'true' },
-				body: fd
-			});
-			const result = deserialize(await resp.text()) as ActionResult;
-			if (result.type === 'success' || result.type === 'failure') {
-				const data = (result.data ?? {}) as {
-					kind?: string;
-					personId?: string;
-					message?: string;
-				};
-				if (result.type === 'failure' || !data.personId) {
-					console.error('[book form] auto-create person failed:', data.message);
-					return;
-				}
-				const newPerson: PersonRow = {
-					id: data.personId,
-					first_name: parsed.first?.trim() || null,
-					middle_name: parsed.middle?.trim() || null,
-					last_name: parsed.last.trim(),
-					suffix: null,
-					aliases: []
-				};
-				people = [...people, newPerson].sort((a, b) =>
-					a.last_name.localeCompare(b.last_name)
-				);
-				authorRows = authorRows.map((a) =>
-					a.key === rowKey ? { ...a, person_id: data.personId! } : a
-				);
-				await invalidate('app:library:people').catch(() => {});
-			}
-		} catch (err) {
-			console.error('[book form] auto-create person network error:', err);
-		}
-	}
-
 	function formatPersonLong(p: PersonRow): string {
 		return [p.first_name, p.middle_name, p.last_name, p.suffix]
 			.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
@@ -748,7 +662,6 @@
 								{people}
 								{personBookCounts}
 								onCreate={(text) => openPersonDialog(row.key, parseTypedName(text))}
-								onAutoCreate={(text) => handleAutoCreatePerson(row.key, text)}
 							/>
 						</div>
 						<Select.Root
@@ -1269,9 +1182,9 @@
 				type="submit"
 				class="h-12 w-full text-base sm:w-auto sm:self-end sm:px-8"
 				disabled={pending || !hasAnyField}
-			>
-				{pending ? 'Saving…' : mode === 'create' ? 'Save book' : 'Update book'}
-			</Button>
+				hotkey={mode === 'create' ? 's' : 'u'}
+				label={pending ? 'Saving…' : mode === 'create' ? 'Save book' : 'Update book'}
+			/>
 			{#if !pending && !hasAnyField}
 				<p class="text-center text-xs text-muted-foreground sm:text-right">
 					Add at least one detail (title, ISBN, an author, anything) before saving.
@@ -1340,9 +1253,9 @@
 				class="h-11"
 				onclick={() => (personDialogOpen = false)}
 				disabled={personDialogPending}
-			>
-				Cancel
-			</Button>
+				hotkey="Escape"
+				label="Cancel"
+			/>
 			{#if personDialogMessageTone === 'warning' && personDialogMessage}
 				<Button
 					type="button"
@@ -1353,18 +1266,18 @@
 						submitPersonDialog();
 					}}
 					disabled={personDialogPending}
-				>
-					{personDialogPending ? 'Saving…' : 'Continue anyway'}
-				</Button>
+					hotkey="s"
+					label={personDialogPending ? 'Saving…' : 'Continue anyway'}
+				/>
 			{:else}
 				<Button
 					type="button"
 					class="h-11"
 					onclick={submitPersonDialog}
 					disabled={personDialogPending}
-				>
-					{personDialogPending ? 'Saving…' : 'Add person'}
-				</Button>
+					hotkey="s"
+					label={personDialogPending ? 'Saving…' : 'Add person'}
+				/>
 			{/if}
 		</Dialog.Footer>
 	</Dialog.Content>

@@ -185,9 +185,13 @@
 				</div>
 
 				<Sheet.Footer class="mt-2 flex-col gap-2 border-0 p-0 sm:flex-col">
-					<Button type="submit" class="h-12 w-full text-base" disabled={pending || !name.trim()}>
-						{pending ? 'Saving…' : mode === 'create' ? 'Create client' : 'Save changes'}
-					</Button>
+					<Button
+						type="submit"
+						class="h-12 w-full text-base"
+						disabled={pending || !name.trim()}
+						hotkey="s"
+						label={pending ? 'Saving…' : mode === 'create' ? 'Create client' : 'Save changes'}
+					/>
 				</Sheet.Footer>
 			</form>
 		</div>

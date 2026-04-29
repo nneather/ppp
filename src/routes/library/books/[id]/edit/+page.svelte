@@ -85,6 +85,8 @@
 		<Button
 			type="button"
 			variant="ghost"
+			hotkey="Escape"
+			label="Cancel"
 			onclick={() => {
 				if (dirty) {
 					pendingNav = new URL(detailHref, window.location.origin);
@@ -93,9 +95,7 @@
 					goto(detailHref);
 				}
 			}}
-		>
-			Cancel
-		</Button>
+		/>
 	</div>
 </div>
 

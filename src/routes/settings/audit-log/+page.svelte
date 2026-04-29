@@ -184,7 +184,7 @@
 			/>
 		</div>
 		<div class="flex items-end gap-2">
-			<Button type="submit" size="sm">Apply</Button>
+			<Button type="submit" size="sm" hotkey="s" label="Apply" />
 			<Button
 				type="button"
 				size="sm"

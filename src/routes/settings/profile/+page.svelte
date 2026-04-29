@@ -98,9 +98,7 @@
 				{#if nameSuccess}
 					<p class="text-sm text-muted-foreground" role="status">Name saved.</p>
 				{/if}
-				<Button type="submit" disabled={namePending}>
-					{namePending ? 'Saving…' : 'Save name'}
-				</Button>
+				<Button type="submit" disabled={namePending} hotkey="s" label={namePending ? 'Saving…' : 'Save name'} />
 			</form>
 		</section>
 

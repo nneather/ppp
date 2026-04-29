@@ -1,0 +1,131 @@
+---
+description: App-wide hotkey conventions — Mod+letter chords with underlined-letter mnemonics
+globs: src/lib/components/**,src/routes/**/*.svelte
+alwaysApply: false
+---
+
+# Hotkeys
+
+Every primary-action button on a screen MUST declare a `hotkey` prop drawn from the small reserved-letter set below. We use **Mod+letter** — `Cmd` on Mac, `Ctrl` on Win — so chords work inside text inputs (Cmd doesn't insert characters) and match Mac muscle memory. The matching letter in the button label renders with a light underline.
+
+**Cancel uses `hotkey="Escape"`, not a Cmd+letter chord.** The shortcut action treats `'Escape'` as a special key — bare Esc press, no modifier, listens on the bubble phase, bails on `event.defaultPrevented` so focused widgets that handle Esc themselves (open autocomplete dropdowns, popovers) keep their behavior. shadcn `Sheet` / `Dialog` / `<ConfirmDialog>` also close on Esc via the bits-ui primitive — both fire idempotently.
+
+The system is gated by:
+
+- A dev-only `console.warn` inside [`src/lib/components/ui/button/button.svelte`](mdc:src/lib/components/ui/button/button.svelte) — fires when a primary submit / default / destructive button mounts without `hotkey`. Anchors (`href` set) are skipped because they're navigation, not actions.
+- A Cursor `afterFileEdit` hook ([`.cursor/hooks/hotkey-missing.sh`](mdc:.cursor/hooks/hotkey-missing.sh)) — warns the agent on any `.svelte` edit that adds a primary `<Button>` without `hotkey=`.
+
+If you see either signal, fix the missing prop before finishing the turn.
+
+## Reserved letters
+
+Defined in [`src/lib/hotkeys/registry.ts`](mdc:src/lib/hotkeys/registry.ts). **Add new letters to that file before introducing them in components**.
+
+| Letter | Action | Notes |
+|---|---|---|
+| `s` | Save / Submit | Primary save action on a form. |
+| `u` | Update | Use when "Save" is taken (e.g. "Update book" — `s` is in "book"). |
+| `d` | Delete | Always pair with a `<ConfirmDialog>`. |
+| `e` | Edit | Open an edit affordance. |
+| `g` | Generate | Generate-derived-record actions (e.g. "Generate draft invoice"). |
+| `b` | Per-label mnemonic | Safe Cmd+letter; use when an action's label has a `b` and no other reserved letter fits — currently "New **B**ook" on the library list. Don't pin a global semantic to it. |
+| `Escape` (special) | Cancel / Dismiss | Special-key hotkey, no modifier. Bare Esc press triggers the click. Used for Cancel buttons. The shortcut listens on the bubble phase and bails on `event.defaultPrevented`, so focused widgets that handle Esc themselves (open autocomplete dropdown, etc.) win the keystroke. |
+
+Six Cmd+letter chords + `Escape` cover the entire app.
+
+## Letters NOT to register (and why)
+
+| Letter | Reason |
+|---|---|
+| `n`, `t`, `w`, `r`, `q`, `l`, `p`, `f`, `m`, `h`, `Space` | Browser/OS reserved on Mac — `preventDefault()` is silently ignored, so the chord still triggers Chrome's new-window / new-tab / find-in-page / etc. **Cmd+N is the canonical example.** |
+| `c`, `x`, `v`, `z`, `y`, `a` | Clipboard / undo / select-all collisions inside text inputs — `preventDefault()` would silently break native behavior. |
+| `o` | Confusing browser/Mac mappings around "open file". |
+
+If a button's natural mnemonic falls in this list, **use a different letter or no hotkey at all**. Don't fight the platform.
+
+## Usage
+
+### Plain-text button — auto-underline via `label` prop
+
+```svelte
+<Button type="submit" hotkey="s" label={pending ? 'Saving…' : 'Save book'} />
+```
+
+The `label` prop renders through `<HotkeyLabel>`, which underlines the first case-insensitive occurrence of the `hotkey` letter.
+
+### Cancel — `hotkey="Escape"`
+
+```svelte
+<Button
+  type="button"
+  variant="outline"
+  hotkey="Escape"
+  label="Cancel"
+  onclick={() => (open = false)}
+/>
+```
+
+The hotkey binds the bare `Esc` key (no modifier). Tooltip displays "Esc". Inside a `<Sheet>` / `<Dialog>` / `<ConfirmDialog>`, the parent primitive **also** closes on Esc, so both fire — they are idempotent. Inside an open autocomplete dropdown or popover that already handles Esc with `preventDefault()`, the focused widget wins (the shortcut bails on `event.defaultPrevented`).
+
+### Icon + text — pass children, wrap text in `<HotkeyLabel>` manually
+
+```svelte
+<script>
+  import HotkeyLabel from '$lib/components/hotkey-label.svelte';
+</script>
+
+<Button type="submit" hotkey="s">
+  <Save class="size-4" /> <HotkeyLabel label="Save changes" mnemonic="s" />
+</Button>
+```
+
+### Navigation links — optional hotkey, no dev-warn
+
+```svelte
+<Button href="/library/books/new" class="gap-2" hotkey="b">
+  <Plus class="size-4" /> <HotkeyLabel label="New book" mnemonic="b" />
+</Button>
+```
+
+Anchors are navigation, not actions — the dev warn intentionally skips them. But you can still pass `hotkey` for discoverability + a working chord (e.g. `b` for "New **B**ook").
+
+### Destructive confirmation
+
+```svelte
+<Button type="submit" variant="destructive" hotkey="d" label="Delete" />
+```
+
+### Conditional letter (e.g. create vs update)
+
+```svelte
+<Button
+  type="submit"
+  hotkey={mode === 'create' ? 's' : 'u'}
+  label={mode === 'create' ? 'Save book' : 'Update book'}
+/>
+```
+
+## Rules
+
+1. **Reuse the reserved letter, don't invent.** "Save" is always `s`. If the action genuinely doesn't fit, add it to `HOTKEY` in `registry.ts` first — and only after verifying the letter isn't on the avoid list above.
+2. **One chord per visible button per page.** The dev-only collision warning (`[hotkey] Cmd/Ctrl+X is registered N times`) catches duplicates. Resolve by hiding one of the buttons or picking a different letter.
+3. **Disabled buttons swallow the chord but don't fire.** A `disabled` Save button with `hotkey="s"` will preventDefault on `Cmd+S` (so the browser save-page dialog stays suppressed) but will not call the handler. Acceptable.
+4. **`<ConfirmDialog>` automatically wires Confirm = `d` (destructive) or `s` (default), and Cancel = `Escape`.**
+5. **Outline / ghost / link / secondary variants are de-emphasized.** They are not flagged by the dev warn. Add `hotkey` only if the button is a meaningful action that benefits from a chord.
+6. **Anchors (`href`) get no hotkey.** They're navigation. The dev warn skips them.
+
+## Browser shortcut interception
+
+Registered Cmd+letter chords call `event.preventDefault()` + `stopPropagation()` on the **capture phase**, so:
+
+- `Cmd+S` saves the form, NOT the page.
+- `Cmd+E` triggers "Edit", NOT browser search.
+- `Cmd+D` triggers "Delete" (inside a confirm dialog), NOT bookmark.
+- `Cmd+B` triggers "New Book" on the library list, NOT bookmarks bar.
+
+`Escape` is different — it listens on the **bubble phase** with no preventDefault, so:
+
+- An open autocomplete dropdown's own Esc handler runs first; if it preventDefaults, the Cancel-button binding bails.
+- Otherwise, the Cancel button click fires.
+
+Unregistered chords (e.g. `Cmd+R`, `Cmd+W`, `Cmd+T`, `Cmd+N`, `Cmd+F`, `Cmd+C`) pass through to the browser/input unchanged. This is by design — see the avoid table above.

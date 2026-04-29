@@ -4,6 +4,7 @@
 	import { invalidateAll, goto } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
+	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Plus from '@lucide/svelte/icons/plus';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
@@ -121,8 +122,8 @@
 			{data.books.length} book{data.books.length === 1 ? '' : 's'}
 		</span>
 		<div class="ml-auto">
-			<Button href="/library/books/new" class="gap-2">
-				<Plus class="size-4" /> Add book
+			<Button href="/library/books/new" class="gap-2" hotkey="b">
+				<Plus class="size-4" /> <HotkeyLabel label="New book" mnemonic="b" />
 			</Button>
 		</div>
 	</header>

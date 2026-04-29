@@ -30,6 +30,10 @@
 	 *     creation dialog pre-filled.
 	 *   - Keyboard: Arrow up/down to highlight, Enter to select highlighted
 	 *     match (or trigger create when no matches), Escape to cancel.
+	 *   - **Tab-away (blur):** if the dropdown has at least one filtered
+	 *     match, auto-select the top suggestion. If the user typed text but
+	 *     nothing matched, fire `onCreate(text)` so the host can open the
+	 *     create dialog pre-filled. If the input is empty, no-op.
 	 *   - When `value` transitions to non-null (in-component selection OR
 	 *     externally set after a Create dialog), automatically exit search
 	 *     mode and clear the typed query.
@@ -40,17 +44,16 @@
 		people,
 		personBookCounts,
 		onCreate,
-		onAutoCreate,
 		placeholder = 'Search by name…',
 		ariaLabel = 'Person'
 	}: {
 		value?: string | null;
 		people: PersonRow[];
 		personBookCounts: Record<string, number>;
-		/** Fired when the user clicks the explicit "+ Create" dropdown row. Host typically opens a confirmation Dialog. */
+		/** Fired when the user clicks the explicit "+ Create" dropdown row OR
+		 * when they tab away with non-empty text that doesn't match anyone.
+		 * Host typically opens a confirmation Dialog with the parsed name. */
 		onCreate?: (rawText: string) => void;
-		/** Fired on input blur when the typed text doesn't match anyone — host should silently create the person without a dialog. */
-		onAutoCreate?: (rawText: string) => void;
 		placeholder?: string;
 		ariaLabel?: string;
 	} = $props();
@@ -63,10 +66,11 @@
 	 * was already selected. False = chip mode (the default once a value exists). */
 	let searchMode = $state(false);
 	let prevValue = $state<string | null>(null);
-	/** Set true by handleCreate so the immediately-following blur doesn't
-	 * also fire onAutoCreate (which would create the person twice — once via
-	 * the dialog, once via the silent blur path). Cleared after 200ms. */
-	let suppressAutoCreate = $state(false);
+	/** Set true by handleCreate (and any other path that already resolved the
+	 * field) so the immediately-following blur doesn't also fire its own
+	 * action — which would race-select the top match while the create dialog
+	 * is opening, or double-fire onCreate. Cleared after 200ms. */
+	let suppressBlurAction = $state(false);
 
 	const selectedPerson = $derived.by<PersonRow | null>(() => {
 		if (!value) return null;
@@ -156,9 +160,9 @@
 		const text = queryRaw.trim();
 		if (!text || !onCreate) return;
 		dropdownOpen = false;
-		suppressAutoCreate = true;
+		suppressBlurAction = true;
 		setTimeout(() => {
-			suppressAutoCreate = false;
+			suppressBlurAction = false;
 		}, 200);
 		onCreate(text);
 		// queryRaw stays so the user can see what they typed if the dialog
@@ -229,24 +233,32 @@
 	}
 
 	function handleBlur() {
-		// Delay so click on a dropdown item registers before dropdown unmounts.
+		// Delay so click on a dropdown item (or the "+ Create" row) registers
+		// before the dropdown unmounts.
 		setTimeout(() => {
 			dropdownOpen = false;
-			// Auto-create on tab-away: if the user typed something, no person
-			// matches exactly, no value is selected, and the host opted in
-			// via onAutoCreate, fire the silent-create handler. The selectPerson
-			// path sets value first so this branch naturally skips. The
-			// "+ Create" path sets suppressAutoCreate to avoid double-fire.
-			if (
-				!suppressAutoCreate &&
-				!value &&
-				queryRaw.trim().length > 0 &&
-				!hasExactMatch &&
-				onAutoCreate
-			) {
-				const text = queryRaw;
-				queryRaw = '';
-				onAutoCreate(text);
+			// Tab-away resolution: if a value is already set, or another path
+			// already handled the blur (e.g. handleCreate, dropdown click),
+			// nothing to do. Otherwise:
+			//   - filtered.length > 0  → auto-select the top suggestion. This
+			//     is the common "type 'bauck', tab → Bauckham" path.
+			//   - queryRaw non-empty   → no match; fire onCreate so the host
+			//     can open the create dialog with a parsed name. Avoids the
+			//     old silent auto-create which spawned duplicate people on
+			//     typos.
+			//   - empty input          → no-op.
+			if (suppressBlurAction || value) return;
+			if (filtered.length > 0) {
+				selectPerson(filtered[0]);
+				return;
+			}
+			const text = queryRaw.trim();
+			if (text.length > 0 && onCreate) {
+				suppressBlurAction = true;
+				setTimeout(() => {
+					suppressBlurAction = false;
+				}, 200);
+				onCreate(text);
 			}
 		}, 150);
 	}

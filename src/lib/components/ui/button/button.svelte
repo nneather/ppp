@@ -2,6 +2,9 @@
 	import { cn, type WithElementRef } from '$lib/utils.js';
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 	import { type VariantProps, tv } from 'tailwind-variants';
+	import { shortcut } from '$lib/hotkeys/shortcut.svelte';
+	import { ariaKeyshortcuts, formatChord } from '$lib/hotkeys/platform';
+	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 
 	export const buttonVariants = tv({
 		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 rounded-lg border border-transparent bg-clip-padding text-sm font-medium focus-visible:ring-3 active:not-aria-[haspopup]:translate-y-px aria-invalid:ring-3 [&_svg:not([class*='size-'])]:size-4 group/button inline-flex shrink-0 items-center justify-center whitespace-nowrap transition-all outline-none select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
@@ -45,6 +48,18 @@
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
+			/**
+			 * Single letter for the Mod+letter chord (Cmd on Mac, Ctrl on Win).
+			 * Reserved letters: see `src/lib/hotkeys/registry.ts`.
+			 */
+			hotkey?: string;
+			/**
+			 * Plain-text button label. When passed together with `hotkey`, the
+			 * matching letter is auto-underlined via <HotkeyLabel>. For
+			 * icon + text buttons, omit `label` and pass children manually
+			 * (wrap the text in <HotkeyLabel> if you want the underline).
+			 */
+			label?: string;
 		};
 </script>
 
@@ -57,9 +72,39 @@
 		href = undefined,
 		type = 'button',
 		disabled,
+		hotkey,
+		label,
 		children,
+		title,
+		'aria-keyshortcuts': ariaKs,
 		...restProps
 	}: ButtonProps = $props();
+
+	// Dev-only nudge: primary-action buttons (default-variant submit + any
+	// destructive button) should declare a hotkey so app-wide chords stay
+	// consistent. Outline/ghost/link variants are explicitly de-emphasized
+	// and don't warn, even on submit. Icon-only default-variant buttons
+	// (those with aria-label and no children-text path) are excluded too.
+	// Anchors (`href` set) are navigation, not actions — they don't warn either.
+	// See `.cursor/rules/hotkeys.mdc`.
+	$effect(() => {
+		if (!import.meta.env.DEV) return;
+		if (hotkey) return;
+		if (href) return;
+		const isPrimarySubmit =
+			type === 'submit' && (variant === 'default' || variant === undefined);
+		const isDestructive = variant === 'destructive';
+		const isPrimaryDefault =
+			variant === 'default' && type === 'button' && !restProps['aria-label'];
+		if (!(isPrimarySubmit || isDestructive || isPrimaryDefault)) return;
+		console.warn(
+			`[hotkey] <Button type="${type}" variant="${variant ?? 'default'}"> is missing a hotkey prop. ` +
+				`Add hotkey="s|u|d|e|g|b" (see .cursor/rules/hotkeys.mdc).`
+		);
+	});
+
+	const resolvedTitle = $derived(title ?? (hotkey ? formatChord(hotkey) : undefined));
+	const resolvedAriaKs = $derived(ariaKs ?? (hotkey ? ariaKeyshortcuts(hotkey) : undefined));
 </script>
 
 {#if href}
@@ -71,9 +116,16 @@
 		aria-disabled={disabled}
 		role={disabled ? 'link' : undefined}
 		tabindex={disabled ? -1 : undefined}
+		title={resolvedTitle}
+		aria-keyshortcuts={resolvedAriaKs}
+		use:shortcut={hotkey ? { key: hotkey } : { key: '' }}
 		{...restProps}
 	>
-		{@render children?.()}
+		{#if label !== undefined}
+			<HotkeyLabel {label} mnemonic={hotkey} />
+		{:else}
+			{@render children?.()}
+		{/if}
 	</a>
 {:else}
 	<button
@@ -82,8 +134,15 @@
 		class={cn(buttonVariants({ variant, size }), className)}
 		{type}
 		{disabled}
+		title={resolvedTitle}
+		aria-keyshortcuts={resolvedAriaKs}
+		use:shortcut={hotkey ? { key: hotkey } : { key: '' }}
 		{...restProps}
 	>
-		{@render children?.()}
+		{#if label !== undefined}
+			<HotkeyLabel {label} mnemonic={hotkey} />
+		{:else}
+			{@render children?.()}
+		{/if}
 	</button>
 {/if}

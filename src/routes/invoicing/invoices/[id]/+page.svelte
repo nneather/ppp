@@ -384,9 +384,13 @@
 								></textarea>
 							</div>
 							<Dialog.Footer class="flex-col gap-2 sm:flex-row sm:justify-end">
-								<Button type="button" variant="outline" onclick={() => (sendOpen = false)}
-									>Cancel</Button
-								>
+								<Button
+									type="button"
+									variant="outline"
+									onclick={() => (sendOpen = false)}
+									hotkey="Escape"
+									label="Cancel"
+								/>
 								<Button
 									type="submit"
 									formaction="?/sendTest"
@@ -395,9 +399,13 @@
 								>
 									{dialogPending ? 'Sending…' : 'Send test to myself'}
 								</Button>
-								<Button type="submit" formaction="?/send" disabled={dialogPending}>
-									{dialogPending ? 'Sending…' : 'Send to client'}
-								</Button>
+								<Button
+									type="submit"
+									formaction="?/send"
+									disabled={dialogPending}
+									hotkey="s"
+									label={dialogPending ? 'Sending…' : 'Send to client'}
+								/>
 							</Dialog.Footer>
 						</form>
 					</div>
@@ -432,9 +440,9 @@
 					variant="destructive"
 					class="w-full sm:w-auto"
 					disabled={discardPending}
-				>
-					{discardPending ? 'Discarding…' : 'Discard draft'}
-				</Button>
+					hotkey="d"
+					label={discardPending ? 'Discarding…' : 'Discard draft'}
+				/>
 			</form>
 		</div>
 	{/if}

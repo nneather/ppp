@@ -62,12 +62,20 @@
 			/>
 
 			<Dialog.Footer class="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-				<Button type="button" variant="outline" onclick={() => (open = false)} disabled={pending}>
-					Cancel
-				</Button>
-				<Button type="submit" disabled={pending}>
-					{pending ? 'Saving…' : 'Save defaults'}
-				</Button>
+				<Button
+					type="button"
+					variant="outline"
+					onclick={() => (open = false)}
+					disabled={pending}
+					hotkey="Escape"
+					label="Cancel"
+				/>
+				<Button
+					type="submit"
+					disabled={pending}
+					hotkey="s"
+					label={pending ? 'Saving…' : 'Save defaults'}
+				/>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

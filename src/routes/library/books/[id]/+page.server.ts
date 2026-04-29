@@ -1,10 +1,12 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
+	loadBibleBookNames,
 	loadBookDetail,
 	loadCategories,
 	loadPeople,
 	loadPersonBookCounts,
+	loadScriptureRefsForBook,
 	loadSeries
 } from '$lib/library/server/loaders';
 import {
@@ -12,6 +14,11 @@ import {
 	undoSoftDeleteBookAction,
 	updateReadingStatusAction
 } from '$lib/library/server/book-actions';
+import {
+	createScriptureRefAction,
+	softDeleteScriptureRefAction,
+	updateScriptureRefAction
+} from '$lib/library/server/scripture-actions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -24,14 +31,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const supabase = locals.supabase;
 
-	const [people, categories, series] = await Promise.all([
+	const [people, categories, series, bibleBookNames] = await Promise.all([
 		loadPeople(supabase),
 		loadCategories(supabase),
-		loadSeries(supabase)
+		loadSeries(supabase),
+		loadBibleBookNames(supabase)
 	]);
-	const [book, personBookCounts] = await Promise.all([
+	const [book, personBookCounts, scriptureRefs] = await Promise.all([
 		loadBookDetail(supabase, id, people),
-		loadPersonBookCounts(supabase)
+		loadPersonBookCounts(supabase),
+		loadScriptureRefsForBook(supabase, id)
 	]);
 
 	if (!book) error(404, 'Book not found.');
@@ -41,7 +50,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		people,
 		categories,
 		series,
-		personBookCounts: Object.fromEntries(personBookCounts)
+		bibleBookNames,
+		scriptureRefs,
+		personBookCounts: Object.fromEntries(personBookCounts),
+		// Surface userId explicitly so client components (e.g. the storage upload
+		// path builder in <ScriptureReferenceForm>) get a non-nullable string
+		// without re-asserting on data.user (which TS sees as nullable since the
+		// layout's redirect happens before this load runs).
+		userId: user.id
 	};
 };
 
@@ -75,5 +91,26 @@ export const actions: Actions = {
 			return fail(401, { kind: 'updateReadingStatus' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return updateReadingStatusAction(locals.supabase, fd);
+	},
+	createScriptureRef: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'createScriptureRef' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return createScriptureRefAction(locals.supabase, user.id, fd);
+	},
+	updateScriptureRef: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'updateScriptureRef' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return updateScriptureRefAction(locals.supabase, fd);
+	},
+	softDeleteScriptureRef: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'softDeleteScriptureRef' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return softDeleteScriptureRefAction(locals.supabase, fd);
 	}
 };
