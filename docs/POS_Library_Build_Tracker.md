@@ -25,11 +25,11 @@ The trip changes the deadline geometry:
 
 - **Pre-trip checkpoint (late May):** library is **research-ready** for summer sermon prep. Search-first surface lights up. Turabian, OCR, and academic polish are NOT in scope.
 - **10-week away period (late May → early August):** library is in active use for sermon prep + light academic reading. Schema and data are stable; only mobile-friendly content tasks happen on the road (review queue, reading status updates, scripture reference entry).
-- **Post-trip checkpoint (late August / early September):** Turabian citations land before fall semester starts. Settings polish + permissions UI ship. OCR is opt-in if there's time.
+- **Post-trip checkpoint (late August / early September):** Settings polish + permissions UI ship (Session 7). OCR-driven scripture-reference ingest lands (Session 9) so the trip's accumulated paper notes / page photos can be processed in bulk. Turabian citations land last (Session 8) so they can run against the OCR-extracted refs as well as manual entries.
 
 The September seminary start was the original hard deadline. With Turabian moved post-trip, the **real** pre-trip hard requirement is "sermon-prep-ready" — passage search returns the right commentaries, and book-level metadata is trustworthy enough to copy/paste into a manual citation when needed.
 
-Pre-trip arc: **6 sessions** in ~10 working days. Post-trip arc: **3 sessions** in the ~2-week buffer between return and fall semester.
+Pre-trip arc: **6 sessions** in ~10 working days. Post-trip arc: **3 sessions** in the ~2-week buffer between return and fall semester (Session 7 → Session 9 → Session 8).
 
 ---
 
@@ -37,7 +37,7 @@ Pre-trip arc: **6 sessions** in ~10 working days. Post-trip arc: **3 sessions** 
 
 - [ ] **`docs/POS_Library_Session_0.md` complete** — schema audit signed off, Open Questions ≤ 2 unresolved per entity, viewer seeded with curl proof, decision points 5a–5d locked. _(Audit doc filed at `docs/decisions/002-library-session-0-audit.md`; viewer seed pending Round 2 UUID paste-in.)_
 - [x] Decision points locked (per the Session 0 doc, with this tracker's choices):
-  - **5a (OCR):** out for pre-trip. Schema hooks remain (`source_image_url`, `confidence_score`, `needs_review`); ingest pipeline deferred to post-trip Session 9 (optional) or later.
+  - **5a (OCR):** out for pre-trip. Schema hooks remain (`source_image_url`, `confidence_score`, `needs_review`); ingest pipeline deferred to post-trip Session 9 (now **required**, not optional — promoted 2026-04-29 once manual-entry tolerance was confirmed at <100 refs/sitting). See `docs/decisions/005-scripture-refs-bulk-and-ocr-design.md`.
   - **5b (ancient_texts canonicalization):** seed canonical list in Session 0; inline `<CanonicalizingCombobox>` in Session 5; Settings CRUD page in Session 7.
   - **5c (component naming):** `<SourcePicker>` for polymorphic `(book_id OR essay_id)`; `<CanonicalizingCombobox>` for `ancient_texts.canonical_name + abbreviations[]` and `book_topics.topic` autocomplete. Names registered in `.cursor/rules/components.mdc`.
   - **5d (Session 1 scope):** books CRUD + people junctions + categories + series — full vertical slice with junctions, not books-alone.
@@ -123,8 +123,8 @@ _Goal: Polymorphic `(book_id OR essay_id)` shape designed once, as a shared comp
 |------|:----:|-------|
 | Build `PolymorphicParent` type + Zod validator at `src/lib/library/polymorphic.ts` | ☑ | Shipped Session 1.5 / Track E. Discriminated union, `validateXor`, `polymorphicToColumns`, `insertPolymorphicRow<T>`. File header lists the four reuse-target tables and the `FEATURE_ESSAYS_UI = false` gate. |
 | Build `<SourcePicker>` — book autocomplete; essay branch stubbed with disabled state | ☑ | Shipped Session 1.5 / Track E. Registered in `.cursor/rules/components.mdc`. Supports `lockedBookId` for the host-page-locked case. |
-| `<ScriptureReferenceForm>` on book detail — wraps `<SourcePicker>` (auto-populated to current book); fields: bible_book, chapter_start, verse_start, chapter_end, verse_end, page_start, page_end, needs_review, review_note, source_image_url (manual upload, no OCR) | ☑ | Wired into `/library/books/[id]` Session 2 (2026-04-28). Per-row inline-toggle Edit, ConfirmDialog-gated soft-delete with optimistic remove, refs grouped by `bible_book` in canon order. Image upload via browser supabase client → `library-scripture-images` bucket (Open Question 3 resolved); object path stored, signed URL (1h TTL) generated server-side per load. |
-| Verify `compute_verse_abs` trigger fires on INSERT and on UPDATE of any chapter/verse column | ☑ | Explicit `BEGIN; … ROLLBACK;` SQL assertion at [`supabase/diagnostics/library_compute_verse_abs_update_path.sql`](../supabase/diagnostics/library_compute_verse_abs_update_path.sql). Tests INSERT baseline + 4 UPDATE paths (verse_start toggle, chapter_end+verse_end set, collapse to chapter-only, collapse to whole-book). RAISE EXCEPTION on mismatch with step number + observed values. _User runs this once in Studio post-deploy._ |
+| `<ScriptureReferenceForm>` on book detail — wraps `<SourcePicker>` (auto-populated to current book); fields: bible_book, chapter_start, verse_start, chapter_end, verse_end, page_start, page_end, needs_review, review_note, source_image_url (manual upload, no OCR) | ☑ | Wired into `/library/books/[id]` Session 2 (2026-04-28). Per-row inline-toggle Edit, ConfirmDialog-gated soft-delete with optimistic remove, refs grouped by `bible_book` in canon order. Image upload via browser supabase client → `library-scripture-images` bucket (Open Question 3 resolved); object path stored, signed URL (1h TTL) generated server-side per load. **2026-04-29 follow-up:** form rebuilt as batch-capable (N draft rows, shared image, "Save N references" submit) backed by `?/createScriptureRefsBatch`. Edit mode is now the degenerate single-row case. OCR/file-extraction designed as feeding the same batch surface; implementation deferred to post-trip session — see [`docs/decisions/005-scripture-refs-bulk-and-ocr-design.md`](../docs/decisions/005-scripture-refs-bulk-and-ocr-design.md). |
+| Verify `compute_verse_abs` trigger fires on INSERT and on UPDATE of any chapter/verse column | ☑ | Diagnostic at [`supabase/diagnostics/library_compute_verse_abs_update_path.sql`](../supabase/diagnostics/library_compute_verse_abs_update_path.sql). Original Step 4 surfaced a bug: `chapter_start` with no `chapter_end` produced `verse_end_abs = 999999` (open-ended) instead of `chapter*1000+999` (chapter only). Fixed in [`supabase/migrations/20260429180000_compute_verse_abs_chapter_only_fix.sql`](../supabase/migrations/20260429180000_compute_verse_abs_chapter_only_fix.sql) — function rewritten + every live row recomputed via `UPDATE … SET chapter_start = chapter_start`. Diagnostic now asserts INSERT baseline + 5 UPDATE paths (verse_start toggle, chapter_end+verse_end set, collapse to chapter-only, chapter-range, collapse to whole-book). _User runs this once in Studio post-deploy._ |
 | Write `search_scripture_refs(p_bible_book TEXT, p_chapter INT, p_verse INT)` SQL function | ☑ | Shipped Session 1.5 / Track E in `20260425180000_search_scripture_refs.sql`. SECURITY INVOKER + GRANT EXECUTE. Inclusive overlap; manual entries first per S7. |
 | Seed fixture: 20 scripture_references across 5 books (verse-level, chapter-level, whole-book, multi-chapter) | ☑ | Shipped at `supabase/seed/library_scripture_fixture.sql`. Loaded 2026-04-25; verified live via `search_scripture_refs('Philippians', 2, 5)`, `('Romans', 8, 28)`, `('Mark')` in Studio. |
 | Integration test — `search_scripture_refs('Philippians', 2, 5)` returns the 3 expected fixture rows | ☑ | Verified live. (Predicted-row counts in the fixture comments are slightly off vs the actual fixture data — cosmetic; rows return correctly.) |
@@ -275,11 +275,13 @@ _Late May → early August. No build sessions. The library is in active use for 
 
 If something breaks while away, the system degrades to "search-but-can't-edit" cleanly — RLS keeps data safe, and read-only browsing still works on phone. Don't deploy migrations during the trip period unless absolutely necessary.
 
+OCR is **post-trip**, not opt-in. Bulk paper notes and page photos accumulated on the trip are Session 9's first real test corpus.
+
 ---
 
-# Post-Trip Arc — Turabian + Settings + Optional OCR
+# Post-Trip Arc — Settings + OCR Ingest + Turabian
 
-_Returns the system to pre-fall-semester readiness. Two-week buffer between return and fall start absorbs Session 8 (the original September deadline). Sessions 7 and 9 are flexible — Session 7 can spread across early August, Session 9 is opt-in._
+_Returns the system to pre-fall-semester readiness. Two-week buffer between return and fall start absorbs all three sessions. Order is 7 → 9 → 8 so OCR-extracted refs benefit from Session 7's structured-translator data and feed into Session 8's Turabian generator on day one. Session 7 can spread across early August; Sessions 9 and 8 land back-to-back before fall._
 
 ---
 
@@ -337,24 +339,27 @@ _Goal: The original September deadline. Turabian footnote + bibliography generat
 
 ---
 
-## Session 9 — OCR Pipeline (4–6h) [OPTIONAL — only if time permits before fall]
+## Session 9 — OCR-Driven Scripture Reference Ingest (4–6h) [REQUIRED post-trip — slot between Sessions 7 and 8]
 
-_Goal: Automated extraction from `source_image_url` images into structured `scripture_references`. Schema hooks (`source_image_url`, `confidence_score`, `needs_review`, `review_note`) already in place since Session 0. This session adds the ingest pipeline._
+_Goal: Bulk image / file → structured `scripture_reference` draft rows that feed into the existing Session 2 batch UI for one-screen review + save. Promoted from "OPTIONAL" once manual entry was confirmed sustainable only at <100 refs/sitting (decision record `005-scripture-refs-bulk-and-ocr-design.md`). The trigger to start: **first time you have 100+ unentered refs from a single reading session, OR returning from the trip with paper notes / page photos**. Schema hooks (`source_image_url`, `confidence_score`, `needs_review`, `review_note`), the `library-scripture-images` storage bucket, and the batch-form ingest surface are all already shipped — this session is just provider choice + Edge Function + parser + the "Extract from image/file" button._
 
-_Run this only if Sessions 7 + 8 finish ahead of fall semester start with real buffer. If not, defer to spring break or later — manual entry from images (shipped in Session 2) is sufficient indefinitely._
+_Order in the post-trip arc: lands AFTER Session 7 (so the structured-translator data is in place if any OCR'd refs touch translator-bearing books) and BEFORE Session 8 (so Turabian runs against OCR-extracted refs alongside manual ones)._
 
 | Task | Done | Notes |
 |------|:----:|-------|
-| Decision: OCR provider — Tesseract via Edge Function vs external API (Google Vision / AWS Textract / Anthropic). Document tradeoffs. | ☐ | External API simpler for MVP; Tesseract is self-hosted. Anthropic is convenient given existing API key but rate limits + cost matter for batch image runs. |
-| Edge Function for OCR — input: `source_image_url`, output: raw text + confidence score | ☐ | Per `.cursor/rules/edge-functions.mdc`. |
-| Parser for OCR text → structured scripture_reference candidates | ☐ | LLM-based (function calling) is highest quality. Validate output against schema before INSERT. |
-| Confidence threshold — set `needs_review = true` when `confidence_score < 0.80`. Adjustable. | ☐ | Per S10. |
-| Review queue UI — extends Session 3's `?needs_review=true` filter to surface scripture_references entries (not just books) | ☐ | New filter chip group: "Books needing review" + "Scripture refs needing review". |
-| Smoke test — upload 5 sample page images, verify OCR pipeline → review queue → manual confirmation flow | ☐ | Real-use validation. |
+| Re-confirm OCR design from `docs/decisions/005-scripture-refs-bulk-and-ocr-design.md` matches current workflow before building (provider choice, draft-rows-only writes, confidence threshold). | ☐ | 30-min pre-read. Resolves Open Question 7. |
+| Decision: OCR provider — Tesseract via Edge Function vs external API (Google Vision / AWS Textract / Anthropic). | ☐ | External API simpler for MVP; Tesseract is self-hosted. Anthropic is convenient given existing API key but rate limits + cost matter for batch image runs. |
+| Edge Function for OCR — input: bucket object path + mime, output: `{ rawText, candidates: [{ bible_book, chapter_start, …, confidence_score }] }`. | ☐ | Per `.cursor/rules/edge-functions.mdc`. Returns structured candidates, not freeform text — parsing happens in the Edge Function via the provider's function-calling / structured output, not in the client. |
+| Parser for OCR text → structured scripture_reference candidates. | ☐ | Lives inside the Edge Function. Validate against the same schema rules `parseScriptureRefForm` enforces before returning. |
+| Confidence threshold — pre-flag `needs_review = true` when `confidence_score < 0.80`. Adjustable in settings. | ☐ | Per S10. |
+| "Extract from image/file" button inside `<ScriptureReferenceForm>` (batch mode) — triggers the Edge Function on the already-uploaded image, populates draft rows from the candidate array. | ☐ | OCR never writes final rows directly; user reviews + edits + Saves the batch as today. |
+| Review queue UI — extend Session 3's `?needs_review=true` filter to surface `scripture_references` entries (not just books). | ☐ | New filter chip group: "Books needing review" + "Scripture refs needing review". |
+| Smoke test — upload 5 sample page images, verify OCR pipeline → draft rows → review + save flow. | ☐ | Real-use validation against the trip's accumulated paper notes corpus. |
 
 **Acceptance:**
-- [ ] Image upload triggers OCR + parsing; structured scripture_reference candidates land with `needs_review = true` and confidence_score populated.
-- [ ] Low-confidence (< 0.80) entries surface in review queue; owner can confirm or reject one-click on phone.
+- [ ] Image upload + "Extract from image/file" populates draft rows in `<ScriptureReferenceForm>` with `needs_review = true` (when confidence < 0.80) and `confidence_score` populated per row.
+- [ ] No `scripture_references` row is INSERTed by the OCR path until the user clicks Save in the batch UI.
+- [ ] Low-confidence (< 0.80) entries surface in the review queue post-save; owner can confirm or reject one-click on phone.
 - [ ] Smoke test passes on 5 sample images with mixed quality.
 - [ ] `npm run check` passes
 - [ ] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit
@@ -375,7 +380,7 @@ _Session-blocking. Resolve before the dependent session starts. Per-entity quest
 | 4 | Bibliography export format — plain text only, or add markdown + .docx? | ☐ Open — plain text is floor; decide at Session 8 |
 | 5 | Article-level citations (essays UI) — needed for fall semester or deferrable? | ☐ Open — currently deferred per PostBuild #1; revisit if fall syllabus reveals essay-citation pressure |
 | 6 | Subject vs genre terminology — reconcile `Library_Migration_Notes.md` ("subject") with schema (`genre`) before Session 4 | ☐ Open — doc-side fix, pre-Session 4 |
-| 7 | OCR provider choice (Session 9, optional) | ☐ Open — only matters if Session 9 happens; resolve at start of Session 9 |
+| 7 | OCR provider choice (Session 9) | ☐ Open — **blocking at start of Session 9** (now required, not optional). Re-confirm against `docs/decisions/005-scripture-refs-bulk-and-ocr-design.md` as the first task of Session 9. |
 
 ---
 
@@ -404,9 +409,11 @@ The tracker is forward-looking; the rules and decision log absorb what we learn.
 
 ### Post-trip ordering
 
+- **Order: 7 → 9 → 8.**
 - Session 7 (people merge + ancient_texts CRUD page + permissions) lands first because the translator data migration *inside* Session 7 is what unblocks Session 8's structured-translator citations.
-- Session 8 (Turabian) is pure-function work. Highest-leverage 4–5 hours in the post-trip arc — locked schema, locked data, deterministic output.
-- Session 9 (OCR) is opt-in. Schema hooks already exist; the work is the ingest pipeline + parser + review queue. Skip without regret if fall pressure builds.
+- Session 9 (OCR) lands next so the trip's accumulated paper notes / page photos get processed before Turabian runs against them. Promoted from "opt-in" to required 2026-04-29 (`docs/decisions/005-scripture-refs-bulk-and-ocr-design.md`) — manual entry sustains <100 refs/sitting; the trip + post-trip corpus exceeds that.
+- **When to start Session 9:** trigger = first 100+-ref backlog OR returning from trip with paper notes; defer until then so the work has a real test corpus.
+- Session 8 (Turabian) is pure-function work and lands last. Highest-leverage 4–5 hours in the post-trip arc — locked schema, locked data, deterministic output, runs against both manual + OCR-extracted refs.
 
 ### Library-specific gotchas
 

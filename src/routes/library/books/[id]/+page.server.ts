@@ -16,6 +16,7 @@ import {
 } from '$lib/library/server/book-actions';
 import {
 	createScriptureRefAction,
+	createScriptureRefsBatchAction,
 	softDeleteScriptureRefAction,
 	updateScriptureRefAction
 } from '$lib/library/server/scripture-actions';
@@ -98,6 +99,16 @@ export const actions: Actions = {
 			return fail(401, { kind: 'createScriptureRef' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return createScriptureRefAction(locals.supabase, user.id, fd);
+	},
+	createScriptureRefsBatch: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, {
+				kind: 'createScriptureRefsBatch' as const,
+				message: 'Unauthorized'
+			});
+		const fd = await request.formData();
+		return createScriptureRefsBatchAction(locals.supabase, user.id, fd);
 	},
 	updateScriptureRef: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

@@ -87,6 +87,32 @@ Component name: `<CanonicalizingCombobox>` (or similar). Inputs: existing values
 - **Auto-flag-for-review at the server-side parser** — for entities where every field is optional (per the "save anything, flag incomplete" model on books), compute `missingImportant` from a fixed list of citation-critical fields, force `needs_review = true` when any are missing, and merge a "Missing: X, Y" auto-line into `needs_review_note` (replacing if existing note matches `/^Missing:\s/`, otherwise prepending + blank line + existing note to preserve user-authored notes). Export the `computeMissingImportant` helper so the form can show a matching pre-save preview hint. See `parseBookForm` + `computeMissingImportant` in [`src/lib/library/server/book-actions.ts`](mdc:src/lib/library/server/book-actions.ts).
 - **`hasAnyField` save bar** — for entity forms where every individual field is optional, require at least ONE non-default value at parse time before allowing INSERT. Avoids accidental empty rows without forcing any specific field. Mirror the check on the form's Save-button disable + render a "Add at least one detail before saving" hint when disabled. Default-valued fields (language='english', reading_status='unread') don't count — they're always present.
 
+## Scripture reference semantics
+
+`compute_verse_abs()` (`00000000000000_baseline.sql` + corrected in `20260429180000_compute_verse_abs_chapter_only_fix.sql`) implements:
+
+- **whole book** (`chapter_start IS NULL`) → `verse_start_abs = 0`, `verse_end_abs = 999999`
+- **chapter only** (`chapter_start` set, no `verse_start`, no `chapter_end`) → `cs*1000 .. cs*1000+999`
+- **chapter range** (`chapter_start` + `chapter_end`, no verses) → `cs*1000 .. ce*1000+999`
+- **verse only** (`chapter_start` + `verse_start`, no `chapter_end`) → `cs*1000+vs .. cs*1000+vs`
+- **verse range** (all four set) → `cs*1000+vs .. ce*1000+ve`
+
+"Open-ended from chapter to end-of-book" is intentionally NOT supported by null overloading — set `chapter_end` to the actual last chapter. If real workflows demand open-ended semantics, add a `scope_kind` column rather than further overloading null.
+
+When forms collect chapter/verse, treat blanks as "leave null"; the trigger does the rest. Never set `verse_*_abs` from app code.
+
+## Bulk entry forms
+
+For sub-entities where users typically add many rows at once (scripture references, eventually book topics + ancient coverage), a single component can drive both single-edit and bulk-create:
+
+- Edit mode: pass `existingRef` → render one row, hide Add/Duplicate/Remove controls, post legacy single-row contract to `?/updateXxx`.
+- Batch create mode: render N draft rows starting with one, show Add/Duplicate/Remove, post a `rows_json` JSON array to `?/createXxxsBatch`.
+- Server: shared row-level parser; the batch parser silently skips rows where the user-relevant required fields are all blank (avoids "trailing empty row" friction).
+- Batch insert is one `.insert(rows)` call so the audit trigger logs one row per child entity but the round-trip is single. Pre-validate every row in the parser; relying on a CHECK violation to surface partial failure is cheaper to avoid than to handle.
+- Image / shared-resource uploads sit at the top of the batch UI when one resource (a page photo) attaches to many rows. Per-row image override is a separate, later decision.
+
+See [`src/lib/components/scripture-reference-form.svelte`](mdc:src/lib/components/scripture-reference-form.svelte) and [`src/lib/library/server/scripture-actions.ts`](mdc:src/lib/library/server/scripture-actions.ts) for the canonical implementation.
+
 ## Storage buckets (Session 2)
 
 When an entity needs image attachments (scripture page scans today; book covers, ancient-text page snippets, etc. tomorrow), follow this shape:

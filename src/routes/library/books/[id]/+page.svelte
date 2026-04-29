@@ -119,6 +119,7 @@
 		if (!f) return null;
 		if (
 			f.kind === 'createScriptureRef' ||
+			f.kind === 'createScriptureRefsBatch' ||
 			f.kind === 'updateScriptureRef' ||
 			f.kind === 'softDeleteScriptureRef'
 		) {
@@ -198,7 +199,7 @@
 		editingId = null;
 	}
 
-	async function onCreated(refId: string) {
+	async function onCreatedBatch(refIds: string[]) {
 		addOpen = false;
 		await invalidateAll();
 	}
@@ -455,7 +456,7 @@
 						editingId = null;
 					}}
 				>
-					<Plus class="size-4" /> Add
+					<Plus class="size-4" /> Add references
 				</Button>
 			{/if}
 		</div>
@@ -573,7 +574,7 @@
 					lockedBookId={data.book.id}
 					userId={data.userId}
 					{formMessage}
-					onSaved={onCreated}
+					onSavedBatch={onCreatedBatch}
 					onCancel={() => (addOpen = false)}
 				/>
 				<div class="mt-2 flex justify-end">

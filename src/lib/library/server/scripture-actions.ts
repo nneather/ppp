@@ -23,6 +23,7 @@ import type { PolymorphicParent, PolymorphicParentInput } from '$lib/library/pol
 
 export type ScriptureActionKind =
 	| 'createScriptureRef'
+	| 'createScriptureRefsBatch'
 	| 'updateScriptureRef'
 	| 'softDeleteScriptureRef';
 
@@ -217,6 +218,146 @@ export async function updateScriptureRefAction(supabase: SupabaseClient, fd: For
 		});
 	}
 	return { kind: 'updateScriptureRef' as const, refId: id, success: true as const };
+}
+
+/**
+ * Batch parser for the bulk "Add references" form. The form posts:
+ *   - source_kind / book_id / essay_id (parent, validated once)
+ *   - source_image_url (optional, shared across the batch — same page image)
+ *   - rows_json: a JSON array of per-row payloads
+ *
+ * Each row carries its own bible_book + chapter/verse/page fields + needs_review
+ * note. A row is skipped silently when it has no `bible_book` AND no `page_start`
+ * (treated as an empty draft row from the form). Otherwise the row is parsed
+ * with the same rules as the single-row form; an invalid row aborts the whole
+ * batch with a row-indexed error message.
+ */
+export type ScriptureBatchParseResult =
+	| {
+			ok: true;
+			parent: PolymorphicParent;
+			rows: ScripturePayload[];
+	  }
+	| { ok: false; message: string };
+
+type RawBatchRow = {
+	bible_book?: unknown;
+	chapter_start?: unknown;
+	verse_start?: unknown;
+	chapter_end?: unknown;
+	verse_end?: unknown;
+	page_start?: unknown;
+	page_end?: unknown;
+	needs_review?: unknown;
+	review_note?: unknown;
+};
+
+function rawToFormData(row: RawBatchRow, sharedImage: string | null): FormData {
+	const fd = new FormData();
+	const set = (key: string, val: unknown) => {
+		if (val == null) return;
+		fd.set(key, String(val));
+	};
+	set('bible_book', row.bible_book);
+	set('chapter_start', row.chapter_start);
+	set('verse_start', row.verse_start);
+	set('chapter_end', row.chapter_end);
+	set('verse_end', row.verse_end);
+	set('page_start', row.page_start);
+	set('page_end', row.page_end);
+	set('needs_review', row.needs_review === true || row.needs_review === 'true' ? 'true' : 'false');
+	set('review_note', row.review_note);
+	if (sharedImage) fd.set('source_image_url', sharedImage);
+	// parent fields are not consumed by parseScriptureRefForm's payload — we
+	// fill them so parseParent's branch sees something, but the batch caller
+	// already validated the parent once; we'll discard parsed.parent below.
+	fd.set('source_kind', 'book');
+	fd.set('book_id', '00000000-0000-0000-0000-000000000000');
+	return fd;
+}
+
+function isEmptyBatchRow(row: RawBatchRow): boolean {
+	const bb = String(row.bible_book ?? '').trim();
+	const ps = String(row.page_start ?? '').trim();
+	return bb.length === 0 && ps.length === 0;
+}
+
+export function parseScriptureRefBatchForm(fd: FormData): ScriptureBatchParseResult {
+	const parent = parseParent(fd);
+	if ('error' in parent) return { ok: false, message: parent.error };
+
+	const sharedImage = trimOrNull(fd.get('source_image_url'));
+
+	const rowsRaw = String(fd.get('rows_json') ?? '').trim();
+	if (!rowsRaw) return { ok: false, message: 'Add at least one reference before saving.' };
+
+	let parsedJson: unknown;
+	try {
+		parsedJson = JSON.parse(rowsRaw);
+	} catch {
+		return { ok: false, message: 'Batch payload is malformed.' };
+	}
+	if (!Array.isArray(parsedJson)) {
+		return { ok: false, message: 'Batch payload must be an array.' };
+	}
+
+	const out: ScripturePayload[] = [];
+	for (let i = 0; i < parsedJson.length; i++) {
+		const raw = parsedJson[i];
+		if (!raw || typeof raw !== 'object') {
+			return { ok: false, message: `Row ${i + 1}: malformed.` };
+		}
+		const row = raw as RawBatchRow;
+		if (isEmptyBatchRow(row)) continue;
+
+		const rowFd = rawToFormData(row, sharedImage);
+		const parsedRow = parseScriptureRefForm(rowFd);
+		if (!parsedRow.ok) {
+			return { ok: false, message: `Row ${i + 1}: ${parsedRow.message}` };
+		}
+		out.push(parsedRow.payload);
+	}
+
+	if (out.length === 0) {
+		return { ok: false, message: 'Add at least one reference before saving.' };
+	}
+
+	return { ok: true, parent, rows: out };
+}
+
+export async function createScriptureRefsBatchAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const parsed = parseScriptureRefBatchForm(fd);
+	if (!parsed.ok) {
+		return fail(400, { kind: 'createScriptureRefsBatch' as const, message: parsed.message });
+	}
+
+	const cols = polymorphicToColumns(parsed.parent);
+	const rows = parsed.rows.map((p) => ({ ...p, ...cols, created_by: userId }));
+
+	const { data, error } = await supabase
+		.from('scripture_references')
+		.insert(rows as never)
+		.select('id');
+
+	if (error) {
+		console.error('[createScriptureRefsBatch]', error);
+		return fail(500, {
+			kind: 'createScriptureRefsBatch' as const,
+			message: error.message ?? 'Could not save references.'
+		});
+	}
+
+	const refIds = ((data ?? []) as { id: string }[]).map((r) => r.id);
+	return {
+		kind: 'createScriptureRefsBatch' as const,
+		refIds,
+		count: refIds.length,
+		success: true as const
+	};
 }
 
 export async function softDeleteScriptureRefAction(supabase: SupabaseClient, fd: FormData) {
