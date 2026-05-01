@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import { Button } from '$lib/components/ui/button';
 	import BookForm from '$lib/components/book-form.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import {
@@ -67,6 +66,15 @@
 		await invalidateAll();
 		goto(`/library/books/${bookId}`);
 	}
+
+	function handleCancel() {
+		pendingNav = new URL('/library', window.location.origin);
+		if (dirty) {
+			confirmDiscardOpen = true;
+		} else {
+			goto('/library');
+		}
+	}
 </script>
 
 <svelte:head>
@@ -98,24 +106,8 @@
 		onDirtyChange={(d) => (dirty = d)}
 		openLibraryPrefill={olPrefill}
 		onOpenLibraryPrefillConsumed={clearOlPrefill}
+		onCancel={handleCancel}
 	/>
-
-	<div class="mt-6">
-		<Button
-			type="button"
-			variant="ghost"
-			hotkey="Escape"
-			label="Cancel"
-			onclick={() => {
-				pendingNav = new URL('/library', window.location.origin);
-				if (dirty) {
-					confirmDiscardOpen = true;
-				} else {
-					goto('/library');
-				}
-			}}
-		/>
-	</div>
 </div>
 
 <ConfirmDialog

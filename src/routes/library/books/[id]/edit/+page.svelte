@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
 	import BookForm from '$lib/components/book-form.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -46,6 +45,15 @@
 
 	const detailHref = $derived(`/library/books/${data.book.id}`);
 	const titleLabel = $derived(data.book.title?.trim() || '(untitled book)');
+
+	function handleCancel() {
+		if (dirty) {
+			pendingNav = new URL(detailHref, window.location.origin);
+			confirmDiscardOpen = true;
+		} else {
+			goto(detailHref);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -79,24 +87,8 @@
 		{formMessage}
 		{onSaved}
 		onDirtyChange={(d) => (dirty = d)}
+		onCancel={handleCancel}
 	/>
-
-	<div class="mt-6">
-		<Button
-			type="button"
-			variant="ghost"
-			hotkey="Escape"
-			label="Cancel"
-			onclick={() => {
-				if (dirty) {
-					pendingNav = new URL(detailHref, window.location.origin);
-					confirmDiscardOpen = true;
-				} else {
-					goto(detailHref);
-				}
-			}}
-		/>
-	</div>
 </div>
 
 <ConfirmDialog

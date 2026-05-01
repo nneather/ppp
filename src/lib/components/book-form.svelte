@@ -51,6 +51,9 @@
 	 *
 	 * `onDirtyChange` lets the host page wire `beforeNavigate` to intercept
 	 * unsaved-edit dismissal (browser back, breadcrumb click, link click).
+	 *
+	 * `onCancel` — when set, Cancel is shown in the sticky footer with Save
+	 * (mobile: stacked above tab bar clearance; desktop: row, end-aligned).
 	 */
 
 	type FormMessage = { message?: string } | null | undefined;
@@ -71,6 +74,7 @@
 		formMessage = null,
 		onSaved,
 		onDirtyChange,
+		onCancel,
 		openLibraryPrefill = null,
 		onOpenLibraryPrefillConsumed
 	}: {
@@ -83,6 +87,8 @@
 		formMessage?: FormMessage;
 		onSaved?: (bookId: string) => void;
 		onDirtyChange?: (dirty: boolean) => void;
+		/** Leave without submit; host wires dirty confirm + `goto`. */
+		onCancel?: () => void;
 		/** One-shot metadata from `/library/add` + Open Library (create mode). */
 		openLibraryPrefill?: OpenLibraryBookPrefill | null;
 		onOpenLibraryPrefillConsumed?: () => void;
@@ -1222,7 +1228,7 @@
 		</div>
 
 		<!-- Personal notes (full width) -->
-		<section class="flex flex-col gap-2">
+		<section class="flex flex-col gap-2 max-md:pb-8">
 			<Label for="bf-notes" class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
 				Personal notes
 			</Label>
@@ -1235,17 +1241,30 @@
 			></textarea>
 		</section>
 
-		<!-- Save bar (full width, sticky bottom on long pages) -->
+		<!-- Save bar (sticky; max-md bottom offset clears fixed module tab bar) -->
 		<div
-			class="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6"
+			class="sticky z-10 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-md:bottom-20 max-md:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.06)] max-md:dark:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.25)] md:bottom-0 sm:-mx-6 sm:px-6"
 		>
-			<Button
-				type="submit"
-				class="h-12 w-full text-base sm:w-auto sm:self-end sm:px-8"
-				disabled={pending || !hasAnyField}
-				hotkey={mode === 'create' ? 's' : 'u'}
-				label={pending ? 'Saving…' : mode === 'create' ? 'Save book' : 'Update book'}
-			/>
+			<div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+				{#if onCancel}
+					<Button
+						type="button"
+						variant="outline"
+						class="h-12 w-full text-base sm:w-auto sm:min-w-28"
+						disabled={pending}
+						hotkey="Escape"
+						label="Cancel"
+						onclick={onCancel}
+					/>
+				{/if}
+				<Button
+					type="submit"
+					class="h-12 w-full text-base sm:w-auto sm:min-w-40 sm:px-8"
+					disabled={pending || !hasAnyField}
+					hotkey={mode === 'create' ? 's' : 'u'}
+					label={pending ? 'Saving…' : mode === 'create' ? 'Save book' : 'Update book'}
+				/>
+			</div>
 			{#if !pending && !hasAnyField}
 				<p class="text-center text-xs text-muted-foreground sm:text-right">
 					Add at least one detail (title, ISBN, an author, anything) before saving.
