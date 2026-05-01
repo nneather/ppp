@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
+	BookListFilters,
 	BookListRow,
 	BookDetail,
 	CategoryRow,
@@ -9,7 +10,10 @@ import type {
 	ReadingStatus,
 	Language,
 	AuthorRole,
-	ScriptureRefRow
+	ScriptureRefRow,
+	ReviewQueueFilters,
+	ReviewCard,
+	ImportMatchType
 } from '$lib/types/library';
 import {
 	SCRIPTURE_IMAGES_BUCKET,
@@ -34,6 +38,44 @@ type RawPerson = {
 	suffix: string | null;
 	aliases: string[] | null;
 };
+
+/**
+ * Fetch ALL rows from a Supabase query, paging past PostgREST's default
+ * 1,000-row response cap. The `factory` callback receives a [from, to]
+ * tuple and rebuilds the query each iteration with `.range(from, to)` at
+ * the tail. We run pages of 1,000 until a short page (< 1,000 rows) signals
+ * end-of-result.
+ *
+ * On error: logs and returns whatever was collected so far, matching the
+ * existing loader contract (every loader catches + logs + returns []).
+ *
+ * Used by `loadBookListFiltered`, `loadPeople`, and `loadPersonBookCounts`
+ * — the three queries that hit (or could hit) > 1,000 rows on the live
+ * library. Pre-Pass-1 they were fine; post-Pass-1 (1,331 books, 1,441
+ * `book_authors`, 911 people) the cap silently undercut the list page.
+ */
+async function paginateAll<T>(
+	factory: (
+		range: [number, number]
+	) => PromiseLike<{ data: T[] | null; error: unknown }>,
+	logTag: string
+): Promise<T[]> {
+	const out: T[] = [];
+	let from = 0;
+	const PAGE = 1000;
+	while (true) {
+		const { data, error } = await factory([from, from + PAGE - 1]);
+		if (error) {
+			console.error(`[${logTag}] page from ${from}`, error);
+			break;
+		}
+		const batch = (data ?? []) as T[];
+		out.push(...batch);
+		if (batch.length < PAGE) break;
+		from += PAGE;
+	}
+	return out;
+}
 
 export async function loadCategories(supabase: SupabaseClient): Promise<CategoryRow[]> {
 	const { data, error } = await supabase
@@ -67,42 +109,39 @@ export async function loadSeries(supabase: SupabaseClient): Promise<SeriesRow[]>
 }
 
 export async function loadPeople(supabase: SupabaseClient): Promise<PersonRow[]> {
-	const { data, error } = await supabase
-		.from('people')
-		.select('id, first_name, last_name, middle_name, suffix, aliases')
-		.is('deleted_at', null)
-		.order('last_name', { ascending: true })
-		.order('first_name', { ascending: true });
-	if (error) {
-		console.error(error);
-		return [];
-	}
-	return (data ?? []).map((p) => {
-		const r = p as unknown as RawPerson;
-		return {
-			id: r.id,
-			first_name: r.first_name ?? null,
-			middle_name: r.middle_name ?? null,
-			last_name: r.last_name,
-			suffix: r.suffix ?? null,
-			aliases: Array.isArray(r.aliases) ? r.aliases : []
-		};
-	});
+	const data = await paginateAll<RawPerson>(
+		([from, to]) =>
+			supabase
+				.from('people')
+				.select('id, first_name, last_name, middle_name, suffix, aliases')
+				.is('deleted_at', null)
+				.order('last_name', { ascending: true })
+				.order('first_name', { ascending: true })
+				.range(from, to),
+		'loadPeople'
+	);
+	return data.map((r) => ({
+		id: r.id,
+		first_name: r.first_name ?? null,
+		middle_name: r.middle_name ?? null,
+		last_name: r.last_name,
+		suffix: r.suffix ?? null,
+		aliases: Array.isArray(r.aliases) ? r.aliases : []
+	}));
 }
 
 /** Map of person_id -> count of books that person is on (any role, any deletion state). */
 export async function loadPersonBookCounts(
 	supabase: SupabaseClient
 ): Promise<Map<string, number>> {
-	const { data, error } = await supabase.from('book_authors').select('person_id, book_id');
+	const rows = await paginateAll<{ person_id: string; book_id: string }>(
+		([from, to]) =>
+			supabase.from('book_authors').select('person_id, book_id').range(from, to),
+		'loadPersonBookCounts'
+	);
 	const counts = new Map<string, number>();
-	if (error) {
-		console.error(error);
-		return counts;
-	}
-	for (const row of data ?? []) {
-		const pid = (row as { person_id: string }).person_id;
-		counts.set(pid, (counts.get(pid) ?? 0) + 1);
+	for (const row of rows) {
+		counts.set(row.person_id, (counts.get(row.person_id) ?? 0) + 1);
 	}
 	return counts;
 }
@@ -199,6 +238,189 @@ export async function loadBookList(
 	// Article-stripped sort: "The Book of Exodus" → "B", not "T".
 	rows.sort((a, b) => titleSortKey(a.title).localeCompare(titleSortKey(b.title)));
 	return rows;
+}
+
+/**
+ * Escape a user-supplied keyword for safe inclusion in a PostgREST `.or()`
+ * filter expression. PostgREST treats `,`, `(`, `)`, and `*` as syntax in the
+ * filter DSL; `%` is the SQL wildcard we wrap around the term ourselves.
+ *
+ * The trigram GIN indexes (migration 20260429190000) make `ILIKE '%foo%'`
+ * substring scans cheap, so we don't need prefix-only matching.
+ */
+function escapeForPostgrestOrFilter(q: string): string {
+	return q
+		.trim()
+		.replace(/[\\,()*%]/g, (ch) => '\\' + ch);
+}
+
+/**
+ * Filter-aware book list loader. URL params on `/library` flow through
+ * `+page.server.ts` → `BookListFilters` → here. AND between filter types,
+ * OR within. `q` runs across title / subtitle (on `books`) and author
+ * `last_name` (on `people` via `book_authors`).
+ *
+ * Strategy for `q`:
+ *   1. Parallel SELECT on `people` matching `last_name ILIKE '%q%'` → person_ids.
+ *   2. Parallel SELECT on `book_authors` for those person_ids → book_ids
+ *      contributed by author-match.
+ *   3. Single `books` query with `.or('title.ilike.%q%,subtitle.ilike.%q%,id.in.(book_ids))')`.
+ *
+ * This keeps the round-trip count low and lets the trigram GIN indexes do
+ * the heavy lifting on title / subtitle / last_name.
+ */
+export async function loadBookListFiltered(
+	supabase: SupabaseClient,
+	people: PersonRow[],
+	filters: BookListFilters
+): Promise<BookListRow[]> {
+	// Resolve the keyword-search author lookup ONCE up front so the per-page
+	// factory below is pure (same inputs → same query). Otherwise we'd be
+	// re-running the people + book_authors lookup on every page iteration.
+	let orClause: string | null = null;
+	if (filters.q && filters.q.trim().length > 0) {
+		const raw = filters.q.trim();
+		const escaped = escapeForPostgrestOrFilter(raw);
+		const orParts = [`title.ilike.*${escaped}*`, `subtitle.ilike.*${escaped}*`];
+
+		const { data: peopleHits, error: peopleErr } = await supabase
+			.from('people')
+			.select('id')
+			.is('deleted_at', null)
+			.ilike('last_name', `%${raw}%`);
+		if (peopleErr) console.error('[loadBookListFiltered] people search', peopleErr);
+		const personIds = (peopleHits ?? []).map((p) => (p as { id: string }).id);
+
+		if (personIds.length > 0) {
+			const { data: authorBooks, error: abErr } = await supabase
+				.from('book_authors')
+				.select('book_id')
+				.in('person_id', personIds);
+			if (abErr) console.error('[loadBookListFiltered] book_authors lookup', abErr);
+			const bookIds = Array.from(
+				new Set((authorBooks ?? []).map((a) => (a as { book_id: string }).book_id))
+			);
+			if (bookIds.length > 0) {
+				orParts.push(`id.in.(${bookIds.join(',')})`);
+			}
+		}
+
+		orClause = orParts.join(',');
+	}
+
+	const data = await paginateAll<unknown>(([from, to]) => {
+		let query = supabase
+			.from('books')
+			.select(
+				`
+				id,
+				title,
+				subtitle,
+				genre,
+				reading_status,
+				needs_review,
+				volume_number,
+				primary_category_id,
+				categories!books_primary_category_id_fkey ( id, name ),
+				series ( name, abbreviation ),
+				book_authors ( person_id, sort_order, role ),
+				book_categories ( category_id )
+			`
+			)
+			.is('deleted_at', null);
+
+		if (filters.genre && filters.genre.length > 0) {
+			query = query.in('genre', filters.genre);
+		}
+		if (filters.series_id && filters.series_id.length > 0) {
+			query = query.in('series_id', filters.series_id);
+		}
+		if (filters.language && filters.language.length > 0) {
+			query = query.in('language', filters.language);
+		}
+		if (filters.reading_status && filters.reading_status.length > 0) {
+			query = query.in('reading_status', filters.reading_status);
+		}
+		if (filters.needs_review === true) {
+			query = query.eq('needs_review', true);
+		}
+		if (orClause) {
+			query = query.or(orClause);
+		}
+		return query.range(from, to);
+	}, 'loadBookListFiltered');
+
+	const peopleMap = new Map(people.map((p) => [p.id, p]));
+	type RawWithExtras = RawBookListRow & {
+		primary_category_id: string | null;
+		book_categories: { category_id: string }[] | null;
+	};
+
+	let rows = data.map((raw) => {
+		const r = raw as unknown as RawWithExtras;
+		const cat = asArrayOrSingle(r.categories)[0] ?? null;
+		const ser = asArrayOrSingle(r.series)[0] ?? null;
+		const authorRows = (r.book_authors ?? [])
+			.filter((a) => a.role === 'author')
+			.sort((a, b) => a.sort_order - b.sort_order);
+		const authorLabels = authorRows
+			.map((a) => {
+				const p = peopleMap.get(a.person_id);
+				if (!p) return null;
+				return personDisplayShort(p);
+			})
+			.filter((s): s is string => s != null);
+		const authors_label = authorLabels.length === 0 ? null : authorLabels.join(', ');
+
+		return {
+			row: {
+				id: r.id,
+				title: r.title ?? null,
+				subtitle: r.subtitle ?? null,
+				genre: r.genre ?? null,
+				reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
+				needs_review: Boolean(r.needs_review),
+				primary_category_name: cat?.name ?? null,
+				series_abbreviation: ser?.abbreviation ?? null,
+				series_name: ser?.name ?? null,
+				volume_number: r.volume_number ?? null,
+				authors_label
+			} satisfies BookListRow,
+			primary_category_id: r.primary_category_id ?? null,
+			category_ids: (r.book_categories ?? []).map((c) => c.category_id)
+		};
+	});
+
+	// Category filter applied client-side: PostgREST can't easily express
+	// "primary_category_id IN ids OR any junction row's category_id IN ids".
+	// Cheap to filter in JS for the few hundred rows we'll see in production.
+	if (filters.category_id && filters.category_id.length > 0) {
+		const wanted = new Set(filters.category_id);
+		rows = rows.filter((r) => {
+			if (r.primary_category_id && wanted.has(r.primary_category_id)) return true;
+			return r.category_ids.some((id) => wanted.has(id));
+		});
+	}
+
+	const out = rows.map((r) => r.row);
+	out.sort((a, b) => titleSortKey(a.title).localeCompare(titleSortKey(b.title)));
+	return out;
+}
+
+/**
+ * Cheap unfiltered count via `head: true` — drives the "Showing N of M"
+ * indicator on the list page header.
+ */
+export async function countLiveBooks(supabase: SupabaseClient): Promise<number> {
+	const { count, error } = await supabase
+		.from('books')
+		.select('*', { count: 'exact', head: true })
+		.is('deleted_at', null);
+	if (error) {
+		console.error('[countLiveBooks]', error);
+		return 0;
+	}
+	return count ?? 0;
 }
 
 type RawBookDetail = {
@@ -352,6 +574,164 @@ export async function loadBookDetail(
 		created_at: r.created_at,
 		updated_at: r.updated_at
 	};
+}
+
+// ---------------------------------------------------------------------------
+// Review queue (Session 5.5)
+// ---------------------------------------------------------------------------
+
+type RawReviewCard = RawBookListRow & {
+	year: number | null;
+	publisher: string | null;
+	language: string;
+	needs_review_note: string | null;
+	import_match_type: string | null;
+};
+
+/**
+ * Filter-aware loader for `/library/review`. Forces `needs_review = true`
+ * (the queue's invariant) and supports two extra filters that don't exist on
+ * the regular list page:
+ *
+ * - `subject_blank: true` → `genre IS NULL` (the no-subject 1,047-row chunk)
+ * - `import_match_type: [...]` → OL provenance slice (Pass 1 backfill)
+ *
+ * `excludeIds` is the client-side skipped-this-session set, threaded through
+ * the `queue/+server.ts` refetch endpoint when the local card stack runs low.
+ *
+ * Returns up to `limit` cards ordered by `id` for a stable cursor — natural
+ * randomness from UUIDs is fine; we don't need title-sort here, the user is
+ * draining the queue not browsing it.
+ */
+export async function loadReviewQueue(
+	supabase: SupabaseClient,
+	people: PersonRow[],
+	filters: ReviewQueueFilters,
+	opts: { limit: number; excludeIds: string[] }
+): Promise<ReviewCard[]> {
+	let query = supabase
+		.from('books')
+		.select(
+			`
+			id,
+			title,
+			subtitle,
+			genre,
+			reading_status,
+			needs_review,
+			needs_review_note,
+			volume_number,
+			year,
+			publisher,
+			language,
+			import_match_type,
+			categories!books_primary_category_id_fkey ( id, name ),
+			series ( name, abbreviation ),
+			book_authors ( person_id, sort_order, role )
+		`
+		)
+		.is('deleted_at', null)
+		.eq('needs_review', true);
+
+	if (filters.subject_blank === true) {
+		query = query.is('genre', null);
+	}
+	if (filters.genre && filters.genre.length > 0) {
+		query = query.in('genre', filters.genre);
+	}
+	if (filters.series_id && filters.series_id.length > 0) {
+		query = query.in('series_id', filters.series_id);
+	}
+	if (filters.language && filters.language.length > 0) {
+		query = query.in('language', filters.language);
+	}
+	if (filters.reading_status && filters.reading_status.length > 0) {
+		query = query.in('reading_status', filters.reading_status);
+	}
+	if (filters.import_match_type && filters.import_match_type.length > 0) {
+		query = query.in('import_match_type', filters.import_match_type);
+	}
+	if (opts.excludeIds.length > 0) {
+		query = query.not('id', 'in', `(${opts.excludeIds.join(',')})`);
+	}
+
+	const { data, error } = await query
+		.order('id', { ascending: true })
+		.limit(opts.limit);
+	if (error) {
+		console.error('[loadReviewQueue]', error);
+		return [];
+	}
+
+	const peopleMap = new Map(people.map((p) => [p.id, p]));
+
+	return (data ?? []).map((raw) => {
+		const r = raw as unknown as RawReviewCard;
+		const cat = asArrayOrSingle(r.categories)[0] ?? null;
+		const ser = asArrayOrSingle(r.series)[0] ?? null;
+		const authorRows = (r.book_authors ?? [])
+			.filter((a) => a.role === 'author')
+			.sort((a, b) => a.sort_order - b.sort_order);
+		const authorLabels = authorRows
+			.map((a) => peopleMap.get(a.person_id))
+			.filter((p): p is PersonRow => p != null)
+			.map((p) => personDisplayShort(p));
+		const authors_label = authorLabels.length === 0 ? null : authorLabels.join(', ');
+
+		return {
+			id: r.id,
+			title: r.title ?? null,
+			subtitle: r.subtitle ?? null,
+			genre: r.genre ?? null,
+			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
+			needs_review: Boolean(r.needs_review),
+			primary_category_name: cat?.name ?? null,
+			series_abbreviation: ser?.abbreviation ?? null,
+			series_name: ser?.name ?? null,
+			volume_number: r.volume_number ?? null,
+			authors_label,
+			year: r.year ?? null,
+			publisher: r.publisher ?? null,
+			language: (r.language as Language) ?? 'english',
+			needs_review_note: r.needs_review_note ?? null,
+			import_match_type: (r.import_match_type as ImportMatchType | null) ?? null
+		} satisfies ReviewCard;
+	});
+}
+
+/**
+ * Cheap unfiltered remaining-count for the review queue. Mirrors the same
+ * filter set as `loadReviewQueue` (minus `excludeIds` — the counter shows
+ * total remaining for THIS slice, not total minus skipped). Drives the
+ * "X left" header counter.
+ */
+export async function countReviewQueue(
+	supabase: SupabaseClient,
+	filters: ReviewQueueFilters
+): Promise<number> {
+	let query = supabase
+		.from('books')
+		.select('*', { count: 'exact', head: true })
+		.is('deleted_at', null)
+		.eq('needs_review', true);
+
+	if (filters.subject_blank === true) query = query.is('genre', null);
+	if (filters.genre && filters.genre.length > 0) query = query.in('genre', filters.genre);
+	if (filters.series_id && filters.series_id.length > 0)
+		query = query.in('series_id', filters.series_id);
+	if (filters.language && filters.language.length > 0)
+		query = query.in('language', filters.language);
+	if (filters.reading_status && filters.reading_status.length > 0)
+		query = query.in('reading_status', filters.reading_status);
+	if (filters.import_match_type && filters.import_match_type.length > 0)
+		query = query.in('import_match_type', filters.import_match_type);
+
+	const { count, error } = await query;
+	if (error) {
+		console.error('[countReviewQueue]', error);
+		return 0;
+	}
+	return count ?? 0;
 }
 
 /**

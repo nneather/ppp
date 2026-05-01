@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
@@ -107,6 +109,40 @@
 	let refs = $state<ScriptureRefRow[]>([]);
 	$effect(() => {
 		refs = data.scriptureRefs;
+	});
+
+	// Hash-driven scroll + briefly highlight the matching ref. Triggered by
+	// deep links from /library/search-passage (?#ref-<uuid>). The effect tracks
+	// page.url.hash so it re-fires on hash-only navigation, not just on mount.
+	const UUID_HASH_RE = /^#ref-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+	let highlightedRefId = $state<string | null>(null);
+	let highlightTimer: number | null = null;
+	$effect(() => {
+		if (!browser) return;
+		const m = page.url.hash.match(UUID_HASH_RE);
+		if (!m) return;
+		const id = m[1];
+		// Wait for the matching <li> to be in the DOM (refs are populated by
+		// the parallel $effect above — both fire on load, ordering is racy).
+		const tryScroll = () => {
+			const el = document.getElementById(`ref-${id}`);
+			if (!el) {
+				if (refs.find((r) => r.id === id)) {
+					// Row is in state but not yet rendered; bail.
+					return;
+				}
+				return;
+			}
+			el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			highlightedRefId = id;
+			if (highlightTimer != null) clearTimeout(highlightTimer);
+			highlightTimer = window.setTimeout(() => {
+				highlightedRefId = null;
+				highlightTimer = null;
+			}, 2200);
+		};
+		// Defer to next frame so we run after the {#each} finishes mounting.
+		queueMicrotask(tryScroll);
 	});
 
 	let addOpen = $state(false);
@@ -493,7 +529,11 @@
 										/>
 									{:else}
 										<article
-											class="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card p-3 text-card-foreground"
+											class={`flex flex-wrap items-start justify-between gap-3 rounded-lg border bg-card p-3 text-card-foreground transition-shadow ${
+												highlightedRefId === ref.id
+													? 'border-amber-500/60 ring-2 ring-amber-500/40 shadow-md'
+													: 'border-border'
+											}`}
 										>
 											<div class="flex min-w-0 flex-1 items-start gap-3">
 												{#if ref.source_image_signed_url}

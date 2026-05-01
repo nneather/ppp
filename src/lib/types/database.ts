@@ -378,6 +378,7 @@ export type Database = {
           edition: string | null
           genre: string | null
           id: string
+          import_match_type: string | null
           isbn: string | null
           language: string
           needs_review: boolean
@@ -411,6 +412,7 @@ export type Database = {
           edition?: string | null
           genre?: string | null
           id?: string
+          import_match_type?: string | null
           isbn?: string | null
           language?: string
           needs_review?: boolean
@@ -444,6 +446,7 @@ export type Database = {
           edition?: string | null
           genre?: string | null
           id?: string
+          import_match_type?: string | null
           isbn?: string | null
           language?: string
           needs_review?: boolean
@@ -1213,6 +1216,8 @@ export type Database = {
           verse_start: number
         }[]
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never

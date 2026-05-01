@@ -1,7 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
-	loadBookList,
+	countLiveBooks,
+	loadBookListFiltered,
 	loadCategories,
 	loadPeople,
 	loadPersonBookCounts,
@@ -13,20 +14,57 @@ import {
 	undoSoftDeleteBookAction,
 	updateReadingStatusAction
 } from '$lib/library/server/book-actions';
+import { multiParam } from '$lib/library/server/url-params';
+import { LANGUAGES, READING_STATUSES } from '$lib/types/library';
+import type { BookListFilters, Language, ReadingStatus } from '$lib/types/library';
+
+function parseFilters(url: URL): BookListFilters {
+	const filters: BookListFilters = {};
+
+	const genres = multiParam(url, 'genre');
+	if (genres.length > 0) filters.genre = genres;
+
+	const cats = multiParam(url, 'category_id');
+	if (cats.length > 0) filters.category_id = cats;
+
+	const series = multiParam(url, 'series_id');
+	if (series.length > 0) filters.series_id = series;
+
+	const langSet = new Set<Language>(LANGUAGES);
+	const langs = multiParam(url, 'language').filter((l): l is Language =>
+		langSet.has(l as Language)
+	);
+	if (langs.length > 0) filters.language = langs;
+
+	const statusSet = new Set<ReadingStatus>(READING_STATUSES);
+	const statuses = multiParam(url, 'reading_status').filter((s): s is ReadingStatus =>
+		statusSet.has(s as ReadingStatus)
+	);
+	if (statuses.length > 0) filters.reading_status = statuses;
+
+	if (url.searchParams.get('needs_review') === 'true') filters.needs_review = true;
+
+	const q = (url.searchParams.get('q') ?? '').trim();
+	if (q.length > 0) filters.q = q;
+
+	return filters;
+}
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
 	const supabase = locals.supabase;
+	const filters = parseFilters(url);
 
-	const [people, categories, series] = await Promise.all([
+	const [people, categories, series, totalCount] = await Promise.all([
 		loadPeople(supabase),
 		loadCategories(supabase),
-		loadSeries(supabase)
+		loadSeries(supabase),
+		countLiveBooks(supabase)
 	]);
 	const [books, personBookCounts] = await Promise.all([
-		loadBookList(supabase, people),
+		loadBookListFiltered(supabase, people, filters),
 		loadPersonBookCounts(supabase)
 	]);
 
@@ -38,7 +76,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		series,
 		people,
 		personBookCounts: Object.fromEntries(personBookCounts),
-		recentlyDeletedId
+		recentlyDeletedId,
+		filters,
+		totalCount
 	};
 };
 

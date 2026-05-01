@@ -71,6 +71,20 @@ export const AUTHOR_ROLE_LABELS: Record<AuthorRole, string> = {
 	translator: 'Translator'
 };
 
+/**
+ * Matches `books.import_match_type` CHECK (migration 20260501090000).
+ * Records OL enrichment provenance at Pass 1 / Pass 2 import time. NULL =
+ * never enriched (BDAG ADDITIONS, future barcode-add inserts, etc.).
+ */
+export const IMPORT_MATCH_TYPES = ['title+author', 'title-only', 'no-match'] as const;
+export type ImportMatchType = (typeof IMPORT_MATCH_TYPES)[number];
+
+export const IMPORT_MATCH_TYPE_LABELS: Record<ImportMatchType, string> = {
+	'title+author': 'Title + author',
+	'title-only': 'Title only',
+	'no-match': 'No match'
+};
+
 // ---------------------------------------------------------------------------
 // View-models (load-function output, never raw DB rows)
 // ---------------------------------------------------------------------------
@@ -160,6 +174,85 @@ export type BookDetail = {
 export type PersonDedupHint = {
 	person: PersonRow;
 	book_count: number;
+};
+
+/**
+ * URL-driven filter shape for the `/library` list page (Session 3).
+ *
+ * AND between filter types, OR within (e.g. `genre: ['Commentary', 'Theology']`
+ * matches either; combining `genre` + `series_id` requires both). `q` is a
+ * substring keyword search hitting books.title / books.subtitle / people.last_name
+ * (via `book_authors` join), backed by the trigram GIN indexes installed in
+ * migration `20260429190000_books_title_trigram_index.sql`.
+ *
+ * `category_id` matches BOTH the primary_category_id column AND any row in the
+ * `book_categories` junction — a book "tagged" with a category should match
+ * even when it isn't the primary.
+ */
+export type BookListFilters = {
+	genre?: string[];
+	category_id?: string[];
+	series_id?: string[];
+	language?: Language[];
+	reading_status?: ReadingStatus[];
+	needs_review?: boolean;
+	q?: string;
+};
+
+/**
+ * Filter shape for the `/library/review` card-stack queue (Session 5.5).
+ * Superset of `BookListFilters`. `needs_review = true` is always pinned at the
+ * loader; the page never renders books outside the review queue.
+ *
+ * - `subject_blank` (URL `?subject=blank`) → `genre IS NULL`. Drives the
+ *   1,047-row no-Subject chunk independently of the scholarly-core slice.
+ * - `import_match_type` (URL `?match_type=title-only` etc.) → filters by OL
+ *   enrichment provenance from Pass 1.
+ */
+export type ReviewQueueFilters = BookListFilters & {
+	subject_blank?: boolean;
+	import_match_type?: ImportMatchType[];
+};
+
+/**
+ * Card payload for `/library/review`. Extends `BookListRow` with the
+ * citation-critical fields that the per-card quick-actions can edit
+ * (`title`, `year`, `publisher`, `language`) plus the auto-line so the
+ * card can render the "Missing: …" preview.
+ */
+export type ReviewCard = BookListRow & {
+	year: number | null;
+	publisher: string | null;
+	language: Language;
+	needs_review_note: string | null;
+	import_match_type: ImportMatchType | null;
+};
+
+/**
+ * Result row from the `search_scripture_refs` SQL RPC. Mirrors the function's
+ * RETURNS TABLE shape (see `supabase/migrations/20260425180000_search_scripture_refs.sql`).
+ *
+ * `manual_entry` is computed in the SQL: true when `confidence_score IS NULL`
+ * (i.e. user-entered rather than OCR-derived). The function pre-sorts manual
+ * entries first per audit-doc S7.
+ */
+export type PassageResult = {
+	ref_id: string;
+	book_id: string | null;
+	essay_id: string | null;
+	book_title: string | null;
+	book_subtitle: string | null;
+	bible_book: string;
+	chapter_start: number | null;
+	verse_start: number | null;
+	chapter_end: number | null;
+	verse_end: number | null;
+	page_start: string;
+	page_end: string | null;
+	confidence_score: number | null;
+	needs_review: boolean;
+	review_note: string | null;
+	manual_entry: boolean;
 };
 
 /**

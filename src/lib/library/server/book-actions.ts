@@ -27,7 +27,8 @@ export type ActionKind =
 	| 'updateBook'
 	| 'softDeleteBook'
 	| 'undoSoftDeleteBook'
-	| 'createPerson';
+	| 'createPerson'
+	| 'reviewSaved';
 
 export type AuthorAssignmentInput = {
 	person_id: string;
@@ -166,6 +167,33 @@ function mergeReviewNote(existing: string | null, autoLine: string | null): stri
 	const trimmed = existing?.trim() ?? '';
 	if (!trimmed || /^Missing:\s/.test(trimmed)) return autoLine;
 	return `${autoLine}\n\n${existing}`;
+}
+
+/**
+ * Inverse of `mergeReviewNote`: strip the auto-generated "Missing: …" line
+ * (and the blank line beneath it) when the user has reviewed the row and
+ * cleared the underlying issue. Preserves any user-authored portion verbatim.
+ *
+ * Cases:
+ *   - null / whitespace → null
+ *   - "Missing: …"            (auto-line only)            → null
+ *   - "Missing: …\n\n<user>"  (auto-line + user portion)  → "<user>" (trimmed)
+ *   - "<user>"                (no auto-line)              → "<user>" (unchanged)
+ *
+ * Used by `reviewSaveAction` (Session 5.5 review queue): the explicit-user-
+ * reviewed contract overrides the auto-flag, so we strip the auto-line even
+ * if the underlying field is still missing — keeping it would just re-flag
+ * the row at the next regular `parseBookForm` save.
+ */
+export function stripReviewAutoLine(existing: string | null): string | null {
+	const t = (existing ?? '').trim();
+	if (t.length === 0) return null;
+	// "Missing: …" + optional blank line + user portion. The auto-line is
+	// always single-line so consume up to the first \n only.
+	const m = t.match(/^Missing:\s[^\n]*(?:\r?\n\r?\n([\s\S]*))?$/);
+	if (!m) return existing;
+	const userPortion = (m[1] ?? '').trim();
+	return userPortion.length > 0 ? userPortion : null;
 }
 
 export function parseBookForm(fd: FormData): ParseResult {
@@ -698,4 +726,161 @@ export async function createPersonAction(
 		personId: inserted.id as string,
 		success: true as const
 	};
+}
+
+/**
+ * Focused server action for the `/library/review` card-stack queue (Session
+ * 5.5). The contract differs from `parseBookForm` + `updateBookAction` in
+ * three deliberate ways:
+ *
+ * 1. **Partial overlay only.** Only the fields the card surfaces (`title`,
+ *    `year`, `publisher`, `genre`, `language`, `reading_status`) are read
+ *    from FormData and merged onto the existing row. Everything else stays
+ *    byte-identical — no junctions, no `personal_notes`, no `rating`.
+ * 2. **`needs_review = false` is unconditional.** The user explicitly
+ *    reviewed the row; that overrides the missing-fields auto-flag. If
+ *    `computeMissingImportant` still returns entries, the auto-line is
+ *    STRIPPED (not refreshed) — the user has acknowledged the gaps.
+ * 3. **B1/B2 strip is no-op in practice** because the card never exposes
+ *    `personal_notes` / `rating`, but kept defensively in line with
+ *    `updateBookAction`.
+ */
+export async function reviewSaveAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const id = String(fd.get('id') ?? '').trim();
+	if (!id) return fail(400, { kind: 'reviewSaved' as const, message: 'Missing book id.' });
+
+	const { data: existingRow, error: fetchErr } = await supabase
+		.from('books')
+		.select(
+			'id, title, year, publisher, genre, language, reading_status, needs_review_note, deleted_at'
+		)
+		.eq('id', id)
+		.maybeSingle();
+	if (fetchErr || !existingRow) {
+		return fail(404, {
+			kind: 'reviewSaved' as const,
+			bookId: id,
+			message: 'Book not found.'
+		});
+	}
+	const ex = existingRow as {
+		id: string;
+		title: string | null;
+		year: number | null;
+		publisher: string | null;
+		genre: string | null;
+		language: string;
+		reading_status: string;
+		needs_review_note: string | null;
+		deleted_at: string | null;
+	};
+	if (ex.deleted_at) {
+		return fail(404, {
+			kind: 'reviewSaved' as const,
+			bookId: id,
+			message: 'Book was deleted.'
+		});
+	}
+
+	const title = trimOrNull(fd.get('title')) ?? ex.title;
+	const publisher = trimOrNull(fd.get('publisher')) ?? ex.publisher;
+	const yearRaw = fd.get('year');
+	const year = yearRaw === null ? ex.year : parseInt0(yearRaw) ?? (String(yearRaw).trim() === '' ? null : ex.year);
+
+	const genreRaw = fd.get('genre');
+	let genre: string | null = ex.genre;
+	if (genreRaw !== null) {
+		const t = String(genreRaw).trim();
+		if (t === '') genre = null;
+		else if (GENRE_SET.has(t)) genre = t;
+		else
+			return fail(400, {
+				kind: 'reviewSaved' as const,
+				bookId: id,
+				message: 'Pick a genre from the list.'
+			});
+	}
+
+	const langRaw = fd.get('language');
+	let language: string = ex.language;
+	if (langRaw !== null) {
+		const t = String(langRaw).trim();
+		if (!LANGUAGE_SET.has(t))
+			return fail(400, {
+				kind: 'reviewSaved' as const,
+				bookId: id,
+				message: 'Pick a language from the list.'
+			});
+		language = t;
+	}
+
+	const statusRaw = fd.get('reading_status');
+	let reading_status: string = ex.reading_status;
+	if (statusRaw !== null) {
+		const t = String(statusRaw).trim();
+		if (!READING_STATUS_SET.has(t))
+			return fail(400, {
+				kind: 'reviewSaved' as const,
+				bookId: id,
+				message: 'Pick a reading status from the list.'
+			});
+		reading_status = t;
+	}
+
+	// Author-presence is needed for the Missing: computation. Cheap targeted
+	// query — count rows on book_authors with role='author', no person fetch.
+	const { count: authorCount } = await supabase
+		.from('book_authors')
+		.select('*', { count: 'exact', head: true })
+		.eq('book_id', id)
+		.eq('role', 'author');
+	const authorsForCheck: AuthorAssignmentInput[] =
+		(authorCount ?? 0) > 0
+			? [{ person_id: '_synthetic_', role: 'author', sort_order: 0 }]
+			: [];
+
+	// Recompute, but the contract is: needs_review = false REGARDLESS of
+	// missing fields. The user just reviewed the card. Strip the auto-line.
+	void computeMissingImportant({ title, genre, year, publisher, authors: authorsForCheck });
+	const needs_review_note = stripReviewAutoLine(ex.needs_review_note);
+
+	// B1/B2 strip — owner-only writes touch personal_notes/rating; the card
+	// doesn't expose them so this is defensive.
+	const { data: profileRow } = await supabase
+		.from('profiles')
+		.select('role')
+		.eq('id', userId)
+		.maybeSingle();
+	const isOwner = (profileRow?.role as string | null) === 'owner';
+	void isOwner; // payload below already excludes those columns; kept for parity with updateBookAction
+
+	const payload: Record<string, unknown> = {
+		title,
+		year,
+		publisher,
+		genre,
+		language,
+		reading_status,
+		needs_review: false,
+		needs_review_note
+	};
+
+	const { error: updErr } = await supabase
+		.from('books')
+		.update(payload as never)
+		.eq('id', id);
+	if (updErr) {
+		console.error(updErr);
+		return fail(500, {
+			kind: 'reviewSaved' as const,
+			bookId: id,
+			message: updErr.message ?? 'Could not save review.'
+		});
+	}
+
+	return { kind: 'reviewSaved' as const, bookId: id, success: true as const };
 }

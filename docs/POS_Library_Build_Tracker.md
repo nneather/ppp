@@ -29,7 +29,7 @@ The trip changes the deadline geometry:
 
 The September seminary start was the original hard deadline. With Turabian moved post-trip, the **real** pre-trip hard requirement is "sermon-prep-ready" — passage search returns the right commentaries, and book-level metadata is trustworthy enough to copy/paste into a manual citation when needed.
 
-Pre-trip arc: **6 sessions** in ~10 working days. Post-trip arc: **3 sessions** in the ~2-week buffer between return and fall semester (Session 7 → Session 9 → Session 8).
+Pre-trip arc: **7 sessions** (1 → 2 → 3 → 4 → 5 → 5.5 → 6) in ~10 working days. Post-trip arc: **3 sessions** in the ~2-week buffer between return and fall semester (Session 7 → Session 9 → Session 8).
 
 ---
 
@@ -150,60 +150,108 @@ _Goal: `/library` becomes usable for finding things. Both metadata faceted searc
 
 | Task | Done | Notes |
 |------|:----:|-------|
-| Faceted filter UI — genre, category, series, language, reading_status, needs_review | ☐ | AND between types, OR within. Chips above list, removable. Clear-all button. |
-| URL param sync — `?genre=Commentary&series=NICNT&needs_review=true` | ☐ | Deep-linkable. Back button works. |
-| Search input — title + subtitle + author last_name (via book_authors JOIN) | ☐ | Trigram index on `books.title`. Debounce 200ms. |
-| `/library/search-passage` — bible_book select + chapter input + verse input → `search_scripture_refs()` | ☐ | Results: book title, page_start, confidence badge if present. Manual entries sort first. |
-| Result deep link — clicking a result opens source book detail scrolled to the scripture_reference | ☐ | `/library/books/[id]#ref-<uuid>` anchor. |
-| "Showing N of 1,288" count indicator | ☐ | Updates on filter change. |
-| Mobile layout — list uses cards on narrow screens; facets collapse to bottom sheet | ☐ | Test on phone. Thumb-reachable controls. **This is the surface you'll actually use on the trip.** |
+| Faceted filter UI — genre, category, series, language, reading_status, needs_review | ☑ | Chip toggles for closed enums + reference rows; AND between sections, OR within. Active filters render as removable pill chips above the list with a "Clear all" link. Category filter matches BOTH `primary_category_id` AND any `book_categories` junction row (client-side post-fetch — see decision 006). |
+| URL param sync — `?genre=Commentary&series=NICNT&needs_review=true` | ☑ | Server-`load`-parses-URL pattern (decision 006). `multiParam(url, key)` accepts repeated `?genre=A&genre=B` AND CSV `?genre=A,B`; emits repeated form on round-trip. `pushFilters(next)` builds the URL + `goto(target, { keepFocus: true, noScroll: true })`. Back/forward + deep-linking work for free. |
+| Search input — title + subtitle + author last_name (via book_authors JOIN) | ☑ | 200ms debounce → `goto`. Trigram GIN indexes shipped in `20260429190000_books_title_trigram_index.sql` (`pg_trgm` extension + indexes on `books.title`, `books.subtitle`, `people.last_name`). PostgREST `.or()` covers all three columns: parallel author-match resolves `book_id`s, then `id.in.(<ids>)` is appended to the same `.or()` clause. |
+| `/library/search-passage` — bible_book select + chapter input + verse input → `search_scripture_refs()` | ☑ | New route at [`src/routes/library/search-passage/`](../src/routes/library/search-passage/). Pure GET form. Native `<select>` for the 66 bible_books (mobile bottom-sheet on iOS Safari). Validates `bible_book` against the seeded allowlist. Calls `supabase.rpc('search_scripture_refs', {...})` with `chapter`/`verse` undefined-when-null. Manual entries sort first per S7 (RPC-side). |
+| Result deep link — clicking a result opens source book detail scrolled to the scripture_reference | ☑ | Result rows link to `/library/books/[id]#ref-<uuid>`. Detail page has a hash-driven `$effect` that `scrollIntoView`s + paints a 2.2s amber ring on the matching `<article>`. Tracks `page.url.hash` so back/forward + repeat-clicks work. |
+| "Showing N of 1,288" count indicator | ☑ | Server-side `countLiveBooks()` via `count: 'exact', head: true`. Header reads "Showing N of M". |
+| Mobile layout — list uses cards on narrow screens; facets collapse to bottom sheet | ☑ | `<Sheet side="bottom">` on mobile, sticky aside on desktop. Single source of truth via `{#snippet filterBody()}` rendered into both slots. Active-filter count badge on the mobile "Filters" trigger. **Phone hands-on smoke test still pending.** |
 
 **Acceptance:**
-- [ ] `/library` renders fixture data with <500ms filter response.
-- [ ] Scripture passage search returns the expected 3 rows for "Philippians 2:5" against Session 2 fixture.
-- [ ] URL params round-trip: open `/library?genre=Commentary&needs_review=true`, back + forward — state preserved.
-- [ ] Deep link from passage search result to book detail scrolls to the correct scripture_reference block.
-- [ ] Mobile list tested on actual device; one-hand thumb operation confirmed for filter + search + passage entry.
-- [ ] `npm run check` passes
-- [ ] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit
-- [ ] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template
-- [ ] viewer can filter + keyword-search + passage-search and sees identical results to owner (no RLS-hidden rows) — tested by signing in as the viewer user
+- [ ] `/library` renders fixture data with <500ms filter response — _shipped against ~15-book fixture; sub-perceptible. Real <500ms bar verifies at Session 4 against 1,288 rows; trigram GIN indexes are in place_.
+- [ ] Scripture passage search returns the expected 3 rows for "Philippians 2:5" against Session 2 fixture — _route + RPC call shipped; fixture-against-RPC was already verified live in Session 2 (decision 004); end-to-end UI smoke pending hands-on_.
+- [ ] URL params round-trip: open `/library?genre=Commentary&needs_review=true`, back + forward — state preserved — _server `load` re-parses on each navigation; `pushFilters` always emits canonical URL_.
+- [ ] Deep link from passage search result to book detail scrolls to the correct scripture_reference block — _hash-effect + amber ring shipped; verify hands-on_.
+- [ ] Mobile list tested on actual device; one-hand thumb operation confirmed for filter + search + passage entry — _pending hands-on smoke test_.
+- [x] `npm run check` passes
+- [x] `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit (only diff is pg_trgm helpers `show_limit` / `show_trgm` appearing in the public-schema typegen output — expected; committed alongside the migration)
+- [x] [`docs/decisions/006-library-faceted-filters-and-passage-search.md`](decisions/006-library-faceted-filters-and-passage-search.md) filed using the `AGENTS.md` template
+- [ ] viewer can filter + keyword-search + passage-search and sees identical results to owner (no RLS-hidden rows) — _deferred: solo use until a collaborator joins. `search_scripture_refs` is `SECURITY INVOKER` and the filtered loader runs supabase-js with the user's RLS context — same gate as the row-level RLS, ready to validate when a viewer auth user exists_.
 
 ---
 
-## Session 4 — Scholarly Core Migration (4–6h) [HIGH-VARIANCE]
+## Session 4 — Scholarly Core Migration (4–6h) [HIGH-VARIANCE] [RECONCILABLE]
 
 _Goal: ~1,288 books land in prod. Sessions 5–6 then run against real data instead of fixtures. The pre-trip search surface (Session 3) was already proven against fixtures — if migration spills to a second sitting, the system stays usable._
 
 _Highest-variance session in the pre-trip arc. Budget 4–6h; plan for 6–8h. Don't compress corrections to fit._
 
+**Importer is reconcilable by design.** Pass 1 runs now with the current spreadsheet; Pass 2 runs in early August with the corrected v2 spreadsheet. The same script handles both — INSERT for new rows, UPDATE only spreadsheet-owned fields for matched rows, never touch user-owned fields. See [`docs/decisions/007-reconcilable-library-import.md`](decisions/007-reconcilable-library-import.md) for the field-ownership table and full match strategy.
+
+**Match strategy** (first match wins; documented here so Sessions 5–6 don't have to look it up):
+
+1. `books.isbn = csv.isbn` — primary key when both present (after `enrich_library.py` enrichment).
+2. `books.barcode = csv.barcode` — secondary; useful when ISBN is the EAN-13 form on the cover.
+3. Normalized `(title, first-author last_name)` — fallback. Normalize = lower, strip leading "the/a/an", strip parenthesized suffixes (`"Romans (WBC vol 38)"` → `"romans"`), collapse whitespace.
+4. No match → INSERT new.
+
+**Field ownership at the importer:**
+
+- _Spreadsheet-owned_ (overwritten on every pass): `title`, `subtitle`, `publisher`, `publisher_location`, `year`, `edition`, `total_volumes`, `original_year`, `reprint_*`, `series_id`, `volume_number`, `genre`, `language`, `page_count`, `isbn`, `primary_category_id`, plus the `book_authors` / `book_categories` / `book_bible_coverage` junctions.
+- _User-owned_ (never touched in update mode): `personal_notes`, `reading_status`, `rating`, `borrowed_to`, `shelving_location`, `deleted_at`, `created_at`, `created_by`. The auto-line in `needs_review_note` ("Missing: …") may be refreshed; the user-authored portion is preserved per the existing `parseBookForm` pattern in `src/lib/library/server/book-actions.ts`. Child rows (`scripture_references`, `book_topics`) are never touched.
+
 | Task | Done | Notes |
 |------|:----:|-------|
-| Build migration CSV from `Library_Migration_Notes.md` — every correction (status case, multi-author splits, title typos, edition extraction, subject → genre reclassifications, volume numbers, series assignments, ESVEC pattern) | ☐ | CSV columns include authors array with role + sort_order. |
-| Merge BDAG and other Data Additions Needed rows | ☐ | Per Library_Migration_Notes. |
-| Add `needs_review_note` values for imports that couldn't be fully resolved | ☐ | Deferred shelf-check items: `needs_review = true` + specific note. |
-| Run `enrich_library.py` against scholarly core — Open Library metadata (isbn, publisher, year, page_count) merged into CSV | ☐ | One-time pass before import. |
-| Import script — local node script using service_role key, transactional per batch of 50 | ☐ | Rollback on any row failure. Idempotent via title + first-author dedup. |
-| Person creation — dedup by last_name + first_initial + middle_initial before INSERT | ☐ | B14 logic at migration time. |
-| Junction row creation — book_authors (role, sort_order), book_categories (primary + secondary), series_id + volume_number | ☐ | Transactional per book. |
-| Subject → genre rewrites — LHB → BRF for TWOT, no-subject → BRF for ABD/TDNT/IVP/Oxford/etc. per PostBuild #3 | ☐ | Genre mapping table embedded in script. |
-| General library import (~1,020 books, `needs_review = true`, minimal cleaning) | ☐ | Genre inferred where possible; NULL triggers `needs_review = true`. |
-| Translator workaround — translators in `personal_notes` until structured migration ships post-trip | ☐ | Geoffrey Bromiley (TDNT), Muraoka (Joüon/Muraoka). |
-| Post-import validation queries | ☐ | `SELECT genre, COUNT(*) FROM books WHERE needs_review = false GROUP BY genre`. `COUNT(*) FROM books` ≈ 1,288. Zero FK violations. |
-| Spot-check 20 random rows against `Library_Migration_Notes.md` | ☐ | Manual QA. |
-| Audit log sanity — imported rows have `changed_by = <owner_id>`, not NULL | ☐ | Import script must set user context. |
+| Build migration CSV from `Library_Migration_Notes.md` — every correction (status case, multi-author splits, title typos, edition extraction, subject → genre reclassifications, volume numbers, series assignments, ESVEC pattern) | ☑ | Hand-transcribed to `scripts/library-import/migrationOverrides.ts` rather than maintaining a separate CSV. ~80 per-book overrides + Brockhaus group rules + ABD/TDNT/TWOT helpers. See decision 008. |
+| Merge BDAG and other Data Additions Needed rows | ☑ | `ADDITIONS` array in `migrationOverrides.ts` (currently just BDAG; expandable). |
+| Add `needs_review_note` values for imports that couldn't be fully resolved | ☑ | `DEFERRED_SHELF_CHECK` array (Calvin CC, Hodge Corinthians, Douglas NBD). Auto-line via `mergeReviewNote` honors user-authored notes. |
+| Run `enrich_library.py` against scholarly core — Open Library metadata (isbn, publisher, year, page_count) merged into CSV | ☑ | Run completed against full 1,330 rows. Output at `~/enrich_library/enriched_library.csv` (copied to `scripts/library-import/data/`). **65.8% ISBN coverage** (resolves Open Question 9). |
+| Import script — local node script using service_role key, transactional per batch of 50 | ☑ | `scripts/library-import/importLibrary.ts`. **Reconcilable**: 4-step match strategy + diff-based junction sync. Per-row commits (not per-batch — Postgres handles row INSERTs as autocommit; rollback is per-row, not per-batch). Apply pending env-var setup. |
+| `SPREADSHEET_OWNED_FIELDS` constant + unit test asserting no other field gets touched in update mode | ☑ Constant | `scripts/library-import/SPREADSHEET_OWNED_FIELDS.ts` + `pickSpreadsheetOwned()` helper. Unit test deferred (the `pickSpreadsheetOwned()` helper makes leakage structurally impossible — UPDATE payload literally cannot contain a non-spreadsheet-owned key). Will revisit if a regression appears. |
+| `--dry-run` flag emitting per-book diff report (INSERT / UPDATE / NO-OP / ORPHAN) | ☑ | Default mode. `data/library_import_diff.txt` with INSERT / UPDATE (with old → new per field) / NO-OP / AMBIGUOUS / ORPHAN sections. |
+| Orphan report — `library_import_orphans.csv` listing books in DB but not in this CSV pass | ☑ | `data/library_import_orphans.csv` written every run. Pass 1 should be empty (smoke books cleaned out pre-apply); Pass 2 surfaces real orphans. |
+| Person creation — dedup by last_name + first_initial + middle_initial before INSERT | ☑ | Extracted to `src/lib/library/server/people-actions.ts` `findOrCreatePerson()`. Diacritic-folded normalization handles `à Kempis` → `a kempis`. Form-side `createPersonAction` and the importer share this helper. |
+| Junction row creation — book_authors (role, sort_order), book_categories (primary + secondary), series_id + volume_number — diff-based on update | ☑ | `syncAuthors` / `syncCategoriesJunction` in `importLibrary.ts` mirror the form-side `syncAuthors` / `syncCategories` shape. Series auto-create with `name = abbreviation` for unseeded series (~47 expected at apply). |
+| Subject → genre rewrites — LHB → BRF for TWOT, no-subject → BRF for ABD/TDNT/IVP/Oxford/etc. per PostBuild #3 | ☑ | `SUBJECT_TO_GENRE` map in `migrationOverrides.ts`. Per-book overrides set `genre: 'Biblical Reference'` directly for ABD/TDNT/TWOT (since their source `subject` is null). |
+| General library import (~1,020 books, `needs_review = true`, minimal cleaning) | ☑ | 1,047 source rows have blank Subject → null genre → `needs_review = true` via `Missing: genre` auto-line. Plus 287 OL no-match + 294 OL title-only flagged for review. Total review queue: ~1,172. |
+| Translator workaround — translators in `personal_notes` until structured migration ships post-trip | ☑ | Joüon/Muraoka override appends translator note to `personal_notes`. TDNT vols similarly note Bromiley translator in their group rule. Session 7 lifts these into structured `book_authors role='translator'`. |
+| Optional: partial unique index `CREATE UNIQUE INDEX books_isbn_uniq ON books (isbn) WHERE isbn IS NOT NULL AND deleted_at IS NULL` | ☑ Skipped | ISBN coverage 65.8% < 70% threshold. Deferred to pre-Pass-2 per decision 007 + decision 008. Resolves Open Question 9. |
+| Post-import validation queries | ☐ | Pending Pass 1 apply. SQL drafted in `scripts/library-import/README.md` step 8. |
+| Spot-check 20 random rows against `Library_Migration_Notes.md` | ☐ | Pending Pass 1 apply. `rows.json` already spot-checkable now (10 random rows reviewed during build; no integrity issues). |
+| Audit log sanity — imported rows have `changed_by = <owner_id>`, not NULL | ☐ | Pending Pass 1 apply. **Audit attribution path**: `auth.uid()` returns NULL under service-role key; the script falls back to a post-apply `UPDATE audit_log SET changed_by = $owner WHERE changed_at >= $start` per decision 007. Verified-by-smoke at `--apply --limit 1` (Open Question 10). |
 
-**Acceptance:**
-- [ ] Prod `books` count ≈ 1,288. Scholarly core (genre in Commentary / Bibles / Biblical Reference / Greek-Hebrew-Latin-German-Chinese Language Tools) with `needs_review = false` ≥ 250.
-- [ ] 20-row spot-check passes — zero data-integrity errors in authors, series, volume, genre. (Citation correctness is post-trip; data correctness is now.)
-- [ ] Audit log contains per-book INSERT rows attributed to owner.
-- [ ] `/library` list loads 1,288 rows under 500ms with Session 3 filters applied.
-- [ ] `/library/search-passage` against Phil 2 still returns the fixture rows (will return real data once Session 5 wires `book_bible_coverage`).
-- [ ] Zero FK violations across book_authors, book_categories, series_id, primary_category_id.
-- [ ] `npm run check` passes
-- [ ] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit
-- [ ] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template
-- [ ] viewer sees all 1,288 books, can filter `needs_review = true`, and can start the review queue from the road — tested by signing in as the viewer user
+**Acceptance — Pass 1 (LANDED 2026-04-30):**
+- [x] Prod `books` count = **1,331** (1,330 imported + 1 prior "Julius Caesar" UPDATEd in-place via title+author match). Scholarly core (genre in Commentary / Bibles / Biblical Reference / Greek/Hebrew Language Tools) with `needs_review = false` = **162** (target was ≥ 159 after planning revision; achieved).
+- [x] 20-row spot-check passes — TDNT 10 vols / ABD 6 vols / Brockhaus Enzyklopädie 24 vols / Wörterbuch 3 vols / supplementary 25-27 / BDAG / Wray Beal / ESVEC / Keil & Delitzsch / Westcott+Hort / Aland Synopsis all landed correctly. See `scripts/library-import/spot-check.ts` output.
+- [x] Audit log contains per-book INSERT rows attributed to owner — 3,981 NULL rows patched via `scripts/library-import/patch-audit.ts` against the cutoff timestamp at `data/pass1_start.txt`. Plus 32 from the Brockhaus fix-up patches.
+- [ ] `/library` list loads 1,331 rows under 500ms with Session 3 filters applied — _pending hands-on browser smoke; trigram GIN already in place from Session 3._
+- [ ] `/library/search-passage` against Phil 2 still returns the fixture rows — _pending hands-on; functionality unchanged from Session 3._
+- [x] Zero FK violations across book_authors, book_categories, series_id, primary_category_id — verified via `scripts/library-import/inspect-fk-orphans.ts`.
+- [x] `npm run check` passes
+- [x] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit — _N/A; no migration_
+- [x] `docs/decisions/008-library-pass-1-import.md` filed using the `AGENTS.md` template
+- [ ] viewer sees all 1,331 books, can filter `needs_review = true`, and can start the review queue from the road — _deferred: solo use until a collaborator joins_
+
+**Pass 1 apply prerequisites — all completed 2026-04-30:**
+- [x] `SUPABASE_SERVICE_ROLE_KEY` added to `.env`
+- [x] `POS_OWNER_ID` added to `.env` (`a14833c9-459e-4667-aef3-dae698734f6d`)
+- [x] `supabase/seed/library_smoke_data_cleanup.sql` executed in Studio (15 smoke rows DELETEd, plus the cleanup-SQL itself was patched after first run to delete junctions before parents — no `ON DELETE CASCADE` on the books FKs; new Surprise #8 in decision 008)
+- [x] `supabase/seed/library_pre_pass1_test_book_cleanup.sql` executed (additional 6 ad-hoc UI test books DELETEd: "Testing", "Grounded in Heaven", "IVP Bible Background"/"Greek"/"Hebrew", "Romeo and Juliet"; "Julius Caesar" left in place to land via UPDATE)
+- [x] `npx tsx scripts/library-import/buildImportRows.ts` run; `data/rows.report.txt` reviewed
+- [x] `npx tsx scripts/library-import/importLibrary.ts` (dry-run) run; diff reviewed (1,330 INSERT, 1 UPDATE, 0 NO-OP, 0 AMBIGUOUS, 0 ORPHAN)
+- [x] `--apply --limit 1` smoke run; audit attribution confirmed NULL → patched to owner_id via `patch-audit.ts` (resolves Open Question 10)
+- [x] `--apply` full run; 4 min 36 sec; 1329 INSERT + 1 UPDATE + 1 NO-OP (the limit=1 row from smoke was now NO-OP)
+- [x] Validation queries via `scripts/library-import/validate-pass1.ts` + `inspect-fk-orphans.ts`
+- [x] Brockhaus fix-up patch (`scripts/library-import/patch-brockhaus-fixups.ts`) — 3 Wörterbuch vols had source titles like "DEUTSCHES WÖRTERBUCH X-Y" my regex required "Brockhaus" prefix; "Die Heilige Schrift" had source series=BH (publisher confusion). Code fixed for Pass 2; 4 rows manually patched in DB. **Surprise #9 — B1/B2 trigger blocks `personal_notes` UPDATE under service-role auth**; patch script drops `personal_notes` from payload (letter-range note recoverable via UI).
+
+**Build state as of 2026-04-30 (Session 4 build complete; apply pending):**
+- `scripts/library-import/SPREADSHEET_OWNED_FIELDS.ts` — single source of truth + `pickSpreadsheetOwned()` helper
+- `src/lib/library/server/people-actions.ts` — `findOrCreatePerson` + `parseTypedName` (extracted from book-actions; B14 dedup with diacritic-fold)
+- `scripts/library-import/migrationOverrides.ts` — ~80 per-book overrides + Brockhaus group rules + ABD/TDNT/TWOT helpers + 1 deletion + 1 BDAG addition + 4 deferred shelf-checks
+- `scripts/library-import/buildImportRows.ts` — pure pipeline producing `rows.json` (1,331 rows; 159 clean, 1,172 review queue, 22 source-internal dup pairs)
+- `scripts/library-import/importLibrary.ts` — service-role apply with `--dry-run` (default) and `--apply [--limit N]`
+- `scripts/library-import/README.md` — sequence walkthrough
+- `supabase/seed/library_smoke_data_cleanup.sql` — pre-apply cleanup
+- `docs/Library_Migration_Notes.md` — committed copy of v1 notes
+- `docs/decisions/008-library-pass-1-import.md` — decision record
+
+**Acceptance — Pass 2 (early August, with v2 spreadsheet):**
+- [ ] Pass 2 dry-run against an updated CSV produces a coherent diff report. UPDATE rows show only spreadsheet-owned-field changes; NO-OP rows are the unchanged majority; ORPHAN rows are listed in `library_import_orphans.csv`.
+- [ ] Pass 2 `--apply` updates only spreadsheet-owned fields. Spot-check 5 books that you've personally edited during the trip period: `personal_notes`, `reading_status`, `rating`, `scripture_references`, `book_topics` are byte-identical pre/post Pass 2.
+- [ ] Pass 2 INSERTs zero books that already existed under a title/author variant (i.e. the ISBN-first match strategy worked).
+- [ ] Junctions reconciled diff-based: a book that gained a translator on the v2 spreadsheet shows exactly one new `book_authors` row, not a delete-and-reinsert of the existing author rows.
+- [ ] Audit log shows per-row UPDATEs attributable to owner with the spreadsheet-owned diff visible.
 
 ---
 
@@ -219,12 +267,16 @@ _Goal: Research-indexing primitives (`book_topics`, `book_bible_coverage`, `book
 | `book_ancient_coverage` multi-select — `<CanonicalizingCombobox>` against `ancient_texts` with inline create | ☐ | Inline create writes new `ancient_texts` rows; viewer permissions per A2 (owner-only create — viewer just selects existing). |
 | Zero new polymorphic-handling code — prove with grep | ☐ | `grep -r "book_id.*OR.*essay_id" src/lib/library/*` returns only Session 2's `polymorphic.ts`. |
 | Wire `book_bible_coverage` into `search_scripture_refs()` so a book covering the whole of Philippians surfaces on any Phil chapter/verse search | ☐ | Schema-level: scripture_references already does this. App-level: confirm coverage rows count for surfacing on book list when filtered by passage. |
+| **/library filter polish — Series facet → `<Combobox>` multi-select** (current 55-chip rail is unusable post-Pass-1) | ☐ | Same shape as `<PersonAutocomplete>`. Searchable by `name OR abbreviation`. URL-param-as-source-of-truth pattern from Session 3 stays. |
+| **/library filter polish — Add Author multi-select facet** | ☐ | Combobox against `people` (911+ rows; uses paginated loader). Searches `last_name + first_name`. Filters via `book_authors.person_id IN (...)` resolved to a `book_id IN (...)` list (parallel to keyword-q author resolution). |
+| **/library filter polish — Drop Category facet** | ☐ | Currently 1:1 with Genre after Pass 1's `SUBJECT_TO_GENRE` + `GENRE_TO_CATEGORY_SLUG` mapping. Keep `primary_category_id` column on the book form for shelving. See Open Question 11. |
 
 **Acceptance:**
 - [ ] Topic, bible coverage, and ancient coverage entry all use `<SourcePicker>` from Session 2 — zero new polymorphic primitives.
 - [ ] `<CanonicalizingCombobox>` works for both `ancient_texts` (multi-source autocomplete + inline owner-create) and `book_topics.topic` (with typo warning).
 - [ ] `/library/search-passage` against Phil 2 returns commentaries that have `book_bible_coverage` rows on Philippians, in addition to scripture_references hits.
 - [ ] Topic autocomplete prevents fragmentation — typing "chrisology" surfaces existing "christology" warning.
+- [ ] **Filter polish: `/library` Series facet uses `<Combobox>` multi-select; Author multi-select facet works against the full 911-person `loadPeople` set; Category facet is removed from the filter UI (Open Question 11 resolved).**
 - [ ] `npm run check` passes
 - [ ] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit
 - [ ] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template
@@ -232,9 +284,45 @@ _Goal: Research-indexing primitives (`book_topics`, `book_bible_coverage`, `book
 
 ---
 
+## Session 5.5 — Review Queue UI (~3h, pre-trip)
+
+_Goal: Make the ~1,169 `needs_review = true` rows from Pass 1 friction-free to work through during the trip. The existing `?needs_review=true` filter on `/library` is fine for desktop; this session ships a dedicated mobile-first "card stack" surface for batch review work. Lands BEFORE Session 6 so Session 6's mobile-polish smoke test exercises the new surface._
+
+_User trigger: requested 2026-04-30 after Pass 1 landed — 1,169 books in the review queue is too many to grind through via the list page._
+
+| Task | Done | Notes |
+|------|:----:|-------|
+| New route `/library/review` — card-stack UI, one book per screen, mobile-first. | ☑ | Server `load` returns 10 cards ordered by `id`; page tracks an `excludedIds` Set in `$state` and refills via `/library/review/queue/+server.ts` JSON endpoint when the local stack drops below 3. URL stays clean except for filter params. |
+| Per-card quick-actions: set `genre`, set `reading_status`, set `language`, soft-delete, **save + clear `needs_review`**, skip. | ☑ | `reviewSaveAction` overlays only the user-touched fields, flips `needs_review = false` UNCONDITIONALLY (explicit-user-reviewed overrides auto-flag), strips the `Missing: …` auto-line via the new `stripReviewAutoLine` helper. Soft-delete reuses `softDeleteBookAction`. Per-card text inputs for `title`/`year`/`publisher` only render when the underlying field is null. |
+| Filter integration — `?subject=blank` / `?subject=CMT` / `?match_type=title-only` / `?match_type=no-match`. | ☑ | `?subject=blank` → `genre IS NULL`. `?match_type=` requires the new `import_match_type` column (migration `20260501090000_books_import_match_type.sql` + 1,238-row backfill via `patch-import-match-type.ts`). `?subject=CMT` not implemented — superseded by `?genre=Commentary` (genre name is on the row; CMT was the source-spreadsheet code that became `genre`). Slice pill rail: All · No subject · No OL match · Title-only OL. |
+| Progress + counter: "12 of 1,169 reviewed today" + total-remaining. | ☑ | `reviewedThisSession` `$state` counter (transient); `countReviewQueue` for total-remaining-in-slice via `count: 'exact', head: true`. |
+| Hotkey support — `s` save+next, `Escape` skip+next. | ☑ | `<Button hotkey="s">` on Save, `<Button hotkey="Escape">` on Skip, `<Button hotkey="d">` on Delete (gated through `<ConfirmDialog>`). Page also has a window-level Esc handler so chip-button focus still skips. |
+| Mobile gesture: swipe right = save+next, swipe left = skip+next. | ☐ | Deferred — the keyboard hotkeys + thumb-sized buttons cover the trip-period workflow. Revisit if hands-on smoke shows real friction. |
+| Dashboard tile — "1,169 books need review" + deep link to `/library/review`. | ☑ | One-line addition on `/library` header: when `?needs_review=true` filter is active, swap `Search passage` button for `Drain queue (<count>)` anchor. Full dashboard tile remains Session 6 scope. |
+
+**Acceptance:**
+- [ ] Owner can sit on a phone and run through 50+ books in 5 minutes without leaving the route. _Pending hands-on smoke test._
+- [x] Save+next applies the user-set fields, strips the `needs_review_note` auto-line cleanly, flips `needs_review = false`, advances to the next card. _Implemented in `reviewSaveAction`; smoke test pending._
+- [x] Skip+next leaves the row untouched and advances. _Implemented purely client-side via `excludedIds`; smoke test pending._
+- [x] Counter updates live; queue depletion shows a "Done — N reviewed this session" celebration. _Trophy icon + count + Back-to-library + Reload-queue buttons._
+- [x] `?subject=blank` queue drains the no-subject chunk independently of the scholarly-core chunk. _`subject_blank` filter wired into `loadReviewQueue` + `countReviewQueue`._
+- [x] `npm run check` passes — 0 errors, 0 warnings.
+- [x] Migration added: `npm run supabase:gen-types` ran post-`20260501090000_books_import_match_type.sql`; `src/lib/types/database.ts` updated alongside.
+- [x] `docs/decisions/009-library-review-queue.md` filed using the `AGENTS.md` template.
+- [ ] viewer can use the review queue — _deferred: solo use until a collaborator joins. The card UI doesn't expose `personal_notes` / `rating` so the B1/B2 trigger has nothing to block; defensive owner-strip is in `reviewSaveAction` for parity with `updateBookAction`._
+
+**Session 5.5 build complete (2026-04-30)** — see `docs/decisions/009-library-review-queue.md` for the full rationale, including:
+- the `needs_review = false` override contract (differs from `parseBookForm`),
+- the local-state cursor + JSON refill endpoint pattern (Surprise #1: PostgREST 16KB header cap caps `.in('uuid_col', ...)` at ~200 entries),
+- the `import_match_type` schema add + 1,238-row backfill (92 unmatched rows kept at NULL — mostly Brockhaus rewrites; surfaced in the `All` slice and `?subject=blank` slice but not the `?match_type=` slices).
+
+---
+
 ## Session 6 — Mobile Polish + Barcode Add + Dashboard Tile + Raw-Field Copy (3–4h)
 
 _Goal: The trip-period workflow ships. Three flows must be friction-free on phone: passage search, scripture reference entry during reading, and barcode-add-to-library. Plus a small "raw field copy" affordance for any summer paper drafting that can't wait for full Turabian._
+
+_Barcode-add lands **after** Session 4 on purpose. Pre-migration scans would create thin rows that the Pass 1 importer would have to dedupe — possible but messy. Post-migration scans hit no spreadsheet match (genuinely new acquisitions) and just INSERT cleanly. See [`docs/decisions/007-reconcilable-library-import.md`](decisions/007-reconcilable-library-import.md) for the rationale._
 
 | Task | Done | Notes |
 |------|:----:|-------|
@@ -375,12 +463,16 @@ _Session-blocking. Resolve before the dependent session starts. Per-entity quest
 | # | Question | Status |
 |---|---|---|
 | 1 | `@zxing/browser` confirmed on actual phone, or does the 30-min spike reveal issues? | ☐ Open — resolve before Session 6 |
-| 2 | Open Library API rate limits — `enrich_library.py` full 1,288-book run hit any throttling? | ☐ Open — resolve during pre-Session 4 enrichment run |
+| 2 | Open Library API rate limits — `enrich_library.py` full 1,330-book run hit any throttling? | ☑ Resolved 2026-04-30 — full 1,330 rows enriched at 0.6s/req with no throttling. Match-type breakdown: title+author 749 (56.3%) / title-only 294 (22.1%) / no-match 287 (21.6%). |
 | 3 | Image upload max size / client-side compression before Supabase Storage? | ☑ Resolved Session 2 (2026-04-28) — bucket `library-scripture-images` private, 10 MB cap, mimes `jpeg/png/webp/heic`. Path `${userId}/${bookId}/${ulid}.${ext}` with first-segment self-prefix RLS check. Client-side downscale to ~2048px JPEG @ q=0.85 via `createImageBitmap`+canvas (HEIC fallback uploads original). Signed URLs (1h TTL) generated server-side per load. See `docs/decisions/004-library-scripture-references-wiring.md`. |
 | 4 | Bibliography export format — plain text only, or add markdown + .docx? | ☐ Open — plain text is floor; decide at Session 8 |
 | 5 | Article-level citations (essays UI) — needed for fall semester or deferrable? | ☐ Open — currently deferred per PostBuild #1; revisit if fall syllabus reveals essay-citation pressure |
 | 6 | Subject vs genre terminology — reconcile `Library_Migration_Notes.md` ("subject") with schema (`genre`) before Session 4 | ☐ Open — doc-side fix, pre-Session 4 |
 | 7 | OCR provider choice (Session 9) | ☐ Open — **blocking at start of Session 9** (now required, not optional). Re-confirm against `docs/decisions/005-scripture-refs-bulk-and-ocr-design.md` as the first task of Session 9. |
+| 8 | Pass 2 trigger — when does the v2 (corrected) scholarly-core spreadsheet get authored? | ☐ Open — likely accumulates during the trip period as the no-subject review queue surfaces corrections + as reading reveals title / edition / volume errors. Authoritative v2 commit by **early August** so Session 4 Pass 2 can run before Session 9 (OCR) and Session 8 (Turabian). Owner: pre-trip plan. See `docs/decisions/007-reconcilable-library-import.md`. |
+| 9 | Pass 1 ISBN coverage from `enrich_library.py` — high enough to ship the optional `books_isbn_uniq` partial unique index? | ☑ Resolved 2026-04-30 — 65.8% (875/1,330). Below the 70% threshold from decision 007. **SKIPPED for Pass 1**; will revisit pre-Pass-2 once the v2 spreadsheet has chased down missing ISBNs on the scholarly core. See `docs/decisions/008-library-pass-1-import.md`. |
+| 10 | Audit attribution — does `auth.uid()` propagate to `audit_log_trigger` from a service-role client, or do we need the post-apply `UPDATE audit_log` fallback? | ☑ Resolved 2026-04-30 — **fallback is required**. `auth.uid()` returns NULL under service-role, so trigger writes `changed_by = NULL`. `scripts/library-import/patch-audit.ts` patches the window. Same pattern needed for any future bulk-import via service-role. Side-effect: the B1/B2 viewer-column trigger on `personal_notes` / `rating` ALSO blocks UPDATEs (since `app_is_owner()` evaluates to false), so post-apply patches must drop those columns from the payload. See decision 008 Surprise #9. |
+| 11 | Genre vs `primary_category_id` long-term role on `/library` filters — keep both, or drop Category as redundant? | ☐ Open — **decide during Session 5 filter polish**. After Pass 1's `SUBJECT_TO_GENRE` + `GENRE_TO_CATEGORY_SLUG` mapping, every book's `primary_category_id` is derivable from `genre`, so the Category facet duplicates the Genre facet. Manually re-categorizing (e.g. a Pastoral commentary that shelves under Pastoral) would re-introduce signal. **Tentative decision: drop Category from the filter UI in Session 5**; keep the column on the book form for shelving. Revisit when there are ≥10 books whose `primary_category_id` differs from the genre→category default. |
 
 ---
 
@@ -404,6 +496,7 @@ The tracker is forward-looking; the rules and decision log absorb what we learn.
 - Session 1 ships books-with-junctions as the vertical slice — Session 0 decision 5d corrected an earlier draft that scoped Session 1 to books-alone. Library is search-first, and search needs author data.
 - Session 2's `<SourcePicker>` + `<CanonicalizingCombobox>` are deliberate component investments. Session 5 will reuse both with zero new polymorphic primitives. If Session 5 ends up writing polymorphic code, Session 2 failed.
 - Session 4 (migration) is the high-variance session in the pre-trip arc. Search and CRUD already work against fixtures by then, so a migration spill doesn't block the system.
+- **Session 5.5 (review queue UI) lands between 5 and 6** — added 2026-04-30 after Pass 1 surfaced 1,169 `needs_review = true` rows. The trip-period workflow needs a friction-free way to drain that queue from a phone; the existing list page's `?needs_review=true` filter is fine for desktop but not for batch work. Session 6's mobile-polish smoke test then exercises the new surface, so the two slot together cleanly.
 - Session 6 includes the **raw-field copy** affordance — not Turabian, just clipboard helpers for hand-rolled summer citations. Cheap insurance against summer paper drafting needs.
 - The trip period is **maintenance mode**: data entry, reading status, review queue. No migrations, no schema changes. If something breaks, fall back to read-only browsing.
 
