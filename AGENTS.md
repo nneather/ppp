@@ -71,6 +71,7 @@ End-of-session deliverables:
 - `npm run supabase:gen-types` — regenerate `src/lib/types/database.ts` (run after every migration)
 - `npm run supabase:deploy-functions` — deploy Edge Functions
 - `npm run supabase:ship` / `:ship:apply` — combined flow
+- `npm run library:migrate:dry` / `library:migrate:apply` — copy library rows local Postgres → hosted (env + flow: [`scripts/library-migrate-local-to-prod/README.md`](scripts/library-migrate-local-to-prod/README.md)); spreadsheet bulk import stays [`scripts/library-import/README.md`](scripts/library-import/README.md)
 
 ## Environment variables
 

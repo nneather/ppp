@@ -14,7 +14,8 @@
 - **Per-card quick-edit fields**: only the citation-critical inputs that drive
   the `Missing: …` auto-line render — `title`, `year`, `publisher` show as
   text inputs only when the underlying field is null. `genre`, `language`,
-  `reading_status` always render as chip rows. `Edit full` links to
+  `reading_status` use chip rows (collapsed summary when the value is already
+  set; tap to expand). `Edit full` links to
   `/library/books/[id]/edit` for the cards that need more.
 - **Slice pill rail** — `All` · `No subject` (genre IS NULL — the 1,047 chunk)
   · `No OL match` · `Title-only OL`. URL-as-source-of-truth pattern from
@@ -34,14 +35,25 @@
   92 unmatched are mostly Brockhaus rewrites + 8 ambiguous title-collision
   pairs — they keep `import_match_type = NULL`, which the loader treats as
   "unknown" and the slice rail simply doesn't surface).
-- **`/library` Drain queue handoff** — when the list-page `?needs_review=true`
-  filter is active, the header swaps the `Search passage` button for a
-  `Drain queue (<count>)` anchor.
+- **`/library` header entry** — **Search passage**, **Review queue**
+  (`/library/review`), and **New book** are always visible in the list header
+  (no `?needs_review=true` prerequisite). When that filter is on and the
+  filtered list is non-empty, the Review queue button label appends
+  `(<count>)` so the current slice size is visible at a glance.
 - **Carry-forward updates**: `multiParam` lifted into
   `src/lib/library/server/url-params.ts` (shared by `/library` +
   `/library/review`); `import_match_type` added to `SPREADSHEET_OWNED_FIELDS`
   so Pass 2 keeps it fresh; `IMPORT_MATCH_TYPES` constant +
   `IMPORT_MATCH_TYPE_LABELS` map exported from `src/lib/types/library.ts`.
+- **`/library/review` follow-ups (queue UX)** — URL-only re-seed (`$effect` keyed
+  off `page.url.search`, not `data.cards`) so save/skip/delete no longer resets
+  the local stack when the default `enhance` `invalidateAll` would rerun load.
+  Form handlers use `update({ reset: false, invalidateAll: false })` plus
+  `disableScrollHandling()` and scroll `#review-card` into view after advance.
+  **Back** (skip-only stack) returns the last skipped card to the front;
+  **Save/Delete** do not push history. Genre / reading status / language chip
+  rows default to a one-line summary when the server already has a value;
+  tap to expand full chips (cards with no genre keep the row open).
 
 ## Decided (non-obvious)
 
@@ -78,6 +90,11 @@
   + Pass-2-aware ownership in `SPREADSHEET_OWNED_FIELDS` is the durable shape.
 - **No `<CardStack>` component extraction** — the page is the only consumer.
   Per `.cursor/rules/components.mdc`, extract on second usage.
+- **Review `enhance` uses `invalidateAll: false`.** Global invalidation after
+  every save was re-running `load`, updating `data.cards`, and firing a re-seed
+  effect tied to props — wiping `excludedIds` and jumping to the server’s first
+  page. The queue is authoritative in page `$state`; `/library` may be briefly
+  stale until the user navigates there (same as before if they never hit Review).
 
 ## Schema changes
 

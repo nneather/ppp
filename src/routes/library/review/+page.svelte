@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { disableScrollHandling, goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
@@ -49,26 +49,11 @@
 	let reviewedThisSession = $state(0);
 	/** Skipped + just-saved ids — passed back to the queue endpoint to avoid replays. */
 	let excludedIds = $state<Set<string>>(new Set());
+	/** Skipped cards only — Back can return one to the front of the stack. */
+	let skippedStack = $state<ReviewCard[]>([]);
 	let refilling = $state(false);
 
-	/** When the URL filters change (slice switch), re-seed everything. */
-	$effect(() => {
-		const seedCards = data.cards;
-		const seedRemaining = data.remaining;
-		untrack(() => {
-			cards = seedCards;
-			remaining = seedRemaining;
-			excludedIds = new Set();
-			pendingSaveId = null;
-			editTitle = null;
-			editYear = null;
-			editPublisher = null;
-			editGenre = null;
-			editLanguage = null;
-			editReadingStatus = null;
-			confirmDeleteOpen = false;
-		});
-	});
+	let previousUrlSearch = $state<string | undefined>(undefined);
 
 	const currentCard = $derived<ReviewCard | null>(cards.length > 0 ? cards[0] : null);
 
@@ -83,6 +68,39 @@
 	let confirmDeleteOpen = $state(false);
 	let confirmDeletePending = $state(false);
 
+	/** Collapsed chip rows default closed when the server already has a value. */
+	let metaGenreExpanded = $state(false);
+	let metaStatusExpanded = $state(false);
+	let metaLangExpanded = $state(false);
+
+	/**
+	 * Re-seed only when the queue URL changes (slice / filters), not when `data`
+	 * refreshes after a form action — otherwise excludedIds and the local stack reset.
+	 */
+	$effect(() => {
+		const search = page.url.search;
+		const seedCards = data.cards;
+		const seedRemaining = data.remaining;
+		if (previousUrlSearch === undefined) {
+			previousUrlSearch = search;
+			return;
+		}
+		if (search === previousUrlSearch) return;
+		previousUrlSearch = search;
+		cards = seedCards;
+		remaining = seedRemaining;
+		excludedIds = new Set();
+		skippedStack = [];
+		pendingSaveId = null;
+		editTitle = null;
+		editYear = null;
+		editPublisher = null;
+		editGenre = null;
+		editLanguage = null;
+		editReadingStatus = null;
+		confirmDeleteOpen = false;
+	});
+
 	function resetEditState() {
 		editTitle = null;
 		editYear = null;
@@ -92,16 +110,28 @@
 		editReadingStatus = null;
 	}
 
-	/** When the visible card changes, clear in-progress edits. */
+	/** When the visible card changes, clear in-progress edits and metadata row layout. */
 	$effect(() => {
-		const id = currentCard?.id;
+		const c = currentCard;
+		const id = c?.id;
 		untrack(() => {
 			if (id !== pendingSaveId) {
 				resetEditState();
 				confirmDeleteOpen = false;
+				if (c) {
+					metaGenreExpanded = !c.genre;
+					metaStatusExpanded = false;
+					metaLangExpanded = false;
+				}
 			}
 		});
 	});
+
+	async function scrollReviewCardIntoView() {
+		if (!browser) return;
+		await tick();
+		document.getElementById('review-card')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+	}
 
 	// -------------------------------------------------------------------------
 	// Refetch when the local stack runs low. Pulls the next batch via the JSON
@@ -136,6 +166,16 @@
 		excludedIds = new Set([...excludedIds, savedOrSkippedId]);
 		cards = cards.filter((c) => c.id !== savedOrSkippedId);
 		void refillIfLow();
+		void scrollReviewCardIntoView();
+	}
+
+	function goBackToSkipped() {
+		if (skippedStack.length === 0) return;
+		const prev = skippedStack[skippedStack.length - 1];
+		skippedStack = skippedStack.slice(0, -1);
+		excludedIds = new Set([...excludedIds].filter((id) => id !== prev.id));
+		cards = [prev, ...cards];
+		void scrollReviewCardIntoView();
 	}
 
 	// -------------------------------------------------------------------------
@@ -147,7 +187,8 @@
 			const id = String(formData.get('id') ?? '');
 			pendingSaveId = id;
 			return async ({ result, update }) => {
-				await update({ reset: false });
+				disableScrollHandling();
+				await update({ reset: false, invalidateAll: false });
 				if (result.type === 'success') {
 					reviewedThisSession += 1;
 					remaining = Math.max(0, remaining - 1);
@@ -160,6 +201,7 @@
 
 	function skipCurrent() {
 		if (!currentCard) return;
+		skippedStack = [...skippedStack, currentCard];
 		advance(currentCard.id);
 	}
 
@@ -168,7 +210,8 @@
 			const id = String(formData.get('id') ?? '');
 			confirmDeletePending = true;
 			return async ({ result, update }) => {
-				await update({ reset: false });
+				disableScrollHandling();
+				await update({ reset: false, invalidateAll: false });
 				confirmDeletePending = false;
 				confirmDeleteOpen = false;
 				if (result.type === 'success') {
@@ -356,7 +399,13 @@
 			{@const missing = previewMissing(card)}
 			{@const auto = autoLinePart(card.needs_review_note)}
 			{@const userNote = userNotePart(card.needs_review_note)}
-			<article class="rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+			{@const genreRowOpen = !card.genre || editGenre !== null || metaGenreExpanded}
+			{@const statusRowOpen = editReadingStatus !== null || metaStatusExpanded}
+			{@const langRowOpen = editLanguage !== null || metaLangExpanded}
+			<article
+				id="review-card"
+				class="rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm"
+			>
 				<!-- Title block -->
 				<div class="flex items-start justify-between gap-3">
 					<div class="min-w-0">
@@ -465,30 +514,49 @@
 
 					<!-- Genre chip row -->
 					<div>
-						<div class="mb-1.5 text-xs font-medium text-muted-foreground">Genre</div>
-						<div class="flex flex-wrap gap-1.5">
-							{#each GENRES as g (g)}
-								{@const active = effectiveGenre(card) === g}
-								<button
-									type="button"
-									class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipClasses(active)}`}
-									onclick={() => (editGenre = active ? null : g)}
-									aria-pressed={active}
+						{#if genreRowOpen}
+							<div class="mb-1.5 text-xs font-medium text-muted-foreground">Genre</div>
+							<div class="flex flex-wrap gap-1.5">
+								{#each GENRES as g (g)}
+									{@const active = effectiveGenre(card) === g}
+									<button
+										type="button"
+										class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipClasses(active)}`}
+										onclick={() => {
+											metaGenreExpanded = true;
+											editGenre = active ? null : g;
+										}}
+										aria-pressed={active}
+									>
+										{g}
+									</button>
+								{/each}
+								{#if effectiveGenre(card)}
+									<button
+										type="button"
+										class="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
+										onclick={() => (editGenre = null as unknown as Genre)}
+										title="Clear genre"
+									>
+										clear
+									</button>
+								{/if}
+							</div>
+						{:else}
+							<button
+								type="button"
+								class="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-2 py-2 text-left hover:bg-muted/50"
+								onclick={() => (metaGenreExpanded = true)}
+							>
+								<ChevronRight
+									class="size-4 shrink-0 text-muted-foreground rtl:rotate-180"
+								/>
+								<span class="text-xs font-medium text-muted-foreground">Genre</span>
+								<span class="min-w-0 flex-1 truncate text-xs text-foreground"
+									>{effectiveGenre(card)}</span
 								>
-									{g}
-								</button>
-							{/each}
-							{#if effectiveGenre(card)}
-								<button
-									type="button"
-									class="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
-									onclick={() => (editGenre = null as unknown as Genre)}
-									title="Clear genre"
-								>
-									clear
-								</button>
-							{/if}
-						</div>
+							</button>
+						{/if}
 						{#if effectiveGenre(card)}
 							<input type="hidden" name="genre" value={effectiveGenre(card)} />
 						{:else}
@@ -498,39 +566,77 @@
 
 					<!-- Reading status chip row -->
 					<div>
-						<div class="mb-1.5 text-xs font-medium text-muted-foreground">Reading status</div>
-						<div class="flex flex-wrap gap-1.5">
-							{#each READING_STATUSES as s (s)}
-								{@const active = effectiveReadingStatus(card) === s}
-								<button
-									type="button"
-									class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipClasses(active)}`}
-									onclick={() => (editReadingStatus = s)}
-									aria-pressed={active}
+						{#if statusRowOpen}
+							<div class="mb-1.5 text-xs font-medium text-muted-foreground">Reading status</div>
+							<div class="flex flex-wrap gap-1.5">
+								{#each READING_STATUSES as s (s)}
+									{@const active = effectiveReadingStatus(card) === s}
+									<button
+										type="button"
+										class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipClasses(active)}`}
+										onclick={() => {
+											metaStatusExpanded = true;
+											editReadingStatus = s;
+										}}
+										aria-pressed={active}
+									>
+										{READING_STATUS_LABELS[s]}
+									</button>
+								{/each}
+							</div>
+						{:else}
+							<button
+								type="button"
+								class="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-2 py-2 text-left hover:bg-muted/50"
+								onclick={() => (metaStatusExpanded = true)}
+							>
+								<ChevronRight
+									class="size-4 shrink-0 text-muted-foreground rtl:rotate-180"
+								/>
+								<span class="text-xs font-medium text-muted-foreground">Reading status</span>
+								<span class="min-w-0 flex-1 truncate text-xs text-foreground"
+									>{READING_STATUS_LABELS[effectiveReadingStatus(card)]}</span
 								>
-									{READING_STATUS_LABELS[s]}
-								</button>
-							{/each}
-						</div>
+							</button>
+						{/if}
 						<input type="hidden" name="reading_status" value={effectiveReadingStatus(card)} />
 					</div>
 
 					<!-- Language chip row -->
 					<div>
-						<div class="mb-1.5 text-xs font-medium text-muted-foreground">Language</div>
-						<div class="flex flex-wrap gap-1.5">
-							{#each LANGUAGES as l (l)}
-								{@const active = effectiveLanguage(card) === l}
-								<button
-									type="button"
-									class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipClasses(active)}`}
-									onclick={() => (editLanguage = l as Language)}
-									aria-pressed={active}
+						{#if langRowOpen}
+							<div class="mb-1.5 text-xs font-medium text-muted-foreground">Language</div>
+							<div class="flex flex-wrap gap-1.5">
+								{#each LANGUAGES as l (l)}
+									{@const active = effectiveLanguage(card) === l}
+									<button
+										type="button"
+										class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipClasses(active)}`}
+										onclick={() => {
+											metaLangExpanded = true;
+											editLanguage = l as Language;
+										}}
+										aria-pressed={active}
+									>
+										{LANGUAGE_LABELS[l as Language]}
+									</button>
+								{/each}
+							</div>
+						{:else}
+							<button
+								type="button"
+								class="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-2 py-2 text-left hover:bg-muted/50"
+								onclick={() => (metaLangExpanded = true)}
+							>
+								<ChevronRight
+									class="size-4 shrink-0 text-muted-foreground rtl:rotate-180"
+								/>
+								<span class="text-xs font-medium text-muted-foreground">Language</span>
+								<span class="min-w-0 flex-1 truncate text-xs text-foreground"
+									>{LANGUAGE_LABELS[effectiveLanguage(card) as Language]}</span
 								>
-									{LANGUAGE_LABELS[l as Language]}
-								</button>
-							{/each}
-						</div>
+							</button>
+						{/if}
 						<input type="hidden" name="language" value={effectiveLanguage(card)} />
 					</div>
 
@@ -553,6 +659,13 @@
 							hotkey="s"
 							label={pendingSaveId === card.id ? 'Saving…' : 'Save'}
 							disabled={pendingSaveId !== null}
+						/>
+						<Button
+							type="button"
+							variant="outline"
+							label="Back"
+							onclick={goBackToSkipped}
+							disabled={pendingSaveId !== null || skippedStack.length === 0}
 						/>
 						<Button
 							type="button"
@@ -590,6 +703,7 @@
 				<kbd class="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px]">Esc</kbd> skip
 				·
 				<kbd class="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px]">⌘D</kbd> delete
+				· Back returns the last skipped card
 			</p>
 		{:else if refilling}
 			<div class="flex flex-col items-center gap-3 py-12 text-center">

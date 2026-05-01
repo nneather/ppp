@@ -376,16 +376,18 @@
 		<span class="text-sm text-muted-foreground">
 			Showing {data.books.length} of {data.totalCount}
 		</span>
-		<div class="ml-auto flex items-center gap-2">
-			{#if filters.needs_review === true && data.books.length > 0}
-				<Button variant="outline" href="/library/review" class="gap-2">
-					<ClipboardCheck class="size-4" /> Drain queue ({data.books.length})
-				</Button>
-			{:else}
-				<Button variant="outline" href="/library/search-passage">
-					<Search class="size-4" /> Search passage
-				</Button>
-			{/if}
+		<div class="ml-auto flex flex-wrap items-center justify-end gap-2">
+			<Button variant="outline" href="/library/search-passage">
+				<Search class="size-4" /> Search passage
+			</Button>
+			<Button variant="outline" href="/library/review" class="gap-2">
+				<ClipboardCheck class="size-4" />
+				{#if filters.needs_review === true && data.books.length > 0}
+					Review queue ({data.books.length})
+				{:else}
+					Review queue
+				{/if}
+			</Button>
 			<Button href="/library/books/new" class="gap-2" hotkey="b">
 				<Plus class="size-4" /> <HotkeyLabel label="New book" mnemonic="b" />
 			</Button>

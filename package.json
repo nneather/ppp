@@ -19,7 +19,9 @@
 		"supabase:deploy-functions": "dotenv -e .env -- bash -c 'supabase functions deploy generate-invoice-pdf --project-ref $SUPABASE_REF && supabase functions deploy send-invoice --project-ref $SUPABASE_REF'",
 		"supabase:gen-types": "dotenv -e .env -- bash -c 'supabase gen types typescript --project-id $SUPABASE_REF --schema public > src/lib/types/database.ts'",
 		"supabase:ship": "npm run check && npm run supabase:db:push:dry && echo '\\nDry run OK. Review above, then run: npm run supabase:ship:apply'",
-		"supabase:ship:apply": "npm run check && npm run supabase:db:push && npm run supabase:deploy-functions"
+		"supabase:ship:apply": "npm run check && npm run supabase:db:push && npm run supabase:deploy-functions",
+		"library:migrate:dry": "dotenv -e .env -e .env.local -- tsx scripts/library-migrate-local-to-prod/migrateLibraryData.ts",
+		"library:migrate:apply": "dotenv -e .env -e .env.local -- tsx scripts/library-migrate-local-to-prod/migrateLibraryData.ts --apply"
 	},
 	"devDependencies": {
 		"@fontsource-variable/geist": "^5.2.8",
@@ -33,6 +35,7 @@
 		"clsx": "^2.1.1",
 		"dotenv": "^17.4.2",
 		"dotenv-cli": "^11.0.0",
+		"postgres": "^3.4.9",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.4.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
