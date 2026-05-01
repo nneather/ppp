@@ -177,7 +177,11 @@
 				{#each data.results as r (r.ref_id)}
 					<li>
 						<a
-							href={r.book_id ? `/library/books/${r.book_id}#ref-${r.ref_id}` : '#'}
+							href={r.book_id
+								? r.source_kind === 'ref'
+									? `/library/books/${r.book_id}#ref-${r.ref_id}`
+									: `/library/books/${r.book_id}`
+								: '#'}
 							class="block rounded-lg border border-border bg-card p-3 text-card-foreground transition-colors hover:border-ring/60 hover:bg-muted/20"
 						>
 							<div class="flex flex-wrap items-start justify-between gap-3">
@@ -205,7 +209,14 @@
 									{/if}
 								</div>
 								<div class="flex shrink-0 flex-wrap gap-1">
-									{#if r.manual_entry}
+									{#if r.source_kind === 'coverage'}
+										<span
+											class="inline-flex items-center rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700 dark:text-sky-200"
+											title="Book tagged as covering this bible book; no specific page entry yet."
+										>
+											Coverage
+										</span>
+									{:else if r.manual_entry}
 										<span class="inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
 											Manual
 										</span>

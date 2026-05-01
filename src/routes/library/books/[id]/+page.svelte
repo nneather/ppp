@@ -20,7 +20,11 @@
 	} from '$lib/types/library';
 	import type { ReadingStatus, ScriptureRefRow, BookListRow } from '$lib/types/library';
 	import ScriptureReferenceForm from '$lib/components/scripture-reference-form.svelte';
+	import BookTopicForm from '$lib/components/book-topic-form.svelte';
+	import BookBibleCoverageEditor from '$lib/components/book-bible-coverage-editor.svelte';
+	import BookAncientCoverageEditor from '$lib/components/book-ancient-coverage-editor.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
+	import type { BookTopicRow } from '$lib/types/library';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -277,6 +281,71 @@
 			}
 		};
 	};
+
+	// -------------------------------------------------------------------------
+	// Topics section
+	// -------------------------------------------------------------------------
+	let topicAddOpen = $state(false);
+	let editingTopicId = $state<string | null>(null);
+	let topicPendingDeleteId = $state<string | null>(null);
+	let topicConfirmDeleteOpen = $state(false);
+	let topicDeletePending = $state(false);
+	let topicDeleteFormEl = $state<HTMLFormElement | null>(null);
+	let topicDeleteIdField = $state<HTMLInputElement | null>(null);
+
+	let topics = $state<BookTopicRow[]>([]);
+	$effect(() => {
+		topics = data.bookTopics;
+	});
+
+	function startEditTopic(id: string) {
+		editingTopicId = id;
+		topicAddOpen = false;
+	}
+	function cancelEditTopic() {
+		editingTopicId = null;
+	}
+	async function onTopicCreated() {
+		topicAddOpen = false;
+		await invalidateAll();
+	}
+	async function onTopicUpdated() {
+		editingTopicId = null;
+		await invalidateAll();
+	}
+	function requestDeleteTopic(id: string) {
+		topicPendingDeleteId = id;
+		topicConfirmDeleteOpen = true;
+	}
+	function confirmDeleteTopic() {
+		if (!topicPendingDeleteId || !topicDeleteFormEl || !topicDeleteIdField) return;
+		topicDeleteIdField.value = topicPendingDeleteId;
+		topicDeleteFormEl.requestSubmit();
+	}
+	const deleteTopicEnhance: SubmitFunction = () => {
+		topicDeletePending = true;
+		const removingId = topicPendingDeleteId;
+		if (removingId) topics = topics.filter((t) => t.id !== removingId);
+		return async () => {
+			topicDeletePending = false;
+			topicConfirmDeleteOpen = false;
+			topicPendingDeleteId = null;
+			await invalidateAll();
+		};
+	};
+
+	const topicFormMessage = $derived.by(() => {
+		const f = form as { kind?: string; message?: string; topicId?: string } | null;
+		if (!f) return null;
+		if (
+			f.kind === 'createBookTopicsBatch' ||
+			f.kind === 'updateBookTopic' ||
+			f.kind === 'softDeleteBookTopic'
+		) {
+			return f;
+		}
+		return null;
+	});
 </script>
 
 <svelte:head>
@@ -625,7 +694,215 @@
 			</div>
 		{/if}
 	</section>
+
+	<!-- ------------------------------------------------------------------- -->
+	<!-- Bible coverage                                                         -->
+	<!-- ------------------------------------------------------------------- -->
+	<section class="mt-10" aria-labelledby="bible-coverage-heading">
+		<div class="flex items-center justify-between gap-3">
+			<h2
+				id="bible-coverage-heading"
+				class="text-lg font-semibold tracking-tight text-foreground"
+			>
+				Bible coverage
+				{#if data.bibleCoverage.length > 0}
+					<span class="ml-1 text-sm font-normal text-muted-foreground">({data.bibleCoverage.length})</span>
+				{/if}
+			</h2>
+		</div>
+		<p class="mt-1 text-xs text-muted-foreground">
+			Which biblical books does this work cover? Tagged books surface on passage search.
+		</p>
+		<div class="mt-3">
+			<BookBibleCoverageEditor
+				bookId={data.book.id}
+				bibleBookNames={data.bibleBookNames}
+				covered={data.bibleCoverage}
+			/>
+		</div>
+	</section>
+
+	<!-- ------------------------------------------------------------------- -->
+	<!-- Ancient-text coverage                                                 -->
+	<!-- ------------------------------------------------------------------- -->
+	<section class="mt-10" aria-labelledby="ancient-coverage-heading">
+		<div class="flex items-center justify-between gap-3">
+			<h2
+				id="ancient-coverage-heading"
+				class="text-lg font-semibold tracking-tight text-foreground"
+			>
+				Ancient-text coverage
+				{#if data.ancientCoverage.length > 0}
+					<span class="ml-1 text-sm font-normal text-muted-foreground">({data.ancientCoverage.length})</span>
+				{/if}
+			</h2>
+		</div>
+		<div class="mt-3">
+			<BookAncientCoverageEditor
+				bookId={data.book.id}
+				ancientTexts={data.ancientTexts}
+				coverage={data.ancientCoverage}
+				isOwner={data.isOwner}
+			/>
+		</div>
+	</section>
+
+	<!-- ------------------------------------------------------------------- -->
+	<!-- Topics                                                                -->
+	<!-- ------------------------------------------------------------------- -->
+	<section class="mt-10" aria-labelledby="book-topics-heading">
+		<div class="flex items-center justify-between gap-3">
+			<h2 id="book-topics-heading" class="text-lg font-semibold tracking-tight text-foreground">
+				Topics
+				{#if topics.length > 0}
+					<span class="ml-1 text-sm font-normal text-muted-foreground">({topics.length})</span>
+				{/if}
+			</h2>
+			{#if !topicAddOpen}
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onclick={() => {
+						topicAddOpen = true;
+						editingTopicId = null;
+					}}
+				>
+					<Plus class="size-4" /> Add topics
+				</Button>
+			{/if}
+		</div>
+
+		{#if topics.length === 0 && !topicAddOpen}
+			<p class="mt-4 rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+				No topics yet. Click <strong class="font-semibold text-foreground">Add</strong> to tag what this book says about a particular topic.
+			</p>
+		{/if}
+
+		{#if topics.length > 0}
+			<ul class="mt-4 flex flex-col gap-3">
+				{#each topics as topic (topic.id)}
+					<li>
+						{#if editingTopicId === topic.id}
+							<BookTopicForm
+								books={sourcePickerBooks}
+								topicCounts={data.topicCounts}
+								lockedBookId={data.book.id}
+								userId={data.userId}
+								existingTopic={topic}
+								formMessage={topicFormMessage}
+								onSaved={onTopicUpdated}
+								onCancel={cancelEditTopic}
+							/>
+						{:else}
+							<article class="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card p-3 text-card-foreground">
+								<div class="flex min-w-0 flex-1 items-start gap-3">
+									{#if topic.source_image_signed_url}
+										<a
+											href={topic.source_image_signed_url}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="shrink-0"
+											aria-label="Open page image in a new tab"
+										>
+											<img
+												src={topic.source_image_signed_url}
+												alt="Source page"
+												class="size-16 rounded-md border border-border object-cover"
+												loading="lazy"
+											/>
+										</a>
+									{/if}
+									<div class="min-w-0 flex-1">
+										<div class="flex flex-wrap items-center gap-2">
+											<span class="font-medium text-foreground">{topic.topic}</span>
+											<span class="text-sm text-muted-foreground">
+												{#if topic.page_end && topic.page_end !== topic.page_start}
+													pp. {topic.page_start}&ndash;{topic.page_end}
+												{:else}
+													p. {topic.page_start}
+												{/if}
+											</span>
+											{#if topic.needs_review}
+												<span
+													class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
+												>
+													<AlertCircle class="size-3" /> Needs review
+												</span>
+											{/if}
+										</div>
+										{#if topic.review_note}
+											<p class="mt-1 text-xs text-muted-foreground">{topic.review_note}</p>
+										{/if}
+									</div>
+								</div>
+								<div class="flex shrink-0 gap-1">
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onclick={() => startEditTopic(topic.id)}
+										aria-label={`Edit topic ${topic.topic}`}
+									>
+										<Pencil class="size-4" /> Edit
+									</Button>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onclick={() => requestDeleteTopic(topic.id)}
+										aria-label={`Delete topic ${topic.topic}`}
+										class="text-destructive hover:text-destructive"
+									>
+										<Trash2 class="size-4" />
+									</Button>
+								</div>
+							</article>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+
+		{#if topicAddOpen}
+			<div class="mt-4">
+				<BookTopicForm
+					books={sourcePickerBooks}
+					topicCounts={data.topicCounts}
+					lockedBookId={data.book.id}
+					userId={data.userId}
+					formMessage={topicFormMessage}
+					onSavedBatch={onTopicCreated}
+					onCancel={() => (topicAddOpen = false)}
+				/>
+			</div>
+		{/if}
+	</section>
 </div>
+
+<form
+	method="POST"
+	action="?/softDeleteBookTopic"
+	use:enhance={deleteTopicEnhance}
+	bind:this={topicDeleteFormEl}
+	class="hidden"
+>
+	<input type="hidden" name="id" value="" bind:this={topicDeleteIdField} />
+</form>
+
+<ConfirmDialog
+	bind:open={topicConfirmDeleteOpen}
+	title="Delete topic?"
+	description="This soft-deletes the row. You can restore it from the audit log if needed."
+	confirmLabel="Delete"
+	cancelLabel="Keep"
+	destructive
+	pending={topicDeletePending}
+	onConfirm={confirmDeleteTopic}
+	onCancel={() => {
+		topicPendingDeleteId = null;
+	}}
+/>
 
 <!-- Hidden delete form: confirm dialog drives requestSubmit() against this. -->
 <form

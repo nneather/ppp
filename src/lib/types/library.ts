@@ -177,7 +177,7 @@ export type PersonDedupHint = {
 };
 
 /**
- * URL-driven filter shape for the `/library` list page (Session 3).
+ * URL-driven filter shape for the `/library` list page (Session 3 + Session 5).
  *
  * AND between filter types, OR within (e.g. `genre: ['Commentary', 'Theology']`
  * matches either; combining `genre` + `series_id` requires both). `q` is a
@@ -185,14 +185,18 @@ export type PersonDedupHint = {
  * (via `book_authors` join), backed by the trigram GIN indexes installed in
  * migration `20260429190000_books_title_trigram_index.sql`.
  *
- * `category_id` matches BOTH the primary_category_id column AND any row in the
- * `book_categories` junction — a book "tagged" with a category should match
- * even when it isn't the primary.
+ * Session 5 changes:
+ * - `category_id` dropped from the filter UI per Open Question 11. After
+ *   Pass 1's `SUBJECT_TO_GENRE` mapping, every book's `primary_category_id`
+ *   is derivable from `genre`, so the Category facet duplicated Genre. The
+ *   `books.primary_category_id` column is still populated for shelving.
+ * - `author_id` added — multi-select against the 911-person loadPeople set.
+ *   Resolves to `book_id IN (...)` via a parallel SELECT on `book_authors`.
  */
 export type BookListFilters = {
 	genre?: string[];
-	category_id?: string[];
 	series_id?: string[];
+	author_id?: string[];
 	language?: Language[];
 	reading_status?: ReadingStatus[];
 	needs_review?: boolean;
@@ -229,14 +233,22 @@ export type ReviewCard = BookListRow & {
 };
 
 /**
- * Result row from the `search_scripture_refs` SQL RPC. Mirrors the function's
- * RETURNS TABLE shape (see `supabase/migrations/20260425180000_search_scripture_refs.sql`).
+ * Result row for `/library/search-passage`. Merges two sources:
  *
- * `manual_entry` is computed in the SQL: true when `confidence_score IS NULL`
- * (i.e. user-entered rather than OCR-derived). The function pre-sorts manual
- * entries first per audit-doc S7.
+ *   - `source_kind: 'ref'`: a row from `search_scripture_refs` — a precise
+ *     verse / chapter / range hit on `scripture_references`.
+ *   - `source_kind: 'coverage'`: a row from `book_bible_coverage` — the book
+ *     covers the queried bible_book as a whole. Surfaces commentaries that
+ *     haven't had individual scripture refs entered yet.
+ *
+ * The UI treats the two differently (coverage hits have no page / verse
+ * specificity) but both point at the same book for the deep-link.
+ *
+ * `manual_entry` is computed in the SQL for 'ref' rows (true when
+ * `confidence_score IS NULL`). Coverage rows are always `manual_entry: true`.
  */
 export type PassageResult = {
+	source_kind: 'ref' | 'coverage';
 	ref_id: string;
 	book_id: string | null;
 	essay_id: string | null;
@@ -247,12 +259,60 @@ export type PassageResult = {
 	verse_start: number | null;
 	chapter_end: number | null;
 	verse_end: number | null;
-	page_start: string;
+	page_start: string | null;
 	page_end: string | null;
 	confidence_score: number | null;
 	needs_review: boolean;
 	review_note: string | null;
 	manual_entry: boolean;
+};
+
+/**
+ * Ancient-text row — drives the ancient_texts combobox + coverage hydration.
+ * `canonical_name` is UNIQUE at the schema level; `abbreviations` is the
+ * alternate-spellings array (e.g. ['Ant.', 'A.J.', 'Antiquities']).
+ */
+export type AncientTextRow = {
+	id: string;
+	canonical_name: string;
+	abbreviations: string[];
+	category: string | null;
+};
+
+/** Ancient-coverage junction row hydrated with the ancient text it points at. */
+export type AncientCoverageRow = {
+	id: string;
+	ancient_text_id: string;
+	canonical_name: string;
+	abbreviations: string[];
+	category: string | null;
+};
+
+/** Topic row view-model — book_topics joined back for /library/books/[id]. */
+export type BookTopicRow = {
+	id: string;
+	book_id: string | null;
+	essay_id: string | null;
+	topic: string;
+	page_start: string;
+	page_end: string | null;
+	confidence_score: number | null;
+	needs_review: boolean;
+	review_note: string | null;
+	source_image_url: string | null;
+	source_image_signed_url: string | null;
+	created_at: string;
+};
+
+/**
+ * Topic-usage count, surfaced for the typo-warning gate in
+ * <CanonicalizingCombobox>: we only warn when the typed-new topic is fuzzy
+ * to an existing topic AND the existing topic has < 3 uses (below-threshold
+ * fragmentation risk). `topic` is the lowercased canonical value.
+ */
+export type TopicCount = {
+	topic: string;
+	count: number;
 };
 
 /**

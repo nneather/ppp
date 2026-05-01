@@ -1,8 +1,13 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
+	loadAncientCoverageForBook,
+	loadAncientTexts,
+	loadAllTopicCounts,
 	loadBibleBookNames,
+	loadBibleCoverageForBook,
 	loadBookDetail,
+	loadBookTopicsForBook,
 	loadCategories,
 	loadPeople,
 	loadPersonBookCounts,
@@ -20,6 +25,18 @@ import {
 	softDeleteScriptureRefAction,
 	updateScriptureRefAction
 } from '$lib/library/server/scripture-actions';
+import {
+	createBookTopicsBatchAction,
+	softDeleteBookTopicAction,
+	updateBookTopicAction
+} from '$lib/library/server/topic-actions';
+import {
+	createAncientCoverageAction,
+	createAncientTextAction,
+	createBibleCoverageAction,
+	softDeleteAncientCoverageAction,
+	softDeleteBibleCoverageAction
+} from '$lib/library/server/coverage-actions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -32,19 +49,37 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const supabase = locals.supabase;
 
-	const [people, categories, series, bibleBookNames] = await Promise.all([
-		loadPeople(supabase),
-		loadCategories(supabase),
-		loadSeries(supabase),
-		loadBibleBookNames(supabase)
-	]);
-	const [book, personBookCounts, scriptureRefs] = await Promise.all([
+	const [people, categories, series, bibleBookNames, ancientTexts, topicCounts] =
+		await Promise.all([
+			loadPeople(supabase),
+			loadCategories(supabase),
+			loadSeries(supabase),
+			loadBibleBookNames(supabase),
+			loadAncientTexts(supabase),
+			loadAllTopicCounts(supabase)
+		]);
+	const [
+		book,
+		personBookCounts,
+		scriptureRefs,
+		bookTopics,
+		bibleCoverage,
+		ancientCoverage,
+		profileRow
+	] = await Promise.all([
 		loadBookDetail(supabase, id, people),
 		loadPersonBookCounts(supabase),
-		loadScriptureRefsForBook(supabase, id)
+		loadScriptureRefsForBook(supabase, id),
+		loadBookTopicsForBook(supabase, id),
+		loadBibleCoverageForBook(supabase, id),
+		loadAncientCoverageForBook(supabase, id),
+		supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
 	]);
 
 	if (!book) error(404, 'Book not found.');
+
+	const isOwner =
+		((profileRow.data as { role?: string | null } | null)?.role ?? null) === 'owner';
 
 	return {
 		book,
@@ -52,12 +87,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		categories,
 		series,
 		bibleBookNames,
+		ancientTexts,
+		topicCounts,
 		scriptureRefs,
+		bookTopics,
+		bibleCoverage,
+		ancientCoverage,
+		isOwner,
 		personBookCounts: Object.fromEntries(personBookCounts),
-		// Surface userId explicitly so client components (e.g. the storage upload
-		// path builder in <ScriptureReferenceForm>) get a non-nullable string
-		// without re-asserting on data.user (which TS sees as nullable since the
-		// layout's redirect happens before this load runs).
 		userId: user.id
 	};
 };
@@ -70,10 +107,6 @@ export const actions: Actions = {
 		const fd = await request.formData();
 		const id = String(fd.get('id') ?? '').trim();
 		const result = await softDeleteBookAction(locals.supabase, fd);
-		// Detail page no longer exists after the delete (loadBookDetail returns
-		// null → 404). Redirect to the list, which renders the 10s undo toast.
-		// Pre-Session-1.5 this returned a success object and the page rerender
-		// 404'd before the toast could mount.
 		if (result && 'success' in result && result.success && id) {
 			redirect(303, `/library?deleted=${encodeURIComponent(id)}`);
 		}
@@ -123,5 +156,84 @@ export const actions: Actions = {
 			return fail(401, { kind: 'softDeleteScriptureRef' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return softDeleteScriptureRefAction(locals.supabase, fd);
+	},
+	createBookTopicsBatch: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, {
+				kind: 'createBookTopicsBatch' as const,
+				message: 'Unauthorized'
+			});
+		const fd = await request.formData();
+		return createBookTopicsBatchAction(locals.supabase, user.id, fd);
+	},
+	updateBookTopic: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'updateBookTopic' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return updateBookTopicAction(locals.supabase, fd);
+	},
+	softDeleteBookTopic: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'softDeleteBookTopic' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return softDeleteBookTopicAction(locals.supabase, fd);
+	},
+	createBibleCoverage: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'createBibleCoverage' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return createBibleCoverageAction(locals.supabase, user.id, fd);
+	},
+	softDeleteBibleCoverage: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, {
+				kind: 'softDeleteBibleCoverage' as const,
+				message: 'Unauthorized'
+			});
+		const fd = await request.formData();
+		return softDeleteBibleCoverageAction(locals.supabase, fd);
+	},
+	createAncientCoverage: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'createAncientCoverage' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return createAncientCoverageAction(locals.supabase, user.id, fd);
+	},
+	softDeleteAncientCoverage: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, {
+				kind: 'softDeleteAncientCoverage' as const,
+				message: 'Unauthorized'
+			});
+		const fd = await request.formData();
+		return softDeleteAncientCoverageAction(locals.supabase, fd);
+	},
+	createAncientText: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'createAncientText' as const, message: 'Unauthorized' });
+		// Server-side owner gate (defense-in-depth alongside RLS).
+		const { data: prof } = await locals.supabase
+			.from('profiles')
+			.select('role')
+			.eq('id', user.id)
+			.maybeSingle();
+		const isOwner =
+			((prof as { role?: string | null } | null)?.role ?? null) === 'owner';
+		if (!isOwner) {
+			return fail(403, {
+				kind: 'createAncientText' as const,
+				message: 'Owner-only.'
+			});
+		}
+		const fd = await request.formData();
+		return createAncientTextAction(locals.supabase, user.id, fd);
 	}
 };

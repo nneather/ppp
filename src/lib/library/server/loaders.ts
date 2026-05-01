@@ -13,7 +13,11 @@ import type {
 	ScriptureRefRow,
 	ReviewQueueFilters,
 	ReviewCard,
-	ImportMatchType
+	ImportMatchType,
+	AncientTextRow,
+	AncientCoverageRow,
+	BookTopicRow,
+	TopicCount
 } from '$lib/types/library';
 import {
 	SCRIPTURE_IMAGES_BUCKET,
@@ -255,19 +259,34 @@ function escapeForPostgrestOrFilter(q: string): string {
 }
 
 /**
+ * Max `id.in.(…)` length we'll append to a PostgREST `.or()` or pass
+ * directly to `.in('id', …)`. Per decision 009 Surprise #1, the cap is the
+ * 16KB header limit — each UUID+comma ≈ 37 chars, so ~400 ids fills the
+ * budget. 200 gives us plenty of slack alongside the other filter DSL.
+ * If we hit this cap, the author filter falls back to a client-side
+ * post-fetch prune (cheap at our data scale).
+ */
+const MAX_IN_LIST = 200;
+
+/**
  * Filter-aware book list loader. URL params on `/library` flow through
  * `+page.server.ts` → `BookListFilters` → here. AND between filter types,
  * OR within. `q` runs across title / subtitle (on `books`) and author
  * `last_name` (on `people` via `book_authors`).
  *
- * Strategy for `q`:
+ * Strategy for `q` (Session 3):
  *   1. Parallel SELECT on `people` matching `last_name ILIKE '%q%'` → person_ids.
  *   2. Parallel SELECT on `book_authors` for those person_ids → book_ids
  *      contributed by author-match.
  *   3. Single `books` query with `.or('title.ilike.%q%,subtitle.ilike.%q%,id.in.(book_ids))')`.
  *
- * This keeps the round-trip count low and lets the trigram GIN indexes do
- * the heavy lifting on title / subtitle / last_name.
+ * Strategy for `author_id` (Session 5):
+ *   - Parallel SELECT on `book_authors WHERE person_id IN (...)` → book_ids.
+ *   - If the resolved list is <= MAX_IN_LIST, narrow via `.in('id', bookIds)`
+ *     (AND with the rest of the filter set).
+ *   - If the list exceeds MAX_IN_LIST, fetch without the author narrow and
+ *     prune client-side after hydration (same-module trade-off as the
+ *     category filter pre-Session-5).
  */
 export async function loadBookListFiltered(
 	supabase: SupabaseClient,
@@ -300,12 +319,32 @@ export async function loadBookListFiltered(
 			const bookIds = Array.from(
 				new Set((authorBooks ?? []).map((a) => (a as { book_id: string }).book_id))
 			);
-			if (bookIds.length > 0) {
+			if (bookIds.length > 0 && bookIds.length <= MAX_IN_LIST) {
 				orParts.push(`id.in.(${bookIds.join(',')})`);
 			}
 		}
 
 		orClause = orParts.join(',');
+	}
+
+	// Resolve the author facet.
+	let authorBookIds: string[] | null = null;
+	let authorFilterClientSide = false;
+	if (filters.author_id && filters.author_id.length > 0) {
+		const { data: authorBooks, error: abErr } = await supabase
+			.from('book_authors')
+			.select('book_id')
+			.in('person_id', filters.author_id);
+		if (abErr) console.error('[loadBookListFiltered] author facet lookup', abErr);
+		authorBookIds = Array.from(
+			new Set((authorBooks ?? []).map((a) => (a as { book_id: string }).book_id))
+		);
+		if (authorBookIds.length > MAX_IN_LIST) {
+			authorFilterClientSide = true;
+		} else if (authorBookIds.length === 0) {
+			// Selected authors have no books → empty result set.
+			return [];
+		}
 	}
 
 	const data = await paginateAll<unknown>(([from, to]) => {
@@ -323,8 +362,7 @@ export async function loadBookListFiltered(
 				primary_category_id,
 				categories!books_primary_category_id_fkey ( id, name ),
 				series ( name, abbreviation ),
-				book_authors ( person_id, sort_order, role ),
-				book_categories ( category_id )
+				book_authors ( person_id, sort_order, role )
 			`
 			)
 			.is('deleted_at', null);
@@ -344,6 +382,9 @@ export async function loadBookListFiltered(
 		if (filters.needs_review === true) {
 			query = query.eq('needs_review', true);
 		}
+		if (authorBookIds && !authorFilterClientSide && authorBookIds.length > 0) {
+			query = query.in('id', authorBookIds);
+		}
 		if (orClause) {
 			query = query.or(orClause);
 		}
@@ -351,13 +392,9 @@ export async function loadBookListFiltered(
 	}, 'loadBookListFiltered');
 
 	const peopleMap = new Map(people.map((p) => [p.id, p]));
-	type RawWithExtras = RawBookListRow & {
-		primary_category_id: string | null;
-		book_categories: { category_id: string }[] | null;
-	};
 
 	let rows = data.map((raw) => {
-		const r = raw as unknown as RawWithExtras;
+		const r = raw as unknown as RawBookListRow;
 		const cat = asArrayOrSingle(r.categories)[0] ?? null;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
 		const authorRows = (r.book_authors ?? [])
@@ -371,6 +408,7 @@ export async function loadBookListFiltered(
 			})
 			.filter((s): s is string => s != null);
 		const authors_label = authorLabels.length === 0 ? null : authorLabels.join(', ');
+		const raw_author_ids = (r.book_authors ?? []).map((a) => a.person_id);
 
 		return {
 			row: {
@@ -386,20 +424,14 @@ export async function loadBookListFiltered(
 				volume_number: r.volume_number ?? null,
 				authors_label
 			} satisfies BookListRow,
-			primary_category_id: r.primary_category_id ?? null,
-			category_ids: (r.book_categories ?? []).map((c) => c.category_id)
+			author_person_ids: raw_author_ids
 		};
 	});
 
-	// Category filter applied client-side: PostgREST can't easily express
-	// "primary_category_id IN ids OR any junction row's category_id IN ids".
-	// Cheap to filter in JS for the few hundred rows we'll see in production.
-	if (filters.category_id && filters.category_id.length > 0) {
-		const wanted = new Set(filters.category_id);
-		rows = rows.filter((r) => {
-			if (r.primary_category_id && wanted.has(r.primary_category_id)) return true;
-			return r.category_ids.some((id) => wanted.has(id));
-		});
+	// Client-side prune when the author id list exceeded MAX_IN_LIST.
+	if (authorFilterClientSide && filters.author_id && filters.author_id.length > 0) {
+		const wanted = new Set(filters.author_id);
+		rows = rows.filter((r) => r.author_person_ids.some((pid) => wanted.has(pid)));
 	}
 
 	const out = rows.map((r) => r.row);
@@ -876,4 +908,215 @@ export function personDisplayLong(p: PersonRow): string {
 	segments.push(p.last_name);
 	if (p.suffix) segments.push(p.suffix);
 	return segments.filter((s) => s.length > 0).join(' ');
+}
+
+// ---------------------------------------------------------------------------
+// Topics + coverage (Session 5)
+// ---------------------------------------------------------------------------
+
+type RawAncientText = {
+	id: string;
+	canonical_name: string;
+	abbreviations: string[] | null;
+	category: string | null;
+};
+
+type RawBookTopic = {
+	id: string;
+	book_id: string | null;
+	essay_id: string | null;
+	topic: string;
+	page_start: string;
+	page_end: string | null;
+	confidence_score: number | null;
+	needs_review: boolean;
+	review_note: string | null;
+	source_image_url: string | null;
+	created_at: string;
+};
+
+type RawBibleCoverage = {
+	id: string;
+	bible_book: string;
+};
+
+type RawAncientCoverage = {
+	id: string;
+	ancient_text_id: string;
+	ancient_texts:
+		| { canonical_name: string; abbreviations: string[] | null; category: string | null }
+		| { canonical_name: string; abbreviations: string[] | null; category: string | null }[]
+		| null;
+};
+
+/**
+ * Load the full `ancient_texts` table for the combobox. Count is left
+ * unpopulated — rare enough that scanning book_ancient_coverage per load
+ * isn't worth the round-trip; if it ever matters we'll fold it in similarly
+ * to `loadAllTopicCounts`.
+ */
+export async function loadAncientTexts(supabase: SupabaseClient): Promise<AncientTextRow[]> {
+	const { data, error } = await supabase
+		.from('ancient_texts')
+		.select('id, canonical_name, abbreviations, category')
+		.order('canonical_name', { ascending: true });
+	if (error) {
+		console.error('[loadAncientTexts]', error);
+		return [];
+	}
+	return (data ?? []).map((r) => {
+		const row = r as RawAncientText;
+		return {
+			id: row.id,
+			canonical_name: row.canonical_name,
+			abbreviations: Array.isArray(row.abbreviations) ? row.abbreviations : [],
+			category: row.category
+		};
+	});
+}
+
+/**
+ * Per-book topic rows with 1h signed URLs for any attached page image.
+ * Mirrors `loadScriptureRefsForBook`'s shape — same batch-entry surface.
+ */
+export async function loadBookTopicsForBook(
+	supabase: SupabaseClient,
+	bookId: string
+): Promise<BookTopicRow[]> {
+	const { data, error } = await supabase
+		.from('book_topics')
+		.select(
+			`
+			id,
+			book_id,
+			essay_id,
+			topic,
+			page_start,
+			page_end,
+			confidence_score,
+			needs_review,
+			review_note,
+			source_image_url,
+			created_at
+		`
+		)
+		.eq('book_id', bookId)
+		.is('deleted_at', null)
+		.order('created_at', { ascending: true });
+	if (error) {
+		console.error('[loadBookTopicsForBook]', error);
+		return [];
+	}
+	const rows = (data ?? []) as unknown as RawBookTopic[];
+	const signed = await Promise.all(
+		rows.map(async (r) => {
+			if (!r.source_image_url) return null;
+			const { data: s, error: sErr } = await supabase.storage
+				.from(SCRIPTURE_IMAGES_BUCKET)
+				.createSignedUrl(r.source_image_url, SCRIPTURE_IMAGES_SIGNED_URL_TTL);
+			if (sErr) {
+				console.error('[loadBookTopicsForBook] signed URL error', sErr);
+				return null;
+			}
+			return s?.signedUrl ?? null;
+		})
+	);
+	return rows.map((r, i) => ({
+		id: r.id,
+		book_id: r.book_id,
+		essay_id: r.essay_id,
+		topic: r.topic,
+		page_start: r.page_start,
+		page_end: r.page_end,
+		confidence_score: r.confidence_score,
+		needs_review: Boolean(r.needs_review),
+		review_note: r.review_note,
+		source_image_url: r.source_image_url,
+		source_image_signed_url: signed[i],
+		created_at: r.created_at
+	}));
+}
+
+/**
+ * Covered bible_books for a single book. Returns just the names — the
+ * detail page only cares whether a given bible_book is covered; the `id` on
+ * the junction is irrelevant to the UI (delete is keyed by book_id +
+ * bible_book via the UNIQUE constraint).
+ */
+export async function loadBibleCoverageForBook(
+	supabase: SupabaseClient,
+	bookId: string
+): Promise<string[]> {
+	const { data, error } = await supabase
+		.from('book_bible_coverage')
+		.select('id, bible_book')
+		.eq('book_id', bookId);
+	if (error) {
+		console.error('[loadBibleCoverageForBook]', error);
+		return [];
+	}
+	return (data ?? []).map((r) => (r as RawBibleCoverage).bible_book);
+}
+
+/**
+ * Hydrated ancient-coverage rows for a single book. Embeds ancient_texts so
+ * the detail page can display canonical_name + abbreviations without a
+ * second round-trip per row.
+ */
+export async function loadAncientCoverageForBook(
+	supabase: SupabaseClient,
+	bookId: string
+): Promise<AncientCoverageRow[]> {
+	const { data, error } = await supabase
+		.from('book_ancient_coverage')
+		.select(
+			`
+			id,
+			ancient_text_id,
+			ancient_texts ( canonical_name, abbreviations, category )
+		`
+		)
+		.eq('book_id', bookId);
+	if (error) {
+		console.error('[loadAncientCoverageForBook]', error);
+		return [];
+	}
+	return (data ?? []).map((r) => {
+		const row = r as unknown as RawAncientCoverage;
+		const at = asArrayOrSingle(row.ancient_texts)[0] ?? null;
+		return {
+			id: row.id,
+			ancient_text_id: row.ancient_text_id,
+			canonical_name: at?.canonical_name ?? '(unknown)',
+			abbreviations: Array.isArray(at?.abbreviations) ? at!.abbreviations : [],
+			category: at?.category ?? null
+		};
+	});
+}
+
+/**
+ * Aggregate `{ topic, count }` across all live `book_topics`. Drives the
+ * typo-warn `< 3 uses` gate in <CanonicalizingCombobox>: we only warn when
+ * the fuzzy-match candidate has few uses (a near-duplicate that would
+ * fragment the vocabulary if the typo becomes a new row).
+ *
+ * Cheap: a single SELECT of distinct topic column values + app-layer
+ * counting. Scale tops out in the low thousands even long-term; no index
+ * is needed beyond the default row scan.
+ */
+export async function loadAllTopicCounts(supabase: SupabaseClient): Promise<TopicCount[]> {
+	const rows = await paginateAll<{ topic: string }>(
+		([from, to]) =>
+			supabase
+				.from('book_topics')
+				.select('topic')
+				.is('deleted_at', null)
+				.range(from, to),
+		'loadAllTopicCounts'
+	);
+	const counts = new Map<string, number>();
+	for (const r of rows) {
+		counts.set(r.topic, (counts.get(r.topic) ?? 0) + 1);
+	}
+	return Array.from(counts.entries()).map(([topic, count]) => ({ topic, count }));
 }

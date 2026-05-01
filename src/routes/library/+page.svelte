@@ -24,7 +24,9 @@
 		READING_STATUSES,
 		READING_STATUS_LABELS
 	} from '$lib/types/library';
-	import type { ReadingStatus, Language, BookListFilters } from '$lib/types/library';
+	import type { ReadingStatus, Language, BookListFilters, PersonRow } from '$lib/types/library';
+	import MultiCombobox from '$lib/components/multi-combobox.svelte';
+	import type { MultiComboboxItem } from '$lib/components/multi-combobox.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -161,8 +163,8 @@
 			for (const v of vals) keep.append(key, v);
 		};
 		setMulti('genre', next.genre);
-		setMulti('category_id', next.category_id);
 		setMulti('series_id', next.series_id);
+		setMulti('author_id', next.author_id);
 		setMulti('language', next.language);
 		setMulti('reading_status', next.reading_status);
 		if (next.needs_review === true) keep.set('needs_review', 'true');
@@ -182,6 +184,10 @@
 		pushFilters({ ...filters, [key]: nextArr.length === 0 ? undefined : nextArr });
 	}
 
+	function setArrayFilter<K extends keyof BookListFilters>(key: K, next: string[]) {
+		pushFilters({ ...filters, [key]: next.length === 0 ? undefined : next });
+	}
+
 	function toggleNeedsReview() {
 		pushFilters({ ...filters, needs_review: filters.needs_review ? undefined : true });
 	}
@@ -194,8 +200,8 @@
 	const hasAnyFilter = $derived(
 		Boolean(
 			(filters.genre?.length ?? 0) > 0 ||
-				(filters.category_id?.length ?? 0) > 0 ||
 				(filters.series_id?.length ?? 0) > 0 ||
+				(filters.author_id?.length ?? 0) > 0 ||
 				(filters.language?.length ?? 0) > 0 ||
 				(filters.reading_status?.length ?? 0) > 0 ||
 				filters.needs_review === true ||
@@ -205,8 +211,8 @@
 
 	const activeFilterCount = $derived(
 		(filters.genre?.length ?? 0) +
-			(filters.category_id?.length ?? 0) +
 			(filters.series_id?.length ?? 0) +
+			(filters.author_id?.length ?? 0) +
 			(filters.language?.length ?? 0) +
 			(filters.reading_status?.length ?? 0) +
 			(filters.needs_review === true ? 1 : 0)
@@ -218,14 +224,52 @@
 			: 'border-border bg-background text-foreground hover:bg-muted';
 	}
 
-	function categoryName(id: string): string {
-		return data.categories.find((c) => c.id === id)?.name ?? id;
-	}
 	function seriesLabel(id: string): string {
 		const s = data.series.find((s) => s.id === id);
 		if (!s) return id;
 		return s.abbreviation ? `${s.abbreviation} — ${s.name}` : s.name;
 	}
+
+	function personShort(p: PersonRow): string {
+		const first = (p.first_name ?? '').trim();
+		const middle = (p.middle_name ?? '').trim();
+		const middleInitial = middle ? `${middle.charAt(0)}.` : '';
+		return [first, middleInitial, p.last_name].filter((s) => s.length > 0).join(' ');
+	}
+
+	const peopleById = $derived(new Map(data.people.map((p) => [p.id, p])));
+
+	const seriesItems = $derived<MultiComboboxItem[]>(
+		data.series.map((s) => ({
+			id: s.id,
+			label: s.abbreviation ?? s.name,
+			sublabel: s.abbreviation ? s.name : null,
+			keywords: [s.name, ...(s.abbreviation ? [s.abbreviation] : [])]
+		}))
+	);
+
+	const peopleItems = $derived<MultiComboboxItem[]>(
+		data.people.map((p) => ({
+			id: p.id,
+			label: personShort(p),
+			sublabel: p.aliases && p.aliases.length > 0 ? p.aliases.join(', ') : null,
+			keywords: [p.last_name, p.first_name ?? '', ...(p.aliases ?? [])].filter(
+				(k) => k.length > 0
+			)
+		}))
+	);
+
+	// Bindable mirrors for MultiCombobox. The source of truth remains the
+	// URL; these re-hydrate in a $effect tracking filters.* so back/forward
+	// sync works.
+	let seriesSelection = $state<string[]>([]);
+	let authorSelection = $state<string[]>([]);
+	$effect(() => {
+		seriesSelection = filters.series_id ?? [];
+	});
+	$effect(() => {
+		authorSelection = filters.author_id ?? [];
+	});
 </script>
 
 {#snippet filterBody()}
@@ -248,39 +292,26 @@
 		</section>
 
 		<section>
-			<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Category</h3>
-			<div class="flex flex-wrap gap-1.5">
-				{#each data.categories as c (c.id)}
-					{@const active = filters.category_id?.includes(c.id) ?? false}
-					<button
-						type="button"
-						class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipBaseClasses(active)}`}
-						onclick={() => toggleArrayFilter('category_id', c.id)}
-						aria-pressed={active}
-					>
-						{c.name}
-					</button>
-				{/each}
-			</div>
+			<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Author</h3>
+			<MultiCombobox
+				bind:values={authorSelection}
+				items={peopleItems}
+				placeholder="Search authors by last name…"
+				ariaLabel="Authors"
+				onChange={(next) => setArrayFilter('author_id', next)}
+			/>
 		</section>
 
 		{#if data.series.length > 0}
 			<section>
 				<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Series</h3>
-				<div class="flex flex-wrap gap-1.5">
-					{#each data.series as s (s.id)}
-						{@const active = filters.series_id?.includes(s.id) ?? false}
-						<button
-							type="button"
-							class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipBaseClasses(active)}`}
-							onclick={() => toggleArrayFilter('series_id', s.id)}
-							aria-pressed={active}
-							title={s.name}
-						>
-							{s.abbreviation ?? s.name}
-						</button>
-					{/each}
-				</div>
+				<MultiCombobox
+					bind:values={seriesSelection}
+					items={seriesItems}
+					placeholder="Search series by name or abbreviation…"
+					ariaLabel="Series"
+					onChange={(next) => setArrayFilter('series_id', next)}
+				/>
 			</section>
 		{/if}
 
@@ -402,13 +433,14 @@
 					{g} <X class="size-3" />
 				</button>
 			{/each}
-			{#each filters.category_id ?? [] as id (id)}
+			{#each filters.author_id ?? [] as id (id)}
+				{@const p = peopleById.get(id)}
 				<button
 					type="button"
 					class="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-2 py-0.5 text-xs text-primary transition-colors hover:bg-primary/15"
-					onclick={() => toggleArrayFilter('category_id', id)}
+					onclick={() => toggleArrayFilter('author_id', id)}
 				>
-					{categoryName(id)} <X class="size-3" />
+					{p ? personShort(p) : id} <X class="size-3" />
 				</button>
 			{/each}
 			{#each filters.series_id ?? [] as id (id)}

@@ -3,7 +3,6 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	countLiveBooks,
 	loadBookListFiltered,
-	loadCategories,
 	loadPeople,
 	loadPersonBookCounts,
 	loadSeries
@@ -24,11 +23,14 @@ function parseFilters(url: URL): BookListFilters {
 	const genres = multiParam(url, 'genre');
 	if (genres.length > 0) filters.genre = genres;
 
-	const cats = multiParam(url, 'category_id');
-	if (cats.length > 0) filters.category_id = cats;
-
 	const series = multiParam(url, 'series_id');
 	if (series.length > 0) filters.series_id = series;
+
+	// Author facet (Session 5). `category_id` param dropped per Open
+	// Question 11 — the column is still populated for shelving, but the
+	// facet duplicated Genre after Pass 1's SUBJECT_TO_GENRE mapping.
+	const authors = multiParam(url, 'author_id');
+	if (authors.length > 0) filters.author_id = authors;
 
 	const langSet = new Set<Language>(LANGUAGES);
 	const langs = multiParam(url, 'language').filter((l): l is Language =>
@@ -57,9 +59,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const supabase = locals.supabase;
 	const filters = parseFilters(url);
 
-	const [people, categories, series, totalCount] = await Promise.all([
+	const [people, series, totalCount] = await Promise.all([
 		loadPeople(supabase),
-		loadCategories(supabase),
 		loadSeries(supabase),
 		countLiveBooks(supabase)
 	]);
@@ -72,7 +73,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	return {
 		books,
-		categories,
 		series,
 		people,
 		personBookCounts: Object.fromEntries(personBookCounts),
