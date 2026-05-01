@@ -1,3 +1,4 @@
+import { parseReviewFilters } from '$lib/library/review';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
@@ -85,15 +86,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 export const actions: Actions = {
 	softDeleteBook: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user)
-			return fail(401, { kind: 'softDeleteBook' as const, message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'softDeleteBook' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return softDeleteBookAction(locals.supabase, fd);
 	},
 	undoSoftDeleteBook: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user)
-			return fail(401, { kind: 'undoSoftDeleteBook' as const, message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'undoSoftDeleteBook' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return undoSoftDeleteBookAction(locals.supabase, fd);
 	},
@@ -105,8 +104,7 @@ export const actions: Actions = {
 	},
 	updateReadingStatus: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user)
-			return fail(401, { kind: 'updateReadingStatus' as const, message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'updateReadingStatus' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return updateReadingStatusAction(locals.supabase, fd);
 	}

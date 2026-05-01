@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { countReviewQueue, loadPeople, loadReviewQueue } from '$lib/library/server/loaders';
-import { parseReviewFilters } from '../+page.server';
+import { parseReviewFilters } from '$lib/library/review';
 
 /**
  * Incremental refetch endpoint for `/library/review`. Returns the next batch
