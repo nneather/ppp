@@ -30,6 +30,7 @@
 		Language,
 		ReadingStatus
 	} from '$lib/types/library';
+	import type { OpenLibraryBookPrefill } from '$lib/library/open-library-prefill';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import X from '@lucide/svelte/icons/x';
@@ -69,7 +70,9 @@
 		series,
 		formMessage = null,
 		onSaved,
-		onDirtyChange
+		onDirtyChange,
+		openLibraryPrefill = null,
+		onOpenLibraryPrefillConsumed
 	}: {
 		mode: 'create' | 'edit';
 		book?: BookDetail | null;
@@ -80,6 +83,9 @@
 		formMessage?: FormMessage;
 		onSaved?: (bookId: string) => void;
 		onDirtyChange?: (dirty: boolean) => void;
+		/** One-shot metadata from `/library/add` + Open Library (create mode). */
+		openLibraryPrefill?: OpenLibraryBookPrefill | null;
+		onOpenLibraryPrefillConsumed?: () => void;
 	} = $props();
 
 	let people = $state<PersonRow[]>([]);
@@ -130,6 +136,8 @@
 	let pending = $state(false);
 
 	let initialSnapshot = $state<string>('');
+
+	let olAuthorHint = $state<string | null>(null);
 
 	function currentFormSnapshot(): string {
 		return JSON.stringify({
@@ -415,6 +423,22 @@
 		initialSnapshot = untrack(() => currentFormSnapshot());
 	});
 
+	$effect(() => {
+		const p = openLibraryPrefill;
+		if (!p || mode !== 'create') return;
+		untrack(() => {
+			if (p.title) title = p.title;
+			if (p.subtitle != null && p.subtitle !== '') subtitle = p.subtitle;
+			if (p.publisher != null && p.publisher !== '') publisher = p.publisher;
+			if (p.year != null) year = String(p.year);
+			if (p.page_count != null) page_count = String(p.page_count);
+			if (p.isbn) isbn = p.isbn;
+			olAuthorHint = p.authorTyped;
+		});
+		initialSnapshot = untrack(() => currentFormSnapshot());
+		onOpenLibraryPrefillConsumed?.();
+	});
+
 	function addAuthorRow() {
 		authorRows = [
 			...authorRows,
@@ -642,6 +666,38 @@
 			</div>
 		</section>
 
+		{#if olAuthorHint}
+			<div
+				class="flex flex-col gap-3 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-3 text-sm text-sky-950 dark:text-sky-100 sm:flex-row sm:items-center sm:justify-between"
+			>
+				<p class="min-w-0 flex-1">
+					<strong class="font-medium">Open Library author line:</strong>
+					<span class="text-foreground/90">{olAuthorHint}</span>
+					<span class="mt-1 block text-xs text-muted-foreground">
+						Link a person in Authors or open the dialog to create from this text.
+					</span>
+				</p>
+				<div class="flex shrink-0 flex-wrap gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						class="min-h-10"
+						onclick={() => {
+							const hint = olAuthorHint;
+							const rowKey = authorRows[0]?.key ?? null;
+							if (hint) openPersonDialog(rowKey, parseTypedName(hint));
+						}}
+					>
+						Add person from hint
+					</Button>
+					<Button type="button" variant="ghost" size="sm" onclick={() => (olAuthorHint = null)}>
+						Dismiss
+					</Button>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Authors (full width) -->
 		<section class="flex flex-col gap-3">
 			<div class="flex items-center justify-between">
@@ -672,7 +728,7 @@
 							<Select.Trigger
 								id={`author-role-${row.key}`}
 								size="default"
-								class="h-10 w-full justify-between px-3 sm:w-40"
+								class="h-12 min-h-11 w-full justify-between px-3 text-base sm:h-10 sm:w-40 sm:text-sm"
 								aria-label="Role"
 							>
 								<span data-slot="select-value" class="truncate text-left">
@@ -691,7 +747,7 @@
 								{/each}
 							</Select.Content>
 						</Select.Root>
-						<div class="flex items-center gap-1 self-end sm:self-auto">
+						<div class="flex min-h-11 items-center gap-1 self-end sm:min-h-0 sm:self-auto">
 							<Button
 								type="button"
 								variant="ghost"
@@ -699,7 +755,7 @@
 								aria-label="Move up"
 								disabled={idx === 0}
 								onclick={() => moveAuthor(row.key, -1)}
-								class={cn(authorRows.length === 1 && 'invisible')}
+								class={cn('min-h-11 min-w-11 sm:min-h-0 sm:min-w-0', authorRows.length === 1 && 'invisible')}
 							>
 								<ChevronUp class="size-4" />
 							</Button>
@@ -710,7 +766,7 @@
 								aria-label="Move down"
 								disabled={idx === authorRows.length - 1}
 								onclick={() => moveAuthor(row.key, 1)}
-								class={cn(authorRows.length === 1 && 'invisible')}
+								class={cn('min-h-11 min-w-11 sm:min-h-0 sm:min-w-0', authorRows.length === 1 && 'invisible')}
 							>
 								<ChevronDown class="size-4" />
 							</Button>
@@ -720,6 +776,7 @@
 								size="icon-sm"
 								aria-label="Remove author"
 								onclick={() => removeAuthorRow(row.key)}
+								class="min-h-11 min-w-11 sm:min-h-0 sm:min-w-0"
 							>
 								<X class="size-4" />
 							</Button>

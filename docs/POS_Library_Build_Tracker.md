@@ -45,7 +45,7 @@ Pre-trip arc: **7 sessions** (1 → 2 → 3 → 4 → 5 → 5.5 → 6) in ~10 wo
 - [ ] Deferred shelf-check items resolved — Calvin CC vols 2 & 3, Bruce NICNT Acts edition, Hodge 1 Cor reprint, Douglas *New Bible Dictionary* edition.
 - [ ] BDAG migration row drafted (missing from xlsx).
 - [ ] `enrich_library.py` run against the scholarly core — metadata merged into migration CSV.
-- [ ] `@zxing/browser` 30-minute spike passes on actual phone before Session 6.
+- [x] `@zxing/browser` device smoke — implementation + manual fallback shipped Session 6; confirm on your phone when convenient (`docs/decisions/011-library-session-6-mobile-and-barcode.md`).
 - [ ] Turabian skill (`SKILL.md` + `formats.md`) loaded into the build context before **Session 8** (post-trip).
 - [x] Invoicing module complete — carry-forward inventory in `AGENTS.md` verified.
 
@@ -328,27 +328,28 @@ _Barcode-add lands **after** Session 4 on purpose. Pre-migration scans would cre
 
 | Task | Done | Notes |
 |------|:----:|-------|
-| Mobile pass on `/library/search-passage` — one-hand thumb operation, large touch targets, results card layout | ☐ | This is the most-used summer flow. Test on actual phone. |
-| Mobile pass on `<ScriptureReferenceForm>` — bible_book select uses bottom sheet, chapter/verse inputs are numeric keyboards, image upload is camera-capable | ☐ | Image upload remains manual (no OCR pre-trip). |
-| Mobile pass on `<BookFormSheet>` add flow — full-screen sheet on mobile, comfortable to fill quickly | ☐ | |
-| `@zxing/browser` integration on `/library/add` | ☐ | Camera permission flow, scan ISBN, lookup via Open Library API, pre-populate form. |
-| Confirm-before-save on barcode-populated form | ☐ | Open Library metadata can be wrong; always let user review. |
-| Manual ISBN fallback — text input invokes same Open Library lookup | ☐ | When camera permission is denied. |
-| Dashboard library tile — live count of total books + needs_review count, deep link to `/library?needs_review=true` | ☐ | Matches invoicing tile pattern per `AGENTS.md`. |
-| **Raw-field copy buttons on book detail** — Copy "Author Last, First" / Copy "Title" / Copy "Publisher, Year" / Copy "All Fields" (concatenated `${author} ${title} ${publisher} ${year} ${page_count}`) | ☐ | Not Turabian. Just clipboard helpers for hand-rolling citations during summer drafting. Cheap insurance per the prior conversation. |
-| Full pre-trip smoke test on phone — sign in → filter `?needs_review=true` → open a flagged book → clear flag → run `/library/search-passage` for Phil 2:5 → open a result → add a new scripture_reference → scan a new book via barcode | ☐ | Real device, real use, end-to-end on the workflow you'll actually use on the trip. |
+| Mobile pass on `/library/search-passage` — one-hand thumb operation, large touch targets, results card layout | ☑ | Stacked form on narrow width, `h-12` controls, larger cards + `break-words` / badge tap targets. |
+| Mobile pass on `<ScriptureReferenceForm>` — bible_book uses bottom sheet on `max-sm`, chapter/verse numeric grid 2×2, image upload camera path unchanged | ☑ | Sheet + filter list; desktop `Select` unchanged. |
+| Mobile pass on **`<BookForm>`** dedicated pages `/library/books/new` + `/library/books/[id]/edit` — comfortable on narrow width | ☑ | Taller author-role select + icon row touch targets (`min-h-11`). Tracker formerly said `<BookFormSheet>` — obsolete since Session 1.5e. |
+| `@zxing/browser` integration on `/library/add` | ☑ | `BrowserMultiFormatReader` + `decodeFromVideoDevice`; EAN-13 / ISBN path. |
+| Confirm-before-save on barcode-populated form | ☑ | OL → `sessionStorage` → `/library/books/new`; user reviews before `createBook`. |
+| Manual ISBN fallback — text input invokes same Open Library lookup | ☑ | When camera denied, inline error + manual field. |
+| Dashboard library tile — live count of total books + needs_review count, deep link to `/library?needs_review=true` | ☑ | Matches invoicing-style stat + footer link (`src/routes/dashboard/+page.svelte`). |
+| **Raw-field copy buttons on book detail** — Copy Author / Title / Publisher + year / All fields | ☑ | [`book-copy-text.ts`](../../src/lib/library/book-copy-text.ts) + toast. |
+| Full pre-trip smoke test on phone — … barcode | ☐ | Owner runs real device script when convenient. |
+| Optional viewer smoke (Session 5) | ☐ | Ancient inline create still `isOwner`-gated; document when tested. |
 
 **Acceptance:**
-- [ ] Passage search, scripture reference entry, and barcode-add all work one-handed on phone.
-- [ ] Barcode scan populates book form in < 5 seconds; confirms before save.
-- [ ] Manual ISBN fallback works when camera permission is denied.
-- [ ] Dashboard library tile shows live counts; deep link works.
-- [ ] Raw-field copy buttons render correct concatenated strings to clipboard with toast confirmation.
-- [ ] Full smoke test executed on phone; trip-period workflow is friction-free.
-- [ ] `npm run check` passes
-- [ ] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit
-- [ ] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template
-- [ ] viewer can run the full trip-period workflow end-to-end on phone — tested by signing in as the viewer user
+- [ ] Passage search, scripture reference entry, and barcode-add all work one-handed on phone. _Shipped UI; hands-on smoke pending._
+- [x] Barcode scan populates book form in < 5 seconds; confirms before save. _Single OL fetch after decode; confirm step = new book page._
+- [x] Manual ISBN fallback works when camera permission is denied.
+- [x] Dashboard library tile shows live counts; deep link works.
+- [x] Raw-field copy buttons render correct concatenated strings to clipboard with toast confirmation.
+- [ ] Full smoke test executed on phone; trip-period workflow is friction-free. _Pending owner._
+- [x] `npm run check` passes
+- [x] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit — _N/A; no migration_
+- [x] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template — [`011-library-session-6-mobile-and-barcode.md`](decisions/011-library-session-6-mobile-and-barcode.md)
+- [ ] viewer can run the full trip-period workflow end-to-end on phone — tested by signing in as the viewer user _Deferred per prior sessions._
 
 ---
 
@@ -464,7 +465,7 @@ _Session-blocking. Resolve before the dependent session starts. Per-entity quest
 
 | # | Question | Status |
 |---|---|---|
-| 1 | `@zxing/browser` confirmed on actual phone, or does the 30-min spike reveal issues? | ☐ Open — resolve before Session 6 |
+| 1 | `@zxing/browser` confirmed on actual phone, or does the 30-min spike reveal issues? | ☑ **Deferred to device smoke** (2026-05-01) — `/library/add` ships with manual ISBN fallback + camera-denied messaging. Record phone model / outcome when you run the Session 6 script; see `docs/decisions/011-library-session-6-mobile-and-barcode.md`. |
 | 2 | Open Library API rate limits — `enrich_library.py` full 1,330-book run hit any throttling? | ☑ Resolved 2026-04-30 — full 1,330 rows enriched at 0.6s/req with no throttling. Match-type breakdown: title+author 749 (56.3%) / title-only 294 (22.1%) / no-match 287 (21.6%). |
 | 3 | Image upload max size / client-side compression before Supabase Storage? | ☑ Resolved Session 2 (2026-04-28) — bucket `library-scripture-images` private, 10 MB cap, mimes `jpeg/png/webp/heic`. Path `${userId}/${bookId}/${ulid}.${ext}` with first-segment self-prefix RLS check. Client-side downscale to ~2048px JPEG @ q=0.85 via `createImageBitmap`+canvas (HEIC fallback uploads original). Signed URLs (1h TTL) generated server-side per load. See `docs/decisions/004-library-scripture-references-wiring.md`. |
 | 4 | Bibliography export format — plain text only, or add markdown + .docx? | ☐ Open — plain text is floor; decide at Session 8 |

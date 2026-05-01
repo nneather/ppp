@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -128,6 +129,38 @@
 	let pending = $state(false);
 	let uploading = $state(false);
 	let uploadError = $state<string | null>(null);
+
+	/** Mobile-only: bottom sheet bible picker (`max-sm:` trigger replaces Select). */
+	let biblePickerOpen = $state(false);
+	let biblePickerRowKey = $state<string | null>(null);
+	let bibleFilter = $state('');
+
+	const filteredBibleNames = $derived(
+		bibleFilter.trim().length === 0
+			? bibleBookNames
+			: bibleBookNames.filter((n) => n.toLowerCase().includes(bibleFilter.trim().toLowerCase()))
+	);
+
+	function openBiblePicker(rowKey: string) {
+		biblePickerRowKey = rowKey;
+		bibleFilter = '';
+		biblePickerOpen = true;
+	}
+
+	function closeBiblePicker() {
+		biblePickerOpen = false;
+	}
+
+	$effect(() => {
+		if (!biblePickerOpen) biblePickerRowKey = null;
+	});
+
+	function pickBibleForRow(name: string) {
+		const key = biblePickerRowKey;
+		if (!key) return;
+		rows = rows.map((r) => (r.key === key ? { ...r, bible_book: name } : r));
+		closeBiblePicker();
+	}
 
 	// Seed when mode/parent changes — keyed so a re-mount or existingRef swap
 	// re-applies, but typing inside a row never re-fires it.
@@ -467,27 +500,43 @@
 						<Label for={`sr-bible-${row.key}`}>
 							Bible book <span class="text-destructive">*</span>
 						</Label>
-						<Select.Root type="single" bind:value={row.bible_book} items={bibleBookItems}>
-							<Select.Trigger
+						<!-- max-sm: native-style bottom sheet — shadcn Select popover is cramped on phones. -->
+						<div class="sm:hidden">
+							<Button
+								type="button"
 								id={`sr-bible-${row.key}`}
-								size="default"
-								class="h-11 w-full justify-between px-3"
+								variant="outline"
+								class="h-12 min-h-11 w-full justify-between px-3 text-base font-normal"
+								onclick={() => openBiblePicker(row.key)}
 							>
-								<span data-slot="select-value" class="truncate text-left">
+								<span class="truncate text-left">
 									{row.bible_book.length > 0 ? row.bible_book : '— Pick a book —'}
 								</span>
-							</Select.Trigger>
-							<Select.Content class="max-h-72">
-								{#each bibleBookItems as b (b.value)}
-									<Select.Item value={b.value} label={b.label} class="min-h-10 py-2">
-										{b.label}
-									</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
+							</Button>
+						</div>
+						<div class="hidden sm:block">
+							<Select.Root type="single" bind:value={row.bible_book} items={bibleBookItems}>
+								<Select.Trigger
+									id={`sr-bible-dsk-${row.key}`}
+									size="default"
+									class="h-11 w-full justify-between px-3"
+								>
+									<span data-slot="select-value" class="truncate text-left">
+										{row.bible_book.length > 0 ? row.bible_book : '— Pick a book —'}
+									</span>
+								</Select.Trigger>
+								<Select.Content class="max-h-72">
+									{#each bibleBookItems as b (b.value)}
+										<Select.Item value={b.value} label={b.label} class="min-h-10 py-2">
+											{b.label}
+										</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</div>
 					</div>
 
-					<div class="grid grid-cols-4 gap-2">
+					<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2">
 						<div class="space-y-1">
 							<Label for={`sr-cs-${row.key}`} class="text-xs">Chapter</Label>
 							<Input
@@ -497,7 +546,7 @@
 								min="0"
 								max="199"
 								bind:value={row.chapter_start}
-								class="h-11 text-base tabular-nums"
+								class="h-12 min-h-11 text-base tabular-nums sm:h-11"
 							/>
 						</div>
 						<div class="space-y-1">
@@ -509,7 +558,7 @@
 								min="0"
 								max="999"
 								bind:value={row.verse_start}
-								class="h-11 text-base tabular-nums"
+								class="h-12 min-h-11 text-base tabular-nums sm:h-11"
 							/>
 						</div>
 						<div class="space-y-1">
@@ -521,7 +570,7 @@
 								min="0"
 								max="199"
 								bind:value={row.chapter_end}
-								class="h-11 text-base tabular-nums"
+								class="h-12 min-h-11 text-base tabular-nums sm:h-11"
 							/>
 						</div>
 						<div class="space-y-1">
@@ -533,7 +582,7 @@
 								min="0"
 								max="999"
 								bind:value={row.verse_end}
-								class="h-11 text-base tabular-nums"
+								class="h-12 min-h-11 text-base tabular-nums sm:h-11"
 							/>
 						</div>
 					</div>
@@ -548,7 +597,7 @@
 							id={`sr-ps-${row.key}`}
 							bind:value={row.page_start}
 							placeholder="e.g. 317, IV.317, xiv"
-							class="h-11 text-base"
+							class="h-12 min-h-11 text-base sm:h-11"
 						/>
 					</div>
 					<div class="space-y-1">
@@ -557,7 +606,7 @@
 							id={`sr-pe-${row.key}`}
 							bind:value={row.page_end}
 							placeholder="(blank for single page)"
-							class="h-11 text-base"
+							class="h-12 min-h-11 text-base sm:h-11"
 						/>
 					</div>
 				</div>
@@ -588,24 +637,59 @@
 
 	<div class="flex items-center justify-end gap-2">
 		{#if onCancel}
-			<Button type="button" variant="ghost" onclick={() => onCancel?.()} disabled={pending}>
-				Cancel
-			</Button>
+			<Button
+				type="button"
+				variant="ghost"
+				hotkey="Escape"
+				label="Cancel"
+				onclick={() => onCancel?.()}
+				disabled={pending}
+			/>
 		{/if}
 		<Button
 			type="submit"
+			hotkey="s"
 			disabled={pending || uploading || !parent || !hasAnyValidRow}
-		>
-			{#if pending}
-				Saving…
-			{:else if isEdit}
-				Save changes
-			{:else}
-				Save {rows.filter((r) => r.bible_book && r.page_start).length || ''}
-				{rows.filter((r) => r.bible_book && r.page_start).length === 1
-					? 'reference'
-					: 'references'}
-			{/if}
-		</Button>
+			label={pending
+				? 'Saving…'
+				: isEdit
+					? 'Save changes'
+					: (() => {
+							const n = rows.filter((r) => r.bible_book && r.page_start).length;
+							return n === 1 ? 'Save 1 reference' : `Save ${n} references`;
+						})()}
+		/>
 	</div>
 </form>
+
+<!-- Mobile bible book picker (shared; `max-sm` rows open this instead of Select). -->
+<Sheet.Root bind:open={biblePickerOpen}>
+	<Sheet.Content side="bottom" class="max-h-[88vh] gap-0 p-0">
+		<Sheet.Header class="border-b border-border px-4 pb-3 pt-2 text-left">
+			<Sheet.Title class="text-base">Choose Bible book</Sheet.Title>
+		</Sheet.Header>
+		<div class="border-b border-border px-3 py-2">
+			<Input
+				type="search"
+				bind:value={bibleFilter}
+				placeholder="Filter books…"
+				class="h-11 text-base"
+				autocomplete="off"
+			/>
+		</div>
+		<div class="max-h-[60vh] overflow-y-auto overscroll-contain px-2 py-2">
+			{#each filteredBibleNames as name (name)}
+				<button
+					type="button"
+					class="flex min-h-12 w-full items-center rounded-md px-3 py-2.5 text-left text-base text-foreground hover:bg-muted"
+					onclick={() => pickBibleForRow(name)}
+				>
+					{name}
+				</button>
+			{/each}
+			{#if filteredBibleNames.length === 0}
+				<p class="px-3 py-4 text-center text-sm text-muted-foreground">No matches.</p>
+			{/if}
+		</div>
+	</Sheet.Content>
+</Sheet.Root>

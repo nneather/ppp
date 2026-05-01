@@ -1,11 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import {
-	loadCategories,
-	loadPeople,
-	loadPersonBookCounts,
-	loadSeries
-} from '$lib/library/server/loaders';
+import { loadBookFormPageData } from '$lib/library/server/loaders';
 import {
 	createBookAction,
 	createPersonAction
@@ -16,20 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!user) redirect(303, '/login');
 
 	const supabase = locals.supabase;
-
-	const [people, categories, series, personBookCounts] = await Promise.all([
-		loadPeople(supabase),
-		loadCategories(supabase),
-		loadSeries(supabase),
-		loadPersonBookCounts(supabase)
-	]);
-
-	return {
-		people,
-		categories,
-		series,
-		personBookCounts: Object.fromEntries(personBookCounts)
-	};
+	return loadBookFormPageData(supabase);
 };
 
 export const actions: Actions = {

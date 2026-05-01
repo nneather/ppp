@@ -1,13 +1,37 @@
 <script lang="ts">
 	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { Button } from '$lib/components/ui/button';
 	import BookForm from '$lib/components/book-form.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
+	import {
+		LIBRARY_OL_PREFILL_KEY,
+		type OpenLibraryBookPrefill
+	} from '$lib/library/open-library-prefill';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+
+	let olPrefill = $state<OpenLibraryBookPrefill | null>(null);
+
+	$effect(() => {
+		if (!browser) return;
+		const raw = sessionStorage.getItem(LIBRARY_OL_PREFILL_KEY);
+		if (!raw) return;
+		try {
+			const parsed = JSON.parse(raw) as OpenLibraryBookPrefill;
+			if (parsed && typeof parsed.isbn === 'string') olPrefill = parsed;
+		} catch {
+			olPrefill = null;
+		}
+	});
+
+	function clearOlPrefill() {
+		if (browser) sessionStorage.removeItem(LIBRARY_OL_PREFILL_KEY);
+		olPrefill = null;
+	}
 
 	const formMessage = $derived.by(() => {
 		const f = form as { kind?: string; message?: string } | null;
@@ -72,6 +96,8 @@
 		{formMessage}
 		{onSaved}
 		onDirtyChange={(d) => (dirty = d)}
+		openLibraryPrefill={olPrefill}
+		onOpenLibraryPrefillConsumed={clearOlPrefill}
 	/>
 
 	<div class="mt-6">

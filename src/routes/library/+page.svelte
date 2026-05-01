@@ -15,6 +15,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import Search from '@lucide/svelte/icons/search';
+	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import X from '@lucide/svelte/icons/x';
 	import {
@@ -379,6 +380,9 @@
 		<div class="ml-auto flex flex-wrap items-center justify-end gap-2">
 			<Button variant="outline" href="/library/search-passage">
 				<Search class="size-4" /> Search passage
+			</Button>
+			<Button variant="outline" href="/library/add" class="gap-2">
+				<ScanBarcode class="size-4" /> Add by ISBN
 			</Button>
 			<Button variant="outline" href="/library/review" class="gap-2">
 				<ClipboardCheck class="size-4" />

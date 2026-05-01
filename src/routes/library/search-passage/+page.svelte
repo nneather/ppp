@@ -99,15 +99,21 @@
 		ranges (a book covering Phil 2:1–11 surfaces on a search for Phil 2:5).
 	</p>
 
-	<form onsubmit={onSubmit} class="mt-5 grid gap-3 sm:grid-cols-[1fr_5rem_5rem_auto]">
-		<div>
-			<label for="bible_book" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+	<form
+		onsubmit={onSubmit}
+		class="mt-5 flex flex-col gap-4 sm:grid sm:grid-cols-[1fr_5.5rem_5.5rem_auto] sm:gap-3"
+	>
+		<div class="min-w-0">
+			<label
+				for="bible_book"
+				class="mb-1.5 block text-sm font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs"
+			>
 				Bible book
 			</label>
 			<select
 				id="bible_book"
 				bind:value={bibleBook}
-				class="h-10 w-full rounded-md border bg-background px-2 text-sm"
+				class="h-12 min-h-11 w-full rounded-md border border-input bg-background px-3 text-base sm:h-10 sm:text-sm"
 				required
 			>
 				<option value="" disabled>— Select —</option>
@@ -117,7 +123,10 @@
 			</select>
 		</div>
 		<div>
-			<label for="chapter" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+			<label
+				for="chapter"
+				class="mb-1.5 block text-sm font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs"
+			>
 				Chapter
 			</label>
 			<Input
@@ -127,10 +136,14 @@
 				min="1"
 				bind:value={chapter}
 				placeholder="—"
+				class="h-12 min-h-11 text-base tabular-nums sm:h-10 sm:text-sm"
 			/>
 		</div>
 		<div>
-			<label for="verse" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+			<label
+				for="verse"
+				class="mb-1.5 block text-sm font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs"
+			>
 				Verse
 			</label>
 			<Input
@@ -140,10 +153,11 @@
 				min="1"
 				bind:value={verse}
 				placeholder="—"
+				class="h-12 min-h-11 text-base tabular-nums sm:h-10 sm:text-sm"
 			/>
 		</div>
-		<div class="flex items-end">
-			<Button type="submit" class="w-full sm:w-auto" hotkey="s">
+		<div class="flex items-end pt-1 sm:pt-0">
+			<Button type="submit" class="h-12 min-h-11 w-full text-base sm:h-10 sm:w-auto sm:text-sm" hotkey="s">
 				<Search class="size-4" /> <HotkeyLabel label="Search" mnemonic="s" />
 			</Button>
 		</div>
@@ -156,11 +170,11 @@
 	{/if}
 
 	{#if hasQuery}
-		<div class="mt-6 flex items-baseline justify-between gap-3">
-			<h2 class="text-base font-semibold tracking-tight text-foreground">
+		<div class="mt-6 flex flex-wrap items-baseline justify-between gap-2 sm:gap-3">
+			<h2 class="text-lg font-semibold tracking-tight text-foreground sm:text-base">
 				{queryLabel}
 			</h2>
-			<span class="text-sm text-muted-foreground">
+			<span class="text-sm tabular-nums text-muted-foreground">
 				{data.results.length} match{data.results.length === 1 ? '' : 'es'}
 			</span>
 		</div>
@@ -173,7 +187,7 @@
 				</p>
 			</div>
 		{:else}
-			<ul class="mt-3 flex flex-col gap-2">
+			<ul class="mt-3 flex flex-col gap-3 sm:gap-2">
 				{#each data.results as r (r.ref_id)}
 					<li>
 						<a
@@ -182,11 +196,13 @@
 									? `/library/books/${r.book_id}#ref-${r.ref_id}`
 									: `/library/books/${r.book_id}`
 								: '#'}
-							class="block rounded-lg border border-border bg-card p-3 text-card-foreground transition-colors hover:border-ring/60 hover:bg-muted/20"
+							class="block min-h-[4.5rem] rounded-lg border border-border bg-card px-4 py-4 text-card-foreground transition-colors active:bg-muted/30 hover:border-ring/60 hover:bg-muted/20 sm:min-h-0 sm:p-3"
 						>
 							<div class="flex flex-wrap items-start justify-between gap-3">
 								<div class="min-w-0 flex-1">
-									<p class="truncate text-sm font-medium text-foreground">
+									<p
+										class="break-words text-base font-medium leading-snug text-foreground sm:truncate sm:text-sm sm:leading-normal"
+									>
 										{#if r.book_title}
 											{r.book_title}
 										{:else if r.essay_id}
@@ -196,38 +212,49 @@
 										{/if}
 									</p>
 									{#if r.book_subtitle}
-										<p class="truncate text-xs text-muted-foreground">{r.book_subtitle}</p>
+										<p
+											class="mt-0.5 break-words text-sm leading-snug text-muted-foreground sm:truncate sm:text-xs sm:leading-normal"
+										>
+											{r.book_subtitle}
+										</p>
 									{/if}
-									<p class="mt-1 text-xs text-muted-foreground">
+									<p class="mt-2 text-sm text-muted-foreground sm:mt-1 sm:text-xs">
 										<span class="font-medium text-foreground">{fmtRef(r)}</span>
 										{#if fmtPages(r)}
 											<span class="ml-1.5">{fmtPages(r)}</span>
 										{/if}
 									</p>
 									{#if r.review_note}
-										<p class="mt-1 text-xs italic text-muted-foreground">{r.review_note}</p>
+										<p class="mt-1.5 text-sm italic text-muted-foreground sm:text-xs">{r.review_note}</p>
 									{/if}
 								</div>
-								<div class="flex shrink-0 flex-wrap gap-1">
+								<div class="flex w-full shrink-0 flex-wrap gap-1.5 sm:w-auto sm:gap-1">
 									{#if r.source_kind === 'coverage'}
 										<span
-											class="inline-flex items-center rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700 dark:text-sky-200"
+											class="inline-flex min-h-8 items-center rounded-full border border-sky-500/40 bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-sky-700 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-sky-200"
 											title="Book tagged as covering this bible book; no specific page entry yet."
 										>
 											Coverage
 										</span>
 									{:else if r.manual_entry}
-										<span class="inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
+										<span
+											class="inline-flex min-h-8 items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-emerald-700 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-emerald-200"
+										>
 											Manual
 										</span>
 									{:else if r.confidence_score != null}
-										<span class="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground" title="OCR confidence">
+										<span
+											class="inline-flex min-h-8 items-center rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px]"
+											title="OCR confidence"
+										>
 											{Math.round(r.confidence_score * 100)}%
 										</span>
 									{/if}
 									{#if r.needs_review}
-										<span class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200">
-											<AlertCircle class="size-3" /> Review
+										<span
+											class="inline-flex min-h-8 items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-amber-800 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-amber-200"
+										>
+											<AlertCircle class="size-3.5 shrink-0 sm:size-3" /> Review
 										</span>
 									{/if}
 								</div>

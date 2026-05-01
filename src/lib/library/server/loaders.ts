@@ -439,20 +439,59 @@ export async function loadBookListFiltered(
 	return out;
 }
 
+async function fetchLiveBookCount(
+	supabase: SupabaseClient,
+	needsReviewOnly: boolean
+): Promise<number | null> {
+	let q = supabase
+		.from('books')
+		.select('*', { count: 'exact', head: true })
+		.is('deleted_at', null);
+	if (needsReviewOnly) q = q.eq('needs_review', true);
+	const { count, error } = await q;
+	if (error) {
+		console.error('[fetchLiveBookCount]', error);
+		return null;
+	}
+	return count ?? 0;
+}
+
 /**
  * Cheap unfiltered count via `head: true` — drives the "Showing N of M"
  * indicator on the list page header.
  */
 export async function countLiveBooks(supabase: SupabaseClient): Promise<number> {
-	const { count, error } = await supabase
-		.from('books')
-		.select('*', { count: 'exact', head: true })
-		.is('deleted_at', null);
-	if (error) {
-		console.error('[countLiveBooks]', error);
-		return 0;
-	}
-	return count ?? 0;
+	return (await fetchLiveBookCount(supabase, false)) ?? 0;
+}
+
+/** Live books with `needs_review = true` — dashboard tile. `null` if query failed. */
+export async function countBooksNeedingReview(
+	supabase: SupabaseClient
+): Promise<number | null> {
+	return fetchLiveBookCount(supabase, true);
+}
+
+/** Total live books for dashboard — `null` if query failed. */
+export async function countLiveBooksExact(
+	supabase: SupabaseClient
+): Promise<number | null> {
+	return fetchLiveBookCount(supabase, false);
+}
+
+/** Shared deps for `/library/books/new`, `/library/add`, etc. */
+export async function loadBookFormPageData(supabase: SupabaseClient) {
+	const [people, categories, series, personBookCounts] = await Promise.all([
+		loadPeople(supabase),
+		loadCategories(supabase),
+		loadSeries(supabase),
+		loadPersonBookCounts(supabase)
+	]);
+	return {
+		people,
+		categories,
+		series,
+		personBookCounts: Object.fromEntries(personBookCounts)
+	};
 }
 
 type RawBookDetail = {

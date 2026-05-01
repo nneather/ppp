@@ -1,20 +1,37 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { countBooksNeedingReview, countLiveBooksExact } from '$lib/library/server/loaders';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
-	const { count, error } = await locals.supabase
-		.from('time_entries')
-		.select('id', { count: 'exact', head: true })
-		.is('invoice_id', null)
-		.is('deleted_at', null);
+	const supabase = locals.supabase;
 
-	if (error) {
-		console.error(error);
-		return { unbilledCount: null as number | null, dashboardError: 'Could not load unbilled count.' };
+	const [unbilledRes, libraryTotal, libraryNeedsReview] = await Promise.all([
+		supabase
+			.from('time_entries')
+			.select('id', { count: 'exact', head: true })
+			.is('invoice_id', null)
+			.is('deleted_at', null),
+		countLiveBooksExact(supabase),
+		countBooksNeedingReview(supabase)
+	]);
+
+	if (unbilledRes.error) {
+		console.error(unbilledRes.error);
+		return {
+			unbilledCount: null as number | null,
+			libraryBookCount: libraryTotal,
+			libraryNeedsReviewCount: libraryNeedsReview,
+			dashboardError: 'Could not load unbilled count.' as string | null
+		};
 	}
 
-	return { unbilledCount: count ?? 0, dashboardError: null as string | null };
+	return {
+		unbilledCount: unbilledRes.count ?? 0,
+		libraryBookCount: libraryTotal,
+		libraryNeedsReviewCount: libraryNeedsReview,
+		dashboardError: null as string | null
+	};
 };

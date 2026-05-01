@@ -35,12 +35,30 @@
 		}
 	];
 
+	const cardClass = cn(
+		'flex h-full flex-col rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-colors hover:border-ring/50 focus-within:border-ring/50'
+	);
+
+	const innerLinkClass = cn(
+		'flex flex-1 flex-col rounded-t-xl p-5 outline-none focus-visible:ring-2 focus-visible:ring-ring'
+	);
+
 	function tileStat(href: string): string {
 		if (href === '/invoicing') {
 			if (data.unbilledCount == null) return '–';
 			return String(data.unbilledCount);
 		}
+		if (href === '/library') {
+			if (data.libraryBookCount == null) return '–';
+			return String(data.libraryBookCount);
+		}
 		return '–';
+	}
+
+	function libraryNeedsReviewLabel(): string {
+		const n = data.libraryNeedsReviewCount;
+		if (n == null) return '–';
+		return n === 1 ? '1 book needs review' : `${n} books need review`;
 	}
 </script>
 
@@ -68,23 +86,47 @@
 	<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 		{#each tiles as { href, title, statLabel, icon: Icon } (href)}
 			<li>
-				<a
-					{href}
-					class={cn(
-						'flex h-full flex-col rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm transition-colors hover:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
-					)}
-				>
-					<div class="mb-4 flex items-center gap-2 text-muted-foreground">
-						<Icon class="size-5 shrink-0" />
-						<span class="text-base font-semibold tracking-tight text-foreground">{title}</span>
+				{#if href === '/library'}
+					<div class={cardClass}>
+						<a href="/library" class={innerLinkClass}>
+							<div class="mb-4 flex items-center gap-2 text-muted-foreground">
+								<Icon class="size-5 shrink-0" />
+								<span class="text-base font-semibold tracking-tight text-foreground">{title}</span>
+							</div>
+							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+								{statLabel}
+							</p>
+							<p class="mt-2 text-3xl font-semibold text-foreground tabular-nums" aria-live="polite">
+								{tileStat(href)}
+							</p>
+						</a>
+						<div class="border-t border-border px-5 pb-4 pt-3">
+							{#if data.libraryNeedsReviewCount != null}
+								<a
+									href="/library?needs_review=true"
+									class="text-sm font-medium text-primary underline-offset-4 hover:underline"
+								>
+									{libraryNeedsReviewLabel()}
+								</a>
+							{:else}
+								<span class="text-sm text-muted-foreground">Review queue: –</span>
+							{/if}
+						</div>
 					</div>
-					<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-						{statLabel}
-					</p>
-					<p class="mt-2 text-3xl font-semibold text-foreground tabular-nums" aria-live="polite">
-						{tileStat(href)}
-					</p>
-				</a>
+				{:else}
+					<a {href} class={cn(cardClass, 'p-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none')}>
+						<div class="mb-4 flex items-center gap-2 text-muted-foreground">
+							<Icon class="size-5 shrink-0" />
+							<span class="text-base font-semibold tracking-tight text-foreground">{title}</span>
+						</div>
+						<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+							{statLabel}
+						</p>
+						<p class="mt-2 text-3xl font-semibold text-foreground tabular-nums" aria-live="polite">
+							{tileStat(href)}
+						</p>
+					</a>
+				{/if}
 			</li>
 		{/each}
 	</ul>

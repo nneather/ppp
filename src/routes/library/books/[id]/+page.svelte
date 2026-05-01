@@ -12,6 +12,13 @@
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Copy from '@lucide/svelte/icons/copy';
+	import {
+		copyAllFieldsLine,
+		copyAuthorsLine,
+		copyPublisherYearLine,
+		copyTitleLine
+	} from '$lib/library/book-copy-text';
 	import {
 		AUTHOR_ROLE_LABELS,
 		LANGUAGE_LABELS,
@@ -77,6 +84,33 @@
 		const head = parts.join(': ');
 		const yearStr = data.book.year != null ? String(data.book.year) : '';
 		return [head, yearStr].filter((s) => s.length > 0).join(', ');
+	}
+
+	let copyToast = $state<string | null>(null);
+	let copyToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function flashCopyToast(message: string) {
+		copyToast = message;
+		if (copyToastTimer != null) clearTimeout(copyToastTimer);
+		copyToastTimer = setTimeout(() => {
+			copyToast = null;
+			copyToastTimer = null;
+		}, 2500);
+	}
+
+	async function copyToClipboard(label: string, text: string) {
+		if (!browser) return;
+		const t = text.trim();
+		if (!t) {
+			flashCopyToast('Nothing to copy.');
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(t);
+			flashCopyToast(`Copied ${label}.`);
+		} catch {
+			flashCopyToast('Clipboard unavailable.');
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -410,6 +444,55 @@
 			</form>
 		</div>
 	</header>
+
+	<section
+		class="mt-4 rounded-lg border border-border bg-muted/25 px-3 py-3"
+		aria-label="Copy raw fields for citations"
+	>
+		<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Copy for drafts</p>
+		<div class="mt-2 flex flex-wrap gap-2">
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={copyAuthorsLine(data.book.authors).length === 0}
+				onclick={() => void copyToClipboard('authors', copyAuthorsLine(data.book.authors))}
+			>
+				<Copy class="size-3.5" /> Authors
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={copyTitleLine(data.book).length === 0}
+				onclick={() => void copyToClipboard('title', copyTitleLine(data.book))}
+			>
+				<Copy class="size-3.5" /> Title
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={copyPublisherYearLine(data.book).length === 0}
+				onclick={() => void copyToClipboard('publisher and year', copyPublisherYearLine(data.book))}
+			>
+				<Copy class="size-3.5" /> Publisher + year
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={copyAllFieldsLine(data.book).length === 0}
+				onclick={() => void copyToClipboard('all fields', copyAllFieldsLine(data.book))}
+			>
+				<Copy class="size-3.5" /> All fields
+			</Button>
+		</div>
+	</section>
 
 	{#if data.book.needs_review_note}
 		<p class="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
@@ -928,3 +1011,13 @@
 		pendingDeleteId = null;
 	}}
 />
+
+{#if copyToast}
+	<div
+		class="fixed inset-x-0 bottom-20 z-50 mx-auto w-full max-w-sm rounded-lg border border-border bg-card px-4 py-3 text-center text-sm text-card-foreground shadow-lg md:bottom-6"
+		role="status"
+		aria-live="polite"
+	>
+		{copyToast}
+	</div>
+{/if}
