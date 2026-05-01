@@ -136,13 +136,14 @@
    paths if either ever has to operate on > 440 ids — they currently slice
    at 500 too. Not a problem at 1,331 books because no single in-list grows
    past the cap; will bite at ~5,000 books unless lowered first.
-2. **Importing a named export from `+page.server.ts`** — `parseReviewFilters`
-   is exported from `/library/review/+page.server.ts` and imported by the
-   sibling `/library/review/queue/+server.ts`. SvelteKit only treats
-   `load`, `actions`, `prerender`, `csr`, `ssr` as special; any other named
-   export is just a regular module member. Cleaner than duplicating the
-   parser into a third helper file when only one route + its sub-endpoint
-   share it.
+2. **`parseReviewFilters` location (updated after Session 5.5)** — Initially
+   it lived as a named export on `/library/review/+page.server.ts` so the
+   sibling `/library/review/queue/+server.ts` could reuse the parser without
+   duplicating logic. Named exports on route modules conflict with SvelteKit
+   expectations / deployment tooling, so **`parseReviewFilters` moved to
+   `src/lib/library/review.ts`** and is imported from there by the review
+   page server, the queue endpoint, and `/library/+page.server.ts` (same
+   filter params on the nav link).
 3. **`$state(data.foo)` on mount triggers Svelte's
    `state_referenced_locally` warning.** The intended pattern (re-seed via
    `$effect` when `data` changes) is correct, but the initial seed reads
@@ -192,5 +193,5 @@
 | Rows kept NULL (Brockhaus rewrites + ambiguous) | 92 |
 | Audit rows patched post-backfill | 1,238 |
 | New routes | `/library/review`, `/library/review/queue` |
-| New helpers exported | `stripReviewAutoLine`, `loadReviewQueue`, `countReviewQueue`, `multiParam` (lifted), `parseReviewFilters` |
+| New helpers exported | `stripReviewAutoLine`, `loadReviewQueue`, `countReviewQueue`, `multiParam` (lifted); `parseReviewFilters` in `src/lib/library/review.ts` |
 | Page LOC | ~510 (single page; threshold ~150 for extraction was bumped because the surface is genuinely co-owned) |
