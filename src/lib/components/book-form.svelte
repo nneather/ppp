@@ -430,10 +430,14 @@
 			if (p.title) title = p.title;
 			if (p.subtitle != null && p.subtitle !== '') subtitle = p.subtitle;
 			if (p.publisher != null && p.publisher !== '') publisher = p.publisher;
+			if (p.publisher_location != null && p.publisher_location !== '')
+				publisher_location = p.publisher_location;
+			if (p.edition != null && p.edition !== '') edition = p.edition;
 			if (p.year != null) year = String(p.year);
 			if (p.page_count != null) page_count = String(p.page_count);
 			if (p.isbn) isbn = p.isbn;
 			olAuthorHint = p.authorTyped;
+			if (p.genreSuggested && genre === '') genre = p.genreSuggested;
 		});
 		initialSnapshot = untrack(() => currentFormSnapshot());
 		onOpenLibraryPrefillConsumed?.();
