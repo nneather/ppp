@@ -3,8 +3,6 @@
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import ScrollText from '@lucide/svelte/icons/scroll-text';
 	import BookOpen from '@lucide/svelte/icons/book-open';
-	import Tags from '@lucide/svelte/icons/tags';
-	import BookMarked from '@lucide/svelte/icons/book-marked';
 	import { cn } from '$lib/utils';
 	import type { PageProps } from './$types';
 
@@ -38,25 +36,12 @@
 						: '—'
 			},
 			{
-				href: '/settings/library/genres',
-				title: 'Library — genres',
-				description: 'Closed genre list (read-only)',
+				href: '/settings/library',
+				title: 'Library',
+				description: 'Genre list, shelving categories, and Bible book canon (read-only reference)',
 				icon: BookOpen,
-				summary: 'Reference'
-			},
-			{
-				href: '/settings/library/categories',
-				title: 'Library — categories',
-				description: '7 shelving categories (read-only)',
-				icon: Tags,
-				summary: 'Reference'
-			},
-			{
-				href: '/settings/library/bible-books',
-				title: 'Library — bible books',
-				description: '66-book Protestant canon (read-only)',
-				icon: BookMarked,
-				summary: data.bookCount != null ? `${data.bookCount} books in library` : 'Reference'
+				summary:
+					data.bookCount != null ? `${data.bookCount} books in library` : 'Genres · categories · canon'
 			}
 		];
 		if (data.isOwner) {
