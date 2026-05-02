@@ -7,6 +7,9 @@
  */
 
 import type { Genre } from '$lib/types/library';
+import { normalizeIsbnDigits, parseIsbnWithChecksum } from '$lib/library/isbn';
+
+export { normalizeIsbnDigits } from '$lib/library/isbn';
 
 export const LIBRARY_OL_PREFILL_KEY = 'library_ol_prefill_v1';
 
@@ -34,14 +37,6 @@ function asStr(v: unknown): string | null {
 function asNum(v: unknown): number | null {
 	if (typeof v === 'number' && Number.isFinite(v)) return v;
 	if (typeof v === 'string' && /^\d+$/.test(v.trim())) return Number.parseInt(v.trim(), 10);
-	return null;
-}
-
-/** Strip non-digits; accept ISBN-10 / ISBN-13 / EAN-13 bookland. */
-export function normalizeIsbnDigits(raw: string): string | null {
-	const d = raw.replace(/[^0-9X]/gi, '').toUpperCase();
-	if (d.length === 13) return d;
-	if (d.length === 10) return d;
 	return null;
 }
 
@@ -198,9 +193,11 @@ function suggestGenreFromSubjects(subjects: string[]): Genre | null {
 }
 
 export async function fetchOpenLibraryPrefill(isbn: string): Promise<OpenLibraryBookPrefill> {
-	const normalized = normalizeIsbnDigits(isbn);
+	const normalized = parseIsbnWithChecksum(isbn);
 	if (!normalized) {
-		throw new Error('That does not look like a valid ISBN (10 or 13 digits).');
+		throw new Error(
+			'That does not look like a valid ISBN (10 or 13 digits with a correct check digit).'
+		);
 	}
 
 	const url = `https://openlibrary.org/isbn/${encodeURIComponent(normalized)}.json`;

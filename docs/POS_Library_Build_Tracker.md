@@ -15,7 +15,7 @@
 >
 > Standards live in those files; the tracker is the plan. Where this tracker would otherwise restate a standard, it links instead.
 
-_Last updated: April 25, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
+_Last updated: May 2, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
 
 ---
 
@@ -330,8 +330,9 @@ _Barcode-add lands **after** Session 4 on purpose. Pre-migration scans would cre
 |------|:----:|-------|
 | Mobile pass on `/library/search-passage` — one-hand thumb operation, large touch targets, results card layout | ☑ | Stacked form on narrow width, `h-12` controls, larger cards + `break-words` / badge tap targets. |
 | Mobile pass on `<ScriptureReferenceForm>` — bible_book uses bottom sheet on `max-sm`, chapter/verse numeric grid 2×2, image upload camera path unchanged | ☑ | Sheet + filter list; desktop `Select` unchanged. |
-| Mobile pass on **`<BookForm>`** dedicated pages `/library/books/new` + `/library/books/[id]/edit` — comfortable on narrow width | ☑ | Taller author-role select + icon row touch targets (`min-h-11`). Tracker formerly said `<BookFormSheet>` — obsolete since Session 1.5e. |
-| `@zxing/browser` integration on `/library/add` | ☑ | `BrowserMultiFormatReader` + `decodeFromVideoDevice`; EAN-13 / ISBN path. |
+| Mobile pass on **`<BookForm>`** dedicated pages `/library/books/new` + `/library/books/[id]/edit` — comfortable on narrow width | ☑ | Taller author-role select + icon row touch targets (`min-h-11`). Tracker formerly said `<BookFormSheet>` — obsolete since Session 1.5e. **Follow-up 2026-05-01:** sticky save/Cancel strip clears the fixed mobile tab bar (`max-md:bottom-20`, safe-area padding, `z-10`); Cancel co-located via optional `onCancel` on new + edit routes. |
+| `@zxing/browser` integration on `/library/add` | ☑ | `BrowserMultiFormatReader` + `decodeFromVideoDevice`; EAN-13 / ISBN path. **Follow-up 2026-05-02:** check-digit validation + double-decode confirm; tap overlay + one-shot auto-start; camera tips + `permissions.query`; `isbn.ts` + `scan-session.ts`; Save & scan another / Back to scanner + mobile scan layout on new-book form ([`011`](decisions/011-library-session-6-mobile-and-barcode.md)). |
+| **Open Library prefill enrich (2026-05-01)** | ☑ | Single entry point unchanged for `/library/add`: optional work fetch + parallel author fetches (cap 5); `publish_places` / edition string / work-first title; conservative `genreSuggested`; `BookForm` applies new fields. See `docs/decisions/011-library-session-6-mobile-and-barcode.md`. |
 | Confirm-before-save on barcode-populated form | ☑ | OL → `sessionStorage` → `/library/books/new`; user reviews before `createBook`. |
 | Manual ISBN fallback — text input invokes same Open Library lookup | ☑ | When camera denied, inline error + manual field. |
 | Dashboard library tile — live count of total books + needs_review count, deep link to `/library?needs_review=true` | ☑ | Matches invoicing-style stat + footer link (`src/routes/dashboard/+page.svelte`). |
@@ -350,6 +351,12 @@ _Barcode-add lands **after** Session 4 on purpose. Pre-migration scans would cre
 - [x] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit — _N/A; no migration_
 - [x] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template — [`011-library-session-6-mobile-and-barcode.md`](decisions/011-library-session-6-mobile-and-barcode.md)
 - [ ] viewer can run the full trip-period workflow end-to-end on phone — tested by signing in as the viewer user _Deferred per prior sessions._
+
+**Session 6 follow-ups (2026-05-01)** — small pre-trip polish after the numbered Session 6 build; no new migration.
+
+- **Open Library prefill enrich** — [`open-library-prefill.ts`](../src/lib/library/open-library-prefill.ts): edition + optional work JSON for title/subtitle (articles); up to five parallel author `…/authors/OL….json` fetches; `publisher_location` from `publish_places`; `edition` from `edition_name` / `physical_format`; `genreSuggested` from ordered subject-keyword rules (closed `Genre` enum only). Wired in [`book-form.svelte`](../src/lib/components/book-form.svelte) + documented in [`011-library-session-6-mobile-and-barcode.md`](decisions/011-library-session-6-mobile-and-barcode.md).
+- **BookForm vs mobile tab bar** — Sticky footer no longer sits under the app shell’s fixed bottom nav: offset + safe-area + optional `onCancel` so Save and Cancel share one strip on `/library/books/new` and `/library/books/[id]/edit`; personal notes section gets extra `max-md` bottom padding for scroll room.
+- **ISBN scan UX (2026-05-02)** — [`isbn.ts`](../src/lib/library/isbn.ts) (`parseIsbnWithChecksum`); [`/library/add`](../src/routes/library/add/+page.svelte): checksum gate, consecutive decode window, tap-to-start overlay, optional auto-start after `videoEl` binds, permission copy + `permissions.query` when supported; [`scan-session.ts`](../src/lib/library/scan-session.ts) + **Save & scan another** / **Back to scanner** on [`books/new`](../src/routes/library/books/new/+page.svelte); `<BookForm>` `scanSessionLayout`: mobile imported summary, single `<details>` for middle columns (no duplicate field IDs), `onSaved` optional `returnToScanner`. Documented in [`011`](decisions/011-library-session-6-mobile-and-barcode.md).
 
 ---
 

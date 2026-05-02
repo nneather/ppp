@@ -37,7 +37,7 @@
 		if (next) goto(next);
 	}
 
-	async function onSaved(bookId: string) {
+	async function onSaved(bookId: string, _opts?: { returnToScanner?: boolean }) {
 		confirmedDiscard = true;
 		await invalidateAll();
 		goto(`/library/books/${bookId}`);

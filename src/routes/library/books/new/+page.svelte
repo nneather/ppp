@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
 	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 	import BookForm from '$lib/components/book-form.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import {
 		LIBRARY_OL_PREFILL_KEY,
 		type OpenLibraryBookPrefill
 	} from '$lib/library/open-library-prefill';
+	import { LIBRARY_SCAN_SESSION_KEY } from '$lib/library/scan-session';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import type { PageProps } from './$types';
@@ -14,6 +16,7 @@
 	let { data, form }: PageProps = $props();
 
 	let olPrefill = $state<OpenLibraryBookPrefill | null>(null);
+	let scanSessionFromAdd = $state(false);
 
 	$effect(() => {
 		if (!browser) return;
@@ -24,6 +27,18 @@
 			if (parsed && typeof parsed.isbn === 'string') olPrefill = parsed;
 		} catch {
 			olPrefill = null;
+		}
+	});
+
+	onMount(() => {
+		if (!browser) return;
+		try {
+			if (sessionStorage.getItem(LIBRARY_SCAN_SESSION_KEY) === '1') {
+				scanSessionFromAdd = true;
+				sessionStorage.removeItem(LIBRARY_SCAN_SESSION_KEY);
+			}
+		} catch {
+			/* ignore */
 		}
 	});
 
@@ -61,10 +76,14 @@
 		if (next) goto(next);
 	}
 
-	async function onSaved(bookId: string) {
+	async function onSaved(bookId: string, opts?: { returnToScanner?: boolean }) {
 		confirmedDiscard = true; // success path; bypass beforeNavigate
 		await invalidateAll();
-		goto(`/library/books/${bookId}`);
+		if (opts?.returnToScanner) {
+			goto('/library/add');
+		} else {
+			goto(`/library/books/${bookId}`);
+		}
 	}
 
 	function handleCancel() {
@@ -73,6 +92,15 @@
 			confirmDiscardOpen = true;
 		} else {
 			goto('/library');
+		}
+	}
+
+	function handleBackToScanner() {
+		pendingNav = new URL('/library/add', window.location.origin);
+		if (dirty) {
+			confirmDiscardOpen = true;
+		} else {
+			goto('/library/add');
 		}
 	}
 </script>
@@ -107,6 +135,8 @@
 		openLibraryPrefill={olPrefill}
 		onOpenLibraryPrefillConsumed={clearOlPrefill}
 		onCancel={handleCancel}
+		scanSessionLayout={scanSessionFromAdd}
+		onBackToScanner={scanSessionFromAdd ? handleBackToScanner : undefined}
 	/>
 </div>
 

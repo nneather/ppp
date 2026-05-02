@@ -54,6 +54,8 @@
 	 *
 	 * `onCancel` — when set, Cancel is shown in the sticky footer with Save
 	 * (mobile: stacked above tab bar clearance; desktop: row, end-aligned).
+	 *
+	 * `scanSessionLayout` + `onBackToScanner` — after barcode → new book, mobile summary + collapsible “more fields”, and actions to return to `/library/add` or save then continue scanning.
 	 */
 
 	type FormMessage = { message?: string } | null | undefined;
@@ -76,7 +78,9 @@
 		onDirtyChange,
 		onCancel,
 		openLibraryPrefill = null,
-		onOpenLibraryPrefillConsumed
+		onOpenLibraryPrefillConsumed,
+		scanSessionLayout = false,
+		onBackToScanner
 	}: {
 		mode: 'create' | 'edit';
 		book?: BookDetail | null;
@@ -85,13 +89,17 @@
 		categories: CategoryRow[];
 		series: SeriesRow[];
 		formMessage?: FormMessage;
-		onSaved?: (bookId: string) => void;
+		onSaved?: (bookId: string, opts?: { returnToScanner?: boolean }) => void;
 		onDirtyChange?: (dirty: boolean) => void;
 		/** Leave without submit; host wires dirty confirm + `goto`. */
 		onCancel?: () => void;
 		/** One-shot metadata from `/library/add` + Open Library (create mode). */
 		openLibraryPrefill?: OpenLibraryBookPrefill | null;
 		onOpenLibraryPrefillConsumed?: () => void;
+		/** Mobile-first layout after barcode scan: summary card + collapsible middle columns. */
+		scanSessionLayout?: boolean;
+		/** Return to `/library/add` without save; host wires dirty confirm. */
+		onBackToScanner?: () => void;
 	} = $props();
 
 	let people = $state<PersonRow[]>([]);
@@ -144,6 +152,23 @@
 	let initialSnapshot = $state<string>('');
 
 	let olAuthorHint = $state<string | null>(null);
+
+	let bookFormEl = $state<HTMLFormElement | null>(null);
+	/** When true, successful submit calls `onSaved` with `returnToScanner: true`. */
+	let returnToScannerAfterSave = $state(false);
+
+	/** When `scanSessionLayout`, desktop keeps middle fields open; mobile starts collapsed. */
+	let middleFieldsOpen = $state(false);
+	$effect(() => {
+		if (!browser || !scanSessionLayout) return;
+		const mq = window.matchMedia('(min-width: 1024px)');
+		const sync = () => {
+			middleFieldsOpen = mq.matches;
+		};
+		sync();
+		mq.addEventListener('change', sync);
+		return () => mq.removeEventListener('change', sync);
+	});
 
 	function currentFormSnapshot(): string {
 		return JSON.stringify({
@@ -615,7 +640,9 @@
 				// Re-baseline so onDirtyChange flips back to false and the host's
 				// beforeNavigate doesn't intercept the success-driven goto().
 				initialSnapshot = currentFormSnapshot();
-				if (bookId) onSaved?.(bookId);
+				const rt = returnToScannerAfterSave;
+				returnToScannerAfterSave = false;
+				if (bookId) onSaved?.(bookId, { returnToScanner: rt });
 			}
 		};
 	};
@@ -636,7 +663,13 @@
 		</p>
 	{/if}
 
-	<form method="POST" action={formAction} use:enhance={submitEnhance} class="flex flex-col gap-6">
+	<form
+		bind:this={bookFormEl}
+		method="POST"
+		action={formAction}
+		use:enhance={submitEnhance}
+		class="flex flex-col gap-6"
+	>
 		{#if mode === 'edit' && book}
 			<input type="hidden" name="id" value={book.id} />
 		{/if}
@@ -675,6 +708,43 @@
 				</div>
 			</div>
 		</section>
+
+		{#if scanSessionLayout}
+			<section
+				class="rounded-lg border border-border bg-muted/20 p-4 md:hidden"
+				aria-label="Imported metadata summary"
+			>
+				<h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+					Imported from scan
+				</h3>
+				<dl class="mt-2 space-y-1.5 text-sm">
+					<div class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+						<dt class="text-muted-foreground">Title</dt>
+						<dd class="min-w-0 font-medium text-foreground">{title.trim() || '—'}</dd>
+						<dt class="text-muted-foreground">ISBN</dt>
+						<dd class="font-mono tabular-nums">{isbn.trim() || '—'}</dd>
+						<dt class="text-muted-foreground">Author</dt>
+						<dd class="min-w-0">{olAuthorHint?.trim() || '—'}</dd>
+						<dt class="text-muted-foreground">Publisher</dt>
+						<dd class="min-w-0">{publisher.trim() || '—'}</dd>
+						<dt class="text-muted-foreground">Year</dt>
+						<dd>{year.trim() || '—'}</dd>
+						<dt class="text-muted-foreground">Genre</dt>
+						<dd>{genre || '—'}</dd>
+					</div>
+				</dl>
+				<details class="mt-3 border-t border-border pt-2">
+					<summary class="cursor-pointer text-xs font-medium text-primary">All field values</summary>
+					<ul class="mt-2 space-y-1 break-words font-mono text-xs text-muted-foreground">
+						<li>Subtitle: {subtitle.trim() || '—'}</li>
+						<li>Publisher location: {publisher_location.trim() || '—'}</li>
+						<li>Edition: {edition.trim() || '—'}</li>
+						<li>Page count: {page_count.trim() || '—'}</li>
+						<li>Barcode: {barcode.trim() || '—'}</li>
+					</ul>
+				</details>
+			</section>
+		{/if}
 
 		{#if olAuthorHint}
 			<div
@@ -803,6 +873,7 @@
 			{/each}
 		</section>
 
+		{#snippet middleFieldsGrid()}
 		<!-- 2-col split: classification/state on left, publication/reprint/identifiers on right -->
 		<div class="grid gap-6 lg:grid-cols-2 lg:gap-x-8">
 			<!-- LEFT COLUMN -->
@@ -1226,6 +1297,27 @@
 				</section>
 			</div>
 		</div>
+		{/snippet}
+
+		{#if scanSessionLayout}
+			<details
+				bind:open={middleFieldsOpen}
+				class="mb-4 overflow-hidden rounded-lg border border-border bg-card"
+			>
+				<summary
+					class="cursor-pointer px-4 py-3 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+				>
+					More fields — classification, publication, identifiers
+				</summary>
+				<div
+					class="max-h-[70vh] overflow-y-auto border-t border-border px-2 pb-4 pt-3 lg:max-h-none lg:overflow-visible lg:border-t-0 lg:px-0 lg:pb-0 lg:pt-0"
+				>
+					{@render middleFieldsGrid()}
+				</div>
+			</details>
+		{:else}
+			{@render middleFieldsGrid()}
+		{/if}
 
 		<!-- Personal notes (full width) -->
 		<section class="flex flex-col gap-2 max-md:pb-8">
@@ -1245,7 +1337,7 @@
 		<div
 			class="sticky z-10 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-md:bottom-20 max-md:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.06)] max-md:dark:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.25)] md:bottom-0 sm:-mx-6 sm:px-6"
 		>
-			<div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+			<div class="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
 				{#if onCancel}
 					<Button
 						type="button"
@@ -1257,12 +1349,40 @@
 						onclick={onCancel}
 					/>
 				{/if}
+				{#if onBackToScanner}
+					<Button
+						type="button"
+						variant="ghost"
+						class="h-12 w-full text-base sm:w-auto sm:min-w-32"
+						disabled={pending}
+						onclick={onBackToScanner}
+					>
+						Back to scanner
+					</Button>
+				{/if}
+				{#if scanSessionLayout && mode === 'create'}
+					<Button
+						type="button"
+						variant="secondary"
+						class="h-12 w-full text-base sm:w-auto sm:min-w-40"
+						disabled={pending || !hasAnyField}
+						onclick={() => {
+							returnToScannerAfterSave = true;
+							bookFormEl?.requestSubmit();
+						}}
+					>
+						Save &amp; scan another
+					</Button>
+				{/if}
 				<Button
 					type="submit"
 					class="h-12 w-full text-base sm:w-auto sm:min-w-40 sm:px-8"
 					disabled={pending || !hasAnyField}
 					hotkey={mode === 'create' ? 's' : 'u'}
 					label={pending ? 'Saving…' : mode === 'create' ? 'Save book' : 'Update book'}
+					onpointerdown={() => {
+						returnToScannerAfterSave = false;
+					}}
 				/>
 			</div>
 			{#if !pending && !hasAnyField}
