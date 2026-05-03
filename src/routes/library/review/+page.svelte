@@ -697,7 +697,7 @@
 				</form>
 			</article>
 
-			<p class="mt-3 text-center text-[11px] text-muted-foreground">
+			<p class="mt-3 hidden text-center text-[11px] text-muted-foreground md:block">
 				<kbd class="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px]">⌘S</kbd> save
 				·
 				<kbd class="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px]">Esc</kbd> skip

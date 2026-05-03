@@ -1,6 +1,6 @@
-# Library migrate — localhost → hosted Supabase
+# Library migrate — Path B (source → destination Postgres)
 
-Implements **Path B** from the operational plan when your local Postgres has rows that are **not** fully represented by the SQL under [`supabase/seed/`](/supabase/seed/). Paths **A** and **C** do not need this tooling (see below).
+Implements **Path B** when the **source** database has library rows that are **not** fully represented by the SQL under [`supabase/seed/`](/supabase/seed/) alone. **Source** and **destination** are **any two Postgres endpoints** the script can open — in practice, two [**Supabase Dashboard**](https://supabase.com/dashboard) **Connect → Direct** URIs (e.g. preview branch → prod, or staging project → prod) are enough. **No Docker Desktop or local Supabase is required** unless you choose `127.0.0.1:54322` as the source. Paths **A** and **C** do not need this tooling (see below).
 
 ## Path A — Data matches git seeds only
 
@@ -16,35 +16,57 @@ Follow [`scripts/library-import/README.md`](../library-import/README.md) (`POS_O
 
 ## Path B — Programmatic row copy (`migrateLibraryData.ts`)
 
-Copies core **user library** tables from a **source** Postgres (local Supabase) to **destination** (hosted), preserving primary keys while remapping FKs that differ between databases:
+Copies core **user library** tables from **source** Postgres to **destination** Postgres, preserving primary keys while remapping FKs that differ between databases. The script does **not** care whether either host is “local” or “cloud” — only that both URIs are valid and reachable.
 
 | Remap                              | How                                                                                                                                                                                                                                                    |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `created_by` → owner on dst        | All non-null `created_by` are set to the destination **owner** `profiles.id` (from `profiles.role = 'owner'`). Nulls stay null.                                                                                                                        |
 | `categories`                       | Every `books.primary_category_id` and `book_categories.category_id` mapped by **`slug`** (seeded reference data).                                                                                                                                      |
 | `ancient_texts`                    | Every `book_ancient_coverage.ancient_text_id` mapped by **`canonical_name`**.                                                                                                                                                                          |
-| `series`                           | Rows referenced by `books.series_id` are matched on prod by `name` + `abbreviation` when possible, else **`name`** only; if still missing on dst, the series row is inserted.                                                                          |
-| Storage paths (`source_image_url`) | Paths that start with a **local profile id** (first path segment before `/`) get that segment rewritten to the **destination owner** id — same assumption as migrating scans under prod’s owner prefix. External `http(s)://` URLs are left unchanged. |
+| `series`                           | Rows referenced by `books.series_id` are matched on destination by `name` + `abbreviation` when possible, else **`name`** only; if still missing on dst, the series row is inserted.                                                                          |
+| Storage paths (`source_image_url`) | Paths that start with a **source profile id** (first path segment before `/`) get that segment rewritten to the **destination owner** id — same assumption as migrating scans under the destination owner prefix. External `http(s)://` URLs are left unchanged. |
 
 **Does not**: copy auth, `profiles`, reference rows (`categories`, `bible_books`, …), Storage objects, or `audit_log`.
 
 ### Preconditions
 
-1. **Migrations**: destination schema matches the repo (`npm run supabase:db:push` on prod).
-2. **Reference seeds** on prod: run Path A step 1 at minimum so `categories` / `bible_books` / `ancient_texts` rows exist (`library_seed.sql`).
+1. **Migrations**: destination schema matches the repo (`npm run supabase:db:push` on the destination project).
+2. **Reference seeds** on destination: run Path A step 1 at minimum so `categories` / `bible_books` / `ancient_texts` exist (`library_seed.sql`).
 3. **Empty corpus** on destination by default — no non–soft-deleted `books` (`COUNT(*) WHERE deleted_at IS NULL` must be **0**) unless you pass `--allow-non-empty-dst`.
 
 ### Env
 
-Two connection strings (**never commit** secrets):
+Put these in **`.env.local`** at the repo root (gitignored). `npm run library:migrate:*` loads `.env` then `.env.local` via `dotenv-cli` — same pattern as other scripts.
+
+| Variable | Purpose |
+| -------- | ------- |
+| `LIBRARY_SRC_DATABASE_URL` | **Source** Postgres URI — usually from Supabase Dashboard → **Connect → Direct** for the project or **branch** that holds the corpus to copy from. **Required.** |
+| `LIBRARY_DST_DATABASE_URL` | **Destination** Postgres URI — same Dashboard path on the target (often primary prod). **Connect → Direct** (or pooler if Supabase recommends). **Required.** |
+| `LIBRARY_MIGRATE_CONFIRM` | Set to `yes` only for `--apply`; refuses writes without it. |
+
+Two connection strings (**never commit** secrets). Typical **Supabase-project-only** setup — both from the Dashboard:
 
 ```bash
-# Local (from `supabase status`, or Postgres URI on port 54322)
-export LIBRARY_SRC_DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+# Source: project or branch where the library data already lives
+LIBRARY_SRC_DATABASE_URL='postgresql://postgres:[SRC_PASSWORD]@db.<source-ref>.supabase.co:5432/postgres'
 
-# Hosted — Supabase Dashboard → Database → connection string (use session pooler or direct)
-export LIBRARY_DST_DATABASE_URL='postgresql://postgres.[ref]:[password]@aws-...pooler.supabase.com:6543/postgres'
+# Destination: target project (e.g. prod) — empty active books unless you use --allow-non-empty-dst
+LIBRARY_DST_DATABASE_URL='postgresql://postgres:[DST_PASSWORD]@db.<dest-ref>.supabase.co:5432/postgres'
 ```
+
+**Optional — local Supabase Postgres as source**
+
+If you run **local** Supabase (CLI `supabase start`), the DB URL is often `postgresql://postgres:postgres@127.0.0.1:54322/postgres`. Local Supabase still needs **a container runtime** on the machine; it is **not** the default path for Path B when you work entirely from hosted projects.
+
+**URI hygiene**
+
+- Remove any stray character after the database name (e.g. a mistaken `>` at the end of the line).
+- If the database password contains `@`, `:`, `/`, `?`, `#`, `[`, `]`, or `%`, **percent-encode** those characters in the password segment of the URI (e.g. `]` → `%5D`).
+
+**Source connectivity**
+
+- If **`LIBRARY_SRC_DATABASE_URL`** points at **`127.0.0.1:54322`** and dry-run fails with **`ECONNREFUSED`**, local Postgres is not running — start your local Supabase stack or **switch SRC to a hosted Supabase URI** instead.
+- If **both** URLs are **hosted** Supabase and you see auth errors (`password authentication failed`), fix the URI or percent-encode special characters in the password — do not assume Docker.
 
 Dry-run defaults (no writes on dst):
 
@@ -66,6 +88,8 @@ npm run library:migrate:dry
 LIBRARY_MIGRATE_CONFIRM=yes npm run library:migrate:apply
 ```
 
+`npm run library:migrate:apply` only passes `--apply`. For **`--allow-non-empty-dst`**, use the full `npx dotenv … tsx … --apply --allow-non-empty-dst` command above.
+
 ### Optional flags
 
 | Flag                    | Meaning                                                                                      |
@@ -82,7 +106,7 @@ SELECT COUNT(*) AS scripture_references FROM public.scripture_references WHERE d
 SELECT id, email FROM public.profiles WHERE role = 'owner';
 ```
 
-Then smoke the app `/library` and a representative `/library/books/[id]` (and scripture thumbnails if `source_image_url` pointed at migrated paths — bucket objects still need uploading if you relied on local Storage).
+Then smoke the app `/library` and a representative `/library/books/[id]` against the **destination** project (and scripture thumbnails if `source_image_url` pointed at migrated paths — bucket objects still need uploading if you relied on Storage on the source).
 
 ### Scripture Storage
 

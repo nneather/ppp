@@ -1,5 +1,5 @@
 /**
- * Path B library migration — copy user library rows from local Postgres → hosted Postgres.
+ * Path B library migration — copy user library rows from source Postgres → destination Postgres.
  *
  * README: scripts/library-migrate-local-to-prod/README.md
  */

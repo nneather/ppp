@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-03
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -33,23 +33,34 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [014 — Library migrate env + handoff](docs/decisions/014-library-migrate-env-handoff.md) (2026-05-03) — Path B README/AGENTS env table; review queue kbd hints desktop-only; Path B framed as Supabase Dashboard **source → destination** Postgres URIs (no Docker Desktop assumed).
 - [013 — Library Session 7b settings polish](docs/decisions/013-library-session-7b-settings-polish.md) (2026-05-02) — series + ancient-texts CRUD + merge, translator data migration, permissions UI + RLS.
 - [012 — Library Session 7 people merge](docs/decisions/012-library-session-7-people-settings-merge.md) (2026-05-02) — `library_merge_people` RPC; merge audit entries non-revertible.
-- [011 — Library Session 6 mobile + barcode](docs/decisions/011-library-session-6-mobile-and-barcode.md) — `@zxing/browser` + manual ISBN fallback for `/library/add`.
+
+---
+
+## Session handoff (2026-05-03) — Path B migrate + trip QA
+
+**Library Path B (source → destination)** — `.env.local` must define `LIBRARY_SRC_DATABASE_URL` and `LIBRARY_DST_DATABASE_URL` (see [scripts/library-migrate-local-to-prod/README.md](scripts/library-migrate-local-to-prod/README.md)). Use Supabase Dashboard → **Connect → Direct** for **both** ends: the project or **branch** that holds the corpus (SRC) and the target project, usually prod (DST). Run `npm run library:migrate:dry`, then `LIBRARY_MIGRATE_CONFIRM=yes npm run library:migrate:apply` when the destination has **zero** active `books` (or add `--allow-non-empty-dst` via the full `npx dotenv … tsx` command). Scripture **bucket objects** are not copied by the script.
+
+**Phone smoke (owner):** `/library` filters at scale, `/library/search-passage` (e.g. Phil 2:5), `/library/review` drill, `/library/add` barcode path — tracker Session 3–6 acceptance.
+
+**Viewer smoke (owner):** seed viewer + `user_permissions`; confirm merge/ancient/permissions 403s per [013](docs/decisions/013-library-session-7b-settings-polish.md).
 
 ---
 
 ## Next up
 
-1. **Trip-period mobile workflow validation** — confirm review queue + reading-status updates + scripture-reference entry feel friction-free on phone before 2026-05-21.
-2. **Invoicing go-live blocker:** purchase domain → verify in Resend → update `send-invoice` `from` address → smoke test on a real client.
-3. **Carry-forward from Session 7:** hands-on viewer smoke test (acceptance item still ☐) — viewer cannot merge people, cannot CRUD ancient_texts, cannot reach `/settings/permissions`.
-4. **Pre-Session-8 prep (queue for August):**
+1. **Complete Path B apply** — set SRC/DST to Dashboard Postgres URIs → `npm run library:migrate:dry` → `LIBRARY_MIGRATE_CONFIRM=yes npm run library:migrate:apply` when destination preconditions met (see README).
+2. **Trip-period mobile workflow validation** — confirm review queue + reading-status updates + scripture-reference entry feel friction-free on phone before 2026-05-21.
+3. **Invoicing go-live blocker:** purchase domain → verify in Resend → update `send-invoice` `from` address → smoke test on a real client.
+4. **Carry-forward from Session 7:** hands-on viewer smoke test (acceptance item still ☐) — viewer cannot merge people, cannot CRUD ancient_texts, cannot reach `/settings/permissions`.
+5. **Pre-Session-8 prep (queue for August):**
    - Resolve Open Q4 — bibliography export format.
    - Load Turabian skill (`SKILL.md` + `formats.md`) into build context.
    - Author v2 corrected scholarly-core spreadsheet by early August (Open Q8) so Pass 2 can run before Session 9.
-5. **Pre-Session-9 prep (queue for August):** decide OCR provider (Open Q7) — Tesseract vs external API (Vision / Textract / Anthropic).
-6. **Invoicing maintenance:** rotate Supabase JWT secret + Resend API key when a deploy window opens (runbook in [docs/Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md)).
+6. **Pre-Session-9 prep (queue for August):** decide OCR provider (Open Q7) — Tesseract vs external API (Vision / Textract / Anthropic).
+7. **Invoicing maintenance:** rotate Supabase JWT secret + Resend API key when a deploy window opens (runbook in [docs/Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md)).
 
 ---
 
