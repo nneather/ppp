@@ -1,9 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { upsertUserPermissionAction } from '$lib/library/server/permissions-actions';
-
-export const MODULE_SLUGS = ['library', 'invoicing', 'calendar', 'projects'] as const;
-export type ModuleSlug = (typeof MODULE_SLUGS)[number];
+import { MODULE_SLUGS, type ModuleSlug } from './module-slugs';
 
 export type ViewerRow = {
 	id: string;

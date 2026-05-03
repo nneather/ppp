@@ -6,7 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import type { PageProps } from './$types';
-	import { MODULE_SLUGS, type ModuleSlug } from './+page.server';
+	import { MODULE_SLUGS, type ModuleSlug } from './module-slugs';
 
 	let { data, form }: PageProps = $props();
 
