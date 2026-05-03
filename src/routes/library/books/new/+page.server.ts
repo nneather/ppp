@@ -6,9 +6,12 @@ import {
 	createPersonAction
 } from '$lib/library/server/book-actions';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, depends }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
+
+	depends('app:library:people');
+	depends('app:library:series');
 
 	const supabase = locals.supabase;
 	return loadBookFormPageData(supabase);

@@ -263,8 +263,11 @@ function tdntVol(vol: number, editor: 'Kittel' | 'Friedrich', sourceTitleSubstr:
 			language: 'english',
 			needs_review: false,
 			personal_notes:
-				'Multi-contributor theological dictionary. Translated from German by Geoffrey W. Bromiley. Contains ~400 Greek word studies by ~100 contributors.',
-			authors: [editorRow]
+				'Multi-contributor theological dictionary. Contains ~400 Greek word studies by ~100 contributors.',
+			authors: [
+				editorRow,
+				{ last_name: 'Bromiley', first_name: 'Geoffrey W.', role: 'translator', sort_order: 2 }
+			]
 		},
 		source_ref: `TDNT vol ${vol} (${sourceTitleSubstr})`
 	};
@@ -935,10 +938,8 @@ export const PER_BOOK_OVERRIDES: PerBookOverride[] = [
 		edit: {
 			authors: [
 				{ last_name: 'Joüon', first_name: 'Paul', role: 'author', sort_order: 1 },
-				{ last_name: 'Muraoka', first_name: 'T.', role: 'author', sort_order: 2 }
-			],
-			personal_notes_append:
-				'Translator: T. Muraoka (per Library_Migration_Notes Pre-Trip translator workaround).'
+				{ last_name: 'Muraoka', first_name: 'T.', role: 'translator', sort_order: 2 }
+			]
 		},
 		source_ref: 'LHB #7 Joüon+Muraoka'
 	},

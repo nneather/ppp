@@ -182,3 +182,60 @@ export function parseTypedName(raw: string): PersonInput | null {
 		suffix
 	};
 }
+
+/** Bucketing key for B14-style duplicate hints (normalized last + first initial). */
+export function b14BucketKey(p: { last_name: string; first_name?: string | null }): string {
+	return `${normalizeName(p.last_name)}|${firstInitial(p.first_name)}`;
+}
+
+/** Same middle-initial permissive rule as `findOrCreatePerson` when comparing two rows. */
+export function b14PairMayBeDuplicate(
+	a: { last_name: string; first_name?: string | null; middle_name?: string | null },
+	b: { last_name: string; first_name?: string | null; middle_name?: string | null }
+): boolean {
+	if (normalizeName(a.last_name) !== normalizeName(b.last_name)) return false;
+	if (firstInitial(a.first_name) !== firstInitial(b.first_name)) return false;
+	const aMid = firstInitial(a.middle_name);
+	const bMid = firstInitial(b.middle_name);
+	if (aMid && bMid && aMid !== bMid) return false;
+	return true;
+}
+
+export type B14MergePair<T> = { a: T; b: T; pairKey: string };
+
+/**
+ * Suggest unordered person pairs that would collide under B14 (same bucket + compatible middles).
+ * Used by `/settings/library/people/merge` — O(n) per bucket, not all-pairs across the whole list.
+ */
+export function suggestB14MergePairs<
+	T extends {
+		id: string;
+		last_name: string;
+		first_name?: string | null;
+		middle_name?: string | null;
+	}
+>(people: T[]): B14MergePair<T>[] {
+	const buckets = new Map<string, T[]>();
+	for (const p of people) {
+		const k = b14BucketKey(p);
+		if (!buckets.has(k)) buckets.set(k, []);
+		buckets.get(k)!.push(p);
+	}
+	const out: B14MergePair<T>[] = [];
+	const seen = new Set<string>();
+	for (const group of buckets.values()) {
+		if (group.length < 2) continue;
+		for (let i = 0; i < group.length; i++) {
+			for (let j = i + 1; j < group.length; j++) {
+				const a = group[i];
+				const b = group[j];
+				if (!b14PairMayBeDuplicate(a, b)) continue;
+				const pairKey = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+				if (seen.has(pairKey)) continue;
+				seen.add(pairKey);
+				out.push({ a, b, pairKey });
+			}
+		}
+	}
+	return out;
+}

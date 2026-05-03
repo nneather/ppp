@@ -2,6 +2,7 @@
 	import CircleUser from '@lucide/svelte/icons/circle-user';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import ScrollText from '@lucide/svelte/icons/scroll-text';
+	import Shield from '@lucide/svelte/icons/shield';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import { cn } from '$lib/utils';
 	import type { PageProps } from './$types';
@@ -38,12 +39,21 @@
 			{
 				href: '/settings/library',
 				title: 'Library',
-				description: 'Genre list, shelving categories, and Bible book canon (read-only reference)',
+				description: 'People, genres, shelving categories, and Bible book canon',
 				icon: BookOpen,
 				summary:
-					data.bookCount != null ? `${data.bookCount} books in library` : 'Genres · categories · canon'
+					data.bookCount != null ? `${data.bookCount} books in library` : 'People · genres · canon'
 			}
 		];
+		if (data.isOwner) {
+			list.push({
+				href: '/settings/permissions',
+				title: 'Permissions',
+				description: 'Viewer access to library and other modules',
+				icon: Shield,
+				summary: 'Owner-only'
+			});
+		}
 		if (data.isOwner) {
 			list.push({
 				href: '/settings/audit-log',

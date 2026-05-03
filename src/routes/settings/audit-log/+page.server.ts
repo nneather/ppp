@@ -25,7 +25,8 @@ export const _LIBRARY_TABLES = [
 	'essays',
 	'essay_authors',
 	'scripture_references',
-	'book_topics'
+	'book_topics',
+	'user_permissions'
 ] as const;
 
 // UI-revertible whitelist: UPDATE-only on these tables. INSERT/DELETE never reverted via UI.
@@ -53,6 +54,7 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'books',
 	'people',
 	'series',
+	'ancient_texts',
 	'essays',
 	'scripture_references',
 	'book_topics'
@@ -165,6 +167,12 @@ function entityLabelFor(
 			const fullName = get('full_name');
 			const email = get('email');
 			return fullName ?? email;
+		}
+		case 'user_permissions': {
+			const mod = get('module');
+			const level = get('access_level');
+			if (mod && level) return `${mod} · ${level}`;
+			return mod ?? level;
 		}
 		case 'time_entries': {
 			const date = get('date');
@@ -354,7 +362,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			!isSoftRestore &&
 			_REVERTIBLE_TABLES.has(r.table_name);
 		const canRevertSoftDelete =
-			(isSoftDelete || isSoftRestore) && _SOFT_DELETE_REVERTIBLE_TABLES.has(r.table_name);
+			(isSoftDelete || isSoftRestore) &&
+			r.revertible &&
+			_SOFT_DELETE_REVERTIBLE_TABLES.has(r.table_name);
 		const canRevert = canRevertFull || canRevertSoftDelete;
 		return {
 			id: r.id,
@@ -437,6 +447,13 @@ export const actions: Actions = {
 		const softDelete = isSoftDeleteFlip(oldData, newData);
 		const softRestore = isSoftRestoreFlip(oldData, newData);
 		if (softDelete || softRestore) {
+			if (!revertible) {
+				return fail(400, {
+					kind: 'revert',
+					auditLogId,
+					message: 'This change is not revertible.'
+				});
+			}
 			if (!_SOFT_DELETE_REVERTIBLE_TABLES.has(tableName)) {
 				return fail(400, {
 					kind: 'revert',

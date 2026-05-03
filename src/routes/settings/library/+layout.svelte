@@ -3,19 +3,48 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import { page } from '$app/state';
 	import { cn } from '$lib/utils';
+	import type { LayoutProps } from './$types';
 
-	let { children } = $props();
+	let { children, data }: LayoutProps = $props();
 
 	type TabItem = { href: string; label: string };
 
-	const tabs: TabItem[] = [
-		{ href: '/settings/library/genres', label: 'Genres' },
-		{ href: '/settings/library/categories', label: 'Categories' },
-		{ href: '/settings/library/bible-books', label: 'Bible books' }
-	];
+	const tabs = $derived.by((): TabItem[] => {
+		const t: TabItem[] = [
+			{ href: '/settings/library', label: 'Overview' },
+			{ href: '/settings/library/people', label: 'People' }
+		];
+		if (data.isOwner) {
+			t.push({ href: '/settings/library/people/merge', label: 'Merge' });
+		}
+		t.push(
+			{ href: '/settings/library/series', label: 'Series' },
+			{ href: '/settings/library/ancient-texts', label: 'Ancient texts' }
+		);
+		t.push(
+			{ href: '/settings/library/genres', label: 'Genres' },
+			{ href: '/settings/library/categories', label: 'Categories' },
+			{ href: '/settings/library/bible-books', label: 'Bible books' }
+		);
+		return t;
+	});
 
 	function tabActive(hrefPath: string): boolean {
-		return page.url.pathname === hrefPath;
+		const path = page.url.pathname;
+		if (hrefPath === '/settings/library') return path === '/settings/library';
+		if (hrefPath === '/settings/library/people/merge') {
+			return path.startsWith('/settings/library/people/merge');
+		}
+		if (hrefPath === '/settings/library/people') {
+			return path === '/settings/library/people';
+		}
+		if (hrefPath === '/settings/library/series') {
+			return path === '/settings/library/series';
+		}
+		if (hrefPath === '/settings/library/ancient-texts') {
+			return path === '/settings/library/ancient-texts';
+		}
+		return path === hrefPath;
 	}
 </script>
 
@@ -32,7 +61,8 @@
 		<div>
 			<h1 class="text-2xl font-semibold tracking-tight text-foreground">Library settings</h1>
 			<p class="mt-1 text-sm text-muted-foreground">
-				Read-only reference data used by library forms — genres, shelving categories, and Bible book names.
+				People can be merged or renamed; genres, categories, and Bible book names are read-only reference
+				data for library forms.
 			</p>
 		</div>
 	</header>

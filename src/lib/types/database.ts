@@ -21,7 +21,9 @@ export type Database = {
           category: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           id: string
+          merged_into_id: string | null
           updated_at: string
         }
         Insert: {
@@ -30,7 +32,9 @@ export type Database = {
           category?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           id?: string
+          merged_into_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -39,7 +43,9 @@ export type Database = {
           category?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           id?: string
+          merged_into_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -48,6 +54,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ancient_texts_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "ancient_texts"
             referencedColumns: ["id"]
           },
         ]
@@ -875,6 +888,7 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string
+          merged_into_id: string | null
           middle_name: string | null
           suffix: string | null
           updated_at: string
@@ -887,6 +901,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name: string
+          merged_into_id?: string | null
           middle_name?: string | null
           suffix?: string | null
           updated_at?: string
@@ -899,6 +914,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string
+          merged_into_id?: string | null
           middle_name?: string | null
           suffix?: string | null
           updated_at?: string
@@ -909,6 +925,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "people"
             referencedColumns: ["id"]
           },
         ]
@@ -1192,9 +1215,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      app_has_module_read: { Args: { p_module: string }; Returns: boolean }
       app_is_owner: { Args: never; Returns: boolean }
       app_is_viewer_writer: { Args: { p_module: string }; Returns: boolean }
+      app_module_access_level: { Args: { p_module: string }; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
+      library_merge_ancient_texts: {
+        Args: { p_canonical: string; p_merged_away: string }
+        Returns: undefined
+      }
+      library_merge_people: {
+        Args: { p_canonical: string; p_merged_away: string }
+        Returns: undefined
+      }
       search_scripture_refs: {
         Args: { p_bible_book: string; p_chapter?: number; p_verse?: number }
         Returns: {

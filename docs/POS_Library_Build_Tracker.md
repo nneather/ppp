@@ -63,7 +63,7 @@ _Goal: First real CRUD surface ships with junctions. Library's primary entity (`
 
 | Task | Done | Notes |
 |------|:----:|-------|
-| Apply `library_delta_v1.sql` migration (queued in Session 0) to staging then prod | ☑ | Applied 2026-04-25 via `supabase db push`. Bundled with `20260425170000_books_viewer_column_protection.sql` (Track D B1/B2 trigger), `20260425180000_search_scripture_refs.sql` (Session 2 SQL function), and `20260425190000_audit_log_composite_pk_fix.sql` (junction-table audit fix surfaced by smoke seed — see `docs/decisions/003-library-books-vertical-slice.md` Surprise #6). `npm run supabase:gen-types` still pending. |
+| Apply `library_delta_v1.sql` migration (queued in Session 0) to staging then prod | ☑ | Applied 2026-04-25 via `supabase db push`. Bundled with `20260425170000_books_viewer_column_protection.sql` (Track D B1/B2 trigger), `20260425180000_search_scripture_refs.sql` (Session 2 SQL function), and `20260425190000_audit_log_composite_pk_fix.sql` (junction-table audit fix surfaced by smoke seed — see `docs/decisions/003-library-books-vertical-slice.md` Surprise #6). Types regenerated in follow-on commits. |
 | Apply `library_seed.sql` (queued in Session 0) — viewer `user_permissions` + `bible_books` seed + `categories` seed + initial `ancient_texts` seed (Josephus, Philo, Apostolic Fathers, Apocrypha) + initial `series` records (ICC, NTC, OTL, EKK, TWOT, AB, MH, COT) | ☑ | Applied 2026-04-25 via Studio SQL editor. Plus `library_smoke_data.sql` (5 realistic books with full junctions) and `library_scripture_fixture.sql` (20 refs) for end-to-end verification. Viewer permissions block still commented out (intentional — solo use until a collaborator joins, per Session 1.5 decision). |
 | `/library/+page.server.ts` + `/library/+page.svelte` — list view with title, genre, reading_status badge, needs_review badge. No filters yet (Session 3). | ☑ | Route conventions per `.cursor/rules/sveltekit-routes.mdc`. Mobile cards / desktop table. |
 | `/library/books/[id]` — detail view with hydrated authors (roles + sort_order), categories, series + volume_number | ☑ | JOINs in load function via shared `loadBookDetail` helper. |
@@ -205,7 +205,7 @@ _Highest-variance session in the pre-trip arc. Budget 4–6h; plan for 6–8h. D
 | Junction row creation — book_authors (role, sort_order), book_categories (primary + secondary), series_id + volume_number — diff-based on update | ☑ | `syncAuthors` / `syncCategoriesJunction` in `importLibrary.ts` mirror the form-side `syncAuthors` / `syncCategories` shape. Series auto-create with `name = abbreviation` for unseeded series (~47 expected at apply). |
 | Subject → genre rewrites — LHB → BRF for TWOT, no-subject → BRF for ABD/TDNT/IVP/Oxford/etc. per PostBuild #3 | ☑ | `SUBJECT_TO_GENRE` map in `migrationOverrides.ts`. Per-book overrides set `genre: 'Biblical Reference'` directly for ABD/TDNT/TWOT (since their source `subject` is null). |
 | General library import (~1,020 books, `needs_review = true`, minimal cleaning) | ☑ | 1,047 source rows have blank Subject → null genre → `needs_review = true` via `Missing: genre` auto-line. Plus 287 OL no-match + 294 OL title-only flagged for review. Total review queue: ~1,172. |
-| Translator workaround — translators in `personal_notes` until structured migration ships post-trip | ☑ | Joüon/Muraoka override appends translator note to `personal_notes`. TDNT vols similarly note Bromiley translator in their group rule. Session 7 lifts these into structured `book_authors role='translator'`. |
+| Translator workaround — translators in `personal_notes` until structured migration ships post-trip | ☑ | Joüon/Muraoka override appended translator note to `personal_notes`. TDNT vols similarly note Bromiley translator in their group rule. **Structured migration shipped Session 7** (`20260502145000` + `20260502150000`); importer overrides keep future Pass 2 rows aligned. |
 | Optional: partial unique index `CREATE UNIQUE INDEX books_isbn_uniq ON books (isbn) WHERE isbn IS NOT NULL AND deleted_at IS NULL` | ☑ Skipped | ISBN coverage 65.8% < 70% threshold. Deferred to pre-Pass-2 per decision 007 + decision 008. Resolves Open Question 9. |
 | Post-import validation queries | ☐ | Pending Pass 1 apply. SQL drafted in `scripts/library-import/README.md` step 8. |
 | Spot-check 20 random rows against `Library_Migration_Notes.md` | ☐ | Pending Pass 1 apply. `rows.json` already spot-checkable now (10 random rows reviewed during build; no integrity issues). |
@@ -389,29 +389,38 @@ _Goal: Settings surfaces that involve owner-only operations land. People merge, 
 
 | Task | Done | Notes |
 |------|:----:|-------|
-| `/settings/library/people` — list, search by last name, edit, **soft-delete**, **merge (owner-only)** | ☐ | Merge: pick canonical + merged-away → re-point `book_authors` → soft-delete merged-away person. Audit log: non-revertible. Reuses canonicalization combobox pattern. **Promoted to first-class (Session 1.5i note):** quick-created people from book form (Session 1.5f+) need a manageable list — review, rename, soft-delete, merge — to keep authoring quality from drifting as the library grows. |
-| `/settings/library/series` — list + edit polish (CRUD already works via inline create from book form) | ☐ | Allows renaming + abbreviation correction. Series with books attached cannot be hard-deleted. |
-| `/settings/library/ancient-texts` — full CRUD page + **merge (owner-only)** | ☐ | Inline create already shipped in Session 5. This page adds list view, edit (canonical_name + abbreviations[] + category), and the merge action with confirmation modal: "This will re-point N book_ancient_coverage rows and cannot be reverted." Require typing canonical name to confirm per A1. |
-| Translator data migration — move translator names from `personal_notes` into `book_authors` rows with `role = 'translator'` | ☐ | Per PostBuild #2 reclassification. ~10–15 books affected. Sets up Session 8's Turabian generator to read translators from structured data. |
-| `/settings/permissions` — owner-only view of `user_permissions` | ☐ | Toggle viewer module access (library = write / read / none; same for calendar, invoicing, projects). |
-| `/settings/library/genres` + `/settings/library/categories` + `/settings/library/bible-books` — read-only displays | ☐ | ~15 min total. Schema CHECK + seed data are sources of truth. |
-| Audit log verification — after a people merge and an ancient_texts merge, the existing audit log UI shows entries as non-revertible with diff visible | ☐ | Validates that the invoicing-era audit UI handles these patterns end-to-end. |
+| `/settings/library/people` — list, search by last name, edit, **soft-delete**, **merge (owner-only)** | ☑ | Shipped 2026-05-02 — `library_merge_people` RPC, `people.merged_into_id`, audit `revertible=false` on merge soft-delete, `/settings/audit-log` soft-revert honors `revertible`. Decision [`012-library-session-7-people-settings-merge.md`](decisions/012-library-session-7-people-settings-merge.md). List cap 500 + last-name `?q=`; essay_authors repointed too; `depends('app:library:people')` on book form loads. |
+| `/settings/library/series` — list + edit polish (CRUD already works via inline create from book form) | ☑ | Shipped 2026-05-02 — counts, edit dialog, soft-delete when zero live books; `depends('app:library:series')` on book new/edit. |
+| `/settings/library/ancient-texts` — full CRUD page + **merge (owner-only)** | ☑ | `library_merge_ancient_texts`, `merged_into_id` + `deleted_at`, audit non-revertible merge + coverage repoints (`set_config` gate), typed confirm of canonical name. Decision [`013-library-session-7b-settings-polish.md`](decisions/013-library-session-7b-settings-polish.md). |
+| Translator data migration — move translator names from `personal_notes` into `book_authors` rows with `role = 'translator'` | ☑ | Migration `20260502150000_library_translator_migration.sql` + `migrationOverrides.ts` TDNT/Joüon rows for future imports. **Requires** `20260502145000_enforce_books_viewer_columns_migration_bypass.sql` to run first (`db push` has `auth.uid()` null — see decision 013 Surprises). Applied to prod 2026-05-02. |
+| `/settings/permissions` — owner-only view of `user_permissions` | ☑ | `/settings/permissions` matrix + `app_has_module_read` / `app_module_access_level` RLS; read viewers may edit `books.reading_status` only. |
+| `/settings/library/genres` + `/settings/library/categories` + `/settings/library/bible-books` — read-only displays | ☑ | Already shipped; no change required this slice. |
+| Audit log verification — after a people merge and an ancient_texts merge, the existing audit log UI shows entries as non-revertible with diff visible | ☑ | Ancient merge + `book_ancient_coverage` updates set `revertible=false`; hands-on smoke when convenient. |
+
+### Session 7 build notes (2026-05-02)
+
+- **Slice 1 — people:** `/settings/library/people`, `library_merge_people`, `merged_into_id`, `write_audit_log` merge branch, audit soft-revert respects `revertible`, book form `depends('app:library:people')`. Open question **merge UX:** resolved as **single POST + confirm-heavy modal** (not a multi-step wizard).
+- **Cache / B14:** `invalidate('app:library:people')` after settings mutations + `depends` on book new/edit loads so pickers refresh; open book forms with stale `person_id` still need a navigation refresh or Save — acceptable per decision 012.
+- **Slice 2 — Session 7b (2026-05-02):** series settings, ancient texts CRUD+merge+audit, translator SQL + import overrides, permissions UI + library RLS read/write/none + reading_status-only read path. See [`013-library-session-7b-settings-polish.md`](decisions/013-library-session-7b-settings-polish.md).
+- **Prod `db push` (2026-05-02):** `20260502145000` (B1/B2 bypass when `auth.uid()` IS NULL), `20260502150000` (translator backfill), `20260502160000` (module read RLS + read-status guard) applied cleanly in that order.
 
 **Acceptance:**
-- [ ] People CRUD works end-to-end; merging two people re-points all `book_authors` rows + logs non-revertible audit entry.
-- [ ] Ancient texts CRUD works; merging two `ancient_texts` re-points all `book_ancient_coverage` rows, soft-deletes merged-away, logs non-revertible merge entry + N non-revertible coverage updates.
-- [ ] Translator data migration: scholarly-core books with translators (TDNT, Joüon/Muraoka, etc.) have `book_authors` rows with `role = 'translator'`; `personal_notes` translator strings cleared.
-- [ ] Owner can toggle viewer's library access between write / read / none; change takes effect on next viewer page load.
-- [ ] `npm run check` passes
-- [ ] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit
-- [ ] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template
-- [ ] viewer cannot trigger the people-merge action (UI hidden, backend 403); viewer cannot CREATE / EDIT / MERGE ancient_texts; viewer cannot access `/settings/permissions` (403) — tested by signing in as the viewer user
+- [x] People CRUD + merge slice: `/settings/library/people` + `book_authors`/`essay_authors` repoint + merge soft-delete audit non-revertible — _2026-05-02; see decision 012_.
+- [x] Ancient texts CRUD works; merging two `ancient_texts` re-points all `book_ancient_coverage` rows, soft-deletes merged-away, logs non-revertible merge entry + N non-revertible coverage updates — _2026-05-02; migration `20260502140000_library_merge_ancient_texts.sql`; see 013_.
+- [x] Translator data migration: scholarly-core books with translators (TDNT, Joüon/Muraoka, etc.) have `book_authors` rows with `role = 'translator'`; `personal_notes` translator strings cleared — _migrations `20260502145000` + `20260502150000` + overrides; prod `db push` 2026-05-02_.
+- [x] Owner can toggle viewer's library access between write / read / none; change takes effect on next viewer page load — _RLS `app_has_module_read` / `app_module_access_level`; see 013_.
+- [x] `npm run check` passes — _2026-05-02_
+- [x] Migrations `20260502120000` (people merge), `20260502140000`, `20260502145000`, `20260502150000`, `20260502160000` + `src/lib/types/database.ts`; run `npm run supabase:gen-types` after any new migration if types drift.
+- [x] `docs/decisions/013-library-session-7b-settings-polish.md` filed
+- [ ] viewer cannot trigger the people-merge action (UI hidden, backend 403); viewer cannot CREATE / EDIT / MERGE ancient_texts; viewer cannot access `/settings/permissions` (403) — _403 paths implemented; hands-on viewer sign-in + library none/read smoke pending seed_
 
 ---
 
 ## Session 8 — Turabian Citations + Bibliography Builder (4–5h) [SEPTEMBER CHECKPOINT]
 
 _Goal: The original September deadline. Turabian footnote + bibliography generation for every scholarly-core book. Pure-function module against locked schema and locked data — zero variance once you sit down to it. Translator role is now structured (post-Session 7 migration), so no more `personal_notes` workaround._
+
+_Turabian-first **mobile review queue** (footnote + bibliography on each card, two-queue routing, burndown, dashboard tile) is **in scope for Session 8** — full acceptance + scope fences: [`.cursor/plans/review_queue_gamification_39c2a467.plan.md`](../.cursor/plans/review_queue_gamification_39c2a467.plan.md). Optional swipe / haptic / animation polish may slip to **Session 8.5** if timeline is tight._
 
 | Task | Done | Notes |
 |------|:----:|-------|
@@ -423,8 +432,10 @@ _Goal: The original September deadline. Turabian footnote + bibliography generat
 | Bibliography builder — select N books from `/library` list, export sorted bibliography | ☐ | Plain text export. Markdown secondary. |
 | Citation QA pass — generate footnote + bibliography for 20 spot-check books across every source type, verify against Turabian skill | ☐ | Zero tolerance for errors on scholarly core. |
 | Article-level citations: scoped out per PostBuild #1 (essays UI is post-fall) | ☐ | Volume-level citations for ESVEC, ABD, TDNT, IVP dictionaries. Article-level remains hand-rolled until essays UI ships. Document in PostBuild. |
+| **Turabian-first `/library/review`** — card renders generated footnote + bibliography (same module as detail page), `needs_review_note`, scripture_ref / topic counts; sticky thumb actions (Confirm citation-ready / Field wrong / Skip); **Citation Critical** vs **Backlog** slices + Sept 1 default routing; localStorage burndown (`today`, `lifetime`, `last_slice`); hide `<kbd>` hints below `md:`; dashboard second line (`citation-verified` / backlog cleared) + deep links `?slice=critical|backlog` | ☐ | Spec: [`.cursor/plans/review_queue_gamification_39c2a467.plan.md`](../.cursor/plans/review_queue_gamification_39c2a467.plan.md). Confirms queue is the September checkpoint surface, not generic gamification. |
 
 **Acceptance:**
+- [ ] Turabian-first review queue meets plan acceptance (card content, two queues, progress UI, dashboard, ethics fences); optional swipe/haptic deferred only if explicitly moved to Session 8.5 per tracker note.
 - [ ] Citation generation passes 20-row QA against Turabian skill — zero citation errors on scholarly core.
 - [ ] Bibliography builder exports a 10-book bibliography in correct Turabian order (by first author last name).
 - [ ] Translator citations resolve from `book_authors role='translator'` (TDNT, Joüon/Muraoka pass).
@@ -434,6 +445,24 @@ _Goal: The original September deadline. Turabian footnote + bibliography generat
 - [ ] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit
 - [ ] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template
 - [ ] viewer can use citation copy buttons on book detail (read-only feature) — tested by signing in as the viewer user
+
+---
+
+## Session 8.5 — Review queue polish (optional, ~2h)
+
+_Follow-up to Session 8 if swipe / haptic / microcopy animation did not ship in the Session 8 window. Same product spec: [`.cursor/plans/review_queue_gamification_39c2a467.plan.md`](../.cursor/plans/review_queue_gamification_39c2a467.plan.md)._
+
+| Task | Done | Notes |
+|------|:----:|-------|
+| Swipe gestures on review card — pointer capture, ~80px threshold; right = Confirm when valid, left = Skip | ☐ | Session 5.5 deferred swipe + plan § Mobile UX |
+| Haptic (`navigator.vibrate(15)`) on Confirm success where supported | ☐ | |
+| ~200ms CSS checkmark (or equivalent) on Confirm before advance | ☐ | |
+| Microcopy pass after ~2 weeks real use | ☐ | |
+| `docs/decisions/NNN-<slug>.md` if behavioral decisions change | ☐ | |
+
+**Acceptance:**
+- [ ] Hands-on phone smoke: swipe + confirm path reliable on iOS Safari (and one Android if available)
+- [ ] `npm run check` passes
 
 ---
 
@@ -512,11 +541,11 @@ The tracker is forward-looking; the rules and decision log absorb what we learn.
 
 ### Post-trip ordering
 
-- **Order: 7 → 9 → 8.**
-- Session 7 (people merge + ancient_texts CRUD page + permissions) lands first because the translator data migration *inside* Session 7 is what unblocks Session 8's structured-translator citations.
+- **Order: 7 → 9 → 8.** Session 7 (people merge + ancient_texts CRUD + permissions + translator SQL) **shipped 2026-05-02**; remaining checklist item is **viewer smoke** (Session 7 acceptance). Next build session on the arc is **Session 9 (OCR)**, then **Session 8 (Turabian + Turabian-first `/library/review`)** — translator structure for migrated titles is now in `book_authors`.
 - Session 9 (OCR) lands next so the trip's accumulated paper notes / page photos get processed before Turabian runs against them. Promoted from "opt-in" to required 2026-04-29 (`docs/decisions/005-scripture-refs-bulk-and-ocr-design.md`) — manual entry sustains <100 refs/sitting; the trip + post-trip corpus exceeds that.
 - **When to start Session 9:** trigger = first 100+-ref backlog OR returning from trip with paper notes; defer until then so the work has a real test corpus.
-- Session 8 (Turabian) is pure-function work and lands last. Highest-leverage 4–5 hours in the post-trip arc — locked schema, locked data, deterministic output, runs against both manual + OCR-extracted refs.
+- Session 8 (Turabian) is pure-function work and lands last in the **sequence** (after Session 9). Highest-leverage block in the post-trip arc — locked schema, locked data, deterministic output, runs against both manual + OCR-extracted refs; **includes** Turabian-first `/library/review` per [`.cursor/plans/review_queue_gamification_39c2a467.plan.md`](../.cursor/plans/review_queue_gamification_39c2a467.plan.md).
+- **Session 8.5** (optional) — review-queue polish only (swipe, haptic, animation, microcopy) if deferred from Session 8; same plan doc.
 
 ### Library-specific gotchas
 
@@ -525,4 +554,4 @@ The tracker is forward-looking; the rules and decision log absorb what we learn.
 - Volumes are discrete book records, not reference-table rows. Multi-volume sets = N books with shared `series_id` + distinct `volume_number`.
 - The `confidence_score` + `needs_review` + `review_note` fields handle low-confidence imports exception-based — no formal review workflow needed.
 - ESVEC pattern for multi-contributor volumes until essays UI ships: editors in `book_authors`, contributors noted in `personal_notes`. Article-level citations require essays UI (deferred, see PostBuild #1 and Open Question 5).
-- Pre-trip translator workaround: translators in `personal_notes`. Session 7 migrates them into structured `book_authors role='translator'` rows before Session 8's Turabian generator runs. Don't try to cite translators pre-trip — the data isn't structured yet.
+- **Translators (post–Session 7):** TDNT / Joüon–Muraoka (and related overrides) now have `book_authors` rows with `role = 'translator'`; migrated rows had translator prose removed from `personal_notes`. Session 8 Turabian should read translators from `book_authors` only. ESVEC and other edge cases may still use `personal_notes` until essays UI.

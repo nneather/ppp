@@ -2,6 +2,8 @@
 
 This is the single entry point for any AI assistant working on this repo. Read this first.
 
+**Start here for current state:** [PLAN.md](PLAN.md) — rolling one-page dashboard (current focus, active modules, recent decisions, next up). Updated at the end of every session.
+
 The Cursor rules in `.cursor/rules/*.mdc` are loaded automatically by Cursor; if you are running outside Cursor, read them manually:
 
 - [.cursor/rules/always.mdc](.cursor/rules/always.mdc) — stack, conventions, non-negotiables
@@ -65,6 +67,11 @@ End-of-session deliverables:
   - `src/lib/library/open-library-prefill.ts` — re-exports `normalizeIsbnDigits` from `isbn.ts`; `fetchOpenLibraryPrefill` (checksum-validated ISBN, edition + optional OL work + up to 5 author JSON fetches; `publisher_location`, `edition`, `genreSuggested`), `LIBRARY_OL_PREFILL_KEY` for `/library/add` → `/library/books/new` prefill.
   - `src/lib/library/book-copy-text.ts` — plain-text strings for book-detail clipboard helpers.
   - `src/lib/library/server/book-actions.ts` — `createBookAction`, `updateBookAction`, `softDeleteBookAction`, `undoSoftDeleteBookAction`, `createPersonAction`, `updateReadingStatusAction`. Returns `{ kind, success?, message?, bookId?|personId? }`.
+  - `src/lib/library/server/people-settings-actions.ts` — `updatePersonSettingsAction`, `softDeletePersonSettingsAction`, `mergePeopleSettingsAction` (merge calls RPC `library_merge_people`, owner-only). Used by `/settings/library/people` and `/settings/library/people/merge`. Exports `loadProfileRole` for reuse.
+  - `src/lib/library/server/people-settings-book-counts.ts` — `fetchLiveBookIdsByPersonId` (chunked `book_authors` + live `books` join) for People + Merge settings counts.
+  - `src/lib/library/server/series-settings-actions.ts` / `series-settings-book-counts.ts` — `/settings/library/series` update + guarded soft-delete.
+  - `src/lib/library/server/ancient-texts-settings-actions.ts` / `ancient-texts-settings-book-counts.ts` — `/settings/library/ancient-texts` CRUD + `mergeAncientTextsSettingsAction` (RPC `library_merge_ancient_texts`, owner-only).
+  - `src/lib/library/server/permissions-actions.ts` — `upsertUserPermissionAction` for `/settings/permissions` (owner-only).
   - `src/lib/library/server/scripture-actions.ts` — same shape for `scripture_references`: `createScriptureRefAction`, `updateScriptureRefAction`, `softDeleteScriptureRefAction`. Wired into `/library/books/[id]` Session 2.
 
 ### Scripts

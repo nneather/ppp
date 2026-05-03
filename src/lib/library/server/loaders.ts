@@ -998,6 +998,7 @@ export async function loadAncientTexts(supabase: SupabaseClient): Promise<Ancien
 	const { data, error } = await supabase
 		.from('ancient_texts')
 		.select('id, canonical_name, abbreviations, category')
+		.is('deleted_at', null)
 		.order('canonical_name', { ascending: true });
 	if (error) {
 		console.error('[loadAncientTexts]', error);
