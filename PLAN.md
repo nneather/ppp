@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-04 (Session 9 OCR spike — decision 015)
+**Last updated:** 2026-05-05 — PLAN refresh; hosted-only Supabase workflow encoded in [AGENTS.md](AGENTS.md), [.cursor/rules/always.mdc](.cursor/rules/always.mdc), [.cursor/rules/db-changes.mdc](.cursor/rules/db-changes.mdc) (see [supabase/README.md](supabase/README.md)). Session 9 OCR spike (015) unchanged as primary library build thread.
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,9 +10,13 @@
 
 ## Current focus
 
-Library **Session 9 OCR spike** (2026-05-04): decision **015**, Edge stub `ocr_scripture_refs`, extract action + batch UI hook — deploy the new function when convenient (`npm run supabase:deploy-functions`). Full Anthropic/provider integration remains next on Session 9.
+**Library — Session 9 (post-spike):** decision **[015](docs/decisions/015-library-session-9-ocr-kickoff.md)** shipped stub **`ocr_scripture_refs`**, **`extractScriptureRefs`** action, batch **Extract from image**, **`confidence_score`** on batch save. **Next build steps:** `npm run supabase:deploy-functions` (deploy OCR function when ready), then wire Anthropic/provider per 015; smoke-test page photos.
 
-Trip QA runbook — [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md). Trip-period (late May → early August): mobile-only shelf workflow; Pass 2 spreadsheet + citations pause until return (OCR stub does not require trip-period deploy).
+**Trip QA (owner, pre–2026-05-21):** [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) §A phone + §B viewer — tick tracker hands-on rows when done.
+
+**Ops workflow:** Migrations and Edge deploys target the **single hosted** project (`npm run supabase:db:push`, `npm run supabase:deploy-functions`); **do not** use local Docker / `supabase start` for this repo — spelled out in AGENTS session template + always-on rules.
+
+Trip-period (late May → early August): mobile shelf workflow; Pass 2 spreadsheet + Turabian pause until return (OCR continuation can ship whenever deploy window allows).
 
 Nearest hard dates:
 - **2026-05-15** — semester ends
@@ -27,7 +31,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6). **Not yet billing real clients** — blocked on domain purchase + Resend domain verification. See [Sender onboarding](docs/POS_Invoicing_Build_Tracker.md#sender-onboarding-resend--before-billing-real-clients). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | 🟢 Pre-trip arc complete through Session 7 (2026-05-02). Trip-period mobile work next. Post-trip: Session 9 → Session 8. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | 🟢 Pre-trip arc complete through Session 7. **Session 9 OCR** spike shipped (015); continuation = deploy function + provider wiring. Post-trip order remains finish Session 9 → **Session 8** Turabian. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -41,13 +45,15 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ---
 
-## Session handoff (2026-05-04) — Path B migrate + trip QA
+## Session handoff
 
-**Library Path B (source → destination)** — **Apply completed by owner** (synced elsewhere, 2026-05-04). Reference flow remains in [scripts/library-migrate-local-to-prod/README.md](scripts/library-migrate-local-to-prod/README.md). Scripture **`library-scripture-images` bucket objects** are still not copied by Path B; re-upload or sync objects if thumbnails matter.
+**Library Path B (source → destination)** — **Apply completed by owner** (2026-05-04). Reference flow: [scripts/library-migrate-local-to-prod/README.md](scripts/library-migrate-local-to-prod/README.md). Scripture **`library-scripture-images` bucket objects** are still not copied by Path B; re-upload or sync objects if thumbnails matter.
 
 **Trip QA runbook:** [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) — owner executes phone smoke + viewer smoke, then ticks tracker acceptance rows.
 
-**Repo gate:** `npm run check` passed (2026-05-04).
+**Supabase workflow (repo convention):** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md); also [AGENTS.md](AGENTS.md) Scripts + session template + [.cursor/rules/always.mdc](.cursor/rules/always.mdc).
+
+**Repo gate:** `npm run check` last verified 2026-05-04 (Session 9 spike + follow-on docs); re-run after substantive code changes.
 
 **Phone smoke (owner):** `/library` filters at scale, `/library/search-passage` (e.g. Phil 2:5), `/library/review` drill, `/library/add` barcode path — tracker Session 3–6 acceptance (steps in runbook §A).
 
@@ -57,15 +63,12 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Next up
 
-1. **Trip-period mobile workflow validation** — execute [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) §A on a real phone before 2026-05-21; tick tracker Session 3–6 / 5.5 hands-on rows when done.
-2. **Invoicing go-live blocker:** purchase domain → verify in Resend → update `send-invoice` `from` address → smoke test on a real client.
-3. **Carry-forward from Session 7:** run [runbook](docs/library-trip-qa-runbook.md) §B (viewer) — cannot merge people, cannot CRUD/merge `ancient_texts` in settings, `/settings/permissions` returns 403; tick Session 7 viewer acceptance + deferred Session 1–6 viewer rows when done.
-4. **Pre-Session-8 prep (queue for August):**
-   - Resolve Open Q4 — bibliography export format.
-   - Load Turabian skill (`SKILL.md` + `formats.md`) into build context.
-   - Author v2 corrected scholarly-core spreadsheet by early August (Open Q8) so Pass 2 can run before Session 9.
-5. **Session 9 (OCR) continuation:** deploy `ocr_scripture_refs` to prod when ready; wire Anthropic (or chosen provider) per [015](docs/decisions/015-library-session-9-ocr-kickoff.md); smoke-test five page images.
-6. **Invoicing maintenance:** rotate Supabase JWT secret + Resend API key when a deploy window opens (runbook in [docs/Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md)).
+1. **Trip-period mobile workflow validation** — [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) §A on a real phone before **2026-05-21**; tick tracker Session 3–6 / 5.5 hands-on rows when done.
+2. **Session 9 (OCR) continuation (build):** `npm run supabase:deploy-functions` → deploy **`ocr_scripture_refs`**; wire Anthropic (or chosen provider) per [015](docs/decisions/015-library-session-9-ocr-kickoff.md); smoke-test ~5 page images; extend tracker Session 9 acceptance as completed.
+3. **Carry-forward — viewer smoke:** [runbook](docs/library-trip-qa-runbook.md) §B — merge/ancient/permissions 403s; tick Session 7 viewer acceptance + deferred Session 1–6 viewer rows when done.
+4. **Invoicing go-live blocker:** domain → Resend verify → `send-invoice` `from` → real-client smoke.
+5. **Pre-Session-8 prep (August queue):** Open Q4 bibliography format; Turabian skill in context; v2 spreadsheet by early August (Open Q8) before Pass 2.
+6. **Invoicing maintenance:** rotate Supabase JWT secret + Resend API key when a deploy window opens ([docs/Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md)).
 
 ---
 
@@ -76,7 +79,7 @@ Only items that could block a future session. Full lists live in each tracker's 
 - **Invoicing:** domain + Resend verification before real-client billing.
 - **Library Q4:** bibliography export format — blocks Session 8 start.
 - **Library Q7:** ~~OCR provider choice~~ — resolved (015); provider **integration** remains Session 9 continuation work.
-- **Library Q8:** v2 corrected scholarly-core spreadsheet — must land before Pass 2 / Session 9.
+- **Library Q8:** v2 corrected scholarly-core spreadsheet — must land before Pass 2 (post-trip).
 - **Library pre-session checklist:** scholarly core review in Claude; deferred shelf-check items (Calvin CC vols 2–3, Bruce NICNT Acts edition, Hodge 1 Cor reprint, Douglas *NBD* edition); BDAG migration row; `enrich_library.py` run.
 
 ---
