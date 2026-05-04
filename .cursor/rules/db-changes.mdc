@@ -55,6 +55,8 @@ These bit the invoicing build. Verify analogues in any new module:
 
 ## Workflow
 
+Migrations apply to the **linked hosted** Supabase project via **`npm run supabase:db:push`** — not via a local `supabase start` stack (this repo does not use that path; see [supabase/README.md](../../supabase/README.md)).
+
 1. Write migration file: `YYYYMMDDHHMMSS_short_description.sql`. Use `IF NOT EXISTS` / `IF EXISTS` guards.
 2. Update `supabase/seed.sql` if seeding is implied.
 3. `npm run supabase:db:push:dry` — review the diff.

@@ -10,7 +10,7 @@ Read [AGENTS.md](mdc:AGENTS.md) before starting any non-trivial task. It contain
 ## Stack
 
 - SvelteKit (Svelte 5, runes mode) + TypeScript strict
-- Supabase (Postgres + Auth + Edge Functions) — single hosted project, prod only
+- Supabase (Postgres + Auth + Edge Functions) — **single hosted project, prod only.** Do not assume or recommend **`supabase start`**, local Docker, or **`supabase db reset`** in this repo unless the user explicitly opts in. Schema: **`npm run supabase:db:push:dry`** then **`npm run supabase:db:push`** to the **CLI-linked** project (run **`npm run supabase:doctor`** if ref/URL drift). Edge Functions: **`npm run supabase:deploy-functions`**. Full commands: [supabase/README.md](mdc:supabase/README.md).
 - Tailwind v4 + shadcn-svelte (Nova preset, Zinc base)
 - pdf-lib in Edge Functions for PDFs; Resend for email
 - Vercel deployment

@@ -23,6 +23,7 @@ Session: <module> #N — <name>
 Tracker:  <path-to-tracker>.md, Session N
 Read:     AGENTS.md, .cursor/rules/<relevant>.mdc, src/lib/types/database.ts,
           docs/decisions/ (latest 3 files)
+Supabase: hosted `db push` only (no local Docker stack) — [supabase/README.md](supabase/README.md)
 Goal:     <one sentence>
 Acceptance:
   - [ ] <copy from tracker>
@@ -76,6 +77,7 @@ End-of-session deliverables:
 
 ### Scripts
 
+- **Supabase workflow:** one hosted project. Do **not** use `supabase start` or a local Docker stack for this repo; apply migrations with `npm run supabase:db:push` to the linked project. See [supabase/README.md](supabase/README.md).
 - `npm run check` — svelte-check
 - `npm run supabase:db:push:dry` — review migration diff before applying
 - `npm run supabase:db:push` — apply migrations to prod
