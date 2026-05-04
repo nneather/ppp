@@ -15,7 +15,9 @@
 >
 > Standards live in those files; the tracker is the plan. Where this tracker would otherwise restate a standard, it links instead.
 
-_Last updated: May 2, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
+_Last updated: May 4, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
+
+**Trip QA + viewer closure:** Step-by-step phone + viewer script → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md). Tick acceptance rows after hands-on verification; repo gate `npm run check` passed 2026-05-04.
 
 ---
 
@@ -412,7 +414,7 @@ _Goal: Settings surfaces that involve owner-only operations land. People merge, 
 - [x] `npm run check` passes — _2026-05-02_
 - [x] Migrations `20260502120000` (people merge), `20260502140000`, `20260502145000`, `20260502150000`, `20260502160000` + `src/lib/types/database.ts`; run `npm run supabase:gen-types` after any new migration if types drift.
 - [x] `docs/decisions/013-library-session-7b-settings-polish.md` filed
-- [ ] viewer cannot trigger the people-merge action (UI hidden, backend 403); viewer cannot CREATE / EDIT / MERGE ancient_texts; viewer cannot access `/settings/permissions` (403) — _403 paths implemented; hands-on viewer sign-in + library none/read smoke pending seed_
+- [ ] viewer cannot trigger the people-merge action (UI hidden, backend 403); viewer cannot CREATE / EDIT / MERGE ancient_texts; viewer cannot access `/settings/permissions` (403) — _403 paths implemented; [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md) §B; owner signs off by ticking this row after device test_
 
 ---
 

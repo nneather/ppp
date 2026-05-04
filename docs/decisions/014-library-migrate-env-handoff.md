@@ -28,6 +28,10 @@
 
 - Full **`library:migrate:apply`** not executed in the initial session: when **`LIBRARY_SRC_DATABASE_URL`** pointed at **`127.0.0.1:54322`**, local Postgres was not reachable (`ECONNREFUSED`). **Correction (same day):** Parker’s workflow is **Supabase-project-only** (no Docker Desktop). Use **two Dashboard `Connect → Direct` URIs** for SRC (corpus project/branch) and DST (target prod). Optional local `54322` remains documented for contributors who run `supabase start`.
 
+## Follow-up (2026-05-04)
+
+- **Path B:** Owner completed **source → destination** library row sync (apply) outside this chat; environments aligned. Re-run Path B if a new corpus copy is needed; scripture **Storage** objects may still need manual re-upload if paths were migrated without binaries.
+
 ## Surprises (read these before the next session)
 
 - **Supabase-only Path B:** SRC and DST are **just Postgres URLs** — neither must be `127.0.0.1:54322`. `ECONNREFUSED` on `54322` only applies when SRC is explicitly that host.
@@ -41,4 +45,5 @@
 - [x] README env / troubleshooting
 - [x] AGENTS.md `.env.local` row
 - [x] `PLAN.md` — Path B handoff uses Dashboard SRC/DST URIs (no Docker Desktop chain)
+- [x] **Path B apply** — owner completed source→destination sync (2026-05-04)
 - [ ] components.mdc — not needed (no new component)
