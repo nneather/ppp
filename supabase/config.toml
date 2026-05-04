@@ -369,6 +369,10 @@ verify_jwt = false
 [functions.send-invoice]
 verify_jwt = false
 
+# Auth enforced in-function via GET /auth/v1/user (same pattern as generate-invoice-pdf / send-invoice).
+[functions.ocr_scripture_refs]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

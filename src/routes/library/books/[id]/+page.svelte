@@ -195,7 +195,8 @@
 			f.kind === 'createScriptureRef' ||
 			f.kind === 'createScriptureRefsBatch' ||
 			f.kind === 'updateScriptureRef' ||
-			f.kind === 'softDeleteScriptureRef'
+			f.kind === 'softDeleteScriptureRef' ||
+			f.kind === 'extractScriptureRefs'
 		) {
 			return f;
 		}

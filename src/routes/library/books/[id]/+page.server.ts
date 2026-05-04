@@ -25,6 +25,7 @@ import {
 	softDeleteScriptureRefAction,
 	updateScriptureRefAction
 } from '$lib/library/server/scripture-actions';
+import type { OcrScriptureExtractResponse } from '$lib/library/ocr-scripture-refs';
 import {
 	createBookTopicsBatchAction,
 	softDeleteBookTopicAction,
@@ -39,6 +40,15 @@ import {
 } from '$lib/library/server/coverage-actions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Edge Functions return `{ error: string }` on non-2xx; supabase-js may surface it on `data`. */
+function ocrInvokeDataError(data: unknown): string | null {
+	if (data && typeof data === 'object' && data !== null && 'error' in data) {
+		const e = (data as { error: unknown }).error;
+		if (typeof e === 'string' && e.length > 0) return e;
+	}
+	return null;
+}
 
 export const load: PageServerLoad = async ({ params, locals, depends }) => {
 	const { user } = await locals.safeGetSession();
@@ -158,6 +168,76 @@ export const actions: Actions = {
 			return fail(401, { kind: 'softDeleteScriptureRef' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return softDeleteScriptureRefAction(locals.supabase, fd);
+	},
+	extractScriptureRefs: async ({ request, locals, params }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) {
+			return fail(401, { kind: 'extractScriptureRefs' as const, message: 'Unauthorized' });
+		}
+		const bookId = params.id;
+		if (!UUID_RE.test(bookId)) {
+			return fail(400, { kind: 'extractScriptureRefs' as const, message: 'Invalid book.' });
+		}
+
+		const fd = await request.formData();
+		const object_path = String(fd.get('object_path') ?? '').trim();
+		const mime_type = String(fd.get('mime_type') ?? '').trim();
+		const fdBookId = String(fd.get('book_id') ?? '').trim();
+		if (fdBookId !== bookId) {
+			return fail(400, {
+				kind: 'extractScriptureRefs' as const,
+				message: 'Book mismatch.'
+			});
+		}
+		if (!object_path || !mime_type) {
+			return fail(400, {
+				kind: 'extractScriptureRefs' as const,
+				message: 'Image path and MIME type are required.'
+			});
+		}
+
+		const {
+			data: { session }
+		} = await locals.supabase.auth.getSession();
+		const authHeaders = session?.access_token
+			? { Authorization: `Bearer ${session.access_token}` }
+			: undefined;
+
+		const { data: ocrData, error: ocrErr } = await locals.supabase.functions.invoke(
+			'ocr_scripture_refs',
+			{
+				body: { object_path, mime_type, book_id: bookId },
+				headers: authHeaders
+			}
+		);
+
+		const msgFromData = ocrInvokeDataError(ocrData);
+		if (ocrErr || msgFromData) {
+			console.error('[extractScriptureRefs]', ocrErr ?? ocrData);
+			return fail(500, {
+				kind: 'extractScriptureRefs' as const,
+				message: msgFromData ?? ocrErr?.message ?? 'OCR request failed.'
+			});
+		}
+
+		const payload = ocrData as Partial<OcrScriptureExtractResponse> | null;
+		if (
+			!payload ||
+			typeof payload.rawText !== 'string' ||
+			!Array.isArray(payload.candidates)
+		) {
+			return fail(500, {
+				kind: 'extractScriptureRefs' as const,
+				message: 'Unexpected response from OCR service.'
+			});
+		}
+
+		return {
+			kind: 'extractScriptureRefs' as const,
+			success: true as const,
+			rawText: payload.rawText,
+			candidates: payload.candidates
+		};
 	},
 	createBookTopicsBatch: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

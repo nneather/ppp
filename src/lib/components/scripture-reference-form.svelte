@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { enhance } from '$app/forms';
+	import { enhance, deserialize } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
@@ -18,6 +18,7 @@
 		SCRIPTURE_IMAGES_BUCKET,
 		scriptureImagePath
 	} from '$lib/library/storage';
+	import type { OcrScriptureCandidate } from '$lib/library/ocr-scripture-refs';
 
 	/**
 	 * <ScriptureReferenceForm>
@@ -84,7 +85,41 @@
 		page_end: string;
 		needs_review: boolean;
 		review_note: string;
+		/** Set when row came from OCR extract; optional on manual rows. */
+		confidence_score: number | null;
 	};
+
+	const CONFIDENCE_REVIEW_THRESHOLD = 0.8;
+
+	function numStr(n: number | null | undefined): string {
+		if (n == null || !Number.isFinite(Number(n))) return '';
+		return String(n);
+	}
+
+	function mapCandidateToRow(c: OcrScriptureCandidate): DraftRow {
+		const conf =
+			typeof c.confidence_score === 'number' && Number.isFinite(c.confidence_score)
+				? c.confidence_score
+				: 1;
+		const needs = conf < CONFIDENCE_REVIEW_THRESHOLD;
+		const pageStart =
+			c.page_start != null && String(c.page_start).trim() !== ''
+				? String(c.page_start).trim()
+				: '?';
+		return {
+			key: freshKey(),
+			bible_book: c.bible_book ?? '',
+			chapter_start: numStr(c.chapter_start ?? undefined),
+			verse_start: numStr(c.verse_start ?? undefined),
+			chapter_end: numStr(c.chapter_end ?? undefined),
+			verse_end: numStr(c.verse_end ?? undefined),
+			page_start: pageStart,
+			page_end: c.page_end != null ? String(c.page_end) : '',
+			needs_review: needs,
+			review_note: '',
+			confidence_score: conf
+		};
+	}
 
 	function freshKey(): string {
 		return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -103,7 +138,8 @@
 			page_start: '',
 			page_end: '',
 			needs_review: false,
-			review_note: ''
+			review_note: '',
+			confidence_score: null
 		};
 	}
 
@@ -118,17 +154,22 @@
 			page_start: r.page_start ?? '',
 			page_end: r.page_end ?? '',
 			needs_review: r.needs_review,
-			review_note: r.review_note ?? ''
+			review_note: r.review_note ?? '',
+			confidence_score: r.confidence_score
 		};
 	}
 
 	let parent = $state<PolymorphicParent | null>(null);
 	let rows = $state<DraftRow[]>([blankRow()]);
 	let source_image_url = $state(''); // bucket object path
+	let source_image_mime = $state('image/jpeg');
 	let preview_url = $state<string | null>(null);
 	let pending = $state(false);
 	let uploading = $state(false);
 	let uploadError = $state<string | null>(null);
+	let extracting = $state(false);
+	let extractMessage = $state<string | null>(null);
+	let extractInfo = $state<string | null>(null);
 
 	/** Mobile-only: bottom sheet bible picker (`max-sm:` trigger replaces Select). */
 	let biblePickerOpen = $state(false);
@@ -186,6 +227,8 @@
 			preview_url = null;
 		}
 		uploadError = null;
+		extractMessage = null;
+		extractInfo = null;
 	});
 
 	const bibleBookItems = $derived([
@@ -280,6 +323,7 @@
 				return;
 			}
 			source_image_url = path;
+			source_image_mime = mime;
 			if (preview_url && preview_url.startsWith('blob:')) URL.revokeObjectURL(preview_url);
 			preview_url = URL.createObjectURL(blob);
 		} catch (err) {
@@ -293,7 +337,57 @@
 	function removeImage() {
 		if (preview_url && preview_url.startsWith('blob:')) URL.revokeObjectURL(preview_url);
 		source_image_url = '';
+		source_image_mime = 'image/jpeg';
 		preview_url = null;
+		extractMessage = null;
+		extractInfo = null;
+	}
+
+	async function runExtractFromImage() {
+		const bookIdForPath = lockedBookId ?? sourceBookId;
+		if (!source_image_url || !bookIdForPath) {
+			extractMessage = 'Upload an image first.';
+			return;
+		}
+		extractMessage = null;
+		extractInfo = null;
+		extracting = true;
+		try {
+			const fd = new FormData();
+			fd.set('object_path', source_image_url);
+			fd.set('mime_type', source_image_mime);
+			fd.set('book_id', bookIdForPath);
+			const resp = await fetch('?/extractScriptureRefs', {
+				method: 'POST',
+				headers: { 'x-sveltekit-action': 'true' },
+				body: fd
+			});
+			const result = deserialize(await resp.text());
+			if (result.type === 'failure') {
+				const d = (result.data ?? {}) as { message?: string };
+				extractMessage = d.message ?? 'Extraction failed.';
+				return;
+			}
+			if (result.type === 'success') {
+				const d = (result.data ?? {}) as {
+					kind?: string;
+					candidates?: OcrScriptureCandidate[];
+				};
+				if (d.kind !== 'extractScriptureRefs' || !Array.isArray(d.candidates)) {
+					extractMessage = 'Unexpected response from server.';
+					return;
+				}
+				if (d.candidates.length === 0) {
+					extractInfo = 'No references detected — add manually below.';
+					return;
+				}
+				rows = d.candidates.map(mapCandidateToRow);
+			}
+		} catch (e) {
+			extractMessage = e instanceof Error ? e.message : 'Extraction failed.';
+		} finally {
+			extracting = false;
+		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -311,7 +405,8 @@
 				page_start: r.page_start,
 				page_end: r.page_end,
 				needs_review: r.needs_review,
-				review_note: r.review_note
+				review_note: r.review_note,
+				...(r.confidence_score != null ? { confidence_score: r.confidence_score } : {})
 			}))
 		)
 	);
@@ -372,6 +467,9 @@
 		<input type="hidden" name="page_end" value={editRow.page_end} />
 		<input type="hidden" name="needs_review" value={editRow.needs_review ? 'true' : 'false'} />
 		<input type="hidden" name="review_note" value={editRow.review_note} />
+		{#if editRow.confidence_score != null}
+			<input type="hidden" name="confidence_score" value={String(editRow.confidence_score)} />
+		{/if}
 	{:else}
 		<!-- Batch mode posts a JSON array of rows. -->
 		<input type="hidden" name="rows_json" value={rowsJson} />
@@ -456,6 +554,24 @@
 		{/if}
 		{#if uploadError}
 			<p class="text-xs text-destructive" role="alert">{uploadError}</p>
+		{/if}
+		{#if !isEdit && source_image_url && lockedBookId}
+			<div class="flex flex-col gap-2">
+				<Button
+					type="button"
+					variant="secondary"
+					disabled={extracting || uploading || !parent}
+					onclick={runExtractFromImage}
+				>
+					{extracting ? 'Extracting…' : 'Extract from image'}
+				</Button>
+				{#if extractMessage}
+					<p class="text-xs text-destructive" role="alert">{extractMessage}</p>
+				{/if}
+				{#if extractInfo}
+					<p class="text-xs text-muted-foreground" role="status">{extractInfo}</p>
+				{/if}
+			</div>
 		{/if}
 	</div>
 

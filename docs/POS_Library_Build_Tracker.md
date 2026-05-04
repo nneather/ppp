@@ -476,23 +476,23 @@ _Order in the post-trip arc: lands AFTER Session 7 (so the structured-translator
 
 | Task | Done | Notes |
 |------|:----:|-------|
-| Re-confirm OCR design from `docs/decisions/005-scripture-refs-bulk-and-ocr-design.md` matches current workflow before building (provider choice, draft-rows-only writes, confidence threshold). | ☐ | 30-min pre-read. Resolves Open Question 7. |
-| Decision: OCR provider — Tesseract via Edge Function vs external API (Google Vision / AWS Textract / Anthropic). | ☐ | External API simpler for MVP; Tesseract is self-hosted. Anthropic is convenient given existing API key but rate limits + cost matter for batch image runs. |
-| Edge Function for OCR — input: bucket object path + mime, output: `{ rawText, candidates: [{ bible_book, chapter_start, …, confidence_score }] }`. | ☐ | Per `.cursor/rules/edge-functions.mdc`. Returns structured candidates, not freeform text — parsing happens in the Edge Function via the provider's function-calling / structured output, not in the client. |
-| Parser for OCR text → structured scripture_reference candidates. | ☐ | Lives inside the Edge Function. Validate against the same schema rules `parseScriptureRefForm` enforces before returning. |
-| Confidence threshold — pre-flag `needs_review = true` when `confidence_score < 0.80`. Adjustable in settings. | ☐ | Per S10. |
-| "Extract from image/file" button inside `<ScriptureReferenceForm>` (batch mode) — triggers the Edge Function on the already-uploaded image, populates draft rows from the candidate array. | ☐ | OCR never writes final rows directly; user reviews + edits + Saves the batch as today. |
+| Re-confirm OCR design from `docs/decisions/005-scripture-refs-bulk-and-ocr-design.md` matches current workflow before building (provider choice, draft-rows-only writes, confidence threshold). | ☑ | 2026-05-04 pre-read; **015** + stub contract. |
+| Decision: OCR provider — Tesseract via Edge Function vs external API (Google Vision / AWS Textract / Anthropic). | ☑ | **015:** MVP default **Anthropic Claude**; criteria for alternatives documented. |
+| Edge Function for OCR — input: bucket object path + mime, output: `{ rawText, candidates: [{ bible_book, chapter_start, …, confidence_score }] }`. | ☑ | Stub shipped (`ocr_scripture_refs`); returns empty `candidates` until provider wired. |
+| Parser for OCR text → structured scripture_reference candidates. | ☐ | Stub only; lives in Edge in follow-up. |
+| Confidence threshold — pre-flag `needs_review = true` when `confidence_score < 0.80`. Adjustable in settings. | ☑ | **0.80** in batch form when mapping candidates; settings knob still Session 10. |
+| "Extract from image/file" button inside `<ScriptureReferenceForm>` (batch mode) — triggers the Edge Function on the already-uploaded image, populates draft rows from the candidate array. | ☑ | **Extract from image** + `?/extractScriptureRefs` (2026-05-04). |
 | Review queue UI — extend Session 3's `?needs_review=true` filter to surface `scripture_references` entries (not just books). | ☐ | New filter chip group: "Books needing review" + "Scripture refs needing review". |
 | Smoke test — upload 5 sample page images, verify OCR pipeline → draft rows → review + save flow. | ☐ | Real-use validation against the trip's accumulated paper notes corpus. |
 
 **Acceptance:**
-- [ ] Image upload + "Extract from image/file" populates draft rows in `<ScriptureReferenceForm>` with `needs_review = true` (when confidence < 0.80) and `confidence_score` populated per row.
-- [ ] No `scripture_references` row is INSERTed by the OCR path until the user clicks Save in the batch UI.
-- [ ] Low-confidence (< 0.80) entries surface in the review queue post-save; owner can confirm or reject one-click on phone.
-- [ ] Smoke test passes on 5 sample images with mixed quality.
-- [ ] `npm run check` passes
-- [ ] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit
-- [ ] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template
+- [ ] Image upload + "Extract from image/file" populates draft rows in `<ScriptureReferenceForm>` with `needs_review = true` (when confidence < 0.80) and `confidence_score` populated per row. _Client mapping + batch insert ready; stub returns 0 candidates until provider integration._
+- [x] No `scripture_references` row is INSERTed by the OCR path until the user clicks Save in the batch UI. _OCR path returns JSON only; inserts only via `createScriptureRefsBatch`._
+- [ ] Low-confidence (< 0.80) entries surface in the review queue post-save; owner can confirm or reject one-click on phone. _Filter slice deferred; row-level `needs_review` + `confidence_score` persist on save._
+- [ ] Smoke test passes on 5 sample images with mixed quality. _Pending provider + real images._
+- [x] `npm run check` passes (2026-05-04)
+- [x] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit _N/A — no migration this slice_
+- [x] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template — **015**
 - [ ] viewer can upload images and trigger OCR; viewer cannot confirm low-confidence entries on owner's rows (only own rows per S1) — tested by signing in as the viewer user
 
 ---
@@ -509,7 +509,7 @@ _Session-blocking. Resolve before the dependent session starts. Per-entity quest
 | 4 | Bibliography export format — plain text only, or add markdown + .docx? | ☐ Open — plain text is floor; decide at Session 8 |
 | 5 | Article-level citations (essays UI) — needed for fall semester or deferrable? | ☐ Open — currently deferred per PostBuild #1; revisit if fall syllabus reveals essay-citation pressure |
 | 6 | Subject vs genre terminology — reconcile `Library_Migration_Notes.md` ("subject") with schema (`genre`) before Session 4 | ☐ Open — doc-side fix, pre-Session 4 |
-| 7 | OCR provider choice (Session 9) | ☐ Open — **blocking at start of Session 9** (now required, not optional). Re-confirm against `docs/decisions/005-scripture-refs-bulk-and-ocr-design.md` as the first task of Session 9. |
+| 7 | OCR provider choice (Session 9) | ☑ **Resolved 2026-05-04** — MVP default Anthropic Claude (vision / structured output); alternatives + criteria in [`docs/decisions/015-library-session-9-ocr-kickoff.md`](decisions/015-library-session-9-ocr-kickoff.md). |
 | 8 | Pass 2 trigger — when does the v2 (corrected) scholarly-core spreadsheet get authored? | ☐ Open — likely accumulates during the trip period as the no-subject review queue surfaces corrections + as reading reveals title / edition / volume errors. Authoritative v2 commit by **early August** so Session 4 Pass 2 can run before Session 9 (OCR) and Session 8 (Turabian). Owner: pre-trip plan. See `docs/decisions/007-reconcilable-library-import.md`. |
 | 9 | Pass 1 ISBN coverage from `enrich_library.py` — high enough to ship the optional `books_isbn_uniq` partial unique index? | ☑ Resolved 2026-04-30 — 65.8% (875/1,330). Below the 70% threshold from decision 007. **SKIPPED for Pass 1**; will revisit pre-Pass-2 once the v2 spreadsheet has chased down missing ISBNs on the scholarly core. See `docs/decisions/008-library-pass-1-import.md`. |
 | 10 | Audit attribution — does `auth.uid()` propagate to `audit_log_trigger` from a service-role client, or do we need the post-apply `UPDATE audit_log` fallback? | ☑ Resolved 2026-04-30 — **fallback is required**. `auth.uid()` returns NULL under service-role, so trigger writes `changed_by = NULL`. `scripts/library-import/patch-audit.ts` patches the window. Same pattern needed for any future bulk-import via service-role. Side-effect: the B1/B2 viewer-column trigger on `personal_notes` / `rating` ALSO blocks UPDATEs (since `app_is_owner()` evaluates to false), so post-apply patches must drop those columns from the payload. See decision 008 Surprise #9. |

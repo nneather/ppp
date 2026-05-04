@@ -55,7 +55,7 @@ Granular commands:
 | `npm run supabase:doctor`   | Fail if CLI link / env URL / `SUPABASE_REF` disagree      |
 | `npm run supabase:db:push:dry` | Dry-run `db push` (no writes)                        |
 | `npm run supabase:db:push`  | Push pending migrations to the linked project             |
-| `npm run supabase:deploy-functions` | Deploy `generate-invoice-pdf` and `send-invoice` |
+| `npm run supabase:deploy-functions` | Deploy `generate-invoice-pdf`, `send-invoice`, and `ocr_scripture_refs` |
 
 **No local Docker stack** — do not use `supabase start` / `supabase db reset` in this repo; `[db.seed]` is disabled in `config.toml`.
 
@@ -140,7 +140,7 @@ npm run supabase:deploy-functions
 
 ### `Unsupported JWT algorithm ES256` (PDF download / Edge Functions)
 
-Hosted projects may issue **ES256** access tokens. Invoicing functions use **`verify_jwt = false`** in [`config.toml`](./config.toml) and validate the caller with **`GET /auth/v1/user`** inside the function. After pulling these changes, **redeploy** both functions (`npm run supabase:deploy-functions`).
+Hosted projects may issue **ES256** access tokens. Edge functions use **`verify_jwt = false`** in [`config.toml`](./config.toml) and validate the caller with **`GET /auth/v1/user`** inside the function. After pulling these changes, **redeploy** all project functions (`npm run supabase:deploy-functions`).
 
 ### `record "new" has no field "status"` on time_entries
 

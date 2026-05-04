@@ -47,6 +47,15 @@ function parseBoolean(raw: FormDataEntryValue | null): boolean {
 	return t === 'true' || t === 'on' || t === '1';
 }
 
+/** Optional 0–1 confidence from OCR row payloads; invalid/absent → null. */
+function parseConfidenceScore(raw: FormDataEntryValue | null): number | null {
+	const t = String(raw ?? '').trim();
+	if (t.length === 0) return null;
+	const n = Number(t);
+	if (!Number.isFinite(n) || n < 0 || n > 1) return null;
+	return n;
+}
+
 function parseParent(fd: FormData): PolymorphicParent | { error: string } {
 	const kind = String(fd.get('source_kind') ?? '').trim();
 	if (kind !== 'book' && kind !== 'essay') {
@@ -74,6 +83,7 @@ export type ScripturePayload = {
 	needs_review: boolean;
 	review_note: string | null;
 	source_image_url: string | null;
+	confidence_score: number | null;
 };
 
 export type ScriptureParseResult =
@@ -126,7 +136,8 @@ export function parseScriptureRefForm(fd: FormData): ScriptureParseResult {
 			page_end,
 			needs_review: parseBoolean(fd.get('needs_review')),
 			review_note: trimOrNull(fd.get('review_note')),
-			source_image_url: trimOrNull(fd.get('source_image_url'))
+			source_image_url: trimOrNull(fd.get('source_image_url')),
+			confidence_score: parseConfidenceScore(fd.get('confidence_score'))
 		}
 	};
 }
@@ -250,6 +261,7 @@ type RawBatchRow = {
 	page_end?: unknown;
 	needs_review?: unknown;
 	review_note?: unknown;
+	confidence_score?: unknown;
 };
 
 function rawToFormData(row: RawBatchRow, sharedImage: string | null): FormData {
@@ -267,6 +279,8 @@ function rawToFormData(row: RawBatchRow, sharedImage: string | null): FormData {
 	set('page_end', row.page_end);
 	set('needs_review', row.needs_review === true || row.needs_review === 'true' ? 'true' : 'false');
 	set('review_note', row.review_note);
+	if (row.confidence_score != null && row.confidence_score !== '')
+		fd.set('confidence_score', String(row.confidence_score));
 	if (sharedImage) fd.set('source_image_url', sharedImage);
 	// parent fields are not consumed by parseScriptureRefForm's payload — we
 	// fill them so parseParent's branch sees something, but the batch caller

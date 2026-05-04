@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-04
+**Last updated:** 2026-05-04 (Session 9 OCR spike — decision 015)
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,9 @@
 
 ## Current focus
 
-Pre-trip Library: Session 7 (settings polish) shipped 2026-05-02. Trip QA runbook ready — [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) — owner completes phone + viewer smoke; tracker hands-on rows tick when verified. Trip-period (late May → early August) is mobile-only work against the traveling shelf — Pass 2 spreadsheet, OCR, citations pause until return.
+Library **Session 9 OCR spike** (2026-05-04): decision **015**, Edge stub `ocr_scripture_refs`, extract action + batch UI hook — deploy the new function when convenient (`npm run supabase:deploy-functions`). Full Anthropic/provider integration remains next on Session 9.
+
+Trip QA runbook — [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md). Trip-period (late May → early August): mobile-only shelf workflow; Pass 2 spreadsheet + citations pause until return (OCR stub does not require trip-period deploy).
 
 Nearest hard dates:
 - **2026-05-15** — semester ends
@@ -33,9 +35,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [015 — Library Session 9 OCR kickoff](docs/decisions/015-library-session-9-ocr-kickoff.md) (2026-05-04) — Open Q7 closed (Anthropic MVP default); Edge stub `ocr_scripture_refs`; extract action + batch UI hook; `confidence_score` in batch JSON.
 - [014 — Library migrate env + handoff](docs/decisions/014-library-migrate-env-handoff.md) (2026-05-03) — Path B README/AGENTS; review queue kbd hints desktop-only; Supabase **source → destination** URIs; **Path B apply completed 2026-05-04** (see decision follow-up).
 - [013 — Library Session 7b settings polish](docs/decisions/013-library-session-7b-settings-polish.md) (2026-05-02) — series + ancient-texts CRUD + merge, translator data migration, permissions UI + RLS.
-- [012 — Library Session 7 people merge](docs/decisions/012-library-session-7-people-settings-merge.md) (2026-05-02) — `library_merge_people` RPC; merge audit entries non-revertible.
 
 ---
 
@@ -62,7 +64,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
    - Resolve Open Q4 — bibliography export format.
    - Load Turabian skill (`SKILL.md` + `formats.md`) into build context.
    - Author v2 corrected scholarly-core spreadsheet by early August (Open Q8) so Pass 2 can run before Session 9.
-5. **Pre-Session-9 prep (queue for August):** decide OCR provider (Open Q7) — Tesseract vs external API (Vision / Textract / Anthropic).
+5. **Session 9 (OCR) continuation:** deploy `ocr_scripture_refs` to prod when ready; wire Anthropic (or chosen provider) per [015](docs/decisions/015-library-session-9-ocr-kickoff.md); smoke-test five page images.
 6. **Invoicing maintenance:** rotate Supabase JWT secret + Resend API key when a deploy window opens (runbook in [docs/Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md)).
 
 ---
@@ -73,7 +75,7 @@ Only items that could block a future session. Full lists live in each tracker's 
 
 - **Invoicing:** domain + Resend verification before real-client billing.
 - **Library Q4:** bibliography export format — blocks Session 8 start.
-- **Library Q7:** OCR provider choice — blocks Session 9 start.
+- **Library Q7:** ~~OCR provider choice~~ — resolved (015); provider **integration** remains Session 9 continuation work.
 - **Library Q8:** v2 corrected scholarly-core spreadsheet — must land before Pass 2 / Session 9.
 - **Library pre-session checklist:** scholarly core review in Claude; deferred shelf-check items (Calvin CC vols 2–3, Bruce NICNT Acts edition, Hodge 1 Cor reprint, Douglas *NBD* edition); BDAG migration row; `enrich_library.py` run.
 
