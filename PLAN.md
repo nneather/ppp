@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-05 — PLAN refresh; hosted-only Supabase workflow encoded in [AGENTS.md](AGENTS.md), [.cursor/rules/always.mdc](.cursor/rules/always.mdc), [.cursor/rules/db-changes.mdc](.cursor/rules/db-changes.mdc) (see [supabase/README.md](supabase/README.md)). Session 9 OCR spike (015) unchanged as primary library build thread.
+**Last updated:** 2026-05-06 — misc library UX (facet column, desktop bottom padding, German title sort, OL refresh on edit, bulk field updates, language-audit script). Design backlog block added for given-away / research copies / publisher defaults.
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -39,9 +39,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [016 — Library misc UX, bulk update, OL refresh, language audit](docs/decisions/016-library-misc-ux-bulk-ol-audit.md) (2026-05-06) — facet/layout polish; `title-sort.ts` German articles; ISBN OL refresh dialog; list bulk update; language-audit CLI.
 - [015 — Library Session 9 OCR kickoff](docs/decisions/015-library-session-9-ocr-kickoff.md) (2026-05-04) — Open Q7 closed (Anthropic MVP default); Edge stub `ocr_scripture_refs`; extract action + batch UI hook; `confidence_score` in batch JSON.
 - [014 — Library migrate env + handoff](docs/decisions/014-library-migrate-env-handoff.md) (2026-05-03) — Path B README/AGENTS; review queue kbd hints desktop-only; Supabase **source → destination** URIs; **Path B apply completed 2026-05-04** (see decision follow-up).
-- [013 — Library Session 7b settings polish](docs/decisions/013-library-session-7b-settings-polish.md) (2026-05-02) — series + ancient-texts CRUD + merge, translator data migration, permissions UI + RLS.
 
 ---
 
@@ -69,6 +69,15 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 4. **Invoicing go-live blocker:** domain → Resend verify → `send-invoice` `from` → real-client smoke.
 5. **Pre-Session-8 prep (August queue):** Open Q4 bibliography format; Turabian skill in context; v2 spreadsheet by early August (Open Q8) before Pass 2.
 6. **Invoicing maintenance:** rotate Supabase JWT secret + Resend API key when a deploy window opens ([docs/Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md)).
+
+---
+
+## Design backlog (not scheduled)
+
+- **Given away** — disposition separate from `reading_status` vs. flag + date vs. extending `borrowed_to` semantics.
+- **Research-used, not owned** — track sources consulted without a purchased copy (`ownership_kind` / new entity vs. extending `books` / essays).
+- **Multiple owned copies** — `copy_count` vs. child `book_copies` rows (per-copy shelf / gift intent).
+- **Publisher defaults** — optional `publishers` table + default location; short-term client-side publisher→location hints on the book form (see misc library plan).
 
 ---
 

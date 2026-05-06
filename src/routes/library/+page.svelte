@@ -6,6 +6,7 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
@@ -25,12 +26,12 @@
 		READING_STATUSES,
 		READING_STATUS_LABELS
 	} from '$lib/types/library';
-	import type { ReadingStatus, Language, BookListFilters, PersonRow } from '$lib/types/library';
+	import type { ReadingStatus, Language, BookListFilters, PersonRow, Genre } from '$lib/types/library';
 	import MultiCombobox from '$lib/components/multi-combobox.svelte';
 	import type { MultiComboboxItem } from '$lib/components/multi-combobox.svelte';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 
 	// 10s undo toast for soft-deletes coming back from the detail-page redirect.
 	let undoToastVisible = $state(false);
@@ -195,6 +196,7 @@
 
 	function clearAll() {
 		qInput = '';
+		clearBulkSelection();
 		pushFilters({});
 	}
 
@@ -271,18 +273,89 @@
 	$effect(() => {
 		authorSelection = filters.author_id ?? [];
 	});
+
+	// -------------------------------------------------------------------------
+	// Bulk selection (desktop table + mobile cards)
+	// -------------------------------------------------------------------------
+
+	let selectedIds = $state<string[]>([]);
+	let bulkDialogOpen = $state(false);
+	let bulkPending = $state(false);
+
+	const selectedCount = $derived(selectedIds.length);
+	const allPageSelected = $derived(
+		data.books.length > 0 && data.books.every((b) => selectedIds.includes(b.id))
+	);
+
+	function toggleBookSelected(id: string) {
+		if (selectedIds.includes(id)) {
+			selectedIds = selectedIds.filter((x) => x !== id);
+		} else {
+			selectedIds = [...selectedIds, id];
+		}
+	}
+
+	function toggleSelectAllPage() {
+		const pageIds = data.books.map((b) => b.id);
+		if (allPageSelected) {
+			const pageSet = new Set(pageIds);
+			selectedIds = selectedIds.filter((id) => !pageSet.has(id));
+		} else {
+			selectedIds = [...new Set([...selectedIds, ...pageIds])];
+		}
+	}
+
+	function clearBulkSelection() {
+		selectedIds = [];
+	}
+
+	let bulkLanguage = $state<Language>('english');
+	let bulkReadingStatus = $state<ReadingStatus>('unread');
+	let bulkGenre = $state<Genre>(GENRES[0]!);
+
+	const bulkFormFeedback = $derived.by(() => {
+		const f = form as { kind?: string; message?: string; success?: boolean } | null | undefined;
+		if (!f || f.kind !== 'bulkUpdateBooks') return null;
+		return f;
+	});
+
+	const bulkEnhance: SubmitFunction = () => {
+		bulkPending = true;
+		return async ({ result, update }) => {
+			bulkPending = false;
+			await update({ reset: false });
+			if (result.type === 'success') {
+				const d = result.data as { kind?: string; success?: boolean } | undefined;
+				if (d?.kind === 'bulkUpdateBooks' && d.success) {
+					selectedIds = [];
+					bulkDialogOpen = false;
+					await invalidateAll();
+				}
+			}
+		};
+	};
+
+	$effect(() => {
+		const ids = new Set(data.books.map((b) => b.id));
+		const pruned = selectedIds.filter((id) => ids.has(id));
+		if (pruned.length !== selectedIds.length) {
+			selectedIds = pruned;
+		}
+	});
 </script>
 
 {#snippet filterBody()}
-	<div class="flex flex-col gap-5">
-		<section>
-			<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Genre</h3>
-			<div class="flex flex-wrap gap-1.5">
+	<div class="flex flex-col divide-y divide-border">
+		<section class="py-3 first:pt-0 last:pb-0">
+			<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+				Genre
+			</h3>
+			<div class="flex flex-wrap gap-1">
 				{#each GENRES as g (g)}
 					{@const active = filters.genre?.includes(g) ?? false}
 					<button
 						type="button"
-						class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipBaseClasses(active)}`}
+						class={`rounded-full border px-2 py-0.5 text-[11px] leading-tight transition-colors ${chipBaseClasses(active)}`}
 						onclick={() => toggleArrayFilter('genre', g)}
 						aria-pressed={active}
 					>
@@ -292,8 +365,10 @@
 			</div>
 		</section>
 
-		<section>
-			<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Author</h3>
+		<section class="py-3 first:pt-0 last:pb-0">
+			<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+				Author
+			</h3>
 			<MultiCombobox
 				bind:values={authorSelection}
 				items={peopleItems}
@@ -304,8 +379,10 @@
 		</section>
 
 		{#if data.series.length > 0}
-			<section>
-				<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Series</h3>
+			<section class="py-3 first:pt-0 last:pb-0">
+				<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+					Series
+				</h3>
 				<MultiCombobox
 					bind:values={seriesSelection}
 					items={seriesItems}
@@ -316,14 +393,16 @@
 			</section>
 		{/if}
 
-		<section>
-			<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Language</h3>
-			<div class="flex flex-wrap gap-1.5">
+		<section class="py-3 first:pt-0 last:pb-0">
+			<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+				Language
+			</h3>
+			<div class="flex flex-wrap gap-1">
 				{#each LANGUAGES as l (l)}
 					{@const active = filters.language?.includes(l as Language) ?? false}
 					<button
 						type="button"
-						class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipBaseClasses(active)}`}
+						class={`rounded-full border px-2 py-0.5 text-[11px] leading-tight transition-colors ${chipBaseClasses(active)}`}
 						onclick={() => toggleArrayFilter('language', l)}
 						aria-pressed={active}
 					>
@@ -333,14 +412,16 @@
 			</div>
 		</section>
 
-		<section>
-			<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reading status</h3>
-			<div class="flex flex-wrap gap-1.5">
+		<section class="py-3 first:pt-0 last:pb-0">
+			<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+				Reading status
+			</h3>
+			<div class="flex flex-wrap gap-1">
 				{#each READING_STATUSES as s (s)}
 					{@const active = filters.reading_status?.includes(s as ReadingStatus) ?? false}
 					<button
 						type="button"
-						class={`rounded-full border px-2.5 py-1 text-xs transition-colors ${chipBaseClasses(active)}`}
+						class={`rounded-full border px-2 py-0.5 text-[11px] leading-tight transition-colors ${chipBaseClasses(active)}`}
 						onclick={() => toggleArrayFilter('reading_status', s)}
 						aria-pressed={active}
 					>
@@ -350,11 +431,11 @@
 			</div>
 		</section>
 
-		<section>
-			<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Flags</h3>
+		<section class="py-3 first:pt-0 last:pb-0">
+			<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Flags</h3>
 			<button
 				type="button"
-				class={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${chipBaseClasses(filters.needs_review === true)}`}
+				class={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] leading-tight transition-colors ${chipBaseClasses(filters.needs_review === true)}`}
 				onclick={toggleNeedsReview}
 				aria-pressed={filters.needs_review === true}
 			>
@@ -397,6 +478,15 @@
 			</Button>
 		</div>
 	</header>
+
+	{#if bulkFormFeedback?.message}
+		<p
+			class="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+			role="alert"
+		>
+			{bulkFormFeedback.message}
+		</p>
+	{/if}
 
 	<!-- Search + mobile filter trigger row -->
 	<div class="mt-4 flex flex-wrap items-center gap-2">
@@ -507,10 +597,12 @@
 		</div>
 	{/if}
 
-	<div class="mt-6 grid gap-6 md:grid-cols-[16rem_1fr]">
+	<div class="mt-6 grid gap-5 md:grid-cols-[13.5rem_1fr] md:items-start">
 		<!-- Desktop facet panel -->
 		<aside class="hidden md:block">
-			<div class="sticky top-6 rounded-xl border border-border bg-card p-4 text-card-foreground">
+			<div
+				class="sticky top-6 max-h-[min(70vh,calc(100dvh-5.5rem))] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-3 text-card-foreground shadow-sm"
+			>
 				{@render filterBody()}
 			</div>
 		</aside>
@@ -536,10 +628,37 @@
 					</Button>
 				</div>
 			{:else}
+				{#if selectedCount > 0}
+					<div
+						class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-card-foreground shadow-sm"
+					>
+						<span class="text-muted-foreground">{selectedCount} selected</span>
+						<div class="flex flex-wrap gap-2">
+							<Button type="button" variant="outline" size="sm" onclick={clearBulkSelection}>
+								Clear selection
+							</Button>
+							<Button type="button" size="sm" onclick={() => (bulkDialogOpen = true)}>
+								Update multiple…
+							</Button>
+						</div>
+					</div>
+				{/if}
 				<!-- Mobile cards -->
 				<ul class="flex flex-col gap-3 md:hidden">
 					{#each data.books as b (b.id)}
 						<li class="rounded-xl border border-border bg-card p-4 text-card-foreground transition-colors hover:border-ring/50">
+							<div class="flex gap-3">
+								<input
+									type="checkbox"
+									class="mt-1 size-4 shrink-0 rounded border-border"
+									checked={selectedIds.includes(b.id)}
+									onclick={(e) => {
+										e.preventDefault();
+										toggleBookSelected(b.id);
+									}}
+									aria-label={`Select ${b.title ?? 'book'}`}
+								/>
+								<div class="min-w-0 flex-1">
 							<a href={`/library/books/${b.id}`} class="flex flex-col gap-1.5">
 								<div class="flex items-start justify-between gap-3">
 									<div class="min-w-0 flex-1">
@@ -601,6 +720,8 @@
 									{/each}
 								</select>
 							</form>
+								</div>
+							</div>
 						</li>
 					{/each}
 				</ul>
@@ -610,6 +731,19 @@
 					<table class="min-w-full divide-y divide-border text-sm">
 						<thead class="bg-muted/30 text-left text-xs uppercase tracking-wide text-muted-foreground">
 							<tr>
+								<th class="w-10 px-2 py-2">
+									<input
+										type="checkbox"
+										class="size-4 rounded border-border"
+										checked={allPageSelected}
+										onclick={(e) => {
+											e.preventDefault();
+											toggleSelectAllPage();
+										}}
+										title="Select all on this page"
+										aria-label="Select all books on this page"
+									/>
+								</th>
 								<th class="px-4 py-2">Title</th>
 								<th class="px-4 py-2">Authors</th>
 								<th class="px-4 py-2">Genre</th>
@@ -621,6 +755,18 @@
 						<tbody class="divide-y divide-border">
 							{#each data.books as b (b.id)}
 								<tr class="hover:bg-muted/20">
+									<td class="px-2 py-2.5 align-top">
+										<input
+											type="checkbox"
+											class="mt-1 size-4 rounded border-border"
+											checked={selectedIds.includes(b.id)}
+											onclick={(e) => {
+												e.preventDefault();
+												toggleBookSelected(b.id);
+											}}
+											aria-label={`Select ${b.title ?? 'book'}`}
+										/>
+									</td>
 									<td class="px-4 py-2.5">
 										<a href={`/library/books/${b.id}`} class="block">
 											{#if b.title}
@@ -680,6 +826,84 @@
 		</div>
 	</div>
 </div>
+
+<Dialog.Root bind:open={bulkDialogOpen}>
+	<Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Update multiple books</Dialog.Title>
+			<Dialog.Description class="text-muted-foreground text-sm">
+				Applies to {selectedCount} selected book{selectedCount === 1 ? '' : 's'}. Enable each field you want
+				to overwrite.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form method="POST" action="?/bulkUpdateBooks" use:enhance={bulkEnhance} class="flex flex-col gap-4 py-2">
+			<input type="hidden" name="book_ids_json" value={JSON.stringify(selectedIds)} />
+			<div class="space-y-3 rounded-lg border border-border bg-muted/15 p-3">
+				<label class="flex cursor-pointer items-start gap-2 text-sm">
+					<input type="checkbox" name="bulk_apply_language" class="mt-0.5 size-4 shrink-0" />
+					<span>
+						<span class="font-medium text-foreground">Language</span>
+						<span class="mt-1 block text-muted-foreground">
+							<select
+								name="bulk_language"
+								bind:value={bulkLanguage}
+								class="mt-1 w-full max-w-xs rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+							>
+								{#each LANGUAGES as l (l)}
+									<option value={l}>{LANGUAGE_LABELS[l]}</option>
+								{/each}
+							</select>
+						</span>
+					</span>
+				</label>
+				<label class="flex cursor-pointer items-start gap-2 text-sm">
+					<input type="checkbox" name="bulk_apply_reading_status" class="mt-0.5 size-4 shrink-0" />
+					<span>
+						<span class="font-medium text-foreground">Reading status</span>
+						<span class="mt-1 block text-muted-foreground">
+							<select
+								name="bulk_reading_status"
+								bind:value={bulkReadingStatus}
+								class="mt-1 w-full max-w-xs rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+							>
+								{#each READING_STATUSES as s (s)}
+									<option value={s}>{READING_STATUS_LABELS[s]}</option>
+								{/each}
+							</select>
+						</span>
+					</span>
+				</label>
+				<label class="flex cursor-pointer items-start gap-2 text-sm">
+					<input type="checkbox" name="bulk_apply_genre" class="mt-0.5 size-4 shrink-0" />
+					<span>
+						<span class="font-medium text-foreground">Genre</span>
+						<span class="mt-1 block text-muted-foreground">
+							<select
+								name="bulk_genre"
+								bind:value={bulkGenre}
+								class="mt-1 w-full max-w-xs rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+							>
+								{#each GENRES as g (g)}
+									<option value={g}>{g}</option>
+								{/each}
+							</select>
+						</span>
+					</span>
+				</label>
+			</div>
+			<Dialog.Footer class="flex-col gap-2 sm:flex-row sm:justify-end">
+				<Button
+					type="button"
+					variant="outline"
+					hotkey="Escape"
+					label="Cancel"
+					onclick={() => (bulkDialogOpen = false)}
+				/>
+				<Button type="submit" disabled={bulkPending || selectedCount === 0} hotkey="u" label={bulkPending ? 'Updating…' : 'Update books'} />
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
 
 <!-- Mobile filter sheet (hidden on desktop) -->
 <Sheet.Root bind:open={mobileFilterOpen}>

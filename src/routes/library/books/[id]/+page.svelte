@@ -8,6 +8,7 @@
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Pencil from '@lucide/svelte/icons/pencil';
+	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -125,6 +126,7 @@
 			title: data.book.title,
 			subtitle: data.book.subtitle,
 			genre: data.book.genre,
+			language: data.book.language,
 			reading_status: data.book.reading_status,
 			needs_review: data.book.needs_review,
 			primary_category_name: data.book.primary_category_name,
@@ -435,6 +437,9 @@
 		<div class="flex flex-wrap gap-2">
 			<Button variant="outline" href={`/library/books/${data.book.id}/edit`} hotkey="e">
 				<Pencil class="size-4" /> <HotkeyLabel label="Edit" mnemonic="e" />
+			</Button>
+			<Button variant="outline" href={`/library/books/${data.book.id}/edit?ol=1`} class="gap-2">
+				<ScanBarcode class="size-4" /> Refresh from ISBN
 			</Button>
 			<form method="POST" action="?/softDeleteBook" use:enhance={deleteEnhance} class="contents">
 				<input type="hidden" name="id" value={data.book.id} />

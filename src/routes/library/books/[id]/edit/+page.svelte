@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
+	import { browser } from '$app/environment';
+	import { page } from '$app/state';
 	import BookForm from '$lib/components/book-form.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -19,6 +21,16 @@
 	let confirmDiscardOpen = $state(false);
 	let pendingNav = $state<URL | null>(null);
 	let confirmedDiscard = $state(false);
+	let olRefreshOpen = $state(false);
+
+	$effect(() => {
+		if (!browser) return;
+		if (page.url.searchParams.get('ol') !== '1') return;
+		olRefreshOpen = true;
+		const u = new URL(page.url.href);
+		u.searchParams.delete('ol');
+		void goto(`${u.pathname}${u.search}`, { replaceState: true, noScroll: true });
+	});
 
 	beforeNavigate(({ cancel, to, type }) => {
 		if (!dirty || confirmedDiscard) return;
@@ -88,6 +100,7 @@
 		{onSaved}
 		onDirtyChange={(d) => (dirty = d)}
 		onCancel={handleCancel}
+		bind:olRefreshOpen
 	/>
 </div>
 

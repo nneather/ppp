@@ -23,6 +23,7 @@ import {
 	SCRIPTURE_IMAGES_BUCKET,
 	SCRIPTURE_IMAGES_SIGNED_URL_TTL
 } from '$lib/library/storage';
+import { titleSortKey } from '$lib/library/title-sort';
 
 /**
  * Shared load helpers for book list + detail pages.
@@ -155,6 +156,7 @@ type RawBookListRow = {
 	title: string | null;
 	subtitle: string | null;
 	genre: string | null;
+	language: string;
 	reading_status: string;
 	needs_review: boolean;
 	volume_number: string | null;
@@ -164,16 +166,6 @@ type RawBookListRow = {
 		| { person_id: string; sort_order: number; role: string }[]
 		| null;
 };
-
-/**
- * Sort key with leading articles stripped — "The Book of Exodus" sorts under
- * "B" not "T". Keep the displayed title untouched. Lowercase for stable
- * locale-aware comparison. Nullable input → empty key (sorts to top).
- */
-function titleSortKey(title: string | null): string {
-	if (!title) return '';
-	return title.replace(/^(the|a|an)\s+/i, '').toLocaleLowerCase();
-}
 
 function asArrayOrSingle<T>(v: T | T[] | null | undefined): T[] {
 	if (v == null) return [];
@@ -192,6 +184,7 @@ export async function loadBookList(
 			title,
 			subtitle,
 			genre,
+			language,
 			reading_status,
 			needs_review,
 			volume_number,
@@ -229,6 +222,7 @@ export async function loadBookList(
 			title: r.title ?? null,
 			subtitle: r.subtitle ?? null,
 			genre: r.genre ?? null,
+			language: (r.language as Language) ?? 'english',
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 			needs_review: Boolean(r.needs_review),
 			primary_category_name: cat?.name ?? null,
@@ -239,8 +233,9 @@ export async function loadBookList(
 		} satisfies BookListRow;
 	});
 
-	// Article-stripped sort: "The Book of Exodus" → "B", not "T".
-	rows.sort((a, b) => titleSortKey(a.title).localeCompare(titleSortKey(b.title)));
+	rows.sort((a, b) =>
+		titleSortKey(a.title, a.language).localeCompare(titleSortKey(b.title, b.language))
+	);
 	return rows;
 }
 
@@ -356,6 +351,7 @@ export async function loadBookListFiltered(
 				title,
 				subtitle,
 				genre,
+				language,
 				reading_status,
 				needs_review,
 				volume_number,
@@ -416,6 +412,7 @@ export async function loadBookListFiltered(
 				title: r.title ?? null,
 				subtitle: r.subtitle ?? null,
 				genre: r.genre ?? null,
+				language: (r.language as Language) ?? 'english',
 				reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 				needs_review: Boolean(r.needs_review),
 				primary_category_name: cat?.name ?? null,
@@ -435,7 +432,9 @@ export async function loadBookListFiltered(
 	}
 
 	const out = rows.map((r) => r.row);
-	out.sort((a, b) => titleSortKey(a.title).localeCompare(titleSortKey(b.title)));
+	out.sort((a, b) =>
+		titleSortKey(a.title, a.language).localeCompare(titleSortKey(b.title, b.language))
+	);
 	return out;
 }
 
@@ -654,7 +653,6 @@ export async function loadBookDetail(
 type RawReviewCard = RawBookListRow & {
 	year: number | null;
 	publisher: string | null;
-	language: string;
 	needs_review_note: string | null;
 	import_match_type: string | null;
 };
@@ -754,6 +752,7 @@ export async function loadReviewQueue(
 			title: r.title ?? null,
 			subtitle: r.subtitle ?? null,
 			genre: r.genre ?? null,
+			language: (r.language as Language) ?? 'english',
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 			needs_review: Boolean(r.needs_review),
 			primary_category_name: cat?.name ?? null,
@@ -763,7 +762,6 @@ export async function loadReviewQueue(
 			authors_label,
 			year: r.year ?? null,
 			publisher: r.publisher ?? null,
-			language: (r.language as Language) ?? 'english',
 			needs_review_note: r.needs_review_note ?? null,
 			import_match_type: (r.import_match_type as ImportMatchType | null) ?? null
 		} satisfies ReviewCard;

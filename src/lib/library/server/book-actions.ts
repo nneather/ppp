@@ -28,7 +28,8 @@ export type ActionKind =
 	| 'softDeleteBook'
 	| 'undoSoftDeleteBook'
 	| 'createPerson'
-	| 'reviewSaved';
+	| 'reviewSaved'
+	| 'bulkUpdateBooks';
 
 export type AuthorAssignmentInput = {
 	person_id: string;
@@ -665,6 +666,94 @@ export async function updateReadingStatusAction(supabase: SupabaseClient, fd: Fo
 		kind: 'updateReadingStatus' as const,
 		bookId: id,
 		readingStatus: status,
+		success: true as const
+	};
+}
+
+const BULK_UPDATE_MAX_BOOKS = 150;
+
+/**
+ * Updates `language`, `reading_status`, and/or `genre` on many live books.
+ * Each checkbox field in the form must be explicitly enabled (`bulk_apply_*`).
+ */
+export async function bulkUpdateBooksAction(supabase: SupabaseClient, fd: FormData) {
+	const idsRaw = String(fd.get('book_ids_json') ?? '').trim();
+	let ids: string[];
+	try {
+		const parsed: unknown = JSON.parse(idsRaw);
+		if (!Array.isArray(parsed)) {
+			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Invalid book id list.' });
+		}
+		ids = parsed.filter(
+			(x): x is string => typeof x === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x)
+		);
+	} catch {
+		return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Invalid book id list.' });
+	}
+	const unique = [...new Set(ids)];
+	if (unique.length === 0) {
+		return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Select at least one book.' });
+	}
+	if (unique.length > BULK_UPDATE_MAX_BOOKS) {
+		return fail(400, {
+			kind: 'bulkUpdateBooks' as const,
+			message: `You can update at most ${BULK_UPDATE_MAX_BOOKS} books at once.`
+		});
+	}
+
+	const applyLanguage = fd.has('bulk_apply_language');
+	const applyStatus = fd.has('bulk_apply_reading_status');
+	const applyGenre = fd.has('bulk_apply_genre');
+
+	const patch: Record<string, string> = {};
+	if (applyLanguage) {
+		const language = String(fd.get('bulk_language') ?? '').trim();
+		if (!LANGUAGE_SET.has(language)) {
+			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Pick a valid language.' });
+		}
+		patch.language = language;
+	}
+	if (applyStatus) {
+		const reading_status = String(fd.get('bulk_reading_status') ?? '').trim();
+		if (!READING_STATUS_SET.has(reading_status)) {
+			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Pick a valid reading status.' });
+		}
+		patch.reading_status = reading_status;
+	}
+	if (applyGenre) {
+		const genre = String(fd.get('bulk_genre') ?? '').trim();
+		if (!GENRE_SET.has(genre)) {
+			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Pick a valid genre.' });
+		}
+		patch.genre = genre;
+	}
+	if (Object.keys(patch).length === 0) {
+		return fail(400, {
+			kind: 'bulkUpdateBooks' as const,
+			message: 'Enable at least one of language, reading status, or genre to update.'
+		});
+	}
+
+	const CHUNK = 50;
+	for (let i = 0; i < unique.length; i += CHUNK) {
+		const slice = unique.slice(i, i + CHUNK);
+		const { error } = await supabase
+			.from('books')
+			.update(patch as never)
+			.in('id', slice)
+			.is('deleted_at', null);
+		if (error) {
+			console.error(error);
+			return fail(500, {
+				kind: 'bulkUpdateBooks' as const,
+				message: error.message ?? 'Could not update some books.'
+			});
+		}
+	}
+
+	return {
+		kind: 'bulkUpdateBooks' as const,
+		updatedCount: unique.length,
 		success: true as const
 	};
 }

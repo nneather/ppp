@@ -11,7 +11,8 @@ import {
 	createPersonAction,
 	softDeleteBookAction,
 	undoSoftDeleteBookAction,
-	updateReadingStatusAction
+	updateReadingStatusAction,
+	bulkUpdateBooksAction
 } from '$lib/library/server/book-actions';
 import { multiParam } from '$lib/library/server/url-params';
 import { LANGUAGES, READING_STATUSES } from '$lib/types/library';
@@ -106,5 +107,11 @@ export const actions: Actions = {
 		if (!user) return fail(401, { kind: 'updateReadingStatus' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return updateReadingStatusAction(locals.supabase, fd);
+	},
+	bulkUpdateBooks: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'bulkUpdateBooks' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return bulkUpdateBooksAction(locals.supabase, fd);
 	}
 };

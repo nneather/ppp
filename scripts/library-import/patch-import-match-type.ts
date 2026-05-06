@@ -23,6 +23,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { config as dotenvConfig } from 'dotenv';
+import { stripArticlesForImporterMatchKey } from '../../src/lib/library/title-sort.ts';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -137,11 +138,11 @@ function normalizeKey(s: string | null | undefined): string {
 
 function normalizeTitleForMatch(title: string | null): string {
 	if (!title) return '';
-	return title
+	const lowered = title
 		.normalize('NFD')
 		.replace(/[\u0300-\u036f]/g, '')
-		.toLowerCase()
-		.replace(/^(the|a|an)\s+/i, '')
+		.toLowerCase();
+	return stripArticlesForImporterMatchKey(lowered)
 		.replace(/\s*\([^)]*\)\s*/g, ' ')
 		.replace(/\s+/g, ' ')
 		.trim();

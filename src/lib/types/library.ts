@@ -123,6 +123,7 @@ export type BookListRow = {
 	title: string | null;
 	subtitle: string | null;
 	genre: string | null;
+	language: Language;
 	reading_status: ReadingStatus;
 	needs_review: boolean;
 	primary_category_name: string | null;
@@ -227,7 +228,6 @@ export type ReviewQueueFilters = BookListFilters & {
 export type ReviewCard = BookListRow & {
 	year: number | null;
 	publisher: string | null;
-	language: Language;
 	needs_review_note: string | null;
 	import_match_type: ImportMatchType | null;
 };

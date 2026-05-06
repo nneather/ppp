@@ -21,7 +21,8 @@
 		"supabase:ship": "npm run check && npm run supabase:db:push:dry && echo '\\nDry run OK. Review above, then run: npm run supabase:ship:apply'",
 		"supabase:ship:apply": "npm run check && npm run supabase:db:push && npm run supabase:deploy-functions",
 		"library:migrate:dry": "dotenv -e .env -e .env.local -- tsx scripts/library-migrate-local-to-prod/migrateLibraryData.ts",
-		"library:migrate:apply": "dotenv -e .env -e .env.local -- tsx scripts/library-migrate-local-to-prod/migrateLibraryData.ts --apply"
+		"library:migrate:apply": "dotenv -e .env -e .env.local -- tsx scripts/library-migrate-local-to-prod/migrateLibraryData.ts --apply",
+		"library:language-audit": "dotenv -e .env -e .env.local -- tsx scripts/library-language-audit/auditLanguage.ts"
 	},
 	"devDependencies": {
 		"@fontsource-variable/geist": "^5.2.8",

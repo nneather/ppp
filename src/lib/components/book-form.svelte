@@ -31,10 +31,13 @@
 		ReadingStatus
 	} from '$lib/types/library';
 	import type { OpenLibraryBookPrefill } from '$lib/library/open-library-prefill';
+	import BookOlRefreshDialog from '$lib/components/book-ol-refresh-dialog.svelte';
+	import type { OlApplyKey } from '$lib/components/book-ol-refresh-dialog.svelte';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
+	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 
 	/**
 	 * <BookForm>
@@ -79,6 +82,7 @@
 		onCancel,
 		openLibraryPrefill = null,
 		onOpenLibraryPrefillConsumed,
+		olRefreshOpen = $bindable(false),
 		scanSessionLayout = false,
 		onBackToScanner
 	}: {
@@ -96,6 +100,8 @@
 		/** One-shot metadata from `/library/add` + Open Library (create mode). */
 		openLibraryPrefill?: OpenLibraryBookPrefill | null;
 		onOpenLibraryPrefillConsumed?: () => void;
+		/** Bindable: Open Library ISBN refresh dialog (edit mode). */
+		olRefreshOpen?: boolean;
 		/** Mobile-first layout after barcode scan: summary card + collapsible middle columns. */
 		scanSessionLayout?: boolean;
 		/** Return to `/library/add` without save; host wires dirty confirm. */
@@ -646,6 +652,42 @@
 			}
 		};
 	};
+
+	const olRefreshCurrent = $derived({
+		title,
+		subtitle,
+		publisher,
+		publisher_location,
+		year,
+		edition,
+		page_count,
+		isbn,
+		genre: genre === '' ? '' : genre
+	});
+
+	function applyOlRefresh(keys: OlApplyKey[], data: OpenLibraryBookPrefill) {
+		const set = new Set(keys);
+		untrack(() => {
+			if (set.has('title') && data.title) title = data.title;
+			if (set.has('subtitle') && data.subtitle != null) subtitle = data.subtitle;
+			if (set.has('publisher') && data.publisher != null) publisher = data.publisher;
+			if (set.has('publisher_location') && data.publisher_location != null)
+				publisher_location = data.publisher_location;
+			if (set.has('year') && data.year != null) year = String(data.year);
+			if (set.has('edition') && data.edition != null) edition = data.edition;
+			if (set.has('page_count') && data.page_count != null)
+				page_count = String(data.page_count);
+			if (set.has('isbn') && data.isbn) isbn = data.isbn;
+			if (set.has('genre') && data.genreSuggested) genre = data.genreSuggested;
+			if (
+				data.authorTyped &&
+				[...set].some((k) => k !== 'isbn' && k !== 'page_count')
+			) {
+				olAuthorHint = data.authorTyped;
+			}
+		});
+		initialSnapshot = untrack(() => currentFormSnapshot());
+	}
 </script>
 
 {#if categories.length === 0}
@@ -661,6 +703,20 @@
 		>
 			{formMessage.message}
 		</p>
+	{/if}
+
+	{#if mode === 'edit' && book}
+		<div class="mb-4 flex flex-wrap justify-end gap-2">
+			<Button type="button" variant="outline" class="gap-2" onclick={() => (olRefreshOpen = true)}>
+				<ScanBarcode class="size-4" /> Refresh from Open Library
+			</Button>
+		</div>
+		<BookOlRefreshDialog
+			bind:open={olRefreshOpen}
+			initialIsbn={isbn}
+			current={olRefreshCurrent}
+			onApply={applyOlRefresh}
+		/>
 	{/if}
 
 	<form

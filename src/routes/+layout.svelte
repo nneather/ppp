@@ -155,7 +155,7 @@
 		</aside>
 
 		<!-- Main -->
-		<div class="flex min-h-dvh min-w-0 flex-1 flex-col pb-16 md:pb-0">
+		<div class="flex min-h-dvh min-w-0 flex-1 flex-col pb-16 md:pb-8">
 			<main class="flex-1">
 				{@render children()}
 			</main>
