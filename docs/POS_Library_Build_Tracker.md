@@ -15,7 +15,7 @@
 >
 > Standards live in those files; the tracker is the plan. Where this tracker would otherwise restate a standard, it links instead.
 
-_Last updated: May 4, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
+_Last updated: May 6, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
 
 **Trip QA + viewer closure:** Step-by-step phone + viewer script → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md). Tick acceptance rows after hands-on verification; repo gate `npm run check` passed 2026-05-04.
 
@@ -48,7 +48,7 @@ Pre-trip arc: **7 sessions** (1 → 2 → 3 → 4 → 5 → 5.5 → 6) in ~10 wo
 - [ ] BDAG migration row drafted (missing from xlsx).
 - [ ] `enrich_library.py` run against the scholarly core — metadata merged into migration CSV.
 - [x] `@zxing/browser` device smoke — implementation + manual fallback shipped Session 6; confirm on your phone when convenient (`docs/decisions/011-library-session-6-mobile-and-barcode.md`).
-- [ ] Turabian skill (`SKILL.md` + `formats.md`) loaded into the build context before **Session 8** (post-trip).
+- [x] Turabian skill (`SKILL.md` + `formats.md`) — **complete in Claude.ai** (owner 2026-05-06). Session 8 still implements citation generation in-app; skill remains the QA reference (`formats.md`).
 - [x] Invoicing module complete — carry-forward inventory in `AGENTS.md` verified.
 
 ---

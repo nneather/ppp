@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-06 — misc library UX (facet column, desktop bottom padding, German title sort, OL refresh on edit, bulk field updates, language-audit script). Design backlog block added for given-away / research copies / publisher defaults.
+**Last updated:** 2026-05-06 — Turabian skill marked complete (Claude.ai); tracker Pre-Session checklist aligned. Invoicing: Resend prod sender live; letterhead accepted; first real-client send next Monday; Resend dashboard cadence + Sept key-rotation reminder in [POS_Invoicing_Build_Tracker](docs/POS_Invoicing_Build_Tracker.md). Library tracker date bumped.
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -30,7 +30,7 @@ Nearest hard dates:
 
 | Module | Tracker | State |
 |---|---|---|
-| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6). **Not yet billing real clients** — blocked on domain purchase + Resend domain verification. See [Sender onboarding](docs/POS_Invoicing_Build_Tracker.md#sender-onboarding-resend--before-billing-real-clients). |
+| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6). **Resend:** verified `npneathery.com`; `send-invoice` sends as Parker Neathery / `invoicing@`, replies to `parker@`. PDF letterhead **settled** (no `SENDER_*` change). **First real-client send:** **2026-05-11** (owner). **Key rotation:** owner reminder **September 2026** ([runbook](docs/Supabase_deployment_and_go_live.md)). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | 🟢 Pre-trip arc complete through Session 7. **Session 9 OCR** spike shipped (015); continuation = deploy function + provider wiring. Post-trip order remains finish Session 9 → **Session 8** Turabian. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -66,8 +66,8 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 1. **Trip-period mobile workflow validation** — [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) §A on a real phone before **2026-05-21**; tick tracker Session 3–6 / 5.5 hands-on rows when done.
 2. **Session 9 (OCR) continuation (build):** `npm run supabase:deploy-functions` → deploy **`ocr_scripture_refs`**; wire Anthropic (or chosen provider) per [015](docs/decisions/015-library-session-9-ocr-kickoff.md); smoke-test ~5 page images; extend tracker Session 9 acceptance as completed.
 3. **Carry-forward — viewer smoke:** [runbook](docs/library-trip-qa-runbook.md) §B — merge/ancient/permissions 403s; tick Session 7 viewer acceptance + deferred Session 1–6 viewer rows when done.
-4. **Invoicing go-live blocker:** domain → Resend verify → `send-invoice` `from` → real-client smoke.
-5. **Pre-Session-8 prep (August queue):** Open Q4 bibliography format; Turabian skill in context; v2 spreadsheet by early August (Open Q8) before Pass 2.
+4. **Invoicing go-live:** ~~domain + Resend verify + `send-invoice` from/reply-to~~ **done (May 2026).** ~~PDF `SENDER_*`~~ letterhead accepted. **First real-client send** **2026-05-11** (owner). **Key rotation** — September reminder on calendar ([Supabase_deployment_and_go_live](docs/Supabase_deployment_and_go_live.md)).
+5. **Pre-Session-8 prep (August queue):** Open Q4 bibliography format; ~~Turabian skill in context~~ **done (Claude.ai, 2026-05-06)**; v2 spreadsheet by early August (Open Q8) before Pass 2.
 6. **Invoicing maintenance:** rotate Supabase JWT secret + Resend API key when a deploy window opens ([docs/Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md)).
 
 ---
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 Only items that could block a future session. Full lists live in each tracker's Open Questions table.
 
-- **Invoicing:** domain + Resend verification before real-client billing.
+- **Invoicing:** ~~domain + Resend verification~~ done; ~~`SENDER_*`~~ letterhead accepted; first real-client send **2026-05-11**; key rotation **September** (owner calendar).
 - **Library Q4:** bibliography export format — blocks Session 8 start.
 - **Library Q7:** ~~OCR provider choice~~ — resolved (015); provider **integration** remains Session 9 continuation work.
 - **Library Q8:** v2 corrected scholarly-core spreadsheet — must land before Pass 2 (post-trip).

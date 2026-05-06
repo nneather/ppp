@@ -115,7 +115,7 @@ supabase secrets set \
   SENDER_PHONE="+1 555 000 0000"
 ```
 
-- **`RESEND_API_KEY`** — Required for `send-invoice`. For development you can use `onboarding@resend.dev` as the sender address (no domain verification).
+- **`RESEND_API_KEY`** — Required for `send-invoice`. **Production:** the function uses a verified-domain `from` / `reply_to` baked into [`send-invoice/index.ts`](./functions/send-invoice/index.ts) (`npneathery.com`). For a **non-verified** Resend setup or scratch projects, you would change that code to `onboarding@resend.dev` (sandbox) or another verified domain.
 - **`SENDER_*`** — Used on the PDF letterhead (`generate-invoice-pdf`). Optional lines can be omitted. If unset, defaults match N. P. Neathery Consulting (name, tagline, address, phone). `SENDER_EMAIL` is optional on the PDF. Override **`INVOICE_SERVICE_LABEL`**, **`INVOICE_PAYABLE_TO`**, **`INVOICE_TERMS`**, or **`INVOICE_THANK_YOU`** to customize the “FOR” line and footer text.
 - **`SUPABASE_URL`** and **`SUPABASE_SERVICE_ROLE_KEY`** are injected automatically in Edge Functions; do not set them manually.
 
@@ -133,7 +133,7 @@ npm run supabase:deploy-functions
 
 1. **Confirm both functions appear** in the Supabase Dashboard → **Edge Functions**.
 2. **Set secrets** with `supabase secrets set ...` (or Dashboard → **Edge Functions → Secrets**) — at minimum `RESEND_API_KEY` and `SENDER_*` as needed.
-3. **Resend sandbox:** emails from `onboarding@resend.dev` may only reach **your Resend account email** until you verify your own domain. Use **Send test to myself** on the invoice detail page to verify the pipeline before sending to a client’s address.
+3. **Resend / deliverability:** if the repo still pointed at `onboarding@resend.dev`, those emails only reach **your Resend account email** until you verify a domain. This project’s deployed `send-invoice` uses **verified** `npneathery.com` — still use **Send test to myself** after any change to the function, then a real address when ready.
 4. **Watch logs:** Dashboard → **Edge Functions** → select a function → **Logs** if `invoke` returns a non-2xx status.
 
 ## Troubleshooting

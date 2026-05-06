@@ -1,6 +1,6 @@
 # Personal Operations System — Invoicing Module Build Tracker
 
-_Last updated: April 25, 2026 | Module: Invoicing (1st) | Target: August 2026_
+_Last updated: May 6, 2026 | Module: Invoicing (1st) | Target: August 2026_
 
 _Session-by-session plan for building the invoicing module. Each session ends with something working end-to-end. Update Done and Notes as you go._
 
@@ -12,7 +12,7 @@ _Session-by-session plan for building the invoicing module. Each session ends wi
 - [x] shadcn-svelte registry fixed — updated `components.json` to drop `next.` prefix from `$schema` and `registry` URLs. Ran `npx shadcn-svelte@latest init` (v1.2.7), selected Nova preset, Zinc base color, overrode existing components. All 8 components installed and verified.
 - [x] Tailwind v4 + Svelte 5 confirmed — `tailwindcss@4.1.18`, `@tailwindcss/vite`, `svelte@5.54.0`. No mismatch.
 - [x] `app.css` theme variables written — init left file empty due to broken `@import "shadcn-svelte/tailwind.css"` (package doesn't ship a CSS file). Replaced with full Zinc OKLCH theme variables + `@theme inline` block + dark mode variables inlined directly.
-- [x] Resend account created — signed up via GitHub. API key generated, stored in Apple Passwords under `ppp Resend`. Add `RESEND_API_KEY=re_xxxx` to `.env.local` before Session 4. Sending from `onboarding@resend.dev` for August — no domain verification needed.
+- [x] Resend account created — signed up via GitHub. API key generated, stored in Apple Passwords under `ppp Resend`. Add `RESEND_API_KEY=re_xxxx` to `.env.local` before Session 4. **Production send (May 2026):** `npneathery.com` verified in Resend; [`send-invoice`](../supabase/functions/send-invoice/index.ts) uses `"Parker Neathery" <invoicing@npneathery.com>`, `reply_to` / `Reply-To` → `parker@npneathery.com`. Sandbox `onboarding@resend.dev` remains valid for other unverified experiments only.
 - [x] Seed data SQL drafted for `clients` and `client_rates` — draft before opening Cursor for Session 1.
 
 ---
@@ -148,23 +148,27 @@ _Track anything unresolved that would block a session. Resolve before that sessi
 | #   | Question                                                                                    | Status                                                                                      |
 | --- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | 1   | PDF layout — any specific branding/formatting requirements beyond "professional"?           | ✓ Resolved — clean typography only, no logo for August                                      |
-| 2   | Resend: send from which address? Domain verified?                                           | ✓ Resolved — sending from `onboarding@resend.dev`, no domain verification needed for August |
+| 2   | Resend: send from which address? Domain verified?                                           | ✓ Resolved (May 2026) — domain `npneathery.com` verified; `send-invoice` `from` + `reply_to` set in code; deployed |
 | 3   | One-off line items — is `total` sufficient, or do you need `quantity × unit_price` tracked? | ✓ Resolved — one-offs use description + total; schema still supports qty/rate where line items use them |
-| 4   | Rotate Supabase JWT signing secret + Resend API key once the invoicing module is fully in production use | ☐ Open — runbook filed in [`Supabase_deployment_and_go_live.md`](Supabase_deployment_and_go_live.md#key-rotation-runbook). Resend key rotation is independent and ~5 min; Supabase JWT secret rotation invalidates all sessions, so schedule with a deploy window. Execute when convenient; both procedures are now scripted. |
+| 4   | Rotate Supabase JWT signing secret + Resend API key once the invoicing module is fully in production use | ☐ Open — runbook filed in [`Supabase_deployment_and_go_live.md`](Supabase_deployment_and_go_live.md#key-rotation-runbook). Resend key rotation is independent and ~5 min; Supabase JWT secret rotation invalidates all sessions, so schedule with a deploy window. Execute when convenient; both procedures are now scripted. **Owner:** calendar reminder set for **September 2026**. |
 
 ---
 
 ## Sender onboarding (Resend — before billing real clients)
 
-_Use this when moving off the Resend sandbox (`onboarding@resend.dev`). Sandbox email may only reach your Resend account email until a domain is verified._
+**Status (May 2026):** Steps 1–5 below are **done** for `npneathery.com` — verified domain, DNS, `send-invoice` updated (`from` quoted display name, `reply_to` + `headers` `Reply-To` → `parker@npneathery.com`), function redeployed.
+
+_Use this section as a checklist for a new domain or if you fork the pattern elsewhere. Sandbox (`onboarding@resend.dev`) may only reach your Resend account email until a domain is verified._
 
 1. **Add a domain** in [Resend](https://resend.com) → Domains → Add domain (e.g. `yourdomain.com`).
 2. **Add DNS records** (SPF/DKIM) at your DNS host as shown in Resend.
 3. **Wait for verification** (minutes to hours for DNS propagation).
-4. **Update the Edge Function** [`supabase/functions/send-invoice/index.ts`](../supabase/functions/send-invoice/index.ts): change `from` from `onboarding@resend.dev` to an address at your verified domain (e.g. `invoicing@yourdomain.com`). Redeploy: `npm run supabase:deploy-functions`.
-5. **Optional:** set `reply_to` in the Resend payload to your personal inbox so client replies reach you.
-6. **Align letterhead:** set `SENDER_EMAIL` (and other `SENDER_*` secrets) to match your professional sender identity on the PDF.
-7. **Smoke test:** use **Download PDF** and **Send test to myself** on a draft invoice, then send to a real client address.
+4. **Update the Edge Function** [`supabase/functions/send-invoice/index.ts`](../supabase/functions/send-invoice/index.ts): set `from` to a verified-domain address (RFC-quoted display name recommended, e.g. `"Your Name" <invoicing@yourdomain.com>`). Redeploy: `npm run supabase:deploy-functions`.
+5. **Set `reply_to`** (and optional `headers.Reply-To`) in the same payload so client replies reach the inbox you want.
+6. **Align letterhead:** set `SENDER_EMAIL` (and other `SENDER_*` secrets) to match your professional sender identity on the PDF (still optional but recommended before first real-client bill). **Owner (May 2026):** current PDF letterhead is good — no `SENDER_*` changes planned before first real-client send.
+7. **Smoke test:** use **Download PDF** and **Send test to myself** on a draft invoice, then send to a real client address. **Owner:** first **real client** send planned **2026-05-11** (Monday).
+
+**Resend dashboard (ops habit):** After go-live, skim **weekly** for the first few weeks (delivered / bounced / complaints / domain health), then **monthly** or whenever you change DNS, rotate keys, or see a deliverability issue. Same-day check after any rotation or major DNS change.
 
 **Not required for August MVP:** custom SMTP, open tracking, marketing-style unsubscribe links (transactional invoices).
 
