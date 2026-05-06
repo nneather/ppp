@@ -298,8 +298,7 @@
 						<Dialog.Title>Send invoice</Dialog.Title>
 						<Dialog.Description>
 							Review the summary and edit the email message. Use &quot;Send test to myself&quot; to
-							verify the PDF and email with Resend&apos;s sandbox sender before sending to the
-							client.
+							verify the PDF and delivery before sending to the client.
 						</Dialog.Description>
 					</Dialog.Header>
 					<div class="space-y-3 py-2">

@@ -309,7 +309,9 @@ Deno.serve(async (req) => {
 	const filename = `${safeFileBase || 'invoice'}.pdf`;
 
 	const resendPayload: Record<string, unknown> = {
-		from: 'onboarding@resend.dev',
+		from: '"Parker Neathery" <invoicing@npneathery.com>',
+		reply_to: ['parker@npneathery.com'],
+		headers: { 'Reply-To': 'parker@npneathery.com' },
 		to: toList,
 		subject: `${subjectPrefix}Invoice ${invoice.invoice_number} — ${client.name}`,
 		html,
