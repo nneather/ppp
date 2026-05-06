@@ -4,14 +4,18 @@ One-off or repeatable script to find `books` rows marked **English** that are li
 
 ## Environment
 
+**Hosted Supabase:** This repo does not use a local Docker Postgres stack for day-to-day work. Point the URL variables at your **hosted** project: Supabase Dashboard → **Project Settings → Database** → **Connection string** → **URI** (direct / session mode is fine for this script). A connection to `127.0.0.1:54322` only works if you truly have local Supabase running.
+
 Uses the same dotenv pattern as other CLI scripts (repo root `.env` + `.env.local`):
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `LIBRARY_AUDIT_DATABASE_URL` | Yes* | Postgres **direct** connection string (Supabase Dashboard → Connect → **URI**, not the pooler if you hit statement limits). |
+| `LIBRARY_DST_DATABASE_URL` | Yes* | Same **destination** Postgres URI as [library-migrate](../library-migrate-local-to-prod/README.md) — usually your hosted library (Dashboard → **Connect → Direct**). |
+| `LIBRARY_SRC_DATABASE_URL` | Fallback* | Used if DST and `LIBRARY_AUDIT_DATABASE_URL` are unset. |
+| `LIBRARY_AUDIT_DATABASE_URL` | Optional | Overrides DST/SRC when you want to audit another database without changing migrate vars. |
 | `LIBRARY_LANGUAGE_AUDIT_CONFIRM` | For `--apply` | Must be exactly `yes` to write updates. |
 
-\*If `LIBRARY_AUDIT_DATABASE_URL` is unset, the script falls back to `LIBRARY_SRC_DATABASE_URL` (same as [library-migrate-local-to-prod](../library-migrate-local-to-prod/README.md)).
+\*Connection resolution order: **`LIBRARY_AUDIT_DATABASE_URL`** → **`LIBRARY_DST_DATABASE_URL`** → **`LIBRARY_SRC_DATABASE_URL`**. If migrate env already has **DST** pointed at your live hosted project, you do not need a separate audit URL.
 
 ## Run
 

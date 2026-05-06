@@ -15,6 +15,7 @@
 
 ## Decided
 
+- Language audit uses the same **migrate** env vars by default: **`LIBRARY_AUDIT_DATABASE_URL`** (optional override) → **`LIBRARY_DST_DATABASE_URL`** → **`LIBRARY_SRC_DATABASE_URL`**.
 - Bulk updates limited to safe scalar fields (no junctions); max 150 ids per request; apply gate uses OL German / genre+text / `--aggressive` for umlaut-only.
 - Language audit defaults conservative: `--apply` without `--aggressive` skips umlaut-only rows unless OL lists German.
 

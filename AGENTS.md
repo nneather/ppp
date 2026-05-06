@@ -84,7 +84,7 @@ End-of-session deliverables:
 - `npm run supabase:gen-types` — regenerate `src/lib/types/database.ts` (run after every migration)
 - `npm run supabase:deploy-functions` — deploy Edge Functions
 - `npm run supabase:ship` / `:ship:apply` — combined flow
-- **`library:language-audit`** — dry-run / optional `--apply` English→German hints via Open Library + heuristics; see [`scripts/library-language-audit/README.md`](scripts/library-language-audit/README.md).
+- **`library:language-audit`** — dry-run / optional `--apply` English→German hints; uses `LIBRARY_AUDIT_DATABASE_URL` or **`LIBRARY_DST_DATABASE_URL`** / `LIBRARY_SRC_DATABASE_URL` (same migrate vars). See [`scripts/library-language-audit/README.md`](scripts/library-language-audit/README.md).
 
 ## Environment variables
 

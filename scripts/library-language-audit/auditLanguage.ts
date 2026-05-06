@@ -33,10 +33,11 @@ const OL_DELAY_MS = 300;
 
 const DATABASE_URL =
 	process.env.LIBRARY_AUDIT_DATABASE_URL?.trim() ||
+	process.env.LIBRARY_DST_DATABASE_URL?.trim() ||
 	process.env.LIBRARY_SRC_DATABASE_URL?.trim();
 if (!DATABASE_URL) {
 	console.error(
-		'Set LIBRARY_AUDIT_DATABASE_URL (or LIBRARY_SRC_DATABASE_URL) in .env.local — see scripts/library-language-audit/README.md'
+		'Set one of LIBRARY_DST_DATABASE_URL, LIBRARY_SRC_DATABASE_URL, or LIBRARY_AUDIT_DATABASE_URL in .env.local (hosted Direct URI). See scripts/library-language-audit/README.md'
 	);
 	process.exit(2);
 }

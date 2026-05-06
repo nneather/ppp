@@ -18,6 +18,7 @@
 	import Search from '@lucide/svelte/icons/search';
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import X from '@lucide/svelte/icons/x';
 	import {
 		GENRES,
@@ -287,13 +288,19 @@
 		data.books.length > 0 && data.books.every((b) => selectedIds.includes(b.id))
 	);
 
-	function toggleBookSelected(id: string) {
-		if (selectedIds.includes(id)) {
-			selectedIds = selectedIds.filter((x) => x !== id);
-		} else {
-			selectedIds = [...selectedIds, id];
-		}
-	}
+	/** Some but not all rows on this page are selected — drives header checkbox indeterminate. */
+	const pagePartialSelected = $derived(
+		data.books.length > 0 &&
+			data.books.some((b) => selectedIds.includes(b.id)) &&
+			!allPageSelected
+	);
+
+	let selectAllCheckboxEl = $state<HTMLInputElement | null>(null);
+	$effect(() => {
+		const el = selectAllCheckboxEl;
+		if (!el) return;
+		el.indeterminate = pagePartialSelected;
+	});
 
 	function toggleSelectAllPage() {
 		const pageIds = data.books.map((b) => b.id);
@@ -345,9 +352,9 @@
 </script>
 
 {#snippet filterBody()}
-	<div class="flex flex-col divide-y divide-border">
-		<section class="py-3 first:pt-0 last:pb-0">
-			<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+	<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-6">
+		<section class="sm:col-span-2 lg:col-span-6">
+			<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
 				Genre
 			</h3>
 			<div class="flex flex-wrap gap-1">
@@ -365,8 +372,8 @@
 			</div>
 		</section>
 
-		<section class="py-3 first:pt-0 last:pb-0">
-			<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+		<section class="sm:col-span-2 lg:col-span-3">
+			<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
 				Author
 			</h3>
 			<MultiCombobox
@@ -379,8 +386,8 @@
 		</section>
 
 		{#if data.series.length > 0}
-			<section class="py-3 first:pt-0 last:pb-0">
-				<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+			<section class="sm:col-span-2 lg:col-span-3">
+				<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
 					Series
 				</h3>
 				<MultiCombobox
@@ -393,8 +400,8 @@
 			</section>
 		{/if}
 
-		<section class="py-3 first:pt-0 last:pb-0">
-			<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+		<section class="sm:col-span-2 lg:col-span-3">
+			<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
 				Language
 			</h3>
 			<div class="flex flex-wrap gap-1">
@@ -412,8 +419,8 @@
 			</div>
 		</section>
 
-		<section class="py-3 first:pt-0 last:pb-0">
-			<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+		<section class="sm:col-span-2 lg:col-span-3">
+			<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
 				Reading status
 			</h3>
 			<div class="flex flex-wrap gap-1">
@@ -431,8 +438,8 @@
 			</div>
 		</section>
 
-		<section class="py-3 first:pt-0 last:pb-0">
-			<h3 class="mb-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Flags</h3>
+		<section class="sm:col-span-2 lg:col-span-6">
+			<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Flags</h3>
 			<button
 				type="button"
 				class={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] leading-tight transition-colors ${chipBaseClasses(filters.needs_review === true)}`}
@@ -517,6 +524,31 @@
 		</Button>
 	</div>
 
+	<!-- Desktop: full-width collapsible filters (mobile uses Sheet below) -->
+	<details class="group mt-4 hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm md:block" open>
+		<summary
+			class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden"
+		>
+			<span class="flex items-center gap-2">
+				<SlidersHorizontal class="size-4 text-muted-foreground" />
+				Filters
+				{#if activeFilterCount > 0}
+					<span
+						class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground"
+					>
+						{activeFilterCount}
+					</span>
+				{/if}
+			</span>
+			<ChevronDown
+				class="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+			/>
+		</summary>
+		<div class="border-t border-border px-4 pb-4 pt-3">
+			{@render filterBody()}
+		</div>
+	</details>
+
 	<!-- Active-filter chip rail + clear-all -->
 	{#if hasAnyFilter}
 		<div class="mt-3 flex flex-wrap items-center gap-1.5">
@@ -597,18 +629,7 @@
 		</div>
 	{/if}
 
-	<div class="mt-6 grid gap-5 md:grid-cols-[13.5rem_1fr] md:items-start">
-		<!-- Desktop facet panel -->
-		<aside class="hidden md:block">
-			<div
-				class="sticky top-6 max-h-[min(70vh,calc(100dvh-5.5rem))] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-3 text-card-foreground shadow-sm"
-			>
-				{@render filterBody()}
-			</div>
-		</aside>
-
-		<!-- Results -->
-		<div class="min-w-0">
+	<div class="mt-6 min-w-0">
 			{#if data.books.length === 0 && data.totalCount === 0}
 				<div class="rounded-xl border border-dashed border-border p-8 text-center">
 					<BookOpen class="mx-auto size-8 text-muted-foreground" />
@@ -651,11 +672,8 @@
 								<input
 									type="checkbox"
 									class="mt-1 size-4 shrink-0 rounded border-border"
-									checked={selectedIds.includes(b.id)}
-									onclick={(e) => {
-										e.preventDefault();
-										toggleBookSelected(b.id);
-									}}
+									bind:group={selectedIds}
+									value={b.id}
 									aria-label={`Select ${b.title ?? 'book'}`}
 								/>
 								<div class="min-w-0 flex-1">
@@ -733,6 +751,7 @@
 							<tr>
 								<th class="w-10 px-2 py-2">
 									<input
+										bind:this={selectAllCheckboxEl}
 										type="checkbox"
 										class="size-4 rounded border-border"
 										checked={allPageSelected}
@@ -759,11 +778,8 @@
 										<input
 											type="checkbox"
 											class="mt-1 size-4 rounded border-border"
-											checked={selectedIds.includes(b.id)}
-											onclick={(e) => {
-												e.preventDefault();
-												toggleBookSelected(b.id);
-											}}
+											bind:group={selectedIds}
+											value={b.id}
 											aria-label={`Select ${b.title ?? 'book'}`}
 										/>
 									</td>
@@ -823,7 +839,6 @@
 					</table>
 				</div>
 			{/if}
-		</div>
 	</div>
 </div>
 
