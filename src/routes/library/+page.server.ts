@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	countLiveBooks,
+	loadBibleBookNames,
 	loadBookListFiltered,
 	loadPeople,
 	loadPersonBookCounts,
@@ -60,10 +61,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const supabase = locals.supabase;
 	const filters = parseFilters(url);
 
-	const [people, series, totalCount] = await Promise.all([
+	const [people, series, totalCount, bibleBookNames] = await Promise.all([
 		loadPeople(supabase),
 		loadSeries(supabase),
-		countLiveBooks(supabase)
+		countLiveBooks(supabase),
+		loadBibleBookNames(supabase)
 	]);
 	const [books, personBookCounts] = await Promise.all([
 		loadBookListFiltered(supabase, people, filters),
@@ -76,6 +78,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		books,
 		series,
 		people,
+		bibleBookNames,
 		personBookCounts: Object.fromEntries(personBookCounts),
 		recentlyDeletedId,
 		filters,
@@ -112,6 +115,6 @@ export const actions: Actions = {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'bulkUpdateBooks' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
-		return bulkUpdateBooksAction(locals.supabase, fd);
+		return bulkUpdateBooksAction(locals.supabase, user.id, fd);
 	}
 };

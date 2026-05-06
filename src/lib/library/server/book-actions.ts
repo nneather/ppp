@@ -673,10 +673,16 @@ export async function updateReadingStatusAction(supabase: SupabaseClient, fd: Fo
 const BULK_UPDATE_MAX_BOOKS = 150;
 
 /**
- * Updates `language`, `reading_status`, and/or `genre` on many live books.
- * Each checkbox field in the form must be explicitly enabled (`bulk_apply_*`).
+ * Updates `language`, `reading_status`, and/or `genre` on many live books, and
+ * optionally adds a `book_bible_coverage` row (bible book commentary coverage)
+ * for each selected volume. Each checkbox field in the form must be explicitly
+ * enabled (`bulk_apply_*`).
  */
-export async function bulkUpdateBooksAction(supabase: SupabaseClient, fd: FormData) {
+export async function bulkUpdateBooksAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
 	const idsRaw = String(fd.get('book_ids_json') ?? '').trim();
 	let ids: string[];
 	try {
@@ -704,6 +710,7 @@ export async function bulkUpdateBooksAction(supabase: SupabaseClient, fd: FormDa
 	const applyLanguage = fd.has('bulk_apply_language');
 	const applyStatus = fd.has('bulk_apply_reading_status');
 	const applyGenre = fd.has('bulk_apply_genre');
+	const applyBibleBook = fd.has('bulk_apply_bible_book');
 
 	const patch: Record<string, string> = {};
 	if (applyLanguage) {
@@ -727,27 +734,97 @@ export async function bulkUpdateBooksAction(supabase: SupabaseClient, fd: FormDa
 		}
 		patch.genre = genre;
 	}
-	if (Object.keys(patch).length === 0) {
+
+	let bibleBookToAdd: string | null = null;
+	if (applyBibleBook) {
+		const bb = String(fd.get('bulk_bible_book') ?? '').trim();
+		if (!bb) {
+			return fail(400, {
+				kind: 'bulkUpdateBooks' as const,
+				message: 'Select a bible book, or turn off bible book coverage.'
+			});
+		}
+		const { data: bbRows, error: bbListErr } = await supabase.from('bible_books').select('name');
+		if (bbListErr) {
+			console.error(bbListErr);
+			return fail(500, {
+				kind: 'bulkUpdateBooks' as const,
+				message: bbListErr.message ?? 'Could not validate bible book.'
+			});
+		}
+		const valid = new Set(
+			(bbRows ?? []).map((r) => (r as { name: string }).name)
+		);
+		if (!valid.has(bb)) {
+			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Pick a valid bible book.' });
+		}
+		bibleBookToAdd = bb;
+	}
+
+	if (Object.keys(patch).length === 0 && bibleBookToAdd == null) {
 		return fail(400, {
 			kind: 'bulkUpdateBooks' as const,
-			message: 'Enable at least one of language, reading status, or genre to update.'
+			message:
+				'Enable at least one of language, reading status, genre, or bible book coverage to update.'
 		});
 	}
 
 	const CHUNK = 50;
 	for (let i = 0; i < unique.length; i += CHUNK) {
 		const slice = unique.slice(i, i + CHUNK);
-		const { error } = await supabase
-			.from('books')
-			.update(patch as never)
-			.in('id', slice)
-			.is('deleted_at', null);
-		if (error) {
-			console.error(error);
-			return fail(500, {
-				kind: 'bulkUpdateBooks' as const,
-				message: error.message ?? 'Could not update some books.'
-			});
+		if (Object.keys(patch).length > 0) {
+			const { error } = await supabase
+				.from('books')
+				.update(patch as never)
+				.in('id', slice)
+				.is('deleted_at', null);
+			if (error) {
+				console.error(error);
+				return fail(500, {
+					kind: 'bulkUpdateBooks' as const,
+					message: error.message ?? 'Could not update some books.'
+				});
+			}
+		}
+	}
+	if (bibleBookToAdd != null) {
+		for (let i = 0; i < unique.length; i += CHUNK) {
+			const slice = unique.slice(i, i + CHUNK);
+			const { data: existing, error: exErr } = await supabase
+				.from('book_bible_coverage')
+				.select('book_id')
+				.in('book_id', slice)
+				.eq('bible_book', bibleBookToAdd);
+			if (exErr) {
+				console.error(exErr);
+				return fail(500, {
+					kind: 'bulkUpdateBooks' as const,
+					message: exErr.message ?? 'Could not check existing coverage.'
+				});
+			}
+			const have = new Set(
+				(existing ?? [])
+					.map((r) => (r as { book_id: string | null }).book_id)
+					.filter((id): id is string => id != null)
+			);
+			const missing = slice.filter((id) => !have.has(id));
+			if (missing.length === 0) continue;
+			const rows = missing.map((book_id) => ({
+				book_id,
+				bible_book: bibleBookToAdd,
+				essay_id: null,
+				created_by: userId
+			}));
+			const { error: insErr } = await supabase
+				.from('book_bible_coverage')
+				.insert(rows as never);
+			if (insErr) {
+				console.error(insErr);
+				return fail(500, {
+					kind: 'bulkUpdateBooks' as const,
+					message: insErr.message ?? 'Could not add bible book coverage for some books.'
+				});
+			}
 		}
 	}
 

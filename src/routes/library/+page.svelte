@@ -319,6 +319,7 @@
 	let bulkLanguage = $state<Language>('english');
 	let bulkReadingStatus = $state<ReadingStatus>('unread');
 	let bulkGenre = $state<Genre>(GENRES[0]!);
+	let bulkBibleBook = $state('');
 
 	const bulkFormFeedback = $derived.by(() => {
 		const f = form as { kind?: string; message?: string; success?: boolean } | null | undefined;
@@ -900,6 +901,28 @@
 							>
 								{#each GENRES as g (g)}
 									<option value={g}>{g}</option>
+								{/each}
+							</select>
+						</span>
+					</span>
+				</label>
+				<label class="flex cursor-pointer items-start gap-2 text-sm">
+					<input type="checkbox" name="bulk_apply_bible_book" class="mt-0.5 size-4 shrink-0" />
+					<span>
+						<span class="font-medium text-foreground">Bible book (coverage)</span>
+						<span class="mt-1 block text-muted-foreground">
+							Adds this biblical book to commentary coverage for each selected volume (existing
+							coverage unchanged).
+						</span>
+						<span class="mt-1 block text-muted-foreground">
+							<select
+								name="bulk_bible_book"
+								bind:value={bulkBibleBook}
+								class="mt-1 w-full max-w-xs rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+							>
+								<option value="">— Select —</option>
+								{#each data.bibleBookNames as name (name)}
+									<option value={name}>{name}</option>
 								{/each}
 							</select>
 						</span>
