@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { buildLibraryBooksCsv } from '$lib/library/server/books-csv';
+import { buildLibraryBooksTsv } from '$lib/library/server/books-csv';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const { user } = await locals.safeGetSession();
@@ -16,12 +16,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 		error(403, 'Owner only');
 	}
 
-	const csv = await buildLibraryBooksCsv(locals.supabase);
+	const tsv = await buildLibraryBooksTsv(locals.supabase);
 	const date = new Date().toISOString().slice(0, 10);
-	return new Response(csv, {
+	return new Response(tsv, {
 		headers: {
-			'Content-Type': 'text/csv; charset=utf-8',
-			'Content-Disposition': `attachment; filename="library-books-${date}.csv"`
+			'Content-Type': 'text/tab-separated-values; charset=utf-8',
+			'Content-Disposition': `attachment; filename="library-books-${date}.tsv"`
 		}
 	});
 };

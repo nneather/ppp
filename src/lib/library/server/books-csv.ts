@@ -16,7 +16,9 @@ import {
 import type { CategoryRow, SeriesRow } from '$lib/types/library';
 
 /** Max data rows per preview/apply (excluding header). */
-export const LIBRARY_CSV_MAX_ROWS = 1000;
+export const LIBRARY_IMPORT_MAX_ROWS = 1000;
+/** @deprecated Use LIBRARY_IMPORT_MAX_ROWS */
+export const LIBRARY_CSV_MAX_ROWS = LIBRARY_IMPORT_MAX_ROWS;
 
 /**
  * CSV rows whose `needs_review_note` starts with one of these prefixes are
@@ -33,8 +35,8 @@ export function isDeleteOnImportNote(note: string): boolean {
 	return LIBRARY_CSV_DELETE_ON_IMPORT_PREFIXES.some((p) => t.startsWith(p));
 }
 
-/** Stable export column order (lowercase header names). */
-export const LIBRARY_CSV_HEADER_ROW = [
+/** Stable import/export column order (lowercase header names). */
+export const LIBRARY_BOOKS_IMPORT_HEADERS = [
 	'id',
 	'title',
 	'subtitle',
@@ -55,6 +57,27 @@ export const LIBRARY_CSV_HEADER_ROW = [
 	'language'
 ] as const;
 
+/** @deprecated Use LIBRARY_BOOKS_IMPORT_HEADERS */
+export const LIBRARY_CSV_HEADER_ROW = LIBRARY_BOOKS_IMPORT_HEADERS;
+
+export type LibraryImportFormat = 'csv' | 'tsv';
+
+/** Pick CSV vs TSV from filename extension, else first-line comma vs tab counts. */
+export function sniffLibraryImportFormat(text: string, filename: string | null): LibraryImportFormat {
+	const lower = (filename ?? '').toLowerCase();
+	if (lower.endsWith('.csv')) return 'csv';
+	if (lower.endsWith('.tsv')) return 'tsv';
+	const firstLineEnd = text.search(/\r?\n/);
+	const first = firstLineEnd === -1 ? stripBom(text) : stripBom(text).slice(0, firstLineEnd);
+	const commas = (first.match(/,/g) ?? []).length;
+	const tabs = (first.match(/\t/g) ?? []).length;
+	return commas > tabs ? 'csv' : 'tsv';
+}
+
+export function delimiterForFormat(format: LibraryImportFormat): ',' | '\t' {
+	return format === 'csv' ? ',' : '\t';
+}
+
 export type LibraryCsvPreviewError = { line: number; message: string };
 
 export type PreparedCsvOperation =
@@ -72,8 +95,8 @@ function stripBom(text: string): string {
 	return text.replace(/^\uFEFF/, '');
 }
 
-/** RFC 4180: quoted fields may contain commas and newlines. */
-export function parseCsvRows(text: string): string[][] {
+/** RFC 4180-style quoted fields; delimiter is comma or tab. */
+export function parseDelimitedRows(text: string, delimiter: ',' | '\t'): string[][] {
 	const t = stripBom(text);
 	if (t.length === 0) return [];
 	const rows: string[][] = [];
@@ -96,7 +119,7 @@ export function parseCsvRows(text: string): string[][] {
 			}
 		} else if (c === '"') {
 			inQuotes = true;
-		} else if (c === ',') {
+		} else if (c === delimiter) {
 			row.push(field);
 			field = '';
 		} else if (c === '\r') {
@@ -127,24 +150,39 @@ export function parseCsvRows(text: string): string[][] {
 	return rows;
 }
 
-function escapeCsvCell(value: string): string {
-	if (/[",\r\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+/** @deprecated Use parseDelimitedRows(text, ',') */
+export function parseCsvRows(text: string): string[][] {
+	return parseDelimitedRows(text, ',');
+}
+
+function escapeDelimitedCell(value: string, delimiter: ',' | '\t'): string {
+	const needsQuotes =
+		delimiter === ','
+			? /[",\r\n]/.test(value)
+			: /[\t"\r\n]/.test(value);
+	if (needsQuotes) return `"${value.replace(/"/g, '""')}"`;
 	return value;
 }
 
-export function buildCsvFromRows(
+export function buildDelimitedFromRows(
 	headers: readonly string[],
-	data: Record<string, string>[]
+	data: Record<string, string>[],
+	delimiter: ',' | '\t'
 ): string {
 	const lines: string[] = [];
-	lines.push(headers.map(escapeCsvCell).join(','));
+	lines.push(headers.map((h) => escapeDelimitedCell(h, delimiter)).join(delimiter));
 	for (const row of data) {
-		lines.push(headers.map((h) => escapeCsvCell(row[h] ?? '')).join(','));
+		lines.push(headers.map((h) => escapeDelimitedCell(row[h] ?? '', delimiter)).join(delimiter));
 	}
 	return `${lines.join('\n')}\n`;
 }
 
-function csvRowsToObjects(rows: string[][]): {
+/** @deprecated Use buildDelimitedFromRows(..., ',') */
+export function buildCsvFromRows(headers: readonly string[], data: Record<string, string>[]): string {
+	return buildDelimitedFromRows(headers, data, ',');
+}
+
+function delimitedRowsToObjects(rows: string[][]): {
 	headers: string[];
 	dataRows: Record<string, string>[];
 } {
@@ -312,8 +350,8 @@ async function paginateAllExportBooks(supabase: SupabaseClient): Promise<RawExpo
 	return out;
 }
 
-/** UTF-8 CSV of all live books (owner export). */
-export async function buildLibraryBooksCsv(supabase: SupabaseClient): Promise<string> {
+/** UTF-8 TSV of all live books (owner export). */
+export async function buildLibraryBooksTsv(supabase: SupabaseClient): Promise<string> {
 	const people = await loadPeople(supabase);
 	const peopleMap = new Map(people.map((p) => [p.id, p]));
 	const raw = await paginateAllExportBooks(supabase);
@@ -370,7 +408,12 @@ export async function buildLibraryBooksCsv(supabase: SupabaseClient): Promise<st
 			language: r.language ?? ''
 		});
 	}
-	return buildCsvFromRows(LIBRARY_CSV_HEADER_ROW, rows);
+	return buildDelimitedFromRows(LIBRARY_BOOKS_IMPORT_HEADERS, rows, '\t');
+}
+
+/** @deprecated Use buildLibraryBooksTsv */
+export async function buildLibraryBooksCsv(supabase: SupabaseClient): Promise<string> {
+	return buildLibraryBooksTsv(supabase);
 }
 
 async function loadCategoryIdsByBookId(
@@ -492,41 +535,47 @@ function csvRowToFormData(args: {
 	return fd;
 }
 
-export type PrepareLibraryCsvResult =
-	| { ok: true; prepared: PreparedCsvOperation[] }
-	| { ok: false; errors: LibraryCsvPreviewError[] };
+export type PrepareLibraryBooksImportResult =
+	| { ok: true; prepared: PreparedCsvOperation[]; format: LibraryImportFormat }
+	| { ok: false; errors: LibraryCsvPreviewError[]; format: LibraryImportFormat };
 
 /**
  * Parse + validate every data row. Returns structured ops for preview counts
  * and apply (re-parse on apply is mandatory — do not trust client payloads).
  */
-export async function prepareLibraryCsvImport(
+export async function prepareLibraryBooksImport(
 	supabase: SupabaseClient,
-	csvText: string
-): Promise<PrepareLibraryCsvResult> {
+	text: string,
+	opts?: { filename?: string | null; format?: LibraryImportFormat }
+): Promise<PrepareLibraryBooksImportResult> {
+	const format = opts?.format ?? sniffLibraryImportFormat(text, opts?.filename ?? null);
+	const delimiter = delimiterForFormat(format);
 	const errors: LibraryCsvPreviewError[] = [];
-	const matrix = parseCsvRows(csvText);
-	const { headers, dataRows } = csvRowsToObjects(matrix);
+	const matrix = parseDelimitedRows(text, delimiter);
+	const { headers, dataRows } = delimitedRowsToObjects(matrix);
 
 	if (!headers.includes('id')) {
 		return {
 			ok: false,
+			format,
 			errors: [
 				{
 					line: 1,
-					message: 'CSV header row must include an "id" column (may be blank for new books).'
+					message:
+						'Header row must include an "id" column (may be blank for new books).'
 				}
 			]
 		};
 	}
 
-	if (dataRows.length > LIBRARY_CSV_MAX_ROWS) {
+	if (dataRows.length > LIBRARY_IMPORT_MAX_ROWS) {
 		return {
 			ok: false,
+			format,
 			errors: [
 				{
 					line: 0,
-					message: `Too many rows (${dataRows.length}). Maximum is ${LIBRARY_CSV_MAX_ROWS}.`
+					message: `Too many rows (${dataRows.length}). Maximum is ${LIBRARY_IMPORT_MAX_ROWS}.`
 				}
 			]
 		};
@@ -560,6 +609,7 @@ export async function prepareLibraryCsvImport(
 				console.error(exErr);
 				return {
 					ok: false,
+					format,
 					errors: [{ line: 0, message: exErr.message ?? 'Could not validate book ids.' }]
 				};
 			}
@@ -667,8 +717,22 @@ export async function prepareLibraryCsvImport(
 		}
 	}
 
-	if (errors.length > 0) return { ok: false, errors };
-	return { ok: true, prepared };
+	if (errors.length > 0) return { ok: false, errors, format };
+	return { ok: true, prepared, format };
+}
+
+/** @deprecated Use prepareLibraryBooksImport */
+export async function prepareLibraryCsvImport(
+	supabase: SupabaseClient,
+	text: string,
+	filename?: string | null
+): Promise<
+	| { ok: true; prepared: PreparedCsvOperation[] }
+	| { ok: false; errors: LibraryCsvPreviewError[] }
+> {
+	const r = await prepareLibraryBooksImport(supabase, text, { filename: filename ?? null });
+	if (r.ok) return { ok: true, prepared: r.prepared };
+	return { ok: false, errors: r.errors };
 }
 
 export type LibraryCsvApplySummary = {
@@ -678,18 +742,27 @@ export type LibraryCsvApplySummary = {
 	errors: LibraryCsvPreviewError[];
 };
 
-/** Apply prepared ops sequentially (chunk-friendly for timeouts). */
+export type ApplyPreparedProgressEvent = {
+	done: number;
+	total: number;
+	opKind: 'insert' | 'update' | 'softDelete';
+};
+
+/** Apply prepared ops sequentially. Optional `onProgress` fires after each successful op. */
 export async function applyPreparedLibraryCsv(
 	supabase: SupabaseClient,
 	_userId: string,
-	prepared: PreparedCsvOperation[]
+	prepared: PreparedCsvOperation[],
+	onProgress?: (e: ApplyPreparedProgressEvent) => void | Promise<void>
 ): Promise<LibraryCsvApplySummary> {
 	const errors: LibraryCsvPreviewError[] = [];
 	let inserted = 0;
 	let updated = 0;
 	let deleted = 0;
+	const total = prepared.length;
 
-	for (const op of prepared) {
+	for (let i = 0; i < prepared.length; i++) {
+		const op = prepared[i];
 		if (op.kind === 'insert') {
 			const r = await applyBookPayload(supabase, _userId, { mode: 'create', payload: op.payload });
 			if (!r.ok) {
@@ -697,6 +770,7 @@ export async function applyPreparedLibraryCsv(
 				break;
 			}
 			inserted++;
+			await onProgress?.({ done: i + 1, total, opKind: 'insert' });
 		} else if (op.kind === 'update') {
 			const r = await applyBookPayload(supabase, _userId, {
 				mode: 'update',
@@ -709,6 +783,7 @@ export async function applyPreparedLibraryCsv(
 				break;
 			}
 			updated++;
+			await onProgress?.({ done: i + 1, total, opKind: 'update' });
 		} else {
 			const { error } = await supabase
 				.from('books')
@@ -720,6 +795,7 @@ export async function applyPreparedLibraryCsv(
 				break;
 			}
 			deleted++;
+			await onProgress?.({ done: i + 1, total, opKind: 'softDelete' });
 		}
 	}
 

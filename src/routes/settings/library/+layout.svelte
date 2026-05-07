@@ -16,7 +16,7 @@
 		];
 		if (data.isOwner) {
 			t.push({ href: '/settings/library/people/merge', label: 'Merge' });
-			t.push({ href: '/settings/library/export', label: 'CSV export' });
+			t.push({ href: '/settings/library/export', label: 'Export / import' });
 		}
 		t.push(
 			{ href: '/settings/library/series', label: 'Series' },
