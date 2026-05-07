@@ -104,11 +104,16 @@ function parseRating(raw: FormDataEntryValue | null): number | null {
 }
 
 function parseBoolean(raw: FormDataEntryValue | null): boolean {
-	const t = String(raw ?? '').trim().toLowerCase();
+	const t = String(raw ?? '')
+		.trim()
+		.toLowerCase();
 	return t === 'true' || t === 'on' || t === '1';
 }
 
-function parseAuthorsJson(raw: FormDataEntryValue | null): AuthorAssignmentInput[] | null {
+/** Parse `authors_json` form/CSV cell; empty string → `[]`; invalid JSON/shape → `null`. */
+export function parseAuthorsJsonString(
+	raw: string | null | undefined
+): AuthorAssignmentInput[] | null {
 	const s = String(raw ?? '').trim();
 	if (s.length === 0) return [];
 	let parsed: unknown;
@@ -133,9 +138,11 @@ function parseAuthorsJson(raw: FormDataEntryValue | null): AuthorAssignmentInput
 	return out;
 }
 
-export type ParseResult =
-	| { ok: true; payload: BookFormPayload }
-	| { ok: false; message: string };
+function parseAuthorsJson(raw: FormDataEntryValue | null): AuthorAssignmentInput[] | null {
+	return parseAuthorsJsonString(String(raw ?? ''));
+}
+
+export type ParseResult = { ok: true; payload: BookFormPayload } | { ok: false; message: string };
 
 /**
  * Compute which IMPORTANT_FIELDS are missing from a parsed payload. Used by
@@ -214,8 +221,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 	}
 
 	const language = String(fd.get('language') ?? '').trim();
-	if (!LANGUAGE_SET.has(language))
-		return { ok: false, message: 'Pick a language from the list.' };
+	if (!LANGUAGE_SET.has(language)) return { ok: false, message: 'Pick a language from the list.' };
 
 	const reading_status = String(fd.get('reading_status') ?? '').trim();
 	if (!READING_STATUS_SET.has(reading_status))
@@ -308,8 +314,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 	// Auto-flag for review when important identifying/citation fields are
 	// missing. The eventual review queue (Tracker_1 Session 6) consumes this.
 	const missingImportant = computeMissingImportant({ title, genre, year, publisher, authors });
-	const autoLine =
-		missingImportant.length > 0 ? `Missing: ${missingImportant.join(', ')}` : null;
+	const autoLine = missingImportant.length > 0 ? `Missing: ${missingImportant.join(', ')}` : null;
 	const finalNeedsReview = userNeedsReview || missingImportant.length > 0;
 	const finalReviewNote = mergeReviewNote(userReviewNote, autoLine);
 
@@ -482,7 +487,7 @@ async function syncAuthors(
 	return { ok: true };
 }
 
-async function ensureNoIsbnCollision(
+export async function ensureNoIsbnCollision(
 	supabase: SupabaseClient,
 	isbn: string | null,
 	excludeId: string | null
@@ -507,64 +512,64 @@ async function ensureNoIsbnCollision(
 	return { ok: true };
 }
 
-export async function createBookAction(
+export type ApplyBookPayloadOptions = {
+	/** When true, skip `syncAuthors` (CSV reimport without an `authors_json` cell on update). */
+	skipAuthorSync?: boolean;
+};
+
+export type ApplyBookPayloadResult =
+	| { ok: true; bookId: string }
+	| { ok: false; message: string; bookId?: string };
+
+/**
+ * Shared insert/update path for forms and CSV import: ISBN check, book row,
+ * junction sync. Viewer B1/B2 strip applies on update.
+ */
+export async function applyBookPayload(
 	supabase: SupabaseClient,
 	userId: string,
-	fd: FormData
-) {
-	const parsed = parseBookForm(fd);
-	if (!parsed.ok) return fail(400, { kind: 'createBook' as const, message: parsed.message });
+	opts:
+		| { mode: 'create'; payload: BookFormPayload; options?: ApplyBookPayloadOptions }
+		| {
+				mode: 'update';
+				bookId: string;
+				payload: BookFormPayload;
+				options?: ApplyBookPayloadOptions;
+		  }
+): Promise<ApplyBookPayloadResult> {
+	const skipAuthorSync = opts.options?.skipAuthorSync === true;
+	const collide = await ensureNoIsbnCollision(
+		supabase,
+		opts.payload.isbn,
+		opts.mode === 'update' ? opts.bookId : null
+	);
+	if (!collide.ok) return { ok: false, message: collide.message };
 
-	const collide = await ensureNoIsbnCollision(supabase, parsed.payload.isbn, null);
-	if (!collide.ok) return fail(400, { kind: 'createBook' as const, message: collide.message });
-
-	const insertPayload = {
-		...bookColumnsPayload(parsed.payload),
-		created_by: userId
-	};
-
-	const { data: inserted, error: insErr } = await supabase
-		.from('books')
-		.insert(insertPayload as never)
-		.select('id')
-		.single();
-	if (insErr || !inserted) {
-		console.error(insErr);
-		return fail(500, {
-			kind: 'createBook' as const,
-			message: insErr?.message ?? 'Could not create book.'
-		});
+	if (opts.mode === 'create') {
+		const insertPayload = {
+			...bookColumnsPayload(opts.payload),
+			created_by: userId
+		};
+		const { data: inserted, error: insErr } = await supabase
+			.from('books')
+			.insert(insertPayload as never)
+			.select('id')
+			.single();
+		if (insErr || !inserted) {
+			console.error(insErr);
+			return { ok: false, message: insErr?.message ?? 'Could not create book.' };
+		}
+		const bookId = inserted.id as string;
+		const cat = await syncCategories(supabase, bookId, opts.payload.category_ids);
+		if (!cat.ok) return { ok: false, bookId, message: cat.message };
+		if (!skipAuthorSync) {
+			const auth = await syncAuthors(supabase, bookId, opts.payload.authors);
+			if (!auth.ok) return { ok: false, bookId, message: auth.message };
+		}
+		return { ok: true, bookId };
 	}
-	const bookId = inserted.id as string;
 
-	const cat = await syncCategories(supabase, bookId, parsed.payload.category_ids);
-	if (!cat.ok) {
-		return fail(500, { kind: 'createBook' as const, bookId, message: cat.message });
-	}
-	const auth = await syncAuthors(supabase, bookId, parsed.payload.authors);
-	if (!auth.ok) {
-		return fail(500, { kind: 'createBook' as const, bookId, message: auth.message });
-	}
-
-	return { kind: 'createBook' as const, bookId, success: true as const };
-}
-
-export async function updateBookAction(
-	supabase: SupabaseClient,
-	userId: string,
-	fd: FormData
-) {
-	const id = String(fd.get('id') ?? '').trim();
-	if (!id) return fail(400, { kind: 'updateBook' as const, message: 'Missing book id.' });
-
-	const parsed = parseBookForm(fd);
-	if (!parsed.ok)
-		return fail(400, { kind: 'updateBook' as const, bookId: id, message: parsed.message });
-
-	const collide = await ensureNoIsbnCollision(supabase, parsed.payload.isbn, id);
-	if (!collide.ok)
-		return fail(400, { kind: 'updateBook' as const, bookId: id, message: collide.message });
-
+	const id = opts.bookId;
 	const { data: existing, error: fetchErr } = await supabase
 		.from('books')
 		.select('id')
@@ -572,19 +577,16 @@ export async function updateBookAction(
 		.is('deleted_at', null)
 		.maybeSingle();
 	if (fetchErr || !existing) {
-		return fail(404, { kind: 'updateBook' as const, bookId: id, message: 'Book not found.' });
+		return { ok: false, bookId: id, message: 'Book not found.' };
 	}
 
-	// B1/B2 viewer column strip (defense-in-depth alongside the trigger in
-	// 20260425170000_books_viewer_column_protection.sql). Re-fetch role
-	// server-side; never trust the client.
 	const { data: profileRow } = await supabase
 		.from('profiles')
 		.select('role')
 		.eq('id', userId)
 		.maybeSingle();
 	const isOwner = (profileRow?.role as string | null) === 'owner';
-	const payload = bookColumnsPayload(parsed.payload);
+	const payload = bookColumnsPayload(opts.payload);
 	if (!isOwner) {
 		delete payload.personal_notes;
 		delete payload.rating;
@@ -596,20 +598,58 @@ export async function updateBookAction(
 		.eq('id', id);
 	if (updErr) {
 		console.error(updErr);
-		return fail(500, {
-			kind: 'updateBook' as const,
-			bookId: id,
-			message: updErr.message ?? 'Could not update book.'
-		});
+		return { ok: false, bookId: id, message: updErr.message ?? 'Could not update book.' };
 	}
 
-	const cat = await syncCategories(supabase, id, parsed.payload.category_ids);
-	if (!cat.ok) {
-		return fail(500, { kind: 'updateBook' as const, bookId: id, message: cat.message });
+	const cat = await syncCategories(supabase, id, opts.payload.category_ids);
+	if (!cat.ok) return { ok: false, bookId: id, message: cat.message };
+	if (!skipAuthorSync) {
+		const auth = await syncAuthors(supabase, id, opts.payload.authors);
+		if (!auth.ok) return { ok: false, bookId: id, message: auth.message };
 	}
-	const auth = await syncAuthors(supabase, id, parsed.payload.authors);
-	if (!auth.ok) {
-		return fail(500, { kind: 'updateBook' as const, bookId: id, message: auth.message });
+	return { ok: true, bookId: id };
+}
+
+export async function createBookAction(supabase: SupabaseClient, userId: string, fd: FormData) {
+	const parsed = parseBookForm(fd);
+	if (!parsed.ok) return fail(400, { kind: 'createBook' as const, message: parsed.message });
+
+	const applied = await applyBookPayload(supabase, userId, {
+		mode: 'create',
+		payload: parsed.payload
+	});
+	if (!applied.ok) {
+		const kind = 'createBook' as const;
+		if (applied.bookId)
+			return fail(500, { kind, bookId: applied.bookId, message: applied.message });
+		return fail(applied.message.includes('ISBN') ? 400 : 500, { kind, message: applied.message });
+	}
+
+	return { kind: 'createBook' as const, bookId: applied.bookId, success: true as const };
+}
+
+export async function updateBookAction(supabase: SupabaseClient, userId: string, fd: FormData) {
+	const id = String(fd.get('id') ?? '').trim();
+	if (!id) return fail(400, { kind: 'updateBook' as const, message: 'Missing book id.' });
+
+	const parsed = parseBookForm(fd);
+	if (!parsed.ok)
+		return fail(400, { kind: 'updateBook' as const, bookId: id, message: parsed.message });
+
+	const applied = await applyBookPayload(supabase, userId, {
+		mode: 'update',
+		bookId: id,
+		payload: parsed.payload
+	});
+	if (!applied.ok) {
+		const kind = 'updateBook' as const;
+		if (applied.message === 'Book not found.') {
+			return fail(404, { kind, bookId: id, message: applied.message });
+		}
+		if (applied.message.includes('ISBN')) {
+			return fail(400, { kind, bookId: id, message: applied.message });
+		}
+		return fail(500, { kind, bookId: id, message: applied.message });
 	}
 
 	return { kind: 'updateBook' as const, bookId: id, success: true as const };
@@ -636,8 +676,7 @@ export async function softDeleteBookAction(supabase: SupabaseClient, fd: FormDat
 
 export async function updateReadingStatusAction(supabase: SupabaseClient, fd: FormData) {
 	const id = String(fd.get('id') ?? '').trim();
-	if (!id)
-		return fail(400, { kind: 'updateReadingStatus' as const, message: 'Missing book id.' });
+	if (!id) return fail(400, { kind: 'updateReadingStatus' as const, message: 'Missing book id.' });
 
 	const status = String(fd.get('reading_status') ?? '').trim();
 	if (!READING_STATUS_SET.has(status)) {
@@ -648,10 +687,7 @@ export async function updateReadingStatusAction(supabase: SupabaseClient, fd: Fo
 		});
 	}
 
-	const { error } = await supabase
-		.from('books')
-		.update({ reading_status: status })
-		.eq('id', id);
+	const { error } = await supabase.from('books').update({ reading_status: status }).eq('id', id);
 
 	if (error) {
 		console.error(error);
@@ -691,7 +727,9 @@ export async function bulkUpdateBooksAction(
 			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Invalid book id list.' });
 		}
 		ids = parsed.filter(
-			(x): x is string => typeof x === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x)
+			(x): x is string =>
+				typeof x === 'string' &&
+				/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x)
 		);
 	} catch {
 		return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Invalid book id list.' });
@@ -723,7 +761,10 @@ export async function bulkUpdateBooksAction(
 	if (applyStatus) {
 		const reading_status = String(fd.get('bulk_reading_status') ?? '').trim();
 		if (!READING_STATUS_SET.has(reading_status)) {
-			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Pick a valid reading status.' });
+			return fail(400, {
+				kind: 'bulkUpdateBooks' as const,
+				message: 'Pick a valid reading status.'
+			});
 		}
 		patch.reading_status = reading_status;
 	}
@@ -752,9 +793,7 @@ export async function bulkUpdateBooksAction(
 				message: bbListErr.message ?? 'Could not validate bible book.'
 			});
 		}
-		const valid = new Set(
-			(bbRows ?? []).map((r) => (r as { name: string }).name)
-		);
+		const valid = new Set((bbRows ?? []).map((r) => (r as { name: string }).name));
 		if (!valid.has(bb)) {
 			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Pick a valid bible book.' });
 		}
@@ -815,9 +854,7 @@ export async function bulkUpdateBooksAction(
 				essay_id: null,
 				created_by: userId
 			}));
-			const { error: insErr } = await supabase
-				.from('book_bible_coverage')
-				.insert(rows as never);
+			const { error: insErr } = await supabase.from('book_bible_coverage').insert(rows as never);
 			if (insErr) {
 				console.error(insErr);
 				return fail(500, {
@@ -837,8 +874,7 @@ export async function bulkUpdateBooksAction(
 
 export async function undoSoftDeleteBookAction(supabase: SupabaseClient, fd: FormData) {
 	const id = String(fd.get('id') ?? '').trim();
-	if (!id)
-		return fail(400, { kind: 'undoSoftDeleteBook' as const, message: 'Missing book id.' });
+	if (!id) return fail(400, { kind: 'undoSoftDeleteBook' as const, message: 'Missing book id.' });
 
 	const { error } = await supabase.from('books').update({ deleted_at: null }).eq('id', id);
 	if (error) {
@@ -852,11 +888,7 @@ export async function undoSoftDeleteBookAction(supabase: SupabaseClient, fd: For
 	return { kind: 'undoSoftDeleteBook' as const, bookId: id, success: true as const };
 }
 
-export async function createPersonAction(
-	supabase: SupabaseClient,
-	userId: string,
-	fd: FormData
-) {
+export async function createPersonAction(supabase: SupabaseClient, userId: string, fd: FormData) {
 	const last_name = String(fd.get('last_name') ?? '').trim();
 	if (!last_name)
 		return fail(400, { kind: 'createPerson' as const, message: 'Last name is required.' });
@@ -911,11 +943,7 @@ export async function createPersonAction(
  *    `personal_notes` / `rating`, but kept defensively in line with
  *    `updateBookAction`.
  */
-export async function reviewSaveAction(
-	supabase: SupabaseClient,
-	userId: string,
-	fd: FormData
-) {
+export async function reviewSaveAction(supabase: SupabaseClient, userId: string, fd: FormData) {
 	const id = String(fd.get('id') ?? '').trim();
 	if (!id) return fail(400, { kind: 'reviewSaved' as const, message: 'Missing book id.' });
 
@@ -955,7 +983,10 @@ export async function reviewSaveAction(
 	const title = trimOrNull(fd.get('title')) ?? ex.title;
 	const publisher = trimOrNull(fd.get('publisher')) ?? ex.publisher;
 	const yearRaw = fd.get('year');
-	const year = yearRaw === null ? ex.year : parseInt0(yearRaw) ?? (String(yearRaw).trim() === '' ? null : ex.year);
+	const year =
+		yearRaw === null
+			? ex.year
+			: (parseInt0(yearRaw) ?? (String(yearRaw).trim() === '' ? null : ex.year));
 
 	const genreRaw = fd.get('genre');
 	let genre: string | null = ex.genre;
@@ -1005,9 +1036,7 @@ export async function reviewSaveAction(
 		.eq('book_id', id)
 		.eq('role', 'author');
 	const authorsForCheck: AuthorAssignmentInput[] =
-		(authorCount ?? 0) > 0
-			? [{ person_id: '_synthetic_', role: 'author', sort_order: 0 }]
-			: [];
+		(authorCount ?? 0) > 0 ? [{ person_id: '_synthetic_', role: 'author', sort_order: 0 }] : [];
 
 	// Recompute, but the contract is: needs_review = false REGARDLESS of
 	// missing fields. The user just reviewed the card. Strip the auto-line.

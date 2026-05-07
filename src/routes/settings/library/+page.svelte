@@ -8,7 +8,17 @@
 
 	type HubLink = { href: string; label: string; description: string };
 
-	const links: HubLink[] = [
+	const links = $derived.by((): HubLink[] => [
+		...(data.isOwner
+			? [
+					{
+						href: '/settings/library/export',
+						label: 'CSV export / import',
+						description:
+							'Download all books as CSV for mass edits, then preview and reimport by book id.'
+					} satisfies HubLink
+				]
+			: []),
 		{
 			href: '/settings/library/people',
 			label: 'People',
@@ -39,7 +49,7 @@
 			label: 'Bible books',
 			description: 'Canon names for scripture and coverage pickers.'
 		}
-	];
+	]);
 </script>
 
 <svelte:head>
@@ -47,8 +57,8 @@
 </svelte:head>
 
 <p class="text-sm text-muted-foreground">
-	Pick a section below or use the tabs above. People can be edited here; genre, category, and Bible book lists are
-	reference-only unless you change them in the database.
+	Pick a section below or use the tabs above. People can be edited here; genre, category, and Bible
+	book lists are reference-only unless you change them in the database.
 </p>
 
 {#if data.isOwner}

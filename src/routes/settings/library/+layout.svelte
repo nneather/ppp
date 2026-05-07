@@ -16,6 +16,7 @@
 		];
 		if (data.isOwner) {
 			t.push({ href: '/settings/library/people/merge', label: 'Merge' });
+			t.push({ href: '/settings/library/export', label: 'CSV export' });
 		}
 		t.push(
 			{ href: '/settings/library/series', label: 'Series' },
@@ -32,6 +33,9 @@
 	function tabActive(hrefPath: string): boolean {
 		const path = page.url.pathname;
 		if (hrefPath === '/settings/library') return path === '/settings/library';
+		if (hrefPath === '/settings/library/export') {
+			return path.startsWith('/settings/library/export');
+		}
 		if (hrefPath === '/settings/library/people/merge') {
 			return path.startsWith('/settings/library/people/merge');
 		}
@@ -61,16 +65,13 @@
 		<div>
 			<h1 class="text-2xl font-semibold tracking-tight text-foreground">Library settings</h1>
 			<p class="mt-1 text-sm text-muted-foreground">
-				People can be merged or renamed; genres, categories, and Bible book names are read-only reference
-				data for library forms.
+				People can be merged or renamed; genres, categories, and Bible book names are read-only
+				reference data for library forms.
 			</p>
 		</div>
 	</header>
 
-	<nav
-		class="mt-6 flex gap-1 border-b border-border"
-		aria-label="Library settings sections"
-	>
+	<nav class="mt-6 flex gap-1 border-b border-border" aria-label="Library settings sections">
 		{#each tabs as { href, label } (href)}
 			{@const active = tabActive(href)}
 			<a
