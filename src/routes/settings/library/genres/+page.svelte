@@ -22,5 +22,7 @@
 </ul>
 
 <p class="mt-6 text-xs text-muted-foreground">
-	{GENRES.length} genres. Schema CHECK is open TEXT; the form is the only enforcement layer.
+	{GENRES.length} genres. Postgres enforces the same list via
+	<code class="rounded bg-muted px-1 py-0.5 text-xs">books_genre_check</code>
+	(see migration <code class="rounded bg-muted px-1 py-0.5 text-xs">20260507190000</code>).
 </p>

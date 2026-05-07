@@ -18,6 +18,21 @@ import type { CategoryRow, SeriesRow } from '$lib/types/library';
 /** Max data rows per preview/apply (excluding header). */
 export const LIBRARY_CSV_MAX_ROWS = 1000;
 
+/**
+ * CSV rows whose `needs_review_note` starts with one of these prefixes are
+ * soft-deleted on apply (by `id`). No genre/series validation for those rows.
+ * Supports em dash (—) or ASCII hyphen (-) after "IMPORT".
+ */
+export const LIBRARY_CSV_DELETE_ON_IMPORT_PREFIXES = [
+	'\u26A0 DELETE ON IMPORT — collapse with sibling row.',
+	'\u26A0 DELETE ON IMPORT - collapse with sibling row.'
+] as const;
+
+export function isDeleteOnImportNote(note: string): boolean {
+	const t = note.trimStart();
+	return LIBRARY_CSV_DELETE_ON_IMPORT_PREFIXES.some((p) => t.startsWith(p));
+}
+
 /** Stable export column order (lowercase header names). */
 export const LIBRARY_CSV_HEADER_ROW = [
 	'id',
@@ -50,7 +65,8 @@ export type PreparedCsvOperation =
 			bookId: string;
 			payload: BookFormPayload;
 			skipAuthorSync: boolean;
-	  };
+	  }
+	| { kind: 'softDelete'; line: number; bookId: string };
 
 function stripBom(text: string): string {
 	return text.replace(/^\uFEFF/, '');
@@ -574,6 +590,18 @@ export async function prepareLibraryCsvImport(
 			continue;
 		}
 
+		if (isDeleteOnImportNote(cell(row, 'needs_review_note'))) {
+			if (isInsert) {
+				errors.push({
+					line,
+					message: 'DELETE ON IMPORT note requires an existing book id (non-blank id column).'
+				});
+				continue;
+			}
+			prepared.push({ kind: 'softDelete', line, bookId: idRaw });
+			continue;
+		}
+
 		const primaryName = cell(row, 'primary_category');
 		const pr = catResolve.resolve(primaryName);
 		if (!pr.ok) {
@@ -646,29 +674,31 @@ export async function prepareLibraryCsvImport(
 export type LibraryCsvApplySummary = {
 	inserted: number;
 	updated: number;
+	deleted: number;
 	errors: LibraryCsvPreviewError[];
 };
 
 /** Apply prepared ops sequentially (chunk-friendly for timeouts). */
 export async function applyPreparedLibraryCsv(
 	supabase: SupabaseClient,
-	userId: string,
+	_userId: string,
 	prepared: PreparedCsvOperation[]
 ): Promise<LibraryCsvApplySummary> {
 	const errors: LibraryCsvPreviewError[] = [];
 	let inserted = 0;
 	let updated = 0;
+	let deleted = 0;
 
 	for (const op of prepared) {
 		if (op.kind === 'insert') {
-			const r = await applyBookPayload(supabase, userId, { mode: 'create', payload: op.payload });
+			const r = await applyBookPayload(supabase, _userId, { mode: 'create', payload: op.payload });
 			if (!r.ok) {
 				errors.push({ line: op.line, message: r.message });
 				break;
 			}
 			inserted++;
-		} else {
-			const r = await applyBookPayload(supabase, userId, {
+		} else if (op.kind === 'update') {
+			const r = await applyBookPayload(supabase, _userId, {
 				mode: 'update',
 				bookId: op.bookId,
 				payload: op.payload,
@@ -679,8 +709,19 @@ export async function applyPreparedLibraryCsv(
 				break;
 			}
 			updated++;
+		} else {
+			const { error } = await supabase
+				.from('books')
+				.update({ deleted_at: new Date().toISOString() })
+				.eq('id', op.bookId)
+				.is('deleted_at', null);
+			if (error) {
+				errors.push({ line: op.line, message: error.message ?? 'Soft-delete failed.' });
+				break;
+			}
+			deleted++;
 		}
 	}
 
-	return { inserted, updated, errors };
+	return { inserted, updated, deleted, errors };
 }

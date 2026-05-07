@@ -1,27 +1,56 @@
 /**
  * Library module types + closed enums.
  *
- * Constants here mirror the schema's CHECK constraints and the tracker's
- * Session 1 / Session 4 acceptance vocabulary. Genres are open in the schema
- * (TEXT, no CHECK) but closed at the UI layer.
+ * `GENRES` mirrors `books_genre_check` (migration 20260507190000). Keep lists
+ * in sync: add here first, then extend the migration IN list before push.
  *
  * Per `.cursor/rules/library-module.mdc`: never improvise free-text lists in
  * forms. Add entries here and reuse.
  */
 
 export const GENRES = [
-	'Commentary',
+	'Apologetics',
+	'Apostolic Fathers and Ancient Sources',
+	'Applied Theology',
 	'Bibles',
 	'Biblical Reference',
+	'Biblical Theology',
+	'Biography',
+	'Business',
+	'Chinese Language Tools',
+	'Christian Living',
+	'Church History',
+	'Commentary',
+	'Culture',
+	'Devotional',
+	'Ethics',
+	'General',
+	'General Epistles',
+	'German Language Tools',
+	'Gospels and Jesus',
 	'Greek Language Tools',
 	'Hebrew Language Tools',
+	'Historical Theology',
+	'History',
+	'Homiletics',
+	'Hymnals and Liturgy',
+	'Language',
 	'Latin Language Tools',
-	'German Language Tools',
-	'Chinese Language Tools',
-	'Theology',
-	'Church History',
+	'Literature',
+	'Music',
+	'New Testament',
+	'Old Testament',
+	'Other',
+	'Other Religions',
 	'Pastoral',
-	'General'
+	'Pastoral Ministry',
+	'Philosophy',
+	'Poetry',
+	'Reference',
+	'Science',
+	'Sports',
+	'Systematic Theology',
+	'Theology'
 ] as const;
 export type Genre = (typeof GENRES)[number];
 

@@ -61,8 +61,10 @@
 <p class="mt-2 text-sm text-muted-foreground">
 	Owner-only export and reimport for offline edits. The <code class="text-xs">id</code> column is
 	the join key; leave it blank to insert a new book. Reuse the exported
-	<code class="text-xs">authors_json</code> to change authors; if you omit it on update, existing author
-	links are unchanged. UTF-8 with BOM from Excel is fine on import.
+	<code class="text-xs">authors_json</code> to change authors; if you omit it on update, existing
+	author links are unchanged. A <code class="text-xs">needs_review_note</code> starting with the
+	DELETE ON IMPORT prefix soft-deletes that row on apply (see
+	<code class="text-xs">books-csv.ts</code>). UTF-8 with BOM from Excel is fine on import.
 </p>
 
 <div class="mt-6 flex flex-wrap gap-3">
@@ -139,7 +141,7 @@
 	{#if 'success' in form && form.success}
 		<p class="mt-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
 			Preview OK: <strong>{form.inserts}</strong> insert(s), <strong>{form.updates}</strong>
-			update(s),
+			update(s), <strong>{form.deletes}</strong> soft-delete(s),
 			<strong>{form.total}</strong> total row(s). Use Apply import with the same file to write.
 		</p>
 	{:else if previewErrors.length > 0}
@@ -167,7 +169,9 @@
 {#if form?.kind === 'applyLibraryCsv'}
 	{#if 'success' in form && form.success}
 		<p class="mt-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
-			Import finished: <strong>{form.inserted}</strong> inserted, <strong>{form.updated}</strong> updated.
+			Import finished: <strong>{form.inserted}</strong> inserted, <strong>{form.updated}</strong>
+			updated,
+			<strong>{form.deleted}</strong> soft-deleted.
 		</p>
 	{:else if 'message' in form}
 		<div

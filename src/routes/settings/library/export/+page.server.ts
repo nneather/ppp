@@ -34,11 +34,13 @@ export const actions = {
 		}
 		const inserts = prep.prepared.filter((p) => p.kind === 'insert').length;
 		const updates = prep.prepared.filter((p) => p.kind === 'update').length;
+		const deletes = prep.prepared.filter((p) => p.kind === 'softDelete').length;
 		return {
 			kind: 'previewLibraryCsv' as const,
 			success: true as const,
 			inserts,
 			updates,
+			deletes,
 			total: prep.prepared.length
 		};
 	},
@@ -77,6 +79,7 @@ export const actions = {
 				message: summary.errors[0]?.message ?? 'Import stopped after an error.',
 				inserted: summary.inserted,
 				updated: summary.updated,
+				deleted: summary.deleted,
 				errors: summary.errors
 			});
 		}
@@ -84,7 +87,8 @@ export const actions = {
 			kind: 'applyLibraryCsv' as const,
 			success: true as const,
 			inserted: summary.inserted,
-			updated: summary.updated
+			updated: summary.updated,
+			deleted: summary.deleted
 		};
 	}
 } satisfies Actions;

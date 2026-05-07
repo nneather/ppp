@@ -55,7 +55,7 @@ Component name: `<CanonicalizingCombobox>` (or similar). Inputs: existing values
 
 ## Genre + language enums
 
-`books.genre` and `books.language` are constrained. Treat as Settings concerns or named constants in `src/lib/types/library.ts` — do not improvise free-text lists in forms.
+`books.genre` is enforced by `books_genre_check` (see migration `20260507190000`) and must match `GENRES` in `src/lib/types/library.ts`. `books.language` is constrained by a CHECK. Treat as Settings concerns or named constants in `src/lib/types/library.ts` — do not improvise free-text lists in forms.
 
 ## Patterns landed in Session 1
 
