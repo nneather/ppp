@@ -6,12 +6,17 @@
  * https://openlibrary.org — public, no API key.
  */
 
-import type { Genre } from '$lib/types/library';
+import type { Genre, Language } from '$lib/types/library';
 import { normalizeIsbnDigits, parseIsbnWithChecksum } from '$lib/library/isbn';
+import { splitAuthorString } from '$lib/library/match';
 
 export { normalizeIsbnDigits } from '$lib/library/isbn';
 
-export const LIBRARY_OL_PREFILL_KEY = 'library_ol_prefill_v1';
+export const LIBRARY_OL_PREFILL_KEY = 'library_ol_prefill_v2';
+
+export type OpenLibraryAuthorPrefill = {
+	name: string;
+};
 
 export type OpenLibraryBookPrefill = {
 	isbn: string;
@@ -24,10 +29,18 @@ export type OpenLibraryBookPrefill = {
 	edition: string | null;
 	year: number | null;
 	page_count: number | null;
-	/** Free-text author line for user verification (not a linked person). */
+	/** Structured author names in display order (from OL author keys or edition line). */
+	authors: OpenLibraryAuthorPrefill[];
+	/** Free-text author line for scan summary / backward compat (joined with "; "). */
 	authorTyped: string | null;
 	/** Conservative OL `subjects` → closed enum; null when no confident match. */
 	genreSuggested: Genre | null;
+	/** Best-effort series title from edition/work `series` or subtitle heuristic. */
+	seriesName: string | null;
+	/** Volume / number segment when parseable from the series string. */
+	seriesVolume: string | null;
+	/** First edition `languages[].key` mapped to app `books.language` enum, or null. */
+	languageCode: Language | null;
 };
 
 function asStr(v: unknown): string | null {
@@ -47,10 +60,17 @@ function extractYear(publishDate: unknown): number | null {
 	return m ? Number.parseInt(m[1]!, 10) : null;
 }
 
-function firstPublisher(pub: unknown): string | null {
+function publishersFromEdition(edition: Record<string, unknown>): string | null {
+	const pub = edition.publishers;
 	if (!Array.isArray(pub) || pub.length === 0) return null;
-	const first = pub[0];
-	return asStr(first);
+	const strs: string[] = [];
+	for (const item of pub) {
+		const s = typeof item === 'string' ? asStr(item) : null;
+		if (s) strs.push(s);
+		if (strs.length >= 4) break;
+	}
+	if (strs.length === 0) return null;
+	return strs.join('; ');
 }
 
 /** `GET https://openlibrary.org{key}.json` — key like `/works/OL1W` or `/authors/OL1A`. */
@@ -141,11 +161,108 @@ function editionLineFromEdition(edition: Record<string, unknown>): string | null
 	const en = asStr(edition.edition_name);
 	const pf = asStr(edition.physical_format);
 	const rev = edition.revision;
-	const revStr = typeof rev === 'string' ? rev.trim() : '';
+	const revStr =
+		typeof rev === 'string'
+			? rev.trim()
+			: typeof rev === 'number' && Number.isFinite(rev)
+				? String(rev)
+				: '';
 	if (en) parts.push(en);
 	if (pf) parts.push(pf);
 	if (revStr) parts.push(revStr);
 	return parts.length > 0 ? parts.join(' — ') : null;
+}
+
+function pageCountFromEdition(edition: Record<string, unknown>): number | null {
+	const n = asNum(edition.number_of_pages);
+	if (n != null) return n;
+	const pag = asStr(edition.pagination);
+	if (!pag) return null;
+	const m = pag.match(/(\d+)\s*$/);
+	return m ? Number.parseInt(m[1]!, 10) : null;
+}
+
+function firstSeriesString(series: unknown): string | null {
+	if (!Array.isArray(series) || series.length === 0) return null;
+	const first = series[0];
+	if (typeof first === 'string') return asStr(first);
+	if (first && typeof first === 'object') {
+		const o = first as Record<string, unknown>;
+		return asStr(o.name) ?? asStr(o.series) ?? null;
+	}
+	return null;
+}
+
+function splitSeriesNameAndVolume(raw: string): { name: string; volume: string | null } {
+	const trimmed = raw.trim();
+	if (!trimmed) return { name: '', volume: null };
+	const volRe = /[,;:]\s*(?:vol\.?|volume|bd\.?|band|no\.?|nr\.?|#)\s*([\w./-]+)\s*$/i;
+	const m = trimmed.match(volRe);
+	if (m?.index != null) {
+		const name = trimmed.slice(0, m.index).trim().replace(/[,;]\s*$/, '');
+		const vol = m[1]?.trim() ?? null;
+		return { name: name || trimmed, volume: vol };
+	}
+	return { name: trimmed, volume: null };
+}
+
+function seriesFromOl(
+	edition: Record<string, unknown>,
+	work: Record<string, unknown> | null,
+	editionSubtitle: string | null,
+	workSubtitle: string | null
+): { seriesName: string | null; seriesVolume: string | null } {
+	let raw =
+		firstSeriesString(edition.series) ?? (work ? firstSeriesString(work.series) : null);
+	if (!raw) {
+		const sub = editionSubtitle ?? workSubtitle;
+		if (sub) {
+			const colon = sub.indexOf(':');
+			if (colon > 0 && colon < sub.length - 1) {
+				const left = sub.slice(0, colon).trim();
+				if (left.length >= 4 && /[a-z]/i.test(left)) raw = left;
+			}
+		}
+	}
+	if (!raw) return { seriesName: null, seriesVolume: null };
+	const { name, volume } = splitSeriesNameAndVolume(raw);
+	return { seriesName: name || null, seriesVolume: volume };
+}
+
+const OL_LANG_KEY_TO_APP: Record<string, Language> = {
+	eng: 'english',
+	en: 'english',
+	enm: 'english',
+	spa: 'other',
+	por: 'other',
+	ita: 'other',
+	fre: 'french',
+	fra: 'french',
+	ger: 'german',
+	deu: 'german',
+	gsw: 'german',
+	lat: 'latin',
+	grc: 'greek',
+	gre: 'greek',
+	ell: 'greek',
+	heb: 'hebrew',
+	he: 'hebrew',
+	chi: 'chinese',
+	zho: 'chinese',
+	cmn: 'chinese'
+};
+
+function languageFromEdition(edition: Record<string, unknown>): Language | null {
+	const langs = edition.languages;
+	if (!Array.isArray(langs) || langs.length === 0) return null;
+	const first = langs[0];
+	if (!first || typeof first !== 'object') return null;
+	const key = (first as { key?: unknown }).key;
+	if (typeof key !== 'string' || !key.includes('/')) return null;
+	const tail = key.split('/').pop()?.toLowerCase() ?? '';
+	const code = tail.replace(/\.json$/, '');
+	const mapped = OL_LANG_KEY_TO_APP[code];
+	return mapped ?? null;
 }
 
 function normalizeSubjectEntries(raw: unknown): string[] {
@@ -174,9 +291,18 @@ function suggestGenreFromSubjects(subjects: string[]): Genre | null {
 	type Rule = { genre: Genre; re: RegExp };
 	const rules: Rule[] = [
 		{ genre: 'Commentary', re: /\bcommentar(y|ies)\b|\bbible commentary\b|\bexpositor(y|ies)\b/i },
-		{ genre: 'Biblical Reference', re: /\b(biblical )?reference\b|\blexicon\b|\bconcordance\b|\bencyclopedia\b|\bdictionary\b|\bhandbook\b|\bword study\b/i },
-		{ genre: 'Hebrew Language Tools', re: /\bhebrew\b.*\b(grammar|syntax|language|textbook|reader)\b|\bbiblical hebrew\b|\bhebrew grammar\b/i },
-		{ genre: 'Greek Language Tools', re: /\bgreek\b.*\b(grammar|syntax|language|textbook|reader)\b|\bkoine\b|\bgreek grammar\b|\bnt greek\b/i },
+		{
+			genre: 'Biblical Reference',
+			re: /\b(biblical )?reference\b|\blexicon\b|\bconcordance\b|\bencyclopedia\b|\bdictionary\b|\bhandbook\b|\bword study\b/i
+		},
+		{
+			genre: 'Hebrew Language Tools',
+			re: /\bhebrew\b.*\b(grammar|syntax|language|textbook|reader)\b|\bbiblical hebrew\b|\bhebrew grammar\b/i
+		},
+		{
+			genre: 'Greek Language Tools',
+			re: /\bgreek\b.*\b(grammar|syntax|language|textbook|reader)\b|\bkoine\b|\bgreek grammar\b|\bnt greek\b/i
+		},
 		{ genre: 'Latin Language Tools', re: /\blatin\b.*\b(grammar|reader|language)\b/i },
 		{ genre: 'German Language Tools', re: /\bgerman\b.*\b(grammar|reader|language)\b|\bdeutsch\b/i },
 		{ genre: 'Chinese Language Tools', re: /\bchinese\b.*\b(grammar|reader|language)\b/i },
@@ -223,24 +349,38 @@ export async function fetchOpenLibraryPrefill(isbn: string): Promise<OpenLibrary
 	const subtitle =
 		workSubtitle && workSubtitle.length > 0 ? workSubtitle : editionSubtitle;
 
-	const publisher = firstPublisher(edition.publishers);
+	const publisher = publishersFromEdition(edition);
 	const publisher_location = publisherLocationFromEdition(edition);
 	const editionLine = editionLineFromEdition(edition);
 	const year = extractYear(edition.publish_date);
-	const page_count = asNum(edition.number_of_pages);
+	const page_count = pageCountFromEdition(edition);
 
 	const authorKeys = collectAuthorKeys(edition, work);
-	let authorTyped: string | null = null;
+	const authors: OpenLibraryAuthorPrefill[] = [];
 	if (authorKeys.length > 0) {
 		const names = await resolveAuthorNames(authorKeys);
-		authorTyped = names.length > 0 ? names.join('; ') : null;
+		for (const n of names) authors.push({ name: n });
 	}
-	if (!authorTyped) {
-		authorTyped = authorLineFromEditionInline(edition);
+	if (authors.length === 0) {
+		const line = authorLineFromEditionInline(edition);
+		if (line) {
+			for (const seg of splitAuthorString(line)) {
+				authors.push({ name: seg });
+			}
+		}
 	}
+	const authorTyped = authors.length > 0 ? authors.map((a) => a.name).join('; ') : null;
 
 	const subjects = normalizeSubjectEntries(work?.subjects ?? edition.subjects);
 	const genreSuggested = suggestGenreFromSubjects(subjects);
+
+	const { seriesName, seriesVolume } = seriesFromOl(
+		edition,
+		work,
+		editionSubtitle,
+		workSubtitle
+	);
+	const languageCode = languageFromEdition(edition);
 
 	const isbn13 =
 		Array.isArray(edition.isbn_13) && typeof edition.isbn_13[0] === 'string'
@@ -262,7 +402,11 @@ export async function fetchOpenLibraryPrefill(isbn: string): Promise<OpenLibrary
 		edition: editionLine,
 		year,
 		page_count,
+		authors,
 		authorTyped,
-		genreSuggested
+		genreSuggested,
+		seriesName,
+		seriesVolume,
+		languageCode
 	};
 }

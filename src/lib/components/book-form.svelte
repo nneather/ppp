@@ -31,6 +31,12 @@
 		ReadingStatus
 	} from '$lib/types/library';
 	import type { OpenLibraryBookPrefill } from '$lib/library/open-library-prefill';
+	import {
+		matchPersonExact,
+		matchPersonFuzzyCandidates,
+		matchSeries,
+		splitAuthorString
+	} from '$lib/library/match';
 	import BookOlRefreshDialog from '$lib/components/book-ol-refresh-dialog.svelte';
 	import type { OlApplyKey } from '$lib/components/book-ol-refresh-dialog.svelte';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
@@ -67,6 +73,9 @@
 		key: string;
 		person_id: string;
 		role: AuthorRole;
+		/** Open Library name when `person_id` still needs linking. */
+		prefillName?: string;
+		fuzzyCandidates?: PersonRow[];
 	};
 
 	let {
@@ -157,7 +166,10 @@
 
 	let initialSnapshot = $state<string>('');
 
-	let olAuthorHint = $state<string | null>(null);
+	/** Last-applied OL payload (scan summary + “missing fields” checklist). */
+	let olImportSnapshot = $state<OpenLibraryBookPrefill | null>(null);
+	/** Shown when OL had a series string but it did not match local `series`. */
+	let olSeriesHint = $state<{ name: string; volume: string | null } | null>(null);
 
 	let bookFormEl = $state<HTMLFormElement | null>(null);
 	/** When true, successful submit calls `onSaved` with `returnToScanner: true`. */
@@ -298,6 +310,19 @@
 	});
 	const languageLabel = $derived(LANGUAGE_LABELS[language]);
 	const readingStatusLabel = $derived(READING_STATUS_LABELS[reading_status]);
+
+	const olScanMissingLabels = $derived.by(() => {
+		const snap = olImportSnapshot;
+		if (!snap || !scanSessionLayout) return [] as string[];
+		const miss: string[] = [];
+		if (!snap.publisher?.trim()) miss.push('Publisher');
+		if (!snap.publisher_location?.trim()) miss.push('Publisher location');
+		if (snap.page_count == null) miss.push('Page count');
+		if (!snap.edition?.trim()) miss.push('Edition');
+		if (snap.year == null) miss.push('Year');
+		if (!snap.seriesName?.trim()) miss.push('Series');
+		return miss;
+	});
 
 	function isInitial(s: string): boolean {
 		return /^[A-Za-z]\.?$/.test(s);
@@ -464,6 +489,9 @@
 		const p = openLibraryPrefill;
 		if (!p || mode !== 'create') return;
 		untrack(() => {
+			const plist = people;
+			const slist = series;
+
 			if (p.title) title = p.title;
 			if (p.subtitle != null && p.subtitle !== '') subtitle = p.subtitle;
 			if (p.publisher != null && p.publisher !== '') publisher = p.publisher;
@@ -473,8 +501,58 @@
 			if (p.year != null) year = String(p.year);
 			if (p.page_count != null) page_count = String(p.page_count);
 			if (p.isbn) isbn = p.isbn;
-			olAuthorHint = p.authorTyped;
 			if (p.genreSuggested && genre === '') genre = p.genreSuggested;
+			if (p.languageCode) language = p.languageCode;
+
+			olImportSnapshot = p;
+
+			const seriesLabelRaw = p.seriesName?.trim() ?? '';
+			if (seriesLabelRaw) {
+				const matchedSeries = matchSeries(seriesLabelRaw, slist);
+				if (matchedSeries) {
+					series_id = matchedSeries.id;
+					volume_number = p.seriesVolume ?? '';
+					olSeriesHint = null;
+				} else {
+					olSeriesHint = { name: seriesLabelRaw, volume: p.seriesVolume };
+					if (p.seriesVolume) volume_number = p.seriesVolume;
+				}
+			} else {
+				olSeriesHint = null;
+			}
+
+			const authorList = Array.isArray(p.authors) ? p.authors : [];
+			const names =
+				authorList.length > 0
+					? authorList.map((a) => a.name.trim()).filter(Boolean)
+					: p.authorTyped
+						? splitAuthorString(p.authorTyped)
+						: [];
+
+			const nextRows: AuthorRow[] = [];
+			for (let idx = 0; idx < names.length; idx++) {
+				const nm = names[idx]!;
+				const exact = matchPersonExact(nm, plist);
+				if (exact) {
+					nextRows.push({
+						key: `ol-${idx}-${exact.id}-${crypto.randomUUID()}`,
+						person_id: exact.id,
+						role: 'author'
+					});
+					continue;
+				}
+				const fuzzy = matchPersonFuzzyCandidates(nm, plist);
+				nextRows.push({
+					key: `ol-${idx}-${crypto.randomUUID()}`,
+					person_id: '',
+					role: 'author',
+					prefillName: nm,
+					...(fuzzy.length > 0 ? { fuzzyCandidates: fuzzy } : {})
+				});
+			}
+			if (nextRows.length > 0) {
+				authorRows = nextRows;
+			}
 		});
 		initialSnapshot = untrack(() => currentFormSnapshot());
 		onOpenLibraryPrefillConsumed?.();
@@ -497,6 +575,12 @@
 		const next = authorRows.slice();
 		[next[idx], next[target]] = [next[target], next[idx]];
 		authorRows = next;
+	}
+
+	function applyAuthorFuzzyPick(rowKey: string, personId: string) {
+		authorRows = authorRows.map((a) =>
+			a.key === rowKey ? { key: a.key, person_id: personId, role: a.role } : a
+		);
 	}
 
 	function toggleExtraCategory(id: string) {
@@ -606,7 +690,9 @@
 				);
 				if (pendingAuthorRowKey) {
 					authorRows = authorRows.map((a) =>
-						a.key === pendingAuthorRowKey ? { ...a, person_id: personId } : a
+						a.key === pendingAuthorRowKey
+							? { key: a.key, person_id: personId, role: a.role }
+							: a
 					);
 				} else {
 					authorRows = [
@@ -679,12 +765,6 @@
 				page_count = String(data.page_count);
 			if (set.has('isbn') && data.isbn) isbn = data.isbn;
 			if (set.has('genre') && data.genreSuggested) genre = data.genreSuggested;
-			if (
-				data.authorTyped &&
-				[...set].some((k) => k !== 'isbn' && k !== 'page_count')
-			) {
-				olAuthorHint = data.authorTyped;
-			}
 		});
 		initialSnapshot = untrack(() => currentFormSnapshot());
 	}
@@ -780,7 +860,7 @@
 						<dt class="text-muted-foreground">ISBN</dt>
 						<dd class="font-mono tabular-nums">{isbn.trim() || '—'}</dd>
 						<dt class="text-muted-foreground">Author</dt>
-						<dd class="min-w-0">{olAuthorHint?.trim() || '—'}</dd>
+						<dd class="min-w-0">{olImportSnapshot?.authorTyped?.trim() || '—'}</dd>
 						<dt class="text-muted-foreground">Publisher</dt>
 						<dd class="min-w-0">{publisher.trim() || '—'}</dd>
 						<dt class="text-muted-foreground">Year</dt>
@@ -789,6 +869,11 @@
 						<dd>{genre || '—'}</dd>
 					</div>
 				</dl>
+				{#if olScanMissingLabels.length > 0}
+					<p class="mt-2 text-xs text-muted-foreground">
+						Missing from Open Library: {olScanMissingLabels.join(', ')}
+					</p>
+				{/if}
 				<details class="mt-3 border-t border-border pt-2">
 					<summary class="cursor-pointer text-xs font-medium text-primary">All field values</summary>
 					<ul class="mt-2 space-y-1 break-words font-mono text-xs text-muted-foreground">
@@ -800,38 +885,6 @@
 					</ul>
 				</details>
 			</section>
-		{/if}
-
-		{#if olAuthorHint}
-			<div
-				class="flex flex-col gap-3 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-3 text-sm text-sky-950 dark:text-sky-100 sm:flex-row sm:items-center sm:justify-between"
-			>
-				<p class="min-w-0 flex-1">
-					<strong class="font-medium">Open Library author line:</strong>
-					<span class="text-foreground/90">{olAuthorHint}</span>
-					<span class="mt-1 block text-xs text-muted-foreground">
-						Link a person in Authors or open the dialog to create from this text.
-					</span>
-				</p>
-				<div class="flex shrink-0 flex-wrap gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						class="min-h-10"
-						onclick={() => {
-							const hint = olAuthorHint;
-							const rowKey = authorRows[0]?.key ?? null;
-							if (hint) openPersonDialog(rowKey, parseTypedName(hint));
-						}}
-					>
-						Add person from hint
-					</Button>
-					<Button type="button" variant="ghost" size="sm" onclick={() => (olAuthorHint = null)}>
-						Dismiss
-					</Button>
-				</div>
-			</div>
 		{/if}
 
 		<!-- Authors (full width) -->
@@ -847,14 +900,52 @@
 
 			{#each authorRows as row, idx (row.key)}
 				<div class="flex flex-col gap-2 rounded-md border-l-2 border-border bg-muted/20 p-3">
+					{#if row.prefillName && !row.person_id && (row.fuzzyCandidates?.length ?? 0) > 0}
+						<div
+							class="flex flex-col gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-100"
+						>
+							<p>
+								Open Library says <strong class="font-medium">{row.prefillName}</strong>. Possible
+								match{row.fuzzyCandidates!.length > 1 ? 'es' : ''} in your library:
+							</p>
+							<div class="flex flex-wrap items-center gap-2">
+								{#each row.fuzzyCandidates ?? [] as c (c.id)}
+									{@const cnt = personBookCounts[c.id] ?? 0}
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										class="min-h-9 text-xs"
+										onclick={() => applyAuthorFuzzyPick(row.key, c.id)}
+									>
+										Use {formatPersonLong(c)} ({cnt} book{cnt === 1 ? '' : 's'})
+									</Button>
+								{/each}
+								<Button
+									type="button"
+									variant="secondary"
+									size="sm"
+									class="min-h-9 text-xs"
+									onclick={() =>
+										row.prefillName && openPersonDialog(row.key, parseTypedName(row.prefillName))}
+								>
+									Create new
+								</Button>
+							</div>
+						</div>
+					{/if}
 					<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 						<div class="min-w-0 flex-1">
-							<PersonAutocomplete
-								bind:value={row.person_id}
-								{people}
-								{personBookCounts}
-								onCreate={(text) => openPersonDialog(row.key, parseTypedName(text))}
-							/>
+							{#key row.key}
+								<PersonAutocomplete
+									bind:value={row.person_id}
+									{people}
+									{personBookCounts}
+									initialQuery={row.prefillName ?? ''}
+									seedKey={row.key}
+									onCreate={(text) => openPersonDialog(row.key, parseTypedName(text))}
+								/>
+							{/key}
 						</div>
 						<Select.Root
 							type="single"
@@ -1065,6 +1156,30 @@
 					</div>
 
 					<div class="grid gap-4 sm:grid-cols-2">
+						{#if olSeriesHint}
+							<div
+								class="sm:col-span-2 flex flex-col gap-2 rounded-md border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-950 dark:text-sky-100"
+							>
+								<p class="min-w-0">
+									Open Library mentions series <strong>{olSeriesHint.name}</strong>{#if olSeriesHint.volume}
+										<span class="text-muted-foreground"> (vol. </span><strong>{olSeriesHint.volume}</strong><span
+											class="text-muted-foreground">)</span>{/if}. Add it under Settings, then pick it here.
+								</p>
+								<div class="flex flex-wrap gap-2">
+									<a
+										href="/settings/library/series"
+										target="_blank"
+										rel="noopener noreferrer"
+										class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium hover:bg-muted/60"
+									>
+										Open series settings
+									</a>
+									<Button type="button" variant="ghost" size="sm" onclick={() => (olSeriesHint = null)}>
+										Dismiss
+									</Button>
+								</div>
+							</div>
+						{/if}
 						<div class="space-y-2">
 							<Label for="bf-series">Series</Label>
 							<Select.Root

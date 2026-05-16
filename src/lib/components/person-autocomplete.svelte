@@ -37,6 +37,9 @@
 	 *   - When `value` transitions to non-null (in-component selection OR
 	 *     externally set after a Create dialog), automatically exit search
 	 *     mode and clear the typed query.
+	 *   - **`initialQuery` + `seedKey`:** when the host row identity (`seedKey`)
+	 *     changes and `value` is empty, copy `initialQuery` into the input and
+	 *     open the list (ISBN / Open Library author prefill on `<BookForm>`).
 	 */
 
 	let {
@@ -45,7 +48,11 @@
 		personBookCounts,
 		onCreate,
 		placeholder = 'Search by name…',
-		ariaLabel = 'Person'
+		ariaLabel = 'Person',
+		/** When `seedKey` changes and `value` is empty, pre-fill the search box (Open Library author hint). */
+		initialQuery = '',
+		/** Stable row id from the host — changing it re-applies `initialQuery`. */
+		seedKey = ''
 	}: {
 		value?: string | null;
 		people: PersonRow[];
@@ -56,6 +63,8 @@
 		onCreate?: (rawText: string) => void;
 		placeholder?: string;
 		ariaLabel?: string;
+		initialQuery?: string;
+		seedKey?: string;
 	} = $props();
 
 	let queryRaw = $state('');
@@ -71,6 +80,26 @@
 	 * action — which would race-select the top match while the create dialog
 	 * is opening, or double-fire onCreate. Cleared after 200ms. */
 	let suppressBlurAction = $state(false);
+
+	/** When the host row identity changes, seed the query from `initialQuery` once per empty `value`. */
+	let prevSeedKey = $state<string | null>(null);
+	$effect(() => {
+		if (value) {
+			prevSeedKey = null;
+			return;
+		}
+		if (seedKey !== prevSeedKey) {
+			prevSeedKey = seedKey;
+			const q = initialQuery.trim();
+			if (q) {
+				queryRaw = q;
+				void tick().then(() => {
+					dropdownOpen = true;
+					highlightIdx = 0;
+				});
+			}
+		}
+	});
 
 	const selectedPerson = $derived.by<PersonRow | null>(() => {
 		if (!value) return null;

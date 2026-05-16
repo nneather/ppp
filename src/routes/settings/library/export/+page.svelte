@@ -1,6 +1,9 @@
 <script lang="ts">
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import Download from '@lucide/svelte/icons/download';
 	import FileUp from '@lucide/svelte/icons/file-up';
+	import Loader2 from '@lucide/svelte/icons/loader-2';
 	import { enhance } from '$app/forms';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -8,11 +11,16 @@
 	import { HOTKEY } from '$lib/hotkeys/registry';
 	import type { LibraryCsvPreviewError } from '$lib/library/server/books-csv';
 	import type { PageProps } from './$types';
+	import { tick } from 'svelte';
 
 	let { form }: PageProps = $props();
 	let confirmOpen = $state(false);
 	let applyPending = $state(false);
 	let applyProgress = $state<{ done: number; total: number } | null>(null);
+	let applyServerReady = $state(false);
+	let previewPending = $state(false);
+	let activityRegionEl: HTMLElement | null = $state(null);
+
 	type ApplyOutcome =
 		| { kind: 'idle' }
 		| {
@@ -58,9 +66,27 @@
 		return null;
 	});
 
+	const applyProgressPercent = $derived.by(() => {
+		if (applyProgress == null || applyProgress.total <= 0) return 0;
+		return Math.round((applyProgress.done / applyProgress.total) * 100);
+	});
+
+	const applyStatusHeadline = $derived.by(() => {
+		if (!applyPending) return '';
+		if (!applyServerReady) return 'Connecting to server…';
+		if (applyProgress == null) return 'Starting write to library…';
+		return `Writing row ${applyProgress.done} of ${applyProgress.total}`;
+	});
+
 	function resetApplyUi() {
 		applyOutcome = { kind: 'idle' };
 		applyProgress = null;
+		applyServerReady = false;
+	}
+
+	async function scrollActivityIntoView() {
+		await tick();
+		activityRegionEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 	}
 
 	async function runApplyImport() {
@@ -77,6 +103,7 @@
 				message: 'Choose a file to import, then preview again.'
 			};
 			applyPending = false;
+			await scrollActivityIntoView();
 			return;
 		}
 
@@ -118,8 +145,15 @@
 
 			function handleEvent(ev: Record<string, unknown>) {
 				const type = ev.type;
-				if (type === 'progress' && typeof ev.done === 'number' && typeof ev.total === 'number') {
+				if (type === 'prepare' && ev.ok === true) {
+					applyServerReady = true;
+				} else if (
+					type === 'progress' &&
+					typeof ev.done === 'number' &&
+					typeof ev.total === 'number'
+				) {
 					applyProgress = { done: ev.done, total: ev.total };
+					applyServerReady = true;
 				} else if (type === 'error') {
 					if (ev.phase === 'prepare' && Array.isArray(ev.errors)) {
 						applyOutcome = { kind: 'prepare_errors', errors: ev.errors as LibraryCsvPreviewError[] };
@@ -178,6 +212,8 @@
 			};
 		} finally {
 			applyPending = false;
+			applyServerReady = false;
+			await scrollActivityIntoView();
 		}
 	}
 </script>
@@ -210,7 +246,13 @@
 	class="mt-8 flex max-w-xl flex-col gap-4"
 	use:enhance={() => {
 		return async ({ update }) => {
-			await update();
+			previewPending = true;
+			try {
+				await update();
+				await scrollActivityIntoView();
+			} finally {
+				previewPending = false;
+			}
 		};
 	}}
 >
@@ -226,9 +268,22 @@
 		/>
 	</div>
 
-	<div class="flex flex-wrap gap-2">
-		<Button type="submit" formaction="?/previewLibraryCsv" variant="outline" class="gap-2">
-			<FileUp class="size-4" aria-hidden="true" /> Preview import
+	<div class="flex flex-wrap items-center gap-2">
+		<Button
+			type="submit"
+			formaction="?/previewLibraryCsv"
+			variant="outline"
+			class="gap-2"
+			disabled={previewPending}
+			aria-busy={previewPending}
+		>
+			{#if previewPending}
+				<Loader2 class="size-4 shrink-0 animate-spin" aria-hidden="true" />
+				<span>Checking file…</span>
+			{:else}
+				<FileUp class="size-4 shrink-0" aria-hidden="true" />
+				<span>Preview import</span>
+			{/if}
 		</Button>
 		<Button
 			type="button"
@@ -242,6 +297,11 @@
 			Apply import
 		</Button>
 	</div>
+	{#if previewOk && !applyPending}
+		<p class="text-xs text-muted-foreground" role="status">
+			Preview passed — you can apply the same file, or choose another file to preview again.
+		</p>
+	{/if}
 </form>
 
 <ConfirmDialog
@@ -256,86 +316,217 @@
 	}}
 />
 
-{#if form?.kind === 'previewLibraryCsv'}
-	{#if 'success' in form && form.success}
-		<p class="mt-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
-			Preview OK{#if previewFormatLabel}
-				(detected {previewFormatLabel}){/if}: <strong>{form.inserts}</strong> insert(s),
-			<strong>{form.updates}</strong> update(s), <strong>{form.deletes}</strong> soft-delete(s),
-			<strong>{form.total}</strong> total row(s). Use Apply import with the same file to write.
-		</p>
-	{:else if previewErrors.length > 0}
-		<div class="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-3 text-sm">
-			<p class="font-medium text-destructive">Validation failed</p>
-			<ul
-				class="mt-2 max-h-64 list-inside list-disc space-y-1 overflow-y-auto text-muted-foreground"
+<section
+	bind:this={activityRegionEl}
+	id="import-activity"
+	class="mt-6 max-w-2xl scroll-mt-8 space-y-4"
+	aria-label="Import activity and results"
+>
+	<span class="sr-only" aria-live="polite" aria-atomic="true">
+		{#if previewPending}
+			Checking import file.
+		{:else if form?.kind === 'previewLibraryCsv' && 'success' in form && form.success}
+			Preview succeeded. {form.inserts} inserts, {form.updates} updates, {form.deletes} deletes,
+			{form.total} total rows.
+		{:else if previewErrors.length > 0}
+			Preview failed with {previewErrors.length} validation message{previewErrors.length === 1 ? '' : 's'}.
+		{:else if applyPending}
+			{applyStatusHeadline}
+		{:else if applyOutcome.kind === 'success'}
+			Import finished. {applyOutcome.inserted} inserted, {applyOutcome.updated} updated,
+			{applyOutcome.deleted} deleted.
+		{:else if applyOutcome.kind !== 'idle'}
+			Import did not complete. See details below.
+		{/if}
+	</span>
+
+	{#if form?.kind === 'previewLibraryCsv'}
+		{#if 'success' in form && form.success}
+			<div
+				class="flex gap-3 rounded-lg border-2 border-foreground/15 bg-muted/50 px-4 py-3 text-sm text-foreground shadow-sm"
+				role="status"
 			>
-				{#each previewErrors.slice(0, 80) as err (err.line + err.message)}
-					<li>
-						{#if err.line > 0}
-							Line {err.line}:
+				<CircleCheck
+					class="mt-0.5 size-5 shrink-0 text-foreground"
+					strokeWidth={2}
+					aria-hidden="true"
+				/>
+				<div class="min-w-0">
+					<p class="font-semibold leading-tight">Preview complete</p>
+					<p class="mt-1.5 leading-relaxed text-muted-foreground">
+						{#if previewFormatLabel}
+							Detected <span class="font-medium text-foreground">{previewFormatLabel}</span>.
 						{/if}
-						{err.message}
-					</li>
-				{/each}
-				{#if previewErrors.length > 80}
-					<li>… and {previewErrors.length - 80} more</li>
-				{/if}
-			</ul>
+						<strong class="text-foreground">{form.inserts}</strong> insert(s),
+						<strong class="text-foreground">{form.updates}</strong> update(s),
+						<strong class="text-foreground">{form.deletes}</strong> soft-delete(s),
+						<strong class="text-foreground">{form.total}</strong> total row(s). Use
+						<span class="font-medium text-foreground">Apply import</span> with the same file to write
+						changes.
+					</p>
+				</div>
+			</div>
+		{:else if previewErrors.length > 0}
+			<div
+				class="flex gap-3 rounded-lg border-2 border-destructive/50 bg-destructive/5 px-4 py-3 text-sm"
+				role="alert"
+			>
+				<AlertTriangle class="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
+				<div class="min-w-0">
+					<p class="font-semibold text-destructive">Preview blocked</p>
+					<p class="mt-1 text-muted-foreground">Fix the rows below, then run Preview again.</p>
+					<ul
+						class="mt-2 max-h-64 list-inside list-disc space-y-1 overflow-y-auto text-muted-foreground"
+					>
+						{#each previewErrors.slice(0, 80) as err (err.line + err.message)}
+							<li>
+								{#if err.line > 0}
+									Line {err.line}:
+								{/if}
+								{err.message}
+							</li>
+						{/each}
+						{#if previewErrors.length > 80}
+							<li>… and {previewErrors.length - 80} more</li>
+						{/if}
+					</ul>
+				</div>
+			</div>
+		{/if}
+	{/if}
+
+	{#if applyPending}
+		<div
+			class="rounded-lg border-2 border-foreground/25 bg-card px-4 py-4 shadow-sm"
+			role="status"
+			aria-busy="true"
+			aria-live="polite"
+		>
+			<div class="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
+				<Loader2 class="size-4 shrink-0 animate-spin" aria-hidden="true" />
+				<span>{applyStatusHeadline}</span>
+			</div>
+			{#if applyProgress != null && applyProgress.total > 0}
+				{@const pct = applyProgressPercent}
+				<div class="mt-3 space-y-2">
+					<div class="flex flex-wrap items-end justify-between gap-2 text-sm">
+						<span class="text-muted-foreground">Progress (by row)</span>
+						<span class="font-mono text-base font-semibold tabular-nums text-foreground">
+							{applyProgress.done} / {applyProgress.total}
+							<span class="text-muted-foreground">({pct}%)</span>
+						</span>
+					</div>
+					<div
+						class="mt-1 w-full overflow-hidden rounded-md border-2 border-foreground bg-muted"
+						role="progressbar"
+						aria-valuenow={applyProgress.done}
+						aria-valuemin={0}
+						aria-valuemax={applyProgress.total}
+						aria-valuetext={`${applyProgress.done} of ${applyProgress.total} rows written (${pct} percent)`}
+						aria-label="Import row progress"
+					>
+						<svg
+							viewBox="0 0 100 10"
+							preserveAspectRatio="none"
+							class="block h-5 w-full"
+							aria-hidden="true"
+						>
+							<rect width="100" height="10" class="fill-muted" />
+							<rect width={pct} height="10" class="fill-foreground/30" />
+							{#if pct > 0}
+								<line
+									x1={pct}
+									y1="0"
+									x2={pct}
+									y2="10"
+									class="stroke-foreground"
+									stroke-width="1.25"
+									vector-effect="non-scaling-stroke"
+								/>
+							{/if}
+						</svg>
+					</div>
+					<p class="text-xs text-muted-foreground">
+						Progress is shown by the numbers above, the length of the filled segment, and a vertical
+						mark at the filled edge (not by color alone).
+					</p>
+				</div>
+			{:else}
+				<div
+					class="mt-3 h-5 w-full overflow-hidden rounded-md border-2 border-dashed border-foreground/40 bg-muted"
+					role="progressbar"
+					aria-valuetext={applyStatusHeadline}
+					aria-label="Import starting"
+				>
+					<div
+						class="h-full w-1/3 animate-pulse bg-foreground/15 bg-[repeating-linear-gradient(135deg,color-mix(in_oklab,var(--color-foreground)_35%,transparent)_0px,color-mix(in_oklab,var(--color-foreground)_35%,transparent)_3px,transparent_3px,transparent_7px)]"
+					></div>
+				</div>
+			{/if}
 		</div>
 	{/if}
-{/if}
 
-{#if applyProgress != null && applyPending}
-	<div class="mt-4 max-w-xl space-y-2">
-		<label for="apply-progress" class="text-sm text-muted-foreground">
-			Applying row {applyProgress.done} of {applyProgress.total}…
-		</label>
-		<progress
-			id="apply-progress"
-			class="h-2 w-full rounded-md"
-			max={applyProgress.total}
-			value={applyProgress.done}
-		></progress>
-	</div>
-{/if}
-
-{#if applyOutcome.kind === 'success'}
-	<p class="mt-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
-		Import finished: <strong>{applyOutcome.inserted}</strong> inserted,
-		<strong>{applyOutcome.updated}</strong> updated, <strong>{applyOutcome.deleted}</strong> soft-deleted.
-	</p>
-{:else if applyOutcome.kind === 'prepare_errors'}
-	<div class="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-3 text-sm">
-		<p class="font-medium text-destructive">Apply validation failed</p>
-		<ul class="mt-2 max-h-64 list-inside list-disc space-y-1 overflow-y-auto text-muted-foreground">
-			{#each applyOutcome.errors as err (err.line + err.message)}
-				<li>
-					{#if err.line > 0}
-						Line {err.line}:
+	{#if applyOutcome.kind === 'success'}
+		<div
+			class="flex gap-3 rounded-lg border-2 border-foreground/15 bg-muted/50 px-4 py-3 text-sm text-foreground shadow-sm"
+			role="status"
+		>
+			<CircleCheck class="mt-0.5 size-5 shrink-0 text-foreground" strokeWidth={2} aria-hidden="true" />
+			<div>
+				<p class="font-semibold leading-tight">Import finished</p>
+				<p class="mt-1.5 text-muted-foreground">
+					<strong class="text-foreground">{applyOutcome.inserted}</strong> inserted,
+					<strong class="text-foreground">{applyOutcome.updated}</strong> updated,
+					<strong class="text-foreground">{applyOutcome.deleted}</strong> soft-deleted. Your library
+					lists will reflect these changes after you navigate away or refresh.
+				</p>
+			</div>
+		</div>
+	{:else if applyOutcome.kind === 'prepare_errors'}
+		<div class="flex gap-3 rounded-lg border-2 border-destructive/50 bg-destructive/5 px-4 py-3 text-sm" role="alert">
+			<AlertTriangle class="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
+			<div class="min-w-0">
+				<p class="font-semibold text-destructive">Apply blocked (validation)</p>
+				<p class="mt-1 text-muted-foreground">
+					The file changed or no longer matches preview. Fix the issues below, then Preview again
+					before applying.
+				</p>
+				<ul class="mt-2 max-h-64 list-inside list-disc space-y-1 overflow-y-auto text-muted-foreground">
+					{#each applyOutcome.errors as err (err.line + err.message)}
+						<li>
+							{#if err.line > 0}
+								Line {err.line}:
+							{/if}
+							{err.message}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		</div>
+	{:else if applyOutcome.kind === 'apply_error'}
+		<div class="flex gap-3 rounded-lg border-2 border-destructive/50 bg-destructive/5 px-4 py-3 text-sm" role="alert">
+			<AlertTriangle class="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
+			<div>
+				<p class="font-semibold text-destructive">Import stopped</p>
+				<p class="mt-1 text-muted-foreground">
+					{#if applyOutcome.line > 0}
+						<span class="font-mono text-foreground">Line {applyOutcome.line}</span>:
 					{/if}
-					{err.message}
-				</li>
-			{/each}
-		</ul>
-	</div>
-{:else if applyOutcome.kind === 'apply_error'}
-	<div
-		class="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-3 text-sm text-destructive"
-	>
-		<p class="font-medium">Import stopped</p>
-		<p class="mt-1 text-muted-foreground">
-			{#if applyOutcome.line > 0}
-				Line {applyOutcome.line}:
-			{/if}
-			{applyOutcome.message}
-		</p>
-	</div>
-{:else if applyOutcome.kind === 'http_error'}
-	<div
-		class="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-3 text-sm text-destructive"
-	>
-		<p class="font-medium">Could not apply import</p>
-		<p class="mt-1 text-muted-foreground">{applyOutcome.message}</p>
-	</div>
-{/if}
+					{applyOutcome.message}
+				</p>
+				<p class="mt-2 text-xs text-muted-foreground">
+					Earlier rows may already have been written. Fix this row (or restore from backup), then run
+					a smaller import or continue from a corrected file.
+				</p>
+			</div>
+		</div>
+	{:else if applyOutcome.kind === 'http_error'}
+		<div class="flex gap-3 rounded-lg border-2 border-destructive/50 bg-destructive/5 px-4 py-3 text-sm" role="alert">
+			<AlertTriangle class="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
+			<div>
+				<p class="font-semibold text-destructive">Could not run import</p>
+				<p class="mt-1 text-muted-foreground">{applyOutcome.message}</p>
+			</div>
+		</div>
+	{/if}
+</section>
