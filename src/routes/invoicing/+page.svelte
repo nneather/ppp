@@ -11,6 +11,11 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import TimeEntrySheet from '$lib/components/time-entry-sheet.svelte';
+	import {
+		formatYmdLongChicago,
+		formatYmdMonthYearChicago,
+		formatYmdShortChicago
+	} from '$lib/invoicing/chicago-date';
 	import type { PageProps } from './$types';
 	import type { PeriodView, TimeEntryRow } from '$lib/types/invoicing';
 
@@ -59,42 +64,17 @@
 	});
 
 	const periodLabel = $derived.by(() => {
-		const s = parseYMDLocal(data.period_start);
-		const e = parseYMDLocal(data.period_end);
-		if (!s || !e) return '';
 		if (data.view === 'day') {
-			return s.toLocaleDateString(undefined, {
-				weekday: 'long',
-				month: 'long',
-				day: 'numeric',
-				year: 'numeric'
-			});
+			return formatYmdLongChicago(data.period_start);
 		}
 		if (data.view === 'month') {
-			return s.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+			return formatYmdMonthYearChicago(data.period_start);
 		}
-		return `${fmtShort(s)} – ${fmtShort(e)}`;
+		return `${formatYmdShortChicago(data.period_start)} – ${formatYmdShortChicago(data.period_end)}`;
 	});
 
-	function parseYMDLocal(ymd: string): Date | null {
-		const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
-		if (!m) return null;
-		return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-	}
-
-	function fmtShort(d: Date): string {
-		return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-	}
-
 	function formatDayHeader(ymd: string): string {
-		const d = parseYMDLocal(ymd);
-		if (!d) return ymd;
-		return d.toLocaleDateString(undefined, {
-			weekday: 'long',
-			month: 'long',
-			day: 'numeric',
-			year: 'numeric'
-		});
+		return formatYmdLongChicago(ymd);
 	}
 
 	function money(n: number): string {

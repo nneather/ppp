@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { ymdInChicago } from '$lib/invoicing/chicago-date';
 import type { Actions, PageServerLoad } from './$types';
 
 export type ClientRateRow = {
@@ -29,11 +30,6 @@ const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 function pad2(n: number): string {
 	return String(n).padStart(2, '0');
-}
-
-function todayYMD(): string {
-	const d = new Date();
-	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 function isActiveOnDate(
@@ -99,7 +95,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!user) redirect(303, '/login');
 
 	const supabase = locals.supabase;
-	const today = todayYMD();
+	const today = ymdInChicago();
 
 	const [profileRes, clientsRes, ratesRes, invoicesRes, entriesRes] = await Promise.all([
 		supabase.from('profiles').select('default_cc_emails').eq('id', user.id).maybeSingle(),

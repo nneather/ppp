@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { ymdInChicago } from '$lib/invoicing/chicago-date';
 import type { Actions, PageServerLoad } from './$types';
 import type { ClientOption, PeriodView, TimeEntryRow, UnbilledCount } from '$lib/types/invoicing';
 export type { ClientOption, PeriodView, TimeEntryRow, UnbilledCount } from '$lib/types/invoicing';
@@ -21,10 +22,6 @@ function parseYMD(s: string): Date | null {
 	const d = new Date(y, mo - 1, day);
 	if (d.getFullYear() !== y || d.getMonth() !== mo - 1 || d.getDate() !== day) return null;
 	return d;
-}
-
-function todayYMD(): string {
-	return toYMD(new Date());
 }
 
 function periodBounds(
@@ -88,7 +85,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	const view = parseView(url.searchParams.get('view'));
 	const dateParam = url.searchParams.get('date');
-	const anchor = dateParam && parseYMD(dateParam) ? dateParam : todayYMD();
+	const anchor = dateParam && parseYMD(dateParam) ? dateParam : ymdInChicago();
 	const { period_start, period_end } = periodBounds(view, anchor);
 
 	const supabase = locals.supabase;
@@ -267,6 +264,7 @@ export const actions: Actions = {
 		if (!user) return fail(401, { message: 'Unauthorized' });
 
 		const fd = await request.formData();
+		const intent = String(fd.get('intent') ?? 'save').trim();
 		const client_id = String(fd.get('client_id') ?? '').trim();
 		const date = String(fd.get('date') ?? '').trim();
 		const hours = parseHours(fd.get('hours'));
@@ -301,6 +299,9 @@ export const actions: Actions = {
 			});
 		}
 
+		if (intent === 'save_and_new') {
+			return { success: true as const, saveAndNew: true as const, savedDate: date };
+		}
 		return { success: true as const };
 	},
 

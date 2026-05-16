@@ -8,6 +8,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { cn } from '$lib/utils.js';
+	import { ymdInChicago } from '$lib/invoicing/chicago-date';
 	import type { ClientOption, TimeEntryRow } from '$lib/types/invoicing';
 
 	type FormMessage = { message?: string } | null | undefined;
@@ -32,6 +33,7 @@
 	let description = $state('');
 	let sheetSide = $state<'bottom' | 'right'>('bottom');
 	let pending = $state(false);
+	let wasOpen = $state(false);
 
 	const selectItems = $derived(
 		clients.map((c) => ({
@@ -59,19 +61,20 @@
 	});
 
 	$effect(() => {
-		if (!open) return;
-		if (mode === 'edit' && entry) {
-			clientId = entry.client_id;
-			dateStr = entry.date;
-			hoursStr = String(entry.hours);
-			description = entry.description ?? '';
-		} else {
-			const first = clients[0]?.id ?? '';
-			clientId = first;
-			dateStr = new Date().toISOString().slice(0, 10);
-			hoursStr = '';
-			description = '';
+		if (open && !wasOpen) {
+			if (mode === 'edit' && entry) {
+				clientId = entry.client_id;
+				dateStr = entry.date;
+				hoursStr = String(entry.hours);
+				description = entry.description ?? '';
+			} else {
+				clientId = clients[0]?.id ?? '';
+				dateStr = ymdInChicago();
+				hoursStr = '';
+				description = '';
+			}
 		}
+		wasOpen = open;
 	});
 
 	const submitEnhance: SubmitFunction = () => {
@@ -82,6 +85,15 @@
 				console.error('[time entry]', result.data);
 			}
 			await update();
+			if (result.type === 'success' && result.data && typeof result.data === 'object') {
+				const d = result.data as { saveAndNew?: boolean; savedDate?: string };
+				if (d.saveAndNew === true && typeof d.savedDate === 'string' && mode === 'create') {
+					dateStr = d.savedDate;
+					hoursStr = '';
+					description = '';
+					return;
+				}
+			}
 			if (result.type === 'success') {
 				open = false;
 			}
@@ -200,11 +212,24 @@
 					<Sheet.Footer class="mt-2 flex-col gap-2 border-0 p-0 sm:flex-col">
 						<Button
 							type="submit"
+							name="intent"
+							value="save"
 							class="h-12 w-full text-base"
 							disabled={pending || !clientId}
 							hotkey={mode === 'create' ? 's' : 'u'}
 							label={pending ? 'Saving…' : mode === 'create' ? 'Save entry' : 'Update entry'}
 						/>
+						{#if mode === 'create'}
+							<Button
+								type="submit"
+								name="intent"
+								value="save_and_new"
+								variant="outline"
+								class="h-12 w-full text-base"
+								disabled={pending || !clientId}
+								label="Save and New"
+							/>
+						{/if}
 						{#if mode === 'edit' && entry}
 							<Button
 								type="button"

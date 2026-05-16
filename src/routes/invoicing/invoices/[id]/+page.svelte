@@ -8,6 +8,10 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Separator } from '$lib/components/ui/separator';
+	import {
+		formatInstantInChicago,
+		formatYmdLongChicago
+	} from '$lib/invoicing/chicago-date';
 	import type { PageProps } from './$types';
 	import type { InvoiceStatus } from '$lib/types/invoicing';
 
@@ -129,28 +133,14 @@
 	}
 
 	function formatPeriod(start: string, end: string): string {
-		const a = parseYMD(start);
-		const b = parseYMD(end);
-		if (!a || !b) return `${start} – ${end}`;
 		if (start === end) {
-			return a.toLocaleDateString(undefined, {
-				weekday: 'long',
-				month: 'long',
-				day: 'numeric',
-				year: 'numeric'
-			});
+			return formatYmdLongChicago(start);
 		}
-		return `${fmtLong(a)} – ${fmtLong(b)}`;
+		return `${fmtLong(start)} – ${fmtLong(end)}`;
 	}
 
-	function parseYMD(ymd: string): Date | null {
-		const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
-		if (!m) return null;
-		return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-	}
-
-	function fmtLong(d: Date): string {
-		return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+	function fmtLong(ymd: string): string {
+		return formatYmdLongChicago(ymd);
 	}
 
 	function money(n: number): string {
@@ -159,9 +149,7 @@
 
 	function fmtTs(iso: string | null): string {
 		if (!iso) return '';
-		const d = new Date(iso);
-		if (Number.isNaN(d.getTime())) return iso;
-		return d.toLocaleString();
+		return formatInstantInChicago(iso);
 	}
 </script>
 

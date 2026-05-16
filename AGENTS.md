@@ -51,6 +51,7 @@ End-of-session deliverables:
 
 ### Patterns
 
+- **Invoicing timezone** — `src/lib/invoicing/chicago-date.ts`: `ymdInChicago()`, civil-date helpers (`utcNoonFromYmd`, week/month spans), and Chicago `Intl` display formatters. Use for server “today,” `/invoicing` surfaces, generate-invoice defaults, and `<TimeEntrySheet>` default date — not `toISOString().slice(0,10)` or host-local `getFullYear()` for user-facing calendar semantics.
 - **Form action result shape**: `{ kind, success?, message?, <entityId>? }`. See `src/routes/settings/invoicing/+page.server.ts` for the canonical example.
 - **Per-row form state**: include the entity id in the result so the page can show the error/success on the right card.
 - **Multi-value text fields**: `text[]` columns + `EmailChipsEditor`-style component.

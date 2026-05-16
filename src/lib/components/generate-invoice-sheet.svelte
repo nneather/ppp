@@ -8,6 +8,13 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { cn } from '$lib/utils.js';
+	import {
+		firstOfMonthThroughYmd,
+		monthSpanFromMinMaxYmd,
+		previousMondaySundayWeekChicago,
+		utcNoonFromYmd,
+		ymdInChicago
+	} from '$lib/invoicing/chicago-date';
 	import type { ClientOption, UnbilledBounds, UnbilledEntryPreview } from '$lib/types/invoicing';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -49,58 +56,8 @@
 	/** Avoid re-applying defaults when only period inputs change */
 	let lastDefaultClientId = $state<string | null>(null);
 
-	function pad2(n: number): string {
-		return String(n).padStart(2, '0');
-	}
-
-	function toYMD(d: Date): string {
-		return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-	}
-
-	function parseYMD(s: string): Date | null {
-		const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
-		if (!m) return null;
-		const y = Number(m[1]);
-		const mo = Number(m[2]);
-		const day = Number(m[3]);
-		const d = new Date(y, mo - 1, day);
-		if (d.getFullYear() !== y || d.getMonth() !== mo - 1 || d.getDate() !== day) return null;
-		return d;
-	}
-
-	function mondayOfWeekContaining(d: Date): Date {
-		const day = d.getDay();
-		const diffToMonday = (day + 6) % 7;
-		return new Date(d.getFullYear(), d.getMonth(), d.getDate() - diffToMonday);
-	}
-
-	function previousWeekMonSun(): { start: string; end: string } {
-		const mon = mondayOfWeekContaining(new Date());
-		const prevMon = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() - 7);
-		const prevSun = new Date(prevMon.getFullYear(), prevMon.getMonth(), prevMon.getDate() + 6);
-		return { start: toYMD(prevMon), end: toYMD(prevSun) };
-	}
-
-	function monthSpanFromBounds(
-		minDateStr: string,
-		maxDateStr: string
-	): { start: string; end: string } {
-		const minD = parseYMD(minDateStr);
-		const maxD = parseYMD(maxDateStr);
-		if (!minD || !maxD) {
-			const t = new Date();
-			const start = new Date(t.getFullYear(), t.getMonth(), 1);
-			return { start: toYMD(start), end: toYMD(t) };
-		}
-		const start = new Date(minD.getFullYear(), minD.getMonth(), 1);
-		const end = new Date(maxD.getFullYear(), maxD.getMonth() + 1, 0);
-		return { start: toYMD(start), end: toYMD(end) };
-	}
-
-	function defaultMonthToDate(): { start: string; end: string } {
-		const t = new Date();
-		const start = new Date(t.getFullYear(), t.getMonth(), 1);
-		return { start: toYMD(start), end: toYMD(t) };
+	function isValidYmd(s: string): boolean {
+		return utcNoonFromYmd(s.trim()) !== null;
 	}
 
 	function applyDefaultsForClient(cid: string) {
@@ -108,7 +65,7 @@
 		const name = c?.name ?? '';
 
 		if (name === THIS_WEEK_HEALTH) {
-			const r = previousWeekMonSun();
+			const r = previousMondaySundayWeekChicago();
 			periodStart = r.start;
 			periodEnd = r.end;
 			return;
@@ -117,14 +74,14 @@
 		if (name === FOUNTAIN_OF_LIFE) {
 			const b = unbilledBounds.find((x) => x.client_id === cid);
 			if (b) {
-				const r = monthSpanFromBounds(b.min_date, b.max_date);
+				const r = monthSpanFromMinMaxYmd(b.min_date, b.max_date);
 				periodStart = r.start;
 				periodEnd = r.end;
 				return;
 			}
 		}
 
-		const r = defaultMonthToDate();
+		const r = firstOfMonthThroughYmd(ymdInChicago());
 		periodStart = r.start;
 		periodEnd = r.end;
 	}
@@ -150,9 +107,9 @@
 				.map((o) => {
 					const dateRaw = o.date.trim();
 					const date =
-						dateRaw && parseYMD(dateRaw)
+						dateRaw && isValidYmd(dateRaw)
 							? dateRaw
-							: periodEnd && parseYMD(periodEnd)
+							: periodEnd && isValidYmd(periodEnd)
 								? periodEnd
 								: '';
 					return {
@@ -168,7 +125,7 @@
 						Number.isFinite(o.quantity) &&
 						Number.isFinite(o.unit_price) &&
 						o.date &&
-						parseYMD(o.date)
+						isValidYmd(o.date)
 				)
 		)
 	);
@@ -235,7 +192,7 @@
 				description: '',
 				quantity: '1',
 				unit_price: '',
-				date: periodEnd && parseYMD(periodEnd) ? periodEnd : ''
+				date: periodEnd && isValidYmd(periodEnd) ? periodEnd : ''
 			}
 		];
 	}

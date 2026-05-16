@@ -6,6 +6,10 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { cn } from '$lib/utils';
 	import GenerateInvoiceSheet from '$lib/components/generate-invoice-sheet.svelte';
+	import {
+		formatYmdMediumChicago,
+		formatYmdShortChicago
+	} from '$lib/invoicing/chicago-date';
 	import type { PageProps } from './$types';
 	import type { InvoiceStatus } from '$lib/types/invoicing';
 
@@ -31,27 +35,11 @@
 	}
 
 	function formatPeriod(start: string, end: string): string {
-		const a = parseYMD(start);
-		const b = parseYMD(end);
-		if (!a || !b) return `${start} – ${end}`;
 		if (start === end) {
-			return a.toLocaleDateString(undefined, {
-				month: 'short',
-				day: 'numeric',
-				year: 'numeric'
-			});
+			return formatYmdMediumChicago(start);
 		}
-		return `${fmtShort(a)} – ${fmtShort(b)}, ${a.getFullYear()}`;
-	}
-
-	function parseYMD(ymd: string): Date | null {
-		const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
-		if (!m) return null;
-		return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-	}
-
-	function fmtShort(d: Date): string {
-		return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+		const y = start.slice(0, 4);
+		return `${formatYmdShortChicago(start)} – ${formatYmdShortChicago(end)}, ${y}`;
 	}
 
 	function money(n: number): string {
