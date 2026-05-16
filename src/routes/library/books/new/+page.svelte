@@ -127,7 +127,6 @@
 		book={null}
 		people={data.people}
 		personBookCounts={data.personBookCounts}
-		categories={data.categories}
 		series={data.series}
 		bibleBooks={data.bibleBooks}
 		{formMessage}

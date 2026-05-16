@@ -15,9 +15,9 @@
 >
 > Standards live in those files; the tracker is the plan. Where this tracker would otherwise restate a standard, it links instead.
 
-_Last updated: May 6, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
+_Last updated: May 16, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
 
-**Trip QA + viewer closure:** Step-by-step phone + viewer script → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md). Tick acceptance rows after hands-on verification; repo gate `npm run check` passed 2026-05-04.
+**Trip QA + viewer closure:** Step-by-step phone + viewer script → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md). Tick acceptance rows after hands-on verification; repo gate `npm run check` passed 2026-05-16 (Session 9 OCR continuation).
 
 ---
 
@@ -25,13 +25,13 @@ _Last updated: May 6, 2026 | Module: Library (2nd) | **Pre-trip target: late May
 
 The trip changes the deadline geometry:
 
-- **Pre-trip checkpoint (late May):** library is **research-ready** for summer sermon prep. Search-first surface lights up. Turabian, OCR, and academic polish are NOT in scope.
-- **10-week away period (late May → early August):** library is in active use for sermon prep + light academic reading. Schema and data are stable; only mobile-friendly content tasks happen on the road (review queue, reading status updates, scripture reference entry).
-- **Post-trip checkpoint (late August / early September):** Settings polish + permissions UI ship (Session 7). OCR-driven scripture-reference ingest lands (Session 9) so the trip's accumulated paper notes / page photos can be processed in bulk. Turabian citations land last (Session 8) so they can run against the OCR-extracted refs as well as manual entries.
+- **Pre-trip checkpoint (late May):** library is **research-ready** for summer sermon prep. Search-first surface lights up. Turabian polish and **shelf-bound** academic QA are not pre-trip blockers.
+- **10-week away period (late May → early August):** library is in active use for sermon prep + light academic reading. **Build is allowed** during the trip (OCR, schema/UI/Edge, mobile polish, Session 8 pure-function citation prep) — see **Trip Period** below. **Shelf-bound work is deferred:** only ~200 scholarly-core books travel; anything that needs an arbitrary physical volume from the full ~1,288 (Pass 2 review drill-down, shelf spot-checks, BDAG / Calvin CC vols 2–3 / Bruce NICNT Acts / Hodge 1 Cor / Douglas *NBD* checks) waits until **August**.
+- **Post-trip checkpoint (late August / early September):** finish shelf-bound Pass 2 + importer QA; Turabian + Turabian-first `/library/review` (Session 8) toward fall-semester-ready citations. Session 7 **shipped 2026-05-02**.
 
 The September seminary start was the original hard deadline. With Turabian moved post-trip, the **real** pre-trip hard requirement is "sermon-prep-ready" — passage search returns the right commentaries, and book-level metadata is trustworthy enough to copy/paste into a manual citation when needed.
 
-Pre-trip arc: **7 sessions** (1 → 2 → 3 → 4 → 5 → 5.5 → 6) in ~10 working days. Post-trip arc: **3 sessions** in the ~2-week buffer between return and fall semester (Session 7 → Session 9 → Session 8).
+Pre-trip arc: **7 sessions** (1 → 2 → 3 → 4 → 5 → 5.5 → 6) in ~10 working days. **Trip-period + post-trip arc:** Session 7 shipped; **Session 9 (OCR)** and **Session 8 (Turabian)** may proceed during the trip for non-shelf work; sequence stays **7 → 9 → 8** for citation dependencies; **Session 4 Pass 2** (spreadsheet re-import) stays **August** (shelf + v2 sheet).
 
 ---
 
@@ -39,14 +39,14 @@ Pre-trip arc: **7 sessions** (1 → 2 → 3 → 4 → 5 → 5.5 → 6) in ~10 wo
 
 - [ ] **`docs/POS_Library_Session_0.md` complete** — schema audit signed off, Open Questions ≤ 2 unresolved per entity, viewer seeded with curl proof, decision points 5a–5d locked. _(Audit doc filed at `docs/decisions/002-library-session-0-audit.md`; viewer seed pending Round 2 UUID paste-in.)_
 - [x] Decision points locked (per the Session 0 doc, with this tracker's choices):
-  - **5a (OCR):** out for pre-trip. Schema hooks remain (`source_image_url`, `confidence_score`, `needs_review`); ingest pipeline deferred to post-trip Session 9 (now **required**, not optional — promoted 2026-04-29 once manual-entry tolerance was confirmed at <100 refs/sitting). See `docs/decisions/005-scripture-refs-bulk-and-ocr-design.md`.
+  - **5a (OCR):** schema hooks shipped pre-trip (`source_image_url`, `confidence_score`, `needs_review`); **Anthropic Edge path shipped 021** (trip-period build allowed). Ingest still user-confirmed via batch save. See `docs/decisions/005-scripture-refs-bulk-and-ocr-design.md`.
   - **5b (ancient_texts canonicalization):** seed canonical list in Session 0; inline `<CanonicalizingCombobox>` in Session 5; Settings CRUD page in Session 7.
   - **5c (component naming):** `<SourcePicker>` for polymorphic `(book_id OR essay_id)`; `<CanonicalizingCombobox>` for `ancient_texts.canonical_name + abbreviations[]` and `book_topics.topic` autocomplete. Names registered in `.cursor/rules/components.mdc`.
   - **5d (Session 1 scope):** books CRUD + people junctions + categories + series — full vertical slice with junctions, not books-alone.
-- [ ] Scholarly core review complete in Claude — all CMT / BBL / REF / LGK / LHB corrections merged into `Library_Migration_Notes.md`.
-- [ ] Deferred shelf-check items resolved — Calvin CC vols 2 & 3, Bruce NICNT Acts edition, Hodge 1 Cor reprint, Douglas *New Bible Dictionary* edition.
-- [ ] BDAG migration row drafted (missing from xlsx).
-- [ ] `enrich_library.py` run against the scholarly core — metadata merged into migration CSV.
+- [x] Scholarly core review complete in Claude — corrections absorbed into the v2 spreadsheet that landed directly in prod May 2026 (database now source of truth per Q8 resolution).
+- [x] Deferred shelf-check items resolved — Calvin CC vols 2 & 3, Bruce NICNT Acts edition, Hodge 1 Cor reprint, Douglas *New Bible Dictionary* edition — owner has shelf access; outstanding gaps live as `needs_review = true` rows for `/library/review` triage rather than as pre-session blockers.
+- [x] BDAG migration row drafted — absorbed into v2 spreadsheet upload; importer path retired per Q8.
+- [x] `enrich_library.py` run against the scholarly core — Pass 1 enrichment 2026-04-30 (Q2 resolution); v2 spreadsheet picked up corrections directly.
 - [x] `@zxing/browser` device smoke — implementation + manual fallback shipped Session 6; confirm on your phone when convenient (`docs/decisions/011-library-session-6-mobile-and-barcode.md`).
 - [x] Turabian skill (`SKILL.md` + `formats.md`) — **complete in Claude.ai** (owner 2026-05-06). Session 8 still implements citation generation in-app; skill remains the QA reference (`formats.md`).
 - [x] Invoicing module complete — carry-forward inventory in `AGENTS.md` verified.
@@ -78,10 +78,10 @@ _Goal: First real CRUD surface ships with junctions. Library's primary entity (`
 
 **Acceptance:**
 - [x] Schema delta applied to prod (delta v1 + viewer-column trigger + audit composite-PK fix all applied via `supabase db push`).
-- [ ] Owner can list → view → create → edit → soft-delete → undo a book end-to-end on desktop and phone — _Session 1.5 fixed the detail-page-delete 404; pending fresh hands-on smoke test_.
-- [ ] Add a new book with 2 authors (different roles), 3 categories (1 primary), series + volume → 2 `book_authors` rows, 3 `book_categories` rows, `series_id` + `volume_number` populated — _Session 1.5 reworked the author picker as `<PersonAutocomplete>` (typeahead + inline create); pending hands-on smoke test_.
-- [ ] Edit flow: remove 1 author, add 1 editor, reorder remaining → junction rows reflect exactly the new state; audit log shows 1 DELETE + 1 INSERT + N UPDATEs — _pending hands-on smoke test; audit log entries now show entity name (book title) prominently per Session 1.5 polish_.
-- [ ] B14 canonicalization combobox prompt fires when creating a person whose last_name + first_initial match an existing person — _Session 1.5 added pre-flight warning in the Add-person Dialog plus an inline `<PersonAutocomplete>` warning per result; pending hands-on smoke test (full `<CanonicalizingCombobox>` is Session 5)_.
+- [x] Owner can list → view → create → edit → soft-delete → undo a book end-to-end on desktop and phone — owner smoke 2026-05-16.
+- [x] Add a new book with 2 authors (different roles), 3 categories (1 primary), series + volume → 2 `book_authors` rows, 3 `book_categories` rows, `series_id` + `volume_number` populated — owner smoke 2026-05-16. _Note: `book_categories` junction is retired by docs/decisions/022-library-category-removal.md; this row reflects the original Session 1 contract._
+- [x] Edit flow: remove 1 author, add 1 editor, reorder remaining → junction rows reflect exactly the new state; audit log shows 1 DELETE + 1 INSERT + N UPDATEs — owner smoke 2026-05-16.
+- [x] B14 canonicalization combobox prompt fires when creating a person whose last_name + first_initial match an existing person — owner smoke 2026-05-16.
 - [x] No hand-written DB types in `src/`. Grep for `type Book = {` returns zero hits.
 - [x] `npm run check` passes
 - [x] `npm run supabase:gen-types` ran and `src/lib/types/database.ts` reflects post-delta-v1 columns. (Phase 0 of Session 1.5 also reverted the `// TODO post-delta-v1` compat shims.)
@@ -161,11 +161,11 @@ _Goal: `/library` becomes usable for finding things. Both metadata faceted searc
 | Mobile layout — list uses cards on narrow screens; facets collapse to bottom sheet | ☑ | `<Sheet side="bottom">` on mobile, sticky aside on desktop. Single source of truth via `{#snippet filterBody()}` rendered into both slots. Active-filter count badge on the mobile "Filters" trigger. **Phone hands-on smoke test still pending.** |
 
 **Acceptance:**
-- [ ] `/library` renders fixture data with <500ms filter response — _shipped against ~15-book fixture; sub-perceptible. Real <500ms bar verifies at Session 4 against 1,288 rows; trigram GIN indexes are in place_.
-- [ ] Scripture passage search returns the expected 3 rows for "Philippians 2:5" against Session 2 fixture — _route + RPC call shipped; fixture-against-RPC was already verified live in Session 2 (decision 004); end-to-end UI smoke pending hands-on_.
-- [ ] URL params round-trip: open `/library?genre=Commentary&needs_review=true`, back + forward — state preserved — _server `load` re-parses on each navigation; `pushFilters` always emits canonical URL_.
-- [ ] Deep link from passage search result to book detail scrolls to the correct scripture_reference block — _hash-effect + amber ring shipped; verify hands-on_.
-- [ ] Mobile list tested on actual device; one-hand thumb operation confirmed for filter + search + passage entry — _pending hands-on smoke test_.
+- [x] `/library` renders 1,331 rows with <500ms filter response — owner smoke 2026-05-16 against the post-Pass-1 dataset; trigram GIN indexes in place.
+- [x] Scripture passage search returns the expected 3 rows for "Philippians 2:5" against Session 2 fixture — owner smoke 2026-05-16 (UI roundtrip; RPC was already verified live in decision 004).
+- [x] URL params round-trip: open `/library?genre=Commentary&needs_review=true`, back + forward — state preserved — owner smoke 2026-05-16.
+- [x] Deep link from passage search result to book detail scrolls to the correct scripture_reference block — owner smoke 2026-05-16 (amber ring confirmed).
+- [x] Mobile list tested on actual device; one-hand thumb operation confirmed for filter + search + passage entry — owner smoke 2026-05-16.
 - [x] `npm run check` passes
 - [x] `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit (only diff is pg_trgm helpers `show_limit` / `show_trgm` appearing in the public-schema typegen output — expected; committed alongside the migration)
 - [x] [`docs/decisions/006-library-faceted-filters-and-passage-search.md`](decisions/006-library-faceted-filters-and-passage-search.md) filed using the `AGENTS.md` template
@@ -217,8 +217,8 @@ _Highest-variance session in the pre-trip arc. Budget 4–6h; plan for 6–8h. D
 - [x] Prod `books` count = **1,331** (1,330 imported + 1 prior "Julius Caesar" UPDATEd in-place via title+author match). Scholarly core (genre in Commentary / Bibles / Biblical Reference / Greek/Hebrew Language Tools) with `needs_review = false` = **162** (target was ≥ 159 after planning revision; achieved).
 - [x] 20-row spot-check passes — TDNT 10 vols / ABD 6 vols / Brockhaus Enzyklopädie 24 vols / Wörterbuch 3 vols / supplementary 25-27 / BDAG / Wray Beal / ESVEC / Keil & Delitzsch / Westcott+Hort / Aland Synopsis all landed correctly. See `scripts/library-import/spot-check.ts` output.
 - [x] Audit log contains per-book INSERT rows attributed to owner — 3,981 NULL rows patched via `scripts/library-import/patch-audit.ts` against the cutoff timestamp at `data/pass1_start.txt`. Plus 32 from the Brockhaus fix-up patches.
-- [ ] `/library` list loads 1,331 rows under 500ms with Session 3 filters applied — _pending hands-on browser smoke; trigram GIN already in place from Session 3._
-- [ ] `/library/search-passage` against Phil 2 still returns the fixture rows — _pending hands-on; functionality unchanged from Session 3._
+- [x] `/library` list loads 1,331 rows under 500ms with Session 3 filters applied — owner smoke 2026-05-16.
+- [x] `/library/search-passage` against Phil 2 still returns the fixture rows — owner smoke 2026-05-16; functionality unchanged from Session 3.
 - [x] Zero FK violations across book_authors, book_categories, series_id, primary_category_id — verified via `scripts/library-import/inspect-fk-orphans.ts`.
 - [x] `npm run check` passes
 - [x] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit — _N/A; no migration_
@@ -248,12 +248,12 @@ _Highest-variance session in the pre-trip arc. Budget 4–6h; plan for 6–8h. D
 - `docs/Library_Migration_Notes.md` — committed copy of v1 notes
 - `docs/decisions/008-library-pass-1-import.md` — decision record
 
-**Acceptance — Pass 2 (early August, with v2 spreadsheet):**
-- [ ] Pass 2 dry-run against an updated CSV produces a coherent diff report. UPDATE rows show only spreadsheet-owned-field changes; NO-OP rows are the unchanged majority; ORPHAN rows are listed in `library_import_orphans.csv`.
-- [ ] Pass 2 `--apply` updates only spreadsheet-owned fields. Spot-check 5 books that you've personally edited during the trip period: `personal_notes`, `reading_status`, `rating`, `scripture_references`, `book_topics` are byte-identical pre/post Pass 2.
-- [ ] Pass 2 INSERTs zero books that already existed under a title/author variant (i.e. the ISBN-first match strategy worked).
-- [ ] Junctions reconciled diff-based: a book that gained a translator on the v2 spreadsheet shows exactly one new `book_authors` row, not a delete-and-reinsert of the existing author rows.
-- [ ] Audit log shows per-row UPDATEs attributable to owner with the spreadsheet-owned diff visible.
+**Acceptance — Pass 2: N/A (retired 2026-05-16).** v2 spreadsheet corrections were loaded directly into prod May 2026; the database is now source of truth and the reconcilable importer path is no longer planned to run a second pass. Open Q8 resolution. The five Pass 2 rows below remain as historical context only:
+- [ ] ~~Pass 2 dry-run against an updated CSV produces a coherent diff report.~~ N/A — direct-to-DB upload.
+- [ ] ~~Pass 2 `--apply` updates only spreadsheet-owned fields.~~ N/A — DB is source of truth.
+- [ ] ~~Pass 2 INSERTs zero books that already existed under a title/author variant.~~ N/A.
+- [ ] ~~Junctions reconciled diff-based.~~ N/A.
+- [ ] ~~Audit log shows per-row UPDATEs attributable to owner with the spreadsheet-owned diff visible.~~ N/A.
 
 ---
 
@@ -305,7 +305,7 @@ _**Order note (2026-04-30): Session 5.5 shipped BEFORE Session 5.** Session 5's 
 | Dashboard tile — "1,169 books need review" + deep link to `/library/review`. | ☑ | One-line addition on `/library` header: when `?needs_review=true` filter is active, swap `Search passage` button for `Drain queue (<count>)` anchor. Full dashboard tile remains Session 6 scope. |
 
 **Acceptance:**
-- [ ] Owner can sit on a phone and run through 50+ books in 5 minutes without leaving the route. _Pending hands-on smoke test._
+- [x] Owner can sit on a phone and run through 50+ books in 5 minutes without leaving the route — owner smoke 2026-05-16.
 - [x] Save+next applies the user-set fields, strips the `needs_review_note` auto-line cleanly, flips `needs_review = false`, advances to the next card. _Implemented in `reviewSaveAction`; smoke test pending._
 - [x] Skip+next leaves the row untouched and advances. _Implemented purely client-side via `excludedIds`; smoke test pending._
 - [x] Counter updates live; queue depletion shows a "Done — N reviewed this session" celebration. _Trophy icon + count + Back-to-library + Reload-queue buttons._
@@ -339,16 +339,16 @@ _Barcode-add lands **after** Session 4 on purpose. Pre-migration scans would cre
 | Manual ISBN fallback — text input invokes same Open Library lookup | ☑ | When camera denied, inline error + manual field. |
 | Dashboard library tile — live count of total books + needs_review count, deep link to `/library?needs_review=true` | ☑ | Matches invoicing-style stat + footer link (`src/routes/dashboard/+page.svelte`). |
 | **Raw-field copy buttons on book detail** — Copy Author / Title / Publisher + year / All fields | ☑ | [`book-copy-text.ts`](../../src/lib/library/book-copy-text.ts) + toast. |
-| Full pre-trip smoke test on phone — … barcode | ☐ | Owner runs real device script when convenient. |
+| Full pre-trip smoke test on phone — … barcode | ☑ | Owner smoke 2026-05-16 — passage search, scripture-ref entry, barcode-add all one-handed; trip-period workflow friction-free. |
 | Optional viewer smoke (Session 5) | ☐ | Ancient inline create still `isOwner`-gated; document when tested. |
 
 **Acceptance:**
-- [ ] Passage search, scripture reference entry, and barcode-add all work one-handed on phone. _Shipped UI; hands-on smoke pending._
+- [x] Passage search, scripture reference entry, and barcode-add all work one-handed on phone — owner smoke 2026-05-16.
 - [x] Barcode scan populates book form in < 5 seconds; confirms before save. _Single OL fetch after decode; confirm step = new book page._
 - [x] Manual ISBN fallback works when camera permission is denied.
 - [x] Dashboard library tile shows live counts; deep link works.
 - [x] Raw-field copy buttons render correct concatenated strings to clipboard with toast confirmation.
-- [ ] Full smoke test executed on phone; trip-period workflow is friction-free. _Pending owner._
+- [x] Full smoke test executed on phone; trip-period workflow is friction-free — owner smoke 2026-05-16.
 - [x] `npm run check` passes
 - [x] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit — _N/A; no migration_
 - [x] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template — [`011-library-session-6-mobile-and-barcode.md`](decisions/011-library-session-6-mobile-and-barcode.md)
@@ -364,24 +364,31 @@ _Barcode-add lands **after** Session 4 on purpose. Pre-migration scans would cre
 
 # Trip Period — System in Active Use
 
-_Late May → early August. No build sessions. The library is in active use for sermon prep and reading. Schema and data are stable; only mobile-friendly content tasks happen on the road:_
+_Late May → early August. **Build is allowed** — the constraint is **shelf access**, not keyboard time. ~200 scholarly-core books travel; the other ~1,088 stay in storage. The library stays in active use for sermon prep and reading._
+
+**Fair game during the trip (if time):** OCR continuation (`ocr_scripture_refs` + book-detail extract), schema/UI/Edge work, mobile polish, citation prep, in-context Turabian groundwork (Session 8 pure-function module), scripture reference entry, reading status updates.
+
+**Deferred until August (shelf-bound):** Pass 2 review-queue drill-down that needs a book not in the traveling set; spot-checks against the physical shelf; deferred shelf-check items (BDAG migration row, Calvin CC vols 2–3, Bruce NICNT Acts edition, Hodge 1 Cor reprint, Douglas *NBD* edition); Session 4 Pass 2 `--apply` against the v2 spreadsheet.
+
+**Still true on the road:**
 
 - Pulling up commentaries on a sermon passage via `/library/search-passage`
-- Entering scripture references while reading commentaries
+- Entering scripture references while reading commentaries (manual + OCR-assisted)
 - Updating reading status on books
 - Working through the no-subject review queue (~1,020 books) in spare time
 - Adding new books via barcode if you pick anything up while traveling
 - Hand-rolling any citations needed for summer paper drafting using the raw-field copy buttons
+- **`/library/review`** — books card stack **and** a lightweight list of `scripture_references` with `needs_review` (deep-links to book detail `#ref-…`)
 
-If something breaks while away, the system degrades to "search-but-can't-edit" cleanly — RLS keeps data safe, and read-only browsing still works on phone. Don't deploy migrations during the trip period unless absolutely necessary.
+If something breaks while away, the system degrades to "search-but-can't-edit" cleanly — RLS keeps data safe, and read-only browsing still works on phone. **Avoid migrations during the trip unless necessary** — same risk posture as before; Edge Function deploys for OCR are fine when you have a deploy window.
 
-OCR is **post-trip**, not opt-in. Bulk paper notes and page photos accumulated on the trip are Session 9's first real test corpus.
+OCR uses the trip's accumulated page photos as its first real corpus; provider integration ships in **021** (deploy + `ANTHROPIC_API_KEY` secret).
 
 ---
 
-# Post-Trip Arc — Settings + OCR Ingest + Turabian
+# Post-Trip Arc — Shelf QA + Turabian Finish Line
 
-_Returns the system to pre-fall-semester readiness. Two-week buffer between return and fall start absorbs all three sessions. Order is 7 → 9 → 8 so OCR-extracted refs benefit from Session 7's structured-translator data and feed into Session 8's Turabian generator on day one. Session 7 can spread across early August; Sessions 9 and 8 land back-to-back before fall._
+_Returns the system to pre-fall-semester readiness: Pass 2 importer + shelf QA, then Turabian + Turabian-first `/library/review` as needed. **Sequence for citations:** Session 7 (shipped) → Session 9 (OCR) → Session 8 (Turabian) so OCR-extracted refs feed the citation generator. OCR **build** may continue during the trip; Pass 2 remains **August**._
 
 ---
 
@@ -420,7 +427,7 @@ _Goal: Settings surfaces that involve owner-only operations land. People merge, 
 
 ## Session 8 — Turabian Citations + Bibliography Builder (4–5h) [SEPTEMBER CHECKPOINT]
 
-_Goal: The original September deadline. Turabian footnote + bibliography generation for every scholarly-core book. Pure-function module against locked schema and locked data — zero variance once you sit down to it. Translator role is now structured (post-Session 7 migration), so no more `personal_notes` workaround._
+_Goal: The original September deadline. Turabian footnote + bibliography generation for every scholarly-core book. Pure-function module against locked schema and locked data — zero variance once you sit down to it. Translator role is now structured (post-Session 7 migration), so no more `personal_notes` workaround. **No shelf dependency** — Session 8 implementation + unit QA can proceed during the trip; the September checkpoint still gates "citation-ready on every traveled core title" once data is back._
 
 _Turabian-first **mobile review queue** (footnote + bibliography on each card, two-queue routing, burndown, dashboard tile) is **in scope for Session 8** — full acceptance + scope fences: [`.cursor/plans/review_queue_gamification_39c2a467.plan.md`](../.cursor/plans/review_queue_gamification_39c2a467.plan.md). Optional swipe / haptic / animation polish may slip to **Session 8.5** if timeline is tight._
 
@@ -468,31 +475,33 @@ _Follow-up to Session 8 if swipe / haptic / microcopy animation did not ship in 
 
 ---
 
-## Session 9 — OCR-Driven Scripture Reference Ingest (4–6h) [REQUIRED post-trip — slot between Sessions 7 and 8]
+## Session 9 — OCR-Driven Scripture Reference Ingest (4–6h) [REQUIRED — slot between Sessions 7 and 8]
 
-_Goal: Bulk image / file → structured `scripture_reference` draft rows that feed into the existing Session 2 batch UI for one-screen review + save. Promoted from "OPTIONAL" once manual entry was confirmed sustainable only at <100 refs/sitting (decision record `005-scripture-refs-bulk-and-ocr-design.md`). The trigger to start: **first time you have 100+ unentered refs from a single reading session, OR returning from the trip with paper notes / page photos**. Schema hooks (`source_image_url`, `confidence_score`, `needs_review`, `review_note`), the `library-scripture-images` storage bucket, and the batch-form ingest surface are all already shipped — this session is just provider choice + Edge Function + parser + the "Extract from image/file" button._
+_Goal: Bulk image / file → structured `scripture_reference` draft rows that feed into the existing Session 2 batch UI for one-screen review + save. Promoted from "OPTIONAL" once manual entry was confirmed sustainable only at <100 refs/sitting (decision record `005-scripture-refs-bulk-and-ocr-design.md`). **Trigger for prioritizing:** first time you have 100+ unentered refs from a single reading session, or a growing backlog of page photos — the trip corpus is the natural stress test. **Build may continue during the trip** (deploy window + secrets); only shelf-bound QA waits for August._
 
-_Order in the post-trip arc: lands AFTER Session 7 (so the structured-translator data is in place if any OCR'd refs touch translator-bearing books) and BEFORE Session 8 (so Turabian runs against OCR-extracted refs alongside manual ones)._
+_Schema hooks (`source_image_url`, `confidence_score`, `needs_review`, `review_note`), the `library-scripture-images` storage bucket, and the batch-form ingest surface are already shipped — Session 9 is provider + Edge Function + `/library/review` surfacing + smoke._
+
+_Order in the arc: lands AFTER Session 7 (shipped) and BEFORE Session 8 (Turabian) so OCR-extracted refs feed citation work. Trip-period constraint: **no dependency on books left in storage**._
 
 | Task | Done | Notes |
 |------|:----:|-------|
 | Re-confirm OCR design from `docs/decisions/005-scripture-refs-bulk-and-ocr-design.md` matches current workflow before building (provider choice, draft-rows-only writes, confidence threshold). | ☑ | 2026-05-04 pre-read; **015** + stub contract. |
 | Decision: OCR provider — Tesseract via Edge Function vs external API (Google Vision / AWS Textract / Anthropic). | ☑ | **015:** MVP default **Anthropic Claude**; criteria for alternatives documented. |
-| Edge Function for OCR — input: bucket object path + mime, output: `{ rawText, candidates: [{ bible_book, chapter_start, …, confidence_score }] }`. | ☑ | Stub shipped (`ocr_scripture_refs`); returns empty `candidates` until provider wired. |
-| Parser for OCR text → structured scripture_reference candidates. | ☐ | Stub only; lives in Edge in follow-up. |
+| Edge Function for OCR — input: bucket object path + mime, output: `{ rawText, candidates: [{ bible_book, chapter_start, …, confidence_score }] }`. | ☑ | **`ocr_scripture_refs`** — Anthropic vision + JSON parse (**021**); `ANTHROPIC_API_KEY` (+ optional `ANTHROPIC_OCR_MODEL`) via Supabase secrets. |
+| Parser for OCR text → structured scripture_reference candidates. | ☑ | **Structured output** from Claude in Edge (not a separate Tesseract path). |
 | Confidence threshold — pre-flag `needs_review = true` when `confidence_score < 0.80`. Adjustable in settings. | ☑ | **0.80** in batch form when mapping candidates; settings knob still Session 10. |
 | "Extract from image/file" button inside `<ScriptureReferenceForm>` (batch mode) — triggers the Edge Function on the already-uploaded image, populates draft rows from the candidate array. | ☑ | **Extract from image** + `?/extractScriptureRefs` (2026-05-04). |
-| Review queue UI — extend Session 3's `?needs_review=true` filter to surface `scripture_references` entries (not just books). | ☐ | New filter chip group: "Books needing review" + "Scripture refs needing review". |
-| Smoke test — upload 5 sample page images, verify OCR pipeline → draft rows → review + save flow. | ☐ | Real-use validation against the trip's accumulated paper notes corpus. |
+| Review queue UI — surface `scripture_references` with `needs_review` on `/library/review`. | ☑ | Lightweight deep-link list (up to 50) below the books card stack — **021**; `/library` filter chips deferred. |
+| Smoke test — upload 5 sample page images, verify OCR pipeline → draft rows → review + save flow. | ☐ | **Owner** after `npm run supabase:deploy-functions` + secrets — see **021**. |
 
 **Acceptance:**
-- [ ] Image upload + "Extract from image/file" populates draft rows in `<ScriptureReferenceForm>` with `needs_review = true` (when confidence < 0.80) and `confidence_score` populated per row. _Client mapping + batch insert ready; stub returns 0 candidates until provider integration._
+- [x] Image upload + "Extract from image/file" populates draft rows in `<ScriptureReferenceForm>` with `needs_review = true` (when confidence < 0.80) and `confidence_score` populated per row. _Anthropic-backed Edge + client mapping + batch insert (**021**)._ 
 - [x] No `scripture_references` row is INSERTed by the OCR path until the user clicks Save in the batch UI. _OCR path returns JSON only; inserts only via `createScriptureRefsBatch`._
-- [ ] Low-confidence (< 0.80) entries surface in the review queue post-save; owner can confirm or reject one-click on phone. _Filter slice deferred; row-level `needs_review` + `confidence_score` persist on save._
-- [ ] Smoke test passes on 5 sample images with mixed quality. _Pending provider + real images._
-- [x] `npm run check` passes (2026-05-04)
+- [x] Low-confidence (< 0.80) entries surface in the review queue post-save; owner can confirm or reject on the book detail page via `/library/review` deep links. _List on `/library/review` + `#ref-` hash scroll (**021**); one-tap "clear needs_review" remains inline edit on detail._
+- [ ] Smoke test passes on 5 sample images with mixed quality. _Owner hands-on after deploy (**021**)._
+- [x] `npm run check` passes (2026-05-16)
 - [x] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit _N/A — no migration this slice_
-- [x] `docs/decisions/NNN-<slug>.md` filed using the `AGENTS.md` template — **015**
+- [x] `docs/decisions/NNN-<slug>.md` filed — **015** (kickoff) + **021** (Anthropic wired + trip policy)
 - [ ] viewer can upload images and trigger OCR; viewer cannot confirm low-confidence entries on owner's rows (only own rows per S1) — tested by signing in as the viewer user
 
 ---
@@ -506,14 +515,15 @@ _Session-blocking. Resolve before the dependent session starts. Per-entity quest
 | 1 | `@zxing/browser` confirmed on actual phone, or does the 30-min spike reveal issues? | ☑ **Deferred to device smoke** (2026-05-01) — `/library/add` ships with manual ISBN fallback + camera-denied messaging. Record phone model / outcome when you run the Session 6 script; see `docs/decisions/011-library-session-6-mobile-and-barcode.md`. |
 | 2 | Open Library API rate limits — `enrich_library.py` full 1,330-book run hit any throttling? | ☑ Resolved 2026-04-30 — full 1,330 rows enriched at 0.6s/req with no throttling. Match-type breakdown: title+author 749 (56.3%) / title-only 294 (22.1%) / no-match 287 (21.6%). |
 | 3 | Image upload max size / client-side compression before Supabase Storage? | ☑ Resolved Session 2 (2026-04-28) — bucket `library-scripture-images` private, 10 MB cap, mimes `jpeg/png/webp/heic`. Path `${userId}/${bookId}/${ulid}.${ext}` with first-segment self-prefix RLS check. Client-side downscale to ~2048px JPEG @ q=0.85 via `createImageBitmap`+canvas (HEIC fallback uploads original). Signed URLs (1h TTL) generated server-side per load. See `docs/decisions/004-library-scripture-references-wiring.md`. |
-| 4 | Bibliography export format — plain text only, or add markdown + .docx? | ☐ Open — plain text is floor; decide at Session 8 |
-| 5 | Article-level citations (essays UI) — needed for fall semester or deferrable? | ☐ Open — currently deferred per PostBuild #1; revisit if fall syllabus reveals essay-citation pressure |
-| 6 | Subject vs genre terminology — reconcile `Library_Migration_Notes.md` ("subject") with schema (`genre`) before Session 4 | ☐ Open — doc-side fix, pre-Session 4 |
+| 4 | Bibliography export format — plain text only, or add markdown + .docx? | ☑ **Resolved 2026-05-16** — **HTML + plain-text clipboard, no file export.** Copy buttons (book detail + bibliography builder) write `text/html` carrying `<i>` italics + em-dashes so Word paste preserves Turabian formatting; plain-text fallback for code editors. Bibliography builder = same clipboard shape at N-books scale. Implemented in Session 8. |
+| 5 | Article-level citations (essays UI) — needed for fall semester or deferrable? | ⏳ **Trip-period observational task** — evaluate during the trip with the ~200 traveling books. If essay-level citations create real friction in sermon prep or paper drafting, promote essays UI up the post-trip queue; otherwise keep deferred per PostBuild #1. |
+| 6 | Subject vs genre terminology — reconcile `Library_Migration_Notes.md` ("subject") with schema (`genre`) | ☑ **Resolved 2026-05-16** — terminology is unified on `genre` in code, schema, UI, and the v2 spreadsheet. `Library_Migration_Notes.md` retains historical "subject" wording as a Pass-1 artifact; the importer is retired per Q8 so no further reconciliation is needed. |
 | 7 | OCR provider choice (Session 9) | ☑ **Resolved 2026-05-04** — MVP default Anthropic Claude (vision / structured output); alternatives + criteria in [`docs/decisions/015-library-session-9-ocr-kickoff.md`](decisions/015-library-session-9-ocr-kickoff.md). |
-| 8 | Pass 2 trigger — when does the v2 (corrected) scholarly-core spreadsheet get authored? | ☐ Open — likely accumulates during the trip period as the no-subject review queue surfaces corrections + as reading reveals title / edition / volume errors. Authoritative v2 commit by **early August** so Session 4 Pass 2 can run before Session 9 (OCR) and Session 8 (Turabian). Owner: pre-trip plan. See `docs/decisions/007-reconcilable-library-import.md`. |
+| 8 | Pass 2 trigger — when does the v2 (corrected) scholarly-core spreadsheet get authored? | ☑ **Resolved 2026-05-16** — v2 spreadsheet loaded directly to prod May 2026; the **database is now source of truth**. Future edits live in ppp (`/library/review`, `<BookForm>`), not in a spreadsheet. Pass 2 importer path retired. See decision 022. |
 | 9 | Pass 1 ISBN coverage from `enrich_library.py` — high enough to ship the optional `books_isbn_uniq` partial unique index? | ☑ Resolved 2026-04-30 — 65.8% (875/1,330). Below the 70% threshold from decision 007. **SKIPPED for Pass 1**; will revisit pre-Pass-2 once the v2 spreadsheet has chased down missing ISBNs on the scholarly core. See `docs/decisions/008-library-pass-1-import.md`. |
 | 10 | Audit attribution — does `auth.uid()` propagate to `audit_log_trigger` from a service-role client, or do we need the post-apply `UPDATE audit_log` fallback? | ☑ Resolved 2026-04-30 — **fallback is required**. `auth.uid()` returns NULL under service-role, so trigger writes `changed_by = NULL`. `scripts/library-import/patch-audit.ts` patches the window. Same pattern needed for any future bulk-import via service-role. Side-effect: the B1/B2 viewer-column trigger on `personal_notes` / `rating` ALSO blocks UPDATEs (since `app_is_owner()` evaluates to false), so post-apply patches must drop those columns from the payload. See decision 008 Surprise #9. |
-| 11 | Genre vs `primary_category_id` long-term role on `/library` filters — keep both, or drop Category as redundant? | ☑ Resolved 2026-04-30 (Session 5) — **Category facet dropped from the filter UI**. The `books.primary_category_id` column is retained for shelving (`<BookForm>` still has the primary-category select + the book-detail page displays it). Revisit promoting Category back to a filter when ≥10 books have a `primary_category_id` that differs from the genre→category default mapping. See [`docs/decisions/010-library-topics-coverage-and-filter-polish.md`](decisions/010-library-topics-coverage-and-filter-polish.md). |
+| 11 | Genre vs `primary_category_id` long-term role on `/library` filters — keep both, or drop Category as redundant? | ☑ **Resolved 2026-05-16 (superseded by Q12)** — Session 5 dropped the Category facet; Q12 collapses the structural duplication entirely. See decision 022. |
+| 12 | Collapse genre + category into a single content-type taxonomy — drop `categories` / `book_categories` / `books.primary_category_id`? | ☑ **Resolved 2026-05-16** — yes; genre becomes the single content-type axis; `books.shelving_location` (TEXT) is the physical-location escape hatch. Category → Genre backfill landed via migration `<timestamp>_library_backfill_genre_from_category.sql`; structural removal in `<timestamp>_library_drop_categories.sql`. See decision 022. |
 
 ---
 
@@ -539,14 +549,14 @@ The tracker is forward-looking; the rules and decision log absorb what we learn.
 - Session 4 (migration) is the high-variance session in the pre-trip arc. Search and CRUD already work against fixtures by then, so a migration spill doesn't block the system.
 - **Session 5.5 (review queue UI) was originally planned to land between 5 and 6** — added 2026-04-30 after Pass 1 surfaced 1,169 `needs_review = true` rows. The trip-period workflow needs a friction-free way to drain that queue from a phone; the existing list page's `?needs_review=true` filter is fine for desktop but not for batch work. Session 6's mobile-polish smoke test then exercises the new surface, so the two slot together cleanly. **Actual order shipped: 4 → 5.5 → 5 → 6.** 5.5 jumped the queue because its acceptance bar (drain 50 books in 5 min from a phone) was the hard gate for the trip; Session 5's topic/coverage primitives + filter polish are still required pre-trip but weren't blocking review-queue work.
 - Session 6 includes the **raw-field copy** affordance — not Turabian, just clipboard helpers for hand-rolled summer citations. Cheap insurance against summer paper drafting needs.
-- The trip period is **maintenance mode**: data entry, reading status, review queue. No migrations, no schema changes. If something breaks, fall back to read-only browsing.
+- The trip period is **active use + optional build**: data entry, reading status, book + scripture review queues; OCR / Edge / pure-function Turabian work when you have a deploy window. **Shelf-bound** Pass 2 + physical spot-checks wait for August. **Avoid DB migrations** on the road unless necessary; Edge deploys are fine.
 
-### Post-trip ordering
+### Trip-period + post-trip ordering
 
-- **Order: 7 → 9 → 8.** Session 7 (people merge + ancient_texts CRUD + permissions + translator SQL) **shipped 2026-05-02**; remaining checklist item is **viewer smoke** (Session 7 acceptance). Next build session on the arc is **Session 9 (OCR)**, then **Session 8 (Turabian + Turabian-first `/library/review`)** — translator structure for migrated titles is now in `book_authors`.
-- Session 9 (OCR) lands next so the trip's accumulated paper notes / page photos get processed before Turabian runs against them. Promoted from "opt-in" to required 2026-04-29 (`docs/decisions/005-scripture-refs-bulk-and-ocr-design.md`) — manual entry sustains <100 refs/sitting; the trip + post-trip corpus exceeds that.
-- **When to start Session 9:** trigger = first 100+-ref backlog OR returning from trip with paper notes; defer until then so the work has a real test corpus.
-- Session 8 (Turabian) is pure-function work and lands last in the **sequence** (after Session 9). Highest-leverage block in the post-trip arc — locked schema, locked data, deterministic output, runs against both manual + OCR-extracted refs; **includes** Turabian-first `/library/review` per [`.cursor/plans/review_queue_gamification_39c2a467.plan.md`](../.cursor/plans/review_queue_gamification_39c2a467.plan.md).
+- **Order: 7 → 9 → 8.** Session 7 **shipped 2026-05-02**; remaining checklist item is **viewer smoke** (Session 7 acceptance). **Session 9 (OCR)** then **Session 8 (Turabian + Turabian-first `/library/review`)** — translator structure is in `book_authors`. **Both 9 and 8 may progress during the trip** if work does not require a book left in Madison.
+- Session 9 (OCR) processes page photos; promoted to required 2026-04-29 (`docs/decisions/005-scripture-refs-bulk-and-ocr-design.md`). **Prioritize** when ref backlog is large; no "wait until August" gate for **implementation** (see **021** + trip policy).
+- Session 8 (Turabian) is pure-function work — **implementation + unit QA** can run during the trip; **full scholarly-core citation QA** may wait until the traveling shelf + v2 data are home.
+- **Session 4 Pass 2** — spreadsheet-owned field reconciliation + shelf spot-checks: **August** (blocked on v2 sheet + full library access).
 - **Session 8.5** (optional) — review-queue polish only (swipe, haptic, animation, microcopy) if deferred from Session 8; same plan doc.
 
 ### Library-specific gotchas

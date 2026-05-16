@@ -118,13 +118,6 @@ export const IMPORT_MATCH_TYPE_LABELS: Record<ImportMatchType, string> = {
 // View-models (load-function output, never raw DB rows)
 // ---------------------------------------------------------------------------
 
-export type CategoryRow = {
-	id: string;
-	name: string;
-	slug: string;
-	sort_order: number;
-};
-
 export type SeriesRow = {
 	id: string;
 	name: string;
@@ -155,7 +148,6 @@ export type BookListRow = {
 	language: Language;
 	reading_status: ReadingStatus;
 	needs_review: boolean;
-	primary_category_name: string | null;
 	series_abbreviation: string | null;
 	/** Full series name; surfaced as a hover tooltip on the abbreviation chip. */
 	series_name: string | null;
@@ -176,9 +168,6 @@ export type BookDetail = {
 	reprint_publisher: string | null;
 	reprint_location: string | null;
 	reprint_year: number | null;
-	primary_category_id: string | null;
-	primary_category_name: string | null;
-	category_ids: string[];
 	series_id: string | null;
 	series_name: string | null;
 	series_abbreviation: string | null;
@@ -215,12 +204,12 @@ export type PersonDedupHint = {
  * (via `book_authors` join), backed by the trigram GIN indexes installed in
  * migration `20260429190000_books_title_trigram_index.sql`.
  *
- * Session 5 changes:
- * - `category_id` dropped from the filter UI per Open Question 11. After
- *   Pass 1's `SUBJECT_TO_GENRE` mapping, every book's `primary_category_id`
- *   is derivable from `genre`, so the Category facet duplicated Genre. The
- *   `books.primary_category_id` column is still populated for shelving.
- * - `author_id` added — multi-select against the 911-person loadPeople set.
+ * Session 5 + decision 022 changes:
+ * - Category facet + the `categories` / `book_categories` / `books.primary_category_id`
+ *   schema have been removed entirely (Open Question 11 → Open Question 12).
+ *   Genre is the single content-type taxonomy; physical shelving lives on the
+ *   free-text `books.shelving_location` column when needed.
+ * - `author_id` — multi-select against the loadPeople set.
  *   Resolves to `book_id IN (...)` via a parallel SELECT on `book_authors`.
  */
 export type BookListFilters = {
@@ -372,4 +361,14 @@ export type ScriptureRefRow = {
 	source_image_url: string | null;
 	source_image_signed_url: string | null;
 	created_at: string;
+};
+
+/** Deep-link row for `/library/review` → book detail `#ref-…`. */
+export type ScriptureRefNeedingReviewListItem = {
+	refId: string;
+	bookId: string;
+	bookTitle: string;
+	rangeLabel: string;
+	pageSummary: string | null;
+	confidence: number | null;
 };

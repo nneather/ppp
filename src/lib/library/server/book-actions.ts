@@ -11,7 +11,7 @@ import type { AuthorRole, Genre, Language, ReadingStatus } from '$lib/types/libr
  * Form-action result shape per `.cursor/rules/sveltekit-routes.mdc`:
  *   { kind, success?, message?, bookId? }
  *
- * Junction handling (book_authors / book_categories) is diff-based: the form
+ * Junction handling (book_authors) is diff-based: the form
  * submits the *new* desired state, the action diffs against current rows, and
  * emits INSERT + DELETE (and UPDATE for sort_order) accordingly.
  *
@@ -49,8 +49,6 @@ export type BookFormPayload = {
 	reprint_publisher: string | null;
 	reprint_location: string | null;
 	reprint_year: number | null;
-	primary_category_id: string | null;
-	category_ids: string[];
 	series_id: string | null;
 	volume_number: string | null;
 	genre: Genre | null;
@@ -210,9 +208,6 @@ export function parseBookForm(fd: FormData): ParseResult {
 		return { ok: false, message: 'Title is too long (500 char max).' };
 	}
 
-	// primary_category_id is nullable per 20260428160000 — empty = unset.
-	const primary_category_id = trimOrNull(fd.get('primary_category_id'));
-
 	// genre is nullable per 20260428170000 — empty = unset; otherwise must be in the list.
 	const genreRaw = String(fd.get('genre') ?? '').trim();
 	const genre: string | null = genreRaw.length > 0 ? genreRaw : null;
@@ -233,14 +228,6 @@ export function parseBookForm(fd: FormData): ParseResult {
 	const reprint_year = parseInt0(fd.get('reprint_year'));
 	const page_count = parseInt0(fd.get('page_count'));
 	const rating = parseRating(fd.get('rating'));
-
-	const category_ids = fd
-		.getAll('category_ids')
-		.map((v) => String(v).trim())
-		.filter((v) => v.length > 0);
-	if (primary_category_id && !category_ids.includes(primary_category_id)) {
-		category_ids.unshift(primary_category_id);
-	}
 
 	const authors = parseAuthorsJson(fd.get('authors_json'));
 	if (authors == null) {
@@ -300,9 +287,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 		userReviewNote != null ||
 		userNeedsReview ||
 		genre != null ||
-		primary_category_id != null ||
 		series_id != null ||
-		category_ids.length > 0 ||
 		authors.length > 0;
 	if (!hasAnyField) {
 		return {
@@ -332,8 +317,6 @@ export function parseBookForm(fd: FormData): ParseResult {
 			reprint_publisher,
 			reprint_location,
 			reprint_year,
-			primary_category_id,
-			category_ids: Array.from(new Set(category_ids)),
 			series_id,
 			volume_number,
 			genre: genre as Genre | null,
@@ -366,7 +349,6 @@ function bookColumnsPayload(p: BookFormPayload): Record<string, unknown> {
 		reprint_publisher: p.reprint_publisher,
 		reprint_location: p.reprint_location,
 		reprint_year: p.reprint_year,
-		primary_category_id: p.primary_category_id,
 		series_id: p.series_id,
 		volume_number: p.volume_number,
 		genre: p.genre,
@@ -382,40 +364,6 @@ function bookColumnsPayload(p: BookFormPayload): Record<string, unknown> {
 		needs_review_note: p.needs_review_note,
 		page_count: p.page_count
 	};
-}
-
-async function syncCategories(
-	supabase: SupabaseClient,
-	bookId: string,
-	desiredIds: string[]
-): Promise<{ ok: true } | { ok: false; message: string }> {
-	const { data: existing, error: fetchErr } = await supabase
-		.from('book_categories')
-		.select('category_id')
-		.eq('book_id', bookId);
-	if (fetchErr) {
-		return { ok: false, message: fetchErr.message ?? 'Could not load categories.' };
-	}
-	const currentIds = new Set((existing ?? []).map((r) => r.category_id as string));
-	const desiredSet = new Set(desiredIds);
-
-	const toInsert = desiredIds.filter((id) => !currentIds.has(id));
-	const toDelete = [...currentIds].filter((id) => !desiredSet.has(id));
-
-	if (toDelete.length > 0) {
-		const { error: delErr } = await supabase
-			.from('book_categories')
-			.delete()
-			.eq('book_id', bookId)
-			.in('category_id', toDelete);
-		if (delErr) return { ok: false, message: delErr.message ?? 'Category remove failed.' };
-	}
-	if (toInsert.length > 0) {
-		const rows = toInsert.map((category_id) => ({ book_id: bookId, category_id }));
-		const { error: insErr } = await supabase.from('book_categories').insert(rows);
-		if (insErr) return { ok: false, message: insErr.message ?? 'Category add failed.' };
-	}
-	return { ok: true };
 }
 
 async function syncAuthors(
@@ -560,8 +508,6 @@ export async function applyBookPayload(
 			return { ok: false, message: insErr?.message ?? 'Could not create book.' };
 		}
 		const bookId = inserted.id as string;
-		const cat = await syncCategories(supabase, bookId, opts.payload.category_ids);
-		if (!cat.ok) return { ok: false, bookId, message: cat.message };
 		if (!skipAuthorSync) {
 			const auth = await syncAuthors(supabase, bookId, opts.payload.authors);
 			if (!auth.ok) return { ok: false, bookId, message: auth.message };
@@ -601,8 +547,6 @@ export async function applyBookPayload(
 		return { ok: false, bookId: id, message: updErr.message ?? 'Could not update book.' };
 	}
 
-	const cat = await syncCategories(supabase, id, opts.payload.category_ids);
-	if (!cat.ok) return { ok: false, bookId: id, message: cat.message };
 	if (!skipAuthorSync) {
 		const auth = await syncAuthors(supabase, id, opts.payload.authors);
 		if (!auth.ok) return { ok: false, bookId: id, message: auth.message };

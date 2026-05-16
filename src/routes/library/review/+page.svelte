@@ -743,6 +743,44 @@
 			</div>
 		{/if}
 	</div>
+
+	{#if data.scriptureRefsNeedingReview.length > 0}
+		<section
+			class="mt-10 border-t border-border pt-6"
+			aria-labelledby="scripture-refs-review-heading"
+		>
+			<h2 id="scripture-refs-review-heading" class="text-sm font-semibold tracking-tight">
+				Scripture references needing review ({data.scriptureRefsNeedingReview.length})
+			</h2>
+			<p class="mt-1 text-xs text-muted-foreground">
+				Low-confidence OCR rows link to the book page — edit inline, then clear
+				<span class="font-medium">Needs review</span> when done.
+			</p>
+			<ul class="mt-3 flex flex-col gap-2">
+				{#each data.scriptureRefsNeedingReview as row (row.refId)}
+					<li>
+						<a
+							href="/library/books/{row.bookId}#ref-{row.refId}"
+							class="block rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm transition-colors hover:bg-muted/40"
+						>
+							<div class="font-medium leading-snug text-foreground">{row.bookTitle}</div>
+							<div class="mt-0.5 text-xs text-muted-foreground">
+								<span class="text-foreground">{row.rangeLabel}</span>
+								{#if row.pageSummary}
+									<span class="mx-1">·</span>
+									{row.pageSummary}
+								{/if}
+								{#if row.confidence != null}
+									<span class="mx-1">·</span>
+									conf {(row.confidence * 100).toFixed(0)}%
+								{/if}
+							</div>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 </div>
 
 <!-- Hidden delete form posts to ?/softDeleteBook for the current card -->

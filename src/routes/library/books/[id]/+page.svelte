@@ -129,7 +129,6 @@
 			language: data.book.language,
 			reading_status: data.book.reading_status,
 			needs_review: data.book.needs_review,
-			primary_category_name: data.book.primary_category_name,
 			series_abbreviation: data.book.series_abbreviation,
 			series_name: data.book.series_name,
 			volume_number: data.book.volume_number,
@@ -534,29 +533,6 @@
 			{#if data.book.page_count}
 				<dt class="font-medium text-muted-foreground">Pages</dt>
 				<dd>{data.book.page_count}</dd>
-			{/if}
-
-			<dt class="font-medium text-muted-foreground">Primary category</dt>
-			<dd>
-				{#if data.book.primary_category_name}
-					{data.book.primary_category_name}
-				{:else}
-					<span class="text-muted-foreground italic">(uncategorized)</span>
-				{/if}
-			</dd>
-
-			{#if data.book.category_ids.length > (data.book.primary_category_id ? 1 : 0)}
-				<dt class="font-medium text-muted-foreground">Other categories</dt>
-				<dd>
-					{data.categories
-						.filter(
-							(c) =>
-								data.book.category_ids.includes(c.id) &&
-								c.id !== data.book.primary_category_id
-						)
-						.map((c) => c.name)
-						.join(', ') || '—'}
-				</dd>
 			{/if}
 
 			{#if data.book.series_name}

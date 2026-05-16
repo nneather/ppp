@@ -40,11 +40,6 @@
 			description: 'Closed list used by book forms and filters.'
 		},
 		{
-			href: '/settings/library/categories',
-			label: 'Categories',
-			description: 'Shelving categories from seed data.'
-		},
-		{
 			href: '/settings/library/bible-books',
 			label: 'Bible books',
 			description: 'Canon names for scripture and coverage pickers.'
@@ -57,8 +52,8 @@
 </svelte:head>
 
 <p class="text-sm text-muted-foreground">
-	Pick a section below or use the tabs above. People can be edited here; genre, category, and Bible
-	book lists are reference-only unless you change them in the database.
+	Pick a section below or use the tabs above. People can be edited here; genres and Bible book
+	lists are reference-only unless you change them in the database.
 </p>
 
 {#if data.isOwner}

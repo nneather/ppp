@@ -51,7 +51,7 @@ Component name: `<CanonicalizingCombobox>` (or similar). Inputs: existing values
 
 ## OCR / image ingest pipeline
 
-`scripture_references` has `source_image_url`, `confidence_score`, `needs_review`, `review_note` — clearly anticipating an image-ingest pipeline. **Decide explicitly per session**: either build it (image upload → Edge Function OCR → staging rows with `needs_review = true`) or defer it and require manual entry. Do not leave ambiguous.
+`scripture_references` has `source_image_url`, `confidence_score`, `needs_review`, `review_note` — clearly anticipating an image-ingest pipeline. **Shipped:** browser upload to `library-scripture-images` → **`ocr_scripture_refs` Edge Function** (Anthropic vision; secrets `ANTHROPIC_API_KEY`, optional `ANTHROPIC_OCR_MODEL`) → `?/extractScriptureRefs` populates batch draft rows only; **Save** persists via `createScriptureRefsBatch`. **`/library/review`** lists `needs_review` scripture rows (deep-link `#ref-…`). OCR never INSERTs without user Save — see `docs/decisions/005` + `015` + `021`.
 
 ## Genre + language enums
 
@@ -59,7 +59,7 @@ Component name: `<CanonicalizingCombobox>` (or similar). Inputs: existing values
 
 ## Patterns landed in Session 1
 
-- **Diff-based junction sync.** `syncAuthors` / `syncCategories` in `src/lib/library/server/book-actions.ts` compute insert / update / delete sets relative to current rows. Audit log shows minimal diffs. Reuse this shape for any future junction with sort_order or extra columns.
+- **Diff-based junction sync.** `syncAuthors` in `src/lib/library/server/book-actions.ts` computes insert / update / delete sets relative to current rows. Audit log shows minimal diffs. Reuse this shape for any future junction with sort_order or extra columns. (Originally paired with `syncCategories`; the categories junction was removed in decision 022 when genre became the single content-type axis.)
 - **Inline create-via-fetch.** `submitPersonDialog` in `book-form.svelte` shows the pattern for creating a sub-entity mid-form-fill: POST to `?/createPerson` via `fetch`, parse the action response with `deserialize` from `$app/forms`, then mutate local state. Pattern reuses for any "+ New X" affordance inside another form.
 - **Inline B14 dedup hint** is a yellow caption beneath the picker once a person is selected; it is the Session 1 stand-in for the full `<CanonicalizingCombobox>` (Session 5).
 - **Action duplication via shared helpers.** Each route hosts only the form actions it needs (e.g. `softDeleteBook` lives on the list page AND the detail page; `createBook` lives on `/library/books/new`; `updateBook` lives on `/library/books/[id]/edit`). The implementations live in `src/lib/library/server/book-actions.ts`; the per-route handlers are 4-line wrappers. Avoid duplicating an action onto a route that doesn't surface it (e.g. don't put `createBook` on the list page just because the old sheet trigger lived there).

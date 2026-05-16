@@ -2,7 +2,8 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	countReviewQueue,
-	loadReviewQueue
+	loadReviewQueue,
+	loadScriptureRefsNeedingReview
 } from '$lib/library/server/loaders';
 import {
 	reviewSaveAction,
@@ -20,19 +21,21 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	const filters = parseReviewFilters(url);
 
 	const { people } = await parent();
-	const [cards, remaining] = await Promise.all([
+	const [cards, remaining, scriptureRefsNeedingReview] = await Promise.all([
 		loadReviewQueue(supabase, people, filters, {
 			limit: QUEUE_PAGE_SIZE,
 			excludeIds: []
 		}),
-		countReviewQueue(supabase, filters)
+		countReviewQueue(supabase, filters),
+		loadScriptureRefsNeedingReview(supabase, { limit: 50 })
 	]);
 
 	return {
 		cards,
 		remaining,
 		filters,
-		queuePageSize: QUEUE_PAGE_SIZE
+		queuePageSize: QUEUE_PAGE_SIZE,
+		scriptureRefsNeedingReview
 	};
 };
 

@@ -19,7 +19,6 @@ export const _LIBRARY_TABLES = [
 	'series',
 	'books',
 	'book_authors',
-	'book_categories',
 	'book_bible_coverage',
 	'book_ancient_coverage',
 	'essays',
@@ -206,7 +205,6 @@ function entityLabelFor(
 			return topic && pageStart ? `"${topic}" p. ${pageStart}` : topic;
 		}
 		case 'book_authors':
-		case 'book_categories':
 		case 'book_bible_coverage':
 		case 'book_ancient_coverage':
 		case 'essay_authors':

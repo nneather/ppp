@@ -91,7 +91,7 @@ WHERE lower(trim(email)) = lower('parker.neathery@gmail.com');
 - **Auth / signups:** [Auth providers](https://supabase.com/dashboard/project/objtrdmmqlndtfddtzan/auth/providers) — ensure Email is enabled; adjust email confirmation as you prefer.
 - **Delete old staging project** (after prod works for you): [Staging settings](https://supabase.com/dashboard/project/nvhqzcpscgbbetrwkhuv/settings/general) → scroll to **Delete project** (only when you no longer need that project).
 
-## Edge Functions (invoicing)
+## Edge Functions
 
 Functions live under `supabase/functions/`:
 
@@ -99,6 +99,7 @@ Functions live under `supabase/functions/`:
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `generate-invoice-pdf` | Authenticated owner only. Loads invoice + line items + client, builds a PDF with `pdf-lib`, returns `{ pdf: "<base64>" }`.                            |
 | `send-invoice`         | Authenticated owner only. Sends the PDF via [Resend](https://resend.com) to the client’s email. Expects `{ invoice_id, pdf_base64, custom_message }`. |
+| `ocr_scripture_refs`   | Library: user JWT + `GET /auth/v1/user`; downloads `library-scripture-images` via service role; calls **Anthropic Messages API** (vision); returns `{ rawText, candidates }` — never writes DB rows. |
 
 ### Secrets (set on the hosted project)
 
@@ -115,9 +116,20 @@ supabase secrets set \
   SENDER_PHONE="+1 555 000 0000"
 ```
 
+**Library OCR (`ocr_scripture_refs`):**
+
+```bash
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-api03-...
+# optional — defaults to claude-sonnet-4-6 in code
+supabase secrets set ANTHROPIC_OCR_MODEL=claude-sonnet-4-6
+```
+
+- **`ANTHROPIC_API_KEY`** — Required for scripture OCR. Mirror in `.env.local` only if you run `supabase functions serve` locally.
+- **`ANTHROPIC_OCR_MODEL`** — Optional override for the Claude model id (vision-capable Sonnet family).
+
 - **`RESEND_API_KEY`** — Required for `send-invoice`. **Production:** the function uses a verified-domain `from` / `reply_to` baked into [`send-invoice/index.ts`](./functions/send-invoice/index.ts) (`npneathery.com`). For a **non-verified** Resend setup or scratch projects, you would change that code to `onboarding@resend.dev` (sandbox) or another verified domain.
 - **`SENDER_*`** — Used on the PDF letterhead (`generate-invoice-pdf`). Optional lines can be omitted. If unset, defaults match N. P. Neathery Consulting (name, tagline, address, phone). `SENDER_EMAIL` is optional on the PDF. Override **`INVOICE_SERVICE_LABEL`**, **`INVOICE_PAYABLE_TO`**, **`INVOICE_TERMS`**, or **`INVOICE_THANK_YOU`** to customize the “FOR” line and footer text.
-- **`SUPABASE_URL`** and **`SUPABASE_SERVICE_ROLE_KEY`** are injected automatically in Edge Functions; do not set them manually.
+- **`SUPABASE_URL`**, **`SUPABASE_ANON_KEY`**, and **`SUPABASE_SERVICE_ROLE_KEY`** are injected automatically in Edge Functions; do not set those keys manually.
 
 ### PDF layout looks unchanged after code changes
 
@@ -131,7 +143,7 @@ npm run supabase:deploy-functions
 
 ### Deployment verification (before testing in the app)
 
-1. **Confirm both functions appear** in the Supabase Dashboard → **Edge Functions**.
+1. **Confirm all functions appear** in the Supabase Dashboard → **Edge Functions**.
 2. **Set secrets** with `supabase secrets set ...` (or Dashboard → **Edge Functions → Secrets**) — at minimum `RESEND_API_KEY` and `SENDER_*` as needed.
 3. **Resend / deliverability:** if the repo still pointed at `onboarding@resend.dev`, those emails only reach **your Resend account email** until you verify a domain. This project’s deployed `send-invoice` uses **verified** `npneathery.com` — still use **Send test to myself** after any change to the function, then a real address when ready.
 4. **Watch logs:** Dashboard → **Edge Functions** → select a function → **Logs** if `invoke` returns a non-2xx status.

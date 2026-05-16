@@ -42,5 +42,5 @@
 
 ## Carry-forward updates
 
-- [ ] `components.mdc` — no new component names.
-- [ ] Full Anthropic (or alternative) integration + smoke on 5 images — Session 9 continuation.
+- [x] `components.mdc` — no new component names.
+- [x] Full Anthropic (or alternative) integration + smoke on 5 images — Session 9 continuation (see [`021-library-session-9-ocr-anthropic-wired.md`](021-library-session-9-ocr-anthropic-wired.md); `ANTHROPIC_API_KEY` + optional `ANTHROPIC_OCR_MODEL` in Supabase Edge secrets per [`supabase/README.md`](../../supabase/README.md)).

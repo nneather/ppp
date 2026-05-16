@@ -8,12 +8,11 @@ import {
 	type BookFormPayload
 } from '$lib/library/server/book-actions';
 import {
-	loadCategories,
 	loadPeople,
 	loadSeries,
 	personDisplayShort
 } from '$lib/library/server/loaders';
-import type { CategoryRow, SeriesRow } from '$lib/types/library';
+import type { SeriesRow } from '$lib/types/library';
 
 /** Max data rows per preview/apply (excluding header). */
 export const LIBRARY_IMPORT_MAX_ROWS = 1000;
@@ -43,7 +42,6 @@ export const LIBRARY_BOOKS_IMPORT_HEADERS = [
 	'authors',
 	'authors_json',
 	'genre',
-	'primary_category',
 	'series',
 	'volume_number',
 	'publisher',
@@ -212,36 +210,6 @@ function parseBoolCsv(raw: string): boolean {
 	return t === 'true' || t === '1' || t === 'yes' || t === 'y' || t === 'on';
 }
 
-function buildCategoryNameResolver(categories: CategoryRow[]): {
-	resolve(trimmedName: string): { ok: true; id: string | null } | { ok: false; message: string };
-} {
-	const byLower = new Map<string, string[]>();
-	for (const c of categories) {
-		const k = c.name.trim().toLowerCase();
-		const arr = byLower.get(k) ?? [];
-		arr.push(c.id);
-		byLower.set(k, arr);
-	}
-	return {
-		resolve(trimmedName: string) {
-			const t = trimmedName.trim();
-			if (t.length === 0) return { ok: true, id: null };
-			const k = t.toLowerCase();
-			const ids = byLower.get(k);
-			if (!ids || ids.length === 0) {
-				return { ok: false, message: `Unknown category name "${t}"` };
-			}
-			if (ids.length > 1) {
-				return {
-					ok: false,
-					message: `Ambiguous category name "${t}" (${ids.length} matches)`
-				};
-			}
-			return { ok: true, id: ids[0] };
-		}
-	};
-}
-
 function buildSeriesLabelResolver(series: SeriesRow[]): {
 	resolve(label: string): { ok: true; id: string | null } | { ok: false; message: string };
 } {
@@ -295,7 +263,6 @@ type RawExportBook = {
 	year: number | null;
 	edition: string | null;
 	volume_number: string | null;
-	primary_category: { id: string; name: string } | { id: string; name: string }[] | null;
 	series:
 		| { id: string; name: string; abbreviation: string | null }
 		| { id: string; name: string; abbreviation: string | null }[]
@@ -331,7 +298,6 @@ async function paginateAllExportBooks(supabase: SupabaseClient): Promise<RawExpo
 				year,
 				edition,
 				volume_number,
-				primary_category:categories!books_primary_category_id_fkey ( id, name ),
 				series ( id, name, abbreviation ),
 				book_authors ( person_id, role, sort_order )
 			`
@@ -381,7 +347,6 @@ export async function buildLibraryBooksTsv(supabase: SupabaseClient): Promise<st
 				sort_order: a.sort_order
 			}))
 		);
-		const cat = asArrayOrSingle(r.primary_category)[0];
 		const ser = asArrayOrSingle(r.series)[0];
 		const seriesCell =
 			ser?.abbreviation != null && String(ser.abbreviation).trim().length > 0
@@ -394,7 +359,6 @@ export async function buildLibraryBooksTsv(supabase: SupabaseClient): Promise<st
 			authors: authorsDisplay,
 			authors_json: authorsJson,
 			genre: r.genre ?? '',
-			primary_category: cat?.name ?? '',
 			series: seriesCell,
 			volume_number: r.volume_number ?? '',
 			publisher: r.publisher ?? '',
@@ -414,33 +378,6 @@ export async function buildLibraryBooksTsv(supabase: SupabaseClient): Promise<st
 /** @deprecated Use buildLibraryBooksTsv */
 export async function buildLibraryBooksCsv(supabase: SupabaseClient): Promise<string> {
 	return buildLibraryBooksTsv(supabase);
-}
-
-async function loadCategoryIdsByBookId(
-	supabase: SupabaseClient,
-	bookIds: string[]
-): Promise<Map<string, string[]>> {
-	const map = new Map<string, string[]>();
-	const CHUNK = 200;
-	for (let i = 0; i < bookIds.length; i += CHUNK) {
-		const slice = bookIds.slice(i, i + CHUNK);
-		const { data, error } = await supabase
-			.from('book_categories')
-			.select('book_id, category_id')
-			.in('book_id', slice);
-		if (error) {
-			console.error('[loadCategoryIdsByBookId]', error);
-			continue;
-		}
-		for (const row of data ?? []) {
-			const bid = row.book_id as string;
-			const cid = row.category_id as string;
-			const arr = map.get(bid) ?? [];
-			arr.push(cid);
-			map.set(bid, arr);
-		}
-	}
-	return map;
 }
 
 async function loadAuthorsJsonByBookId(
@@ -478,23 +415,10 @@ async function loadAuthorsJsonByBookId(
 	return jsonMap;
 }
 
-function mergeCategoryIdsForUpdate(
-	existingJunctionIds: string[],
-	newPrimaryId: string | null
-): string[] {
-	if (newPrimaryId != null) {
-		const rest = existingJunctionIds.filter((id) => id !== newPrimaryId);
-		return [newPrimaryId, ...rest];
-	}
-	return [...existingJunctionIds];
-}
-
 function csvRowToFormData(args: {
 	row: Record<string, string>;
 	mode: 'insert' | 'update';
 	bookId?: string;
-	primaryCategoryId: string | null;
-	categoryIds: string[];
 	seriesId: string | null;
 	authorsJson: string;
 }): FormData {
@@ -515,10 +439,6 @@ function csvRowToFormData(args: {
 	fd.set('year', cell(args.row, 'year'));
 	fd.set('edition', cell(args.row, 'edition'));
 	fd.set('volume_number', cell(args.row, 'volume_number'));
-	fd.set('primary_category_id', args.primaryCategoryId ?? '');
-	for (const cid of args.categoryIds) {
-		fd.append('category_ids', cid);
-	}
 	fd.set('series_id', args.seriesId ?? '');
 	fd.set('authors_json', args.authorsJson);
 	fd.set('publisher_location', '');
@@ -581,11 +501,7 @@ export async function prepareLibraryBooksImport(
 		};
 	}
 
-	const [categories, seriesList] = await Promise.all([
-		loadCategories(supabase),
-		loadSeries(supabase)
-	]);
-	const catResolve = buildCategoryNameResolver(categories);
+	const seriesList = await loadSeries(supabase);
 	const serResolve = buildSeriesLabelResolver(seriesList);
 
 	const updateIds: string[] = [];
@@ -619,7 +535,6 @@ export async function prepareLibraryBooksImport(
 		}
 	}
 
-	const categoryByBook = await loadCategoryIdsByBookId(supabase, uniqueUpdateIds);
 	const authorsJsonByBook = await loadAuthorsJsonByBookId(supabase, uniqueUpdateIds);
 
 	const prepared: PreparedCsvOperation[] = [];
@@ -652,26 +567,11 @@ export async function prepareLibraryBooksImport(
 			continue;
 		}
 
-		const primaryName = cell(row, 'primary_category');
-		const pr = catResolve.resolve(primaryName);
-		if (!pr.ok) {
-			errors.push({ line, message: pr.message });
-			continue;
-		}
-
 		const seriesLabel = cell(row, 'series');
 		const sr = serResolve.resolve(seriesLabel);
 		if (!sr.ok) {
 			errors.push({ line, message: sr.message });
 			continue;
-		}
-
-		let categoryIds: string[];
-		if (isInsert) {
-			categoryIds = pr.id != null ? [pr.id] : [];
-		} else {
-			const existing = categoryByBook.get(idRaw) ?? [];
-			categoryIds = mergeCategoryIdsForUpdate(existing, pr.id);
 		}
 
 		const authorsJsonCell = cell(row, 'authors_json').trim();
@@ -682,8 +582,6 @@ export async function prepareLibraryBooksImport(
 			row,
 			mode: isInsert ? 'insert' : 'update',
 			bookId: isInsert ? undefined : idRaw,
-			primaryCategoryId: pr.id,
-			categoryIds,
 			seriesId: sr.id,
 			authorsJson
 		});

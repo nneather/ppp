@@ -3,7 +3,6 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	loadBookDetail,
 	loadBibleBookList,
-	loadCategories,
 	loadPersonBookCounts
 } from '$lib/library/server/loaders';
 import {
@@ -28,10 +27,7 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	const supabase = locals.supabase;
 	const { people, series } = await parent();
 
-	const [categories, bibleBooks] = await Promise.all([
-		loadCategories(supabase),
-		loadBibleBookList(supabase)
-	]);
+	const bibleBooks = await loadBibleBookList(supabase);
 	const [book, personBookCounts] = await Promise.all([
 		loadBookDetail(supabase, id, people),
 		loadPersonBookCounts(supabase)
@@ -42,7 +38,6 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	return {
 		book,
 		people,
-		categories,
 		series,
 		bibleBooks,
 		personBookCounts: Object.fromEntries(personBookCounts)

@@ -3,7 +3,6 @@ import type {
 	BookListFilters,
 	BookListRow,
 	BookDetail,
-	CategoryRow,
 	SeriesRow,
 	PersonRow,
 	BookAuthorAssignment,
@@ -11,6 +10,7 @@ import type {
 	Language,
 	AuthorRole,
 	ScriptureRefRow,
+	ScriptureRefNeedingReviewListItem,
 	ReviewQueueFilters,
 	ReviewCard,
 	ImportMatchType,
@@ -24,6 +24,10 @@ import {
 	SCRIPTURE_IMAGES_SIGNED_URL_TTL
 } from '$lib/library/storage';
 import { titleSortKey } from '$lib/library/title-sort';
+import {
+	formatScriptureRefPageSummary,
+	formatScriptureRefRangeDisplay
+} from '$lib/library/scripture-ref-format';
 
 /**
  * Shared load helpers for book list + detail pages.
@@ -33,7 +37,6 @@ import { titleSortKey } from '$lib/library/title-sort';
  * shapes here so the .svelte files never see Record<string, unknown>.
  */
 
-type RawCategory = { id: string; name: string; slug: string; sort_order: number };
 type RawSeries = { id: string; name: string; abbreviation: string | null };
 type RawPerson = {
 	id: string;
@@ -80,21 +83,6 @@ async function paginateAll<T>(
 		from += PAGE;
 	}
 	return out;
-}
-
-export async function loadCategories(supabase: SupabaseClient): Promise<CategoryRow[]> {
-	const { data, error } = await supabase
-		.from('categories')
-		.select('id, name, slug, sort_order')
-		.order('sort_order', { ascending: true });
-	if (error) {
-		console.error(error);
-		return [];
-	}
-	return (data ?? []).map((c) => {
-		const r = c as RawCategory;
-		return { id: r.id, name: r.name, slug: r.slug, sort_order: r.sort_order };
-	});
 }
 
 export async function loadSeries(supabase: SupabaseClient): Promise<SeriesRow[]> {
@@ -160,7 +148,6 @@ type RawBookListRow = {
 	reading_status: string;
 	needs_review: boolean;
 	volume_number: string | null;
-	categories: { id: string; name: string } | { id: string; name: string }[] | null;
 	series: { name: string; abbreviation: string | null } | { name: string; abbreviation: string | null }[] | null;
 	book_authors:
 		| { person_id: string; sort_order: number; role: string }[]
@@ -188,7 +175,6 @@ export async function loadBookList(
 			reading_status,
 			needs_review,
 			volume_number,
-			categories!books_primary_category_id_fkey ( id, name ),
 			series ( name, abbreviation ),
 			book_authors ( person_id, sort_order, role )
 		`
@@ -203,7 +189,6 @@ export async function loadBookList(
 
 	const rows = (data ?? []).map((raw) => {
 		const r = raw as unknown as RawBookListRow;
-		const cat = asArrayOrSingle(r.categories)[0] ?? null;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
 		const authorRows = (r.book_authors ?? [])
 			.filter((a) => a.role === 'author')
@@ -225,7 +210,6 @@ export async function loadBookList(
 			language: (r.language as Language) ?? 'english',
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 			needs_review: Boolean(r.needs_review),
-			primary_category_name: cat?.name ?? null,
 			series_abbreviation: ser?.abbreviation ?? null,
 			series_name: ser?.name ?? null,
 			volume_number: r.volume_number ?? null,
@@ -355,8 +339,6 @@ export async function loadBookListFiltered(
 				reading_status,
 				needs_review,
 				volume_number,
-				primary_category_id,
-				categories!books_primary_category_id_fkey ( id, name ),
 				series ( name, abbreviation ),
 				book_authors ( person_id, sort_order, role )
 			`
@@ -391,7 +373,6 @@ export async function loadBookListFiltered(
 
 	let rows = data.map((raw) => {
 		const r = raw as unknown as RawBookListRow;
-		const cat = asArrayOrSingle(r.categories)[0] ?? null;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
 		const authorRows = (r.book_authors ?? [])
 			.filter((a) => a.role === 'author')
@@ -415,7 +396,6 @@ export async function loadBookListFiltered(
 				language: (r.language as Language) ?? 'english',
 				reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 				needs_review: Boolean(r.needs_review),
-				primary_category_name: cat?.name ?? null,
 				series_abbreviation: ser?.abbreviation ?? null,
 				series_name: ser?.name ?? null,
 				volume_number: r.volume_number ?? null,
@@ -503,14 +483,12 @@ export async function loadBookFormPageData(
 		opts?.people != null ? Promise.resolve(opts.people) : loadPeople(supabase),
 		opts?.series != null ? Promise.resolve(opts.series) : loadSeries(supabase)
 	]);
-	const [categories, personBookCounts, bibleBooks] = await Promise.all([
-		loadCategories(supabase),
+	const [personBookCounts, bibleBooks] = await Promise.all([
 		loadPersonBookCounts(supabase),
 		loadBibleBookList(supabase)
 	]);
 	return {
 		people,
-		categories,
 		series,
 		personBookCounts: Object.fromEntries(personBookCounts),
 		bibleBooks
@@ -530,7 +508,6 @@ type RawBookDetail = {
 	reprint_publisher: string | null;
 	reprint_location: string | null;
 	reprint_year: number | null;
-	primary_category_id: string | null;
 	series_id: string | null;
 	volume_number: string | null;
 	genre: string | null;
@@ -548,14 +525,7 @@ type RawBookDetail = {
 	deleted_at: string | null;
 	created_at: string;
 	updated_at: string;
-	primary_category:
-		| { id: string; name: string }
-		| { id: string; name: string }[]
-		| null;
 	series: { id: string; name: string; abbreviation: string | null } | null;
-	book_categories:
-		| { category_id: string }[]
-		| null;
 	book_authors:
 		| { person_id: string; role: string; sort_order: number }[]
 		| null;
@@ -582,7 +552,6 @@ export async function loadBookDetail(
 			reprint_publisher,
 			reprint_location,
 			reprint_year,
-			primary_category_id,
 			series_id,
 			volume_number,
 			genre,
@@ -600,9 +569,7 @@ export async function loadBookDetail(
 			deleted_at,
 			created_at,
 			updated_at,
-			primary_category:categories!books_primary_category_id_fkey ( id, name ),
 			series ( id, name, abbreviation ),
-			book_categories ( category_id ),
 			book_authors ( person_id, role, sort_order )
 		`
 		)
@@ -631,7 +598,6 @@ export async function loadBookDetail(
 			};
 		});
 
-	const cat = asArrayOrSingle(r.primary_category)[0] ?? null;
 	return {
 		id: r.id,
 		title: r.title ?? null,
@@ -645,9 +611,6 @@ export async function loadBookDetail(
 		reprint_publisher: r.reprint_publisher ?? null,
 		reprint_location: r.reprint_location ?? null,
 		reprint_year: r.reprint_year ?? null,
-		primary_category_id: r.primary_category_id ?? null,
-		primary_category_name: cat?.name ?? null,
-		category_ids: (r.book_categories ?? []).map((c) => c.category_id),
 		series_id: r.series_id ?? null,
 		series_name: r.series?.name ?? null,
 		series_abbreviation: r.series?.abbreviation ?? null,
@@ -718,7 +681,6 @@ export async function loadReviewQueue(
 			publisher,
 			language,
 			import_match_type,
-			categories!books_primary_category_id_fkey ( id, name ),
 			series ( name, abbreviation ),
 			book_authors ( person_id, sort_order, role )
 		`
@@ -760,7 +722,6 @@ export async function loadReviewQueue(
 
 	return (data ?? []).map((raw) => {
 		const r = raw as unknown as RawReviewCard;
-		const cat = asArrayOrSingle(r.categories)[0] ?? null;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
 		const authorRows = (r.book_authors ?? [])
 			.filter((a) => a.role === 'author')
@@ -779,7 +740,6 @@ export async function loadReviewQueue(
 			language: (r.language as Language) ?? 'english',
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 			needs_review: Boolean(r.needs_review),
-			primary_category_name: cat?.name ?? null,
 			series_abbreviation: ser?.abbreviation ?? null,
 			series_name: ser?.name ?? null,
 			volume_number: r.volume_number ?? null,
@@ -959,6 +919,89 @@ export async function loadScriptureRefsForBook(
 		source_image_url: r.source_image_url,
 		source_image_signed_url: signed[i],
 		created_at: r.created_at
+	}));
+}
+
+const SCRIPTURE_REFS_REVIEW_DEFAULT_LIMIT = 50;
+
+type RawRefNeedingReview = {
+	id: string;
+	book_id: string;
+	bible_book: string;
+	chapter_start: number | null;
+	verse_start: number | null;
+	chapter_end: number | null;
+	verse_end: number | null;
+	page_start: string;
+	page_end: string | null;
+	confidence_score: number | null;
+};
+
+/**
+ * Scripture refs flagged `needs_review` (OCR + manual), for the lightweight
+ * list on `/library/review`. Book-scoped rows only (`book_id` set).
+ */
+export async function loadScriptureRefsNeedingReview(
+	supabase: SupabaseClient,
+	opts: { limit?: number } = {}
+): Promise<ScriptureRefNeedingReviewListItem[]> {
+	const limit = opts.limit ?? SCRIPTURE_REFS_REVIEW_DEFAULT_LIMIT;
+
+	const { data: refs, error: refErr } = await supabase
+		.from('scripture_references')
+		.select(
+			`
+			id,
+			book_id,
+			bible_book,
+			chapter_start,
+			verse_start,
+			chapter_end,
+			verse_end,
+			page_start,
+			page_end,
+			confidence_score
+		`
+		)
+		.eq('needs_review', true)
+		.is('deleted_at', null)
+		.not('book_id', 'is', null)
+		.order('created_at', { ascending: false })
+		.limit(limit);
+
+	if (refErr) {
+		console.error('[loadScriptureRefsNeedingReview]', refErr);
+		return [];
+	}
+
+	const rows = (refs ?? []) as RawRefNeedingReview[];
+	if (rows.length === 0) return [];
+
+	const bookIds = [...new Set(rows.map((r) => r.book_id))];
+	const { data: books, error: bookErr } = await supabase
+		.from('books')
+		.select('id, title')
+		.in('id', bookIds)
+		.is('deleted_at', null);
+
+	if (bookErr) {
+		console.error('[loadScriptureRefsNeedingReview] books', bookErr);
+		return [];
+	}
+
+	const titleById = new Map<string, string | null>();
+	for (const b of books ?? []) {
+		const row = b as { id: string; title: string | null };
+		titleById.set(row.id, row.title);
+	}
+
+	return rows.map((r) => ({
+		refId: r.id,
+		bookId: r.book_id,
+		bookTitle: titleById.get(r.book_id)?.trim() || '(untitled)',
+		rangeLabel: formatScriptureRefRangeDisplay(r),
+		pageSummary: formatScriptureRefPageSummary(r.page_start, r.page_end),
+		confidence: r.confidence_score
 	}));
 }
 

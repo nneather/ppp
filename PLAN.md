@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-06 — Turabian skill marked complete (Claude.ai); tracker Pre-Session checklist aligned. Invoicing: Resend prod sender live; letterhead accepted; first real-client send next Monday; Resend dashboard cadence + Sept key-rotation reminder in [POS_Invoicing_Build_Tracker](docs/POS_Invoicing_Build_Tracker.md). Library tracker date bumped.
+**Last updated:** 2026-05-16 — Library taxonomy cleanup: Category → Genre backfill + structural removal of `categories` / `book_categories` / `books.primary_category_id`; genre is now the single content-type axis. Step A QA acceptance rows closed (owner phone smoke). Open Questions Q4 / Q6 / Q8 resolved; Pass 2 acceptance marked N/A (DB is source of truth); Q5 reframed as a trip-period observational task; Q12 added + resolved. Decision **[022](docs/decisions/022-library-category-removal.md)**.
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,18 +10,20 @@
 
 ## Current focus
 
-**Library — Session 9 (post-spike):** decision **[015](docs/decisions/015-library-session-9-ocr-kickoff.md)** shipped stub **`ocr_scripture_refs`**, **`extractScriptureRefs`** action, batch **Extract from image**, **`confidence_score`** on batch save. **Next build steps:** `npm run supabase:deploy-functions` (deploy OCR function when ready), then wire Anthropic/provider per 015; smoke-test page photos.
+**Library — taxonomy cleanup landed (2026-05-16):** see decision **[022](docs/decisions/022-library-category-removal.md)** — Category → Genre backfilled, `categories` / `book_categories` / `books.primary_category_id` dropped. Genre is now the sole content-type taxonomy; `books.shelving_location` (TEXT) remains the physical-location escape hatch.
 
-**Trip QA (owner, pre–2026-05-21):** [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) §A phone + §B viewer — tick tracker hands-on rows when done.
+**Library — Session 9 (trip-period continuation):** **[021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md)** — **`ocr_scripture_refs`** Anthropic vision code **deployed 2026-05-16**; set **`ANTHROPIC_API_KEY`** (+ optional **`ANTHROPIC_OCR_MODEL`**) in Supabase secrets per [supabase/README.md](supabase/README.md) before first prod invoke; **`/library/review`** lists scripture refs with `needs_review`. **Owner next:** secrets if needed + **5-image smoke**.
+
+**Trip QA (owner, pre–2026-05-21):** ✅ Step A owner phone smoke complete 2026-05-16; tracker rows ticked. Viewer smoke ([docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) §B) remains deferred until a collaborator seed.
 
 **Ops workflow:** Migrations and Edge deploys target the **single hosted** project (`npm run supabase:db:push`, `npm run supabase:deploy-functions`); **do not** use local Docker / `supabase start` for this repo — spelled out in AGENTS session template + always-on rules.
 
-Trip-period (late May → early August): mobile shelf workflow; Pass 2 spreadsheet + Turabian pause until return (OCR continuation can ship whenever deploy window allows).
+**Trip-period (late May → early August):** **Build continues** where it does not need an arbitrary physical book from the full ~1,288 (OCR, schema/UI/Edge, mobile polish, Session 8 pure-function Turabian prep). **Shelf-bound work is parked** until August: Session 4 Pass 2 `--apply`, review drill-down for books left in Madison, BDAG / Calvin CC vols 2–3 / Bruce NICNT Acts / Hodge 1 Cor / Douglas *NBD* shelf-checks.
 
 Nearest hard dates:
 - **2026-05-15** — semester ends
-- **2026-05-21** — move to Madison; trip-period workflow begins (limited-shelf, mobile-only)
-- **2026-08** — return; post-trip arc starts (Session 9 OCR → Session 8 Turabian)
+- **2026-05-21** — move to Madison; trip-period workflow begins (limited-shelf, mobile-first)
+- **2026-08** — return; shelf-bound QA + Pass 2 window
 - **2026-09** — fall-semester-ready citations
 
 ---
@@ -31,7 +33,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6). **Resend:** verified `npneathery.com`; `send-invoice` sends as Parker Neathery / `invoicing@`, replies to `parker@`. PDF letterhead **settled** (no `SENDER_*` change). **First real-client send:** **2026-05-11** (owner). **Key rotation:** owner reminder **September 2026** ([runbook](docs/Supabase_deployment_and_go_live.md)). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | 🟢 Pre-trip arc complete through Session 7. **Session 9 OCR** spike shipped (015); continuation = deploy function + provider wiring. Post-trip order remains finish Session 9 → **Session 8** Turabian. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | 🟢 Pre-trip arc through Session 7 shipped. **Session 9 OCR** — Anthropic integration + review list (**021**); deploy + owner smoke pending. **Trip policy:** build allowed on the road; shelf-bound Pass 2 + spot-checks → August. Sequence **7 → 9 → 8** unchanged. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -39,9 +41,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [022 — Library category removal + genre-only taxonomy](docs/decisions/022-library-category-removal.md) (2026-05-16) — Category → Genre backfill; dropped `categories` / `book_categories` / `books.primary_category_id`; Q11 closed, Q12 resolved.
+- [021 — Library Session 9 OCR Anthropic + review list + trip policy](docs/decisions/021-library-session-9-ocr-anthropic-wired.md) (2026-05-16) — `ocr_scripture_refs` vision provider; `/library/review` scripture refs section; tracker trip-period amendment.
 - [016 — Library misc UX, bulk update, OL refresh, language audit](docs/decisions/016-library-misc-ux-bulk-ol-audit.md) (2026-05-06) — facet/layout polish; `title-sort.ts` German articles; ISBN OL refresh dialog; list bulk update; language-audit CLI.
-- [015 — Library Session 9 OCR kickoff](docs/decisions/015-library-session-9-ocr-kickoff.md) (2026-05-04) — Open Q7 closed (Anthropic MVP default); Edge stub `ocr_scripture_refs`; extract action + batch UI hook; `confidence_score` in batch JSON.
-- [014 — Library migrate env + handoff](docs/decisions/014-library-migrate-env-handoff.md) (2026-05-03) — Path B README/AGENTS; review queue kbd hints desktop-only; Supabase **source → destination** URIs; **Path B apply completed 2026-05-04** (see decision follow-up).
 
 ---
 
@@ -53,7 +55,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow (repo convention):** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md); also [AGENTS.md](AGENTS.md) Scripts + session template + [.cursor/rules/always.mdc](.cursor/rules/always.mdc).
 
-**Repo gate:** `npm run check` last verified 2026-05-04 (Session 9 spike + follow-on docs); re-run after substantive code changes.
+**Repo gate:** `npm run check` last verified **2026-05-16** (Session 9 OCR continuation).
 
 **Phone smoke (owner):** `/library` filters at scale, `/library/search-passage` (e.g. Phil 2:5), `/library/review` drill, `/library/add` barcode path — tracker Session 3–6 acceptance (steps in runbook §A).
 
@@ -63,12 +65,13 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Next up
 
-1. **Trip-period mobile workflow validation** — [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) §A on a real phone before **2026-05-21**; tick tracker Session 3–6 / 5.5 hands-on rows when done.
-2. **Session 9 (OCR) continuation (build):** `npm run supabase:deploy-functions` → deploy **`ocr_scripture_refs`**; wire Anthropic (or chosen provider) per [015](docs/decisions/015-library-session-9-ocr-kickoff.md); smoke-test ~5 page images; extend tracker Session 9 acceptance as completed.
-3. **Carry-forward — viewer smoke:** [runbook](docs/library-trip-qa-runbook.md) §B — merge/ancient/permissions 403s; tick Session 7 viewer acceptance + deferred Session 1–6 viewer rows when done.
-4. **Invoicing go-live:** ~~domain + Resend verify + `send-invoice` from/reply-to~~ **done (May 2026).** ~~PDF `SENDER_*`~~ letterhead accepted. **First real-client send** **2026-05-11** (owner). **Key rotation** — September reminder on calendar ([Supabase_deployment_and_go_live](docs/Supabase_deployment_and_go_live.md)).
-5. **Pre-Session-8 prep (August queue):** Open Q4 bibliography format; ~~Turabian skill in context~~ **done (Claude.ai, 2026-05-06)**; v2 spreadsheet by early August (Open Q8) before Pass 2.
-6. **Invoicing maintenance:** rotate Supabase JWT secret + Resend API key when a deploy window opens ([docs/Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md)).
+1. **Backfill review pass** — work the ~N "Genre backfilled from category — confirm or refine." rows surfaced by 022 via `/library/review` whenever convenient; refining lands directly in the genre column.
+2. **Session 9 — prod OCR:** ensure `supabase secrets set ANTHROPIC_API_KEY=…` (if not already) → **5-image smoke** (see [021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md)); tick tracker Session 9 smoke row. ~~`npm run supabase:deploy-functions`~~ **done 2026-05-16.**
+3. **Session 8 (Turabian):** Open Q4 **resolved** (HTML + plain-text clipboard, no file export); ~~Turabian skill in context~~ **done (Claude.ai, 2026-05-06)**; pure-function module may proceed during trip; full scholarly-core QA may wait until shelf is home. Turabian-first `/library/review` co-ships per [.cursor/plans/review_queue_gamification_39c2a467.plan.md](.cursor/plans/review_queue_gamification_39c2a467.plan.md).
+4. **Shelf-bound queue (August):** deferred shelf-check items (Calvin CC, Bruce, Hodge, NBD); Q8 **resolved** (DB is source of truth — no Pass 2).
+5. **Carry-forward — viewer smoke:** [runbook](docs/library-trip-qa-runbook.md) §B — merge/ancient/permissions 403s; tick Session 7 viewer acceptance + deferred Session 1–6 viewer rows + Session 9 OCR viewer row when done.
+6. **Trip-period Q5 evaluation:** observe whether essay-level citations cause real friction during sermon prep / paper drafting; promote essays UI up the post-trip queue if yes.
+7. **Invoicing maintenance:** rotate Supabase JWT secret + Resend API key when a deploy window opens ([docs/Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md)).
 
 ---
 
@@ -86,10 +89,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 Only items that could block a future session. Full lists live in each tracker's Open Questions table.
 
 - **Invoicing:** ~~domain + Resend verification~~ done; ~~`SENDER_*`~~ letterhead accepted; first real-client send **2026-05-11**; key rotation **September** (owner calendar).
-- **Library Q4:** bibliography export format — blocks Session 8 start.
-- **Library Q7:** ~~OCR provider choice~~ — resolved (015); provider **integration** remains Session 9 continuation work.
-- **Library Q8:** v2 corrected scholarly-core spreadsheet — must land before Pass 2 (post-trip).
-- **Library pre-session checklist:** scholarly core review in Claude; deferred shelf-check items (Calvin CC vols 2–3, Bruce NICNT Acts edition, Hodge 1 Cor reprint, Douglas *NBD* edition); BDAG migration row; `enrich_library.py` run.
+- **Library Q4:** ~~bibliography export format~~ **resolved 2026-05-16** — HTML + plain-text clipboard, no file export.
+- **Library Q5:** essay-level citations — trip-period observational task; promote if friction surfaces.
+- **Library Q7:** ~~OCR provider choice~~ — resolved (015); **Anthropic integration** shipped in code (**021**); prod deploy + owner smoke pending.
+- **Library Q8:** ~~v2 spreadsheet → Pass 2~~ **resolved 2026-05-16** — DB is source of truth; importer retired.
+- **Library pre-session checklist:** all items resolved / absorbed 2026-05-16 (DB as source of truth + shelf-now access).
 
 ---
 

@@ -23,7 +23,6 @@
 	} from '$lib/types/library';
 	import type {
 		BookDetail,
-		CategoryRow,
 		SeriesRow,
 		PersonRow,
 		AuthorRole,
@@ -89,7 +88,6 @@
 		book = null,
 		people: initialPeople,
 		personBookCounts,
-		categories,
 		series,
 		bibleBooks = [],
 		formMessage = null,
@@ -106,7 +104,6 @@
 		book?: BookDetail | null;
 		people: PersonRow[];
 		personBookCounts: Record<string, number>;
-		categories: CategoryRow[];
 		series: SeriesRow[];
 		/** Canonical bible book names for commentary auto-coverage (create mode). */
 		bibleBooks?: { name: string; testament: 'OT' | 'NT' }[];
@@ -142,8 +139,6 @@
 	let reprint_publisher = $state('');
 	let reprint_location = $state('');
 	let reprint_year = $state('');
-	let primary_category_id = $state('');
-	let extra_category_ids = $state<string[]>([]);
 	let series_id = $state<string>('');
 	let volume_number = $state('');
 	let genre = $state<Genre | ''>('');
@@ -210,8 +205,6 @@
 			reprint_publisher,
 			reprint_location,
 			reprint_year,
-			primary_category_id,
-			extra_category_ids,
 			series_id,
 			volume_number,
 			genre,
@@ -260,8 +253,6 @@
 			needs_review_note
 		].some((v) => String(v ?? '').trim().length > 0) ||
 			authorRows.some((a) => a.person_id) ||
-			extra_category_ids.length > 0 ||
-			!!primary_category_id ||
 			!!series_id ||
 			!!genre ||
 			needs_review === true
@@ -281,10 +272,6 @@
 	const formAction = $derived(`?/${mode === 'create' ? 'createBook' : 'updateBook'}`);
 	const personActionPath = '?/createPerson';
 
-	const categorySelectItems = $derived([
-		{ value: '', label: '— None —' },
-		...categories.map((c) => ({ value: c.id, label: c.name }))
-	]);
 	const seriesSelectItems = $derived([
 		{ value: '', label: '— None —' },
 		...series.map((s) => ({
@@ -306,11 +293,6 @@
 		AUTHOR_ROLES.map((r) => ({ value: r, label: AUTHOR_ROLE_LABELS[r] }))
 	);
 
-	const primaryCategoryLabel = $derived.by(() => {
-		if (!primary_category_id) return '— None —';
-		const found = categories.find((c) => c.id === primary_category_id);
-		return found?.name ?? '— None —';
-	});
 	const seriesLabel = $derived.by(() => {
 		if (!series_id) return '— None —';
 		const s = series.find((x) => x.id === series_id);
@@ -336,17 +318,13 @@
 		}
 	});
 
-	/** On transition into Commentary only, fill defaults if user hasn't changed them yet. */
+	/** On transition into Commentary only, fill reading_status default if untouched. */
 	$effect(() => {
 		const g = genre;
 		const prev = prevGenreForDefaults;
 		if (g === prev) return;
 		untrack(() => {
 			if (prev != null && g === 'Commentary' && prev !== 'Commentary') {
-				if (primary_category_id === '') {
-					const bs = categories.find((c) => c.name === 'Biblical Studies');
-					if (bs) primary_category_id = bs.id;
-				}
 				if (reading_status === 'unread') reading_status = 'reference';
 			}
 			prevGenreForDefaults = g;
@@ -482,8 +460,6 @@
 			reprint_publisher = book.reprint_publisher ?? '';
 			reprint_location = book.reprint_location ?? '';
 			reprint_year = book.reprint_year != null ? String(book.reprint_year) : '';
-			primary_category_id = book.primary_category_id ?? '';
-			extra_category_ids = book.category_ids.filter((id) => id !== book.primary_category_id);
 			series_id = book.series_id ?? '';
 			volume_number = book.volume_number ?? '';
 			genre = (book.genre as Genre | null) ?? '';
@@ -628,13 +604,6 @@
 		authorRows = authorRows.map((a) =>
 			a.key === rowKey ? { key: a.key, person_id: personId, role: a.role } : a
 		);
-	}
-
-	function toggleExtraCategory(id: string) {
-		if (id === primary_category_id) return;
-		extra_category_ids = extra_category_ids.includes(id)
-			? extra_category_ids.filter((x) => x !== id)
-			: [...extra_category_ids, id];
 	}
 
 	function openPersonDialog(
@@ -818,64 +787,51 @@
 	}
 </script>
 
-{#if categories.length === 0}
-	<p class="text-sm text-muted-foreground">
-		No categories found. Run <code>supabase/seed/library_seed.sql</code> against prod before
-		adding books.
-	</p>
-{:else}
-	{#if formMessage?.message}
-		<p
-			class="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-			role="alert"
-		>
-			{formMessage.message}
-		</p>
-	{/if}
-
-	{#if mode === 'edit' && book}
-		<div class="mb-4 flex flex-wrap justify-end gap-2">
-			<Button type="button" variant="outline" class="gap-2" onclick={() => (olRefreshOpen = true)}>
-				<ScanBarcode class="size-4" /> Refresh from Open Library
-			</Button>
-		</div>
-		<BookOlRefreshDialog
-			bind:open={olRefreshOpen}
-			initialIsbn={isbn}
-			current={olRefreshCurrent}
-			onApply={applyOlRefresh}
-		/>
-	{/if}
-
-	<form
-		bind:this={bookFormEl}
-		method="POST"
-		action={formAction}
-		use:enhance={submitEnhance}
-		class="flex flex-col gap-6"
+{#if formMessage?.message}
+	<p
+		class="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+		role="alert"
 	>
-		{#if mode === 'edit' && book}
-			<input type="hidden" name="id" value={book.id} />
-		{/if}
-		<input type="hidden" name="primary_category_id" value={primary_category_id} />
-		<input type="hidden" name="series_id" value={series_id} />
-		<input type="hidden" name="genre" value={genre} />
-		<input type="hidden" name="language" value={language} />
-		<input type="hidden" name="reading_status" value={reading_status} />
-		<input type="hidden" name="needs_review" value={needs_review ? 'true' : 'false'} />
-		<input type="hidden" name="authors_json" value={authorsJson} />
-		<input type="hidden" name="barcode" value={barcode} />
-		<input
-			type="hidden"
-			name="auto_bible_book"
-			value={detectedBibleBook && bibleBookDismissed !== detectedBibleBook ? detectedBibleBook : ''}
-		/>
-		{#each extra_category_ids as cid (cid)}
-			<input type="hidden" name="category_ids" value={cid} />
-		{/each}
-		{#if primary_category_id}
-			<input type="hidden" name="category_ids" value={primary_category_id} />
-		{/if}
+		{formMessage.message}
+	</p>
+{/if}
+
+{#if mode === 'edit' && book}
+	<div class="mb-4 flex flex-wrap justify-end gap-2">
+		<Button type="button" variant="outline" class="gap-2" onclick={() => (olRefreshOpen = true)}>
+			<ScanBarcode class="size-4" /> Refresh from Open Library
+		</Button>
+	</div>
+	<BookOlRefreshDialog
+		bind:open={olRefreshOpen}
+		initialIsbn={isbn}
+		current={olRefreshCurrent}
+		onApply={applyOlRefresh}
+	/>
+{/if}
+
+<form
+	bind:this={bookFormEl}
+	method="POST"
+	action={formAction}
+	use:enhance={submitEnhance}
+	class="flex flex-col gap-6"
+>
+	{#if mode === 'edit' && book}
+		<input type="hidden" name="id" value={book.id} />
+	{/if}
+	<input type="hidden" name="series_id" value={series_id} />
+	<input type="hidden" name="genre" value={genre} />
+	<input type="hidden" name="language" value={language} />
+	<input type="hidden" name="reading_status" value={reading_status} />
+	<input type="hidden" name="needs_review" value={needs_review ? 'true' : 'false'} />
+	<input type="hidden" name="authors_json" value={authorsJson} />
+	<input type="hidden" name="barcode" value={barcode} />
+	<input
+		type="hidden"
+		name="auto_bible_book"
+		value={detectedBibleBook && bibleBookDismissed !== detectedBibleBook ? detectedBibleBook : ''}
+	/>
 
 		<!-- Identity (full width) -->
 		<section class="flex flex-col gap-4">
@@ -1183,65 +1139,6 @@
 									{/each}
 								</Select.Content>
 							</Select.Root>
-						</div>
-					</div>
-
-					<div class="space-y-2">
-						<Label for="bf-primary-cat">Primary category</Label>
-						<Select.Root
-							type="single"
-							bind:value={primary_category_id}
-							items={categorySelectItems}
-						>
-							<Select.Trigger
-								id="bf-primary-cat"
-								size="default"
-								class="h-11 w-full justify-between px-3"
-							>
-								<span data-slot="select-value" class="truncate text-left"
-									>{primaryCategoryLabel}</span
-								>
-							</Select.Trigger>
-							<Select.Content class="max-h-72">
-								<Select.Item
-									value=""
-									label="— None —"
-									class="min-h-10 py-2 text-muted-foreground"
-								>
-									— None —
-								</Select.Item>
-								{#each categories as c (c.id)}
-									<Select.Item value={c.id} label={c.name} class="min-h-10 py-2">
-										{c.name}
-									</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-					</div>
-
-					<div class="space-y-2">
-						<Label class="text-sm font-medium">Additional categories</Label>
-						<p class="text-xs text-muted-foreground">Pick any extras beyond the primary.</p>
-						<div class="flex flex-wrap gap-2">
-							{#each categories as c (c.id)}
-								{@const isPrimary = c.id === primary_category_id}
-								{@const checked = isPrimary || extra_category_ids.includes(c.id)}
-								<button
-									type="button"
-									onclick={() => toggleExtraCategory(c.id)}
-									disabled={isPrimary}
-									class={cn(
-										'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-										checked
-											? 'border-foreground/40 bg-foreground/10 text-foreground'
-											: 'border-border bg-background text-muted-foreground hover:bg-muted',
-										isPrimary && 'cursor-default opacity-70'
-									)}
-									aria-pressed={checked}
-								>
-									{c.name}{#if isPrimary} <span class="text-[10px] uppercase">primary</span>{/if}
-								</button>
-							{/each}
 						</div>
 					</div>
 
@@ -1630,7 +1527,6 @@
 			{/if}
 		</div>
 	</form>
-{/if}
 
 <Dialog.Root bind:open={personDialogOpen}>
 	<Dialog.Content class="sm:max-w-md">

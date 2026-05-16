@@ -24,7 +24,6 @@
 		);
 		t.push(
 			{ href: '/settings/library/genres', label: 'Genres' },
-			{ href: '/settings/library/categories', label: 'Categories' },
 			{ href: '/settings/library/bible-books', label: 'Bible books' }
 		);
 		return t;
@@ -65,8 +64,8 @@
 		<div>
 			<h1 class="text-2xl font-semibold tracking-tight text-foreground">Library settings</h1>
 			<p class="mt-1 text-sm text-muted-foreground">
-				People can be merged or renamed; genres, categories, and Bible book names are read-only
-				reference data for library forms.
+				People can be merged or renamed; genres and Bible book names are read-only reference
+				data for library forms.
 			</p>
 		</div>
 	</header>

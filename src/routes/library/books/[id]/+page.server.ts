@@ -7,7 +7,6 @@ import {
 	loadBibleCoverageForBook,
 	loadBookDetail,
 	loadBookTopicsForBook,
-	loadCategories,
 	loadPersonBookCounts,
 	loadScriptureRefsForBook
 } from '$lib/library/server/loaders';
@@ -59,8 +58,7 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	const supabase = locals.supabase;
 	const { people, series, bibleBookNames } = await parent();
 
-	const [categories, ancientTexts, topicCounts] = await Promise.all([
-		loadCategories(supabase),
+	const [ancientTexts, topicCounts] = await Promise.all([
 		loadAncientTexts(supabase),
 		loadAllTopicCounts(supabase)
 	]);
@@ -90,7 +88,6 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	return {
 		book,
 		people,
-		categories,
 		series,
 		bibleBookNames,
 		ancientTexts,

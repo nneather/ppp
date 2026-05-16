@@ -728,11 +728,6 @@
 											{b.genre}
 										</span>
 									{/if}
-									{#if b.primary_category_name}
-										<span class="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground">
-											{b.primary_category_name}
-										</span>
-									{/if}
 									{#if b.series_abbreviation}
 										<span
 											class="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground"

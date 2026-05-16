@@ -278,36 +278,6 @@ export type Database = {
           },
         ]
       }
-      book_categories: {
-        Row: {
-          book_id: string
-          category_id: string
-        }
-        Insert: {
-          book_id: string
-          category_id: string
-        }
-        Update: {
-          book_id?: string
-          category_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "book_categories_book_id_fkey"
-            columns: ["book_id"]
-            isOneToOne: false
-            referencedRelation: "books"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "book_categories_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       book_topics: {
         Row: {
           book_id: string | null
@@ -399,7 +369,6 @@ export type Database = {
           original_year: number | null
           page_count: number | null
           personal_notes: string | null
-          primary_category_id: string | null
           publisher: string | null
           publisher_location: string | null
           rating: number | null
@@ -433,7 +402,6 @@ export type Database = {
           original_year?: number | null
           page_count?: number | null
           personal_notes?: string | null
-          primary_category_id?: string | null
           publisher?: string | null
           publisher_location?: string | null
           rating?: number | null
@@ -467,7 +435,6 @@ export type Database = {
           original_year?: number | null
           page_count?: number | null
           personal_notes?: string | null
-          primary_category_id?: string | null
           publisher?: string | null
           publisher_location?: string | null
           rating?: number | null
@@ -493,13 +460,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "books_primary_category_id_fkey"
-            columns: ["primary_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "books_series_id_fkey"
             columns: ["series_id"]
             isOneToOne: false
@@ -507,27 +467,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      categories: {
-        Row: {
-          id: string
-          name: string
-          slug: string
-          sort_order: number
-        }
-        Insert: {
-          id?: string
-          name: string
-          slug: string
-          sort_order?: number
-        }
-        Update: {
-          id?: string
-          name?: string
-          slug?: string
-          sort_order?: number
-        }
-        Relationships: []
       }
       client_rates: {
         Row: {

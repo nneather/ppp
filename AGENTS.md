@@ -62,7 +62,8 @@ End-of-session deliverables:
   - `src/lib/types/library.ts` — closed enums (`GENRES`, `LANGUAGES`, `READING_STATUSES`, `AUTHOR_ROLES`) + view-models (`BookListRow`, `BookDetail`, `PersonRow`, `ScriptureRefRow`, etc.). Reuse before improvising.
   - `src/lib/library/polymorphic.ts` — `PolymorphicParent` discriminated union + `validateXor` + `insertPolymorphicRow<T>`. Reused by `scripture_references`, `book_topics`, `book_bible_coverage`, `book_ancient_coverage`. **Do not invent four versions** per [.cursor/rules/library-module.mdc](.cursor/rules/library-module.mdc).
   - `src/lib/library/storage.ts` — `SCRIPTURE_IMAGES_BUCKET`, `SCRIPTURE_IMAGES_SIGNED_URL_TTL`, `scriptureImagePath({ userId, bookId, ext })`. Single source of truth for the `library-scripture-images` bucket name + path convention; imported from both server (signed-URL generation in loaders) and browser (upload in form components).
-  - `src/lib/library/server/loaders.ts` — `loadBookList`, `loadBookDetail`, `loadCategories`, `loadSeries`, `loadPeople`, `loadPersonBookCounts`, `loadBibleBookNames`, `loadScriptureRefsForBook` (with per-row 1h signed-URL generation), `personDisplayShort/Long`, `loadBookFormPageData` (shared new-book deps), `countLiveBooks` / `countLiveBooksExact` / `countBooksNeedingReview` (list + dashboard counts). Used by `/library` and `/library/books/[id]`.
+  - `src/lib/library/server/loaders.ts` — `loadBookList`, `loadBookDetail`, `loadCategories`, `loadSeries`, `loadPeople`, `loadPersonBookCounts`, `loadBibleBookNames`, `loadScriptureRefsForBook` (with per-row 1h signed-URL generation), `loadScriptureRefsNeedingReview` (`/library/review` scripture list), `personDisplayShort/Long`, `loadBookFormPageData` (shared new-book deps), `countLiveBooks` / `countLiveBooksExact` / `countBooksNeedingReview` (list + dashboard counts). Used by `/library` and `/library/books/[id]`.
+  - `src/lib/library/scripture-ref-format.ts` — `formatScriptureRefRangeDisplay`, `formatScriptureRefPageSummary` (shared scripture labels; audit-log entity label pattern).
   - `src/lib/library/isbn.ts` — `normalizeIsbnDigits`, `parseIsbnWithChecksum` (ISBN-10/13 check digit); used by `/library/add`, `fetchOpenLibraryPrefill`, manual OL entry.
   - `src/lib/library/scan-session.ts` — `LIBRARY_SCAN_SESSION_KEY`, `markScanSessionForNewBook()` for barcode → new-book → optional return to `/library/add`.
   - `src/lib/library/open-library-prefill.ts` — re-exports `normalizeIsbnDigits` from `isbn.ts`; `fetchOpenLibraryPrefill` (checksum-validated ISBN, edition + optional OL work + up to 5 author JSON fetches; `authors[]`, `authorTyped`, `publisher_location`, `edition`, `genreSuggested`, `seriesName` / `seriesVolume`, `languageCode`); `LIBRARY_OL_PREFILL_KEY` (`library_ol_prefill_v2`) for `/library/add` → `/library/books/new` prefill.
@@ -74,7 +75,8 @@ End-of-session deliverables:
   - `src/lib/library/server/series-settings-actions.ts` / `series-settings-book-counts.ts` — `/settings/library/series` update + guarded soft-delete.
   - `src/lib/library/server/ancient-texts-settings-actions.ts` / `ancient-texts-settings-book-counts.ts` — `/settings/library/ancient-texts` CRUD + `mergeAncientTextsSettingsAction` (RPC `library_merge_ancient_texts`, owner-only).
   - `src/lib/library/server/permissions-actions.ts` — `upsertUserPermissionAction` for `/settings/permissions` (owner-only).
-  - `src/lib/library/server/scripture-actions.ts` — same shape for `scripture_references`: `createScriptureRefAction`, `updateScriptureRefAction`, `softDeleteScriptureRefAction`. Wired into `/library/books/[id]` Session 2.
+  - `src/lib/library/server/scripture-actions.ts` — same shape for `scripture_references`: `createScriptureRefAction`, `createScriptureRefsBatchAction`, `updateScriptureRefAction`, `softDeleteScriptureRefAction`. Wired into `/library/books/[id]` Session 2.
+  - **`supabase/functions/ocr_scripture_refs`** — Library OCR: user JWT via `/auth/v1/user`, service-role storage download from `library-scripture-images`, Anthropic Messages API (vision). Secrets: `ANTHROPIC_API_KEY` (+ optional `ANTHROPIC_OCR_MODEL`); see [supabase/README.md](supabase/README.md) + [021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md).
 
 ### Scripts
 
@@ -94,7 +96,7 @@ Two files. Both are gitignored.
 | File | Purpose | Examples |
 |---|---|---|
 | `.env` | Project ref / non-secret config used by CLI scripts | `SUPABASE_REF` |
-| `.env.local` | Real secrets and public client config | `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `RESEND_API_KEY`, **`LIBRARY_SRC_DATABASE_URL`**, **`LIBRARY_DST_DATABASE_URL`**, **`LIBRARY_MIGRATE_CONFIRM`** (Postgres URIs, typically both from Supabase Dashboard **Connect → Direct** — see [`scripts/library-migrate-local-to-prod/README.md`](scripts/library-migrate-local-to-prod/README.md)) |
+| `.env.local` | Real secrets and public client config | `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `RESEND_API_KEY`, **`ANTHROPIC_API_KEY`** (optional — mirror of Supabase Edge secret for `supabase functions serve` / local OCR dev only), **`LIBRARY_SRC_DATABASE_URL`**, **`LIBRARY_DST_DATABASE_URL`**, **`LIBRARY_MIGRATE_CONFIRM`** (Postgres URIs, typically both from Supabase Dashboard **Connect → Direct** — see [`scripts/library-migrate-local-to-prod/README.md`](scripts/library-migrate-local-to-prod/README.md)) |
 
 Rules:
 
