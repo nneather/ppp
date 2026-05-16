@@ -11,8 +11,8 @@
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Plus from '@lucide/svelte/icons/plus';
+	import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
 	import Copy from '@lucide/svelte/icons/copy';
 	import {
 		copyAllFieldsLine,
@@ -32,6 +32,8 @@
 	import BookBibleCoverageEditor from '$lib/components/book-bible-coverage-editor.svelte';
 	import BookAncientCoverageEditor from '$lib/components/book-ancient-coverage-editor.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
+	import PageHeader from '$lib/components/page-header.svelte';
+	import * as Sheet from '$lib/components/ui/sheet';
 	import type { BookTopicRow } from '$lib/types/library';
 	import type { PageProps } from './$types';
 	import { cn } from '$lib/utils.js';
@@ -39,6 +41,13 @@
 	import Image from '@lucide/svelte/icons/image';
 
 	let { data, form }: PageProps = $props();
+
+	let bookActionsSheetOpen = $state(false);
+
+	const bookTitleLabel = $derived(
+		data.book.title?.trim() ? data.book.title : '(untitled book)'
+	);
+	const bookTitleIsPlaceholder = $derived(!data.book.title?.trim());
 
 	let deletePending = $state(false);
 	let statusOptimistic = $state<ReadingStatus | null>(null);
@@ -74,6 +83,7 @@
 	}
 
 	const deleteEnhance: SubmitFunction = () => {
+		bookActionsSheetOpen = false;
 		deletePending = true;
 		return async ({ update }) => {
 			await update({ reset: false });
@@ -473,119 +483,221 @@
 	});
 </script>
 
+{#snippet copyDraftButtons()}
+	<div class="mt-2 flex flex-wrap gap-2">
+		<Button
+			type="button"
+			variant="outline"
+			size="sm"
+			class="min-h-10 gap-1.5"
+			disabled={copyAuthorsLine(data.book.authors).length === 0}
+			onclick={() => void copyToClipboard('authors', copyAuthorsLine(data.book.authors))}
+		>
+			<Copy class="size-3.5" /> Authors
+		</Button>
+		<Button
+			type="button"
+			variant="outline"
+			size="sm"
+			class="min-h-10 gap-1.5"
+			disabled={copyTitleLine(data.book).length === 0}
+			onclick={() => void copyToClipboard('title', copyTitleLine(data.book))}
+		>
+			<Copy class="size-3.5" /> Title
+		</Button>
+		<Button
+			type="button"
+			variant="outline"
+			size="sm"
+			class="min-h-10 gap-1.5"
+			disabled={copyPublisherYearLine(data.book).length === 0}
+			onclick={() => void copyToClipboard('publisher and year', copyPublisherYearLine(data.book))}
+		>
+			<Copy class="size-3.5" /> Publisher + year
+		</Button>
+		<Button
+			type="button"
+			variant="outline"
+			size="sm"
+			class="min-h-10 gap-1.5"
+			disabled={copyAllFieldsLine(data.book).length === 0}
+			onclick={() => void copyToClipboard('all fields', copyAllFieldsLine(data.book))}
+		>
+			<Copy class="size-3.5" /> All fields
+		</Button>
+	</div>
+{/snippet}
+
+{#snippet bookEyebrow()}
+	<BookOpen class="size-5 shrink-0" />
+	{#if data.book.genre}
+		<span class="text-xs uppercase tracking-wide">{data.book.genre}</span>
+	{/if}
+	{#if data.book.needs_review}
+		<span
+			class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
+		>
+			<AlertCircle class="size-3" /> Needs review
+		</span>
+	{/if}
+{/snippet}
+
+{#snippet bookVolSuffix()}
+	{#if data.book.volume_number}
+		<span class="text-muted-foreground">, vol. {data.book.volume_number}</span>
+	{/if}
+{/snippet}
+
+{#snippet bookAuthorsMeta()}
+	{#if data.book.authors.length > 0}
+		<p class="text-sm text-foreground">
+			{#each data.book.authors as a, i (a.person_id + a.role)}
+				<span>
+					{a.person_label}
+					{#if a.role !== 'author'}
+						<span class="text-muted-foreground">({AUTHOR_ROLE_LABELS[a.role]})</span>
+					{/if}
+				</span>{#if i < data.book.authors.length - 1},
+				{/if}
+			{/each}
+		</p>
+	{/if}
+{/snippet}
+
+{#snippet bookDetailActions()}
+	<div class="hidden md:flex md:flex-wrap md:gap-2">
+		<Button variant="outline" href={`/library/books/${data.book.id}/edit`} hotkey="e">
+			<Pencil class="size-4" /> <HotkeyLabel label="Edit" mnemonic="e" />
+		</Button>
+		<Button variant="outline" href={`/library/books/${data.book.id}/edit?ol=1`} class="gap-2">
+			<ScanBarcode class="size-4" /> Refresh from ISBN
+		</Button>
+		<form method="POST" action="?/softDeleteBook" use:enhance={deleteEnhance} class="contents">
+			<input type="hidden" name="id" value={data.book.id} />
+			<Button type="submit" variant="destructive" disabled={deletePending} hotkey="d">
+				<Trash2 class="size-4" />
+				<HotkeyLabel label={deletePending ? 'Deleting…' : 'Delete'} mnemonic="d" />
+			</Button>
+		</form>
+	</div>
+	<div class="flex items-stretch gap-2 md:hidden">
+		<Button
+			variant="outline"
+			href={`/library/books/${data.book.id}/edit`}
+			hotkey="e"
+			class="min-h-11 flex-1"
+		>
+			<Pencil class="size-4" /> <HotkeyLabel label="Edit" mnemonic="e" />
+		</Button>
+		<Button
+			type="button"
+			variant="outline"
+			size="icon"
+			class="size-11 shrink-0"
+			onclick={() => (bookActionsSheetOpen = true)}
+			aria-label="More book actions"
+		>
+			<MoreHorizontal class="size-5" />
+		</Button>
+	</div>
+{/snippet}
+
+{#snippet readingStatusCard()}
+	<div class="rounded-xl border border-border bg-card p-4 text-card-foreground">
+		<div class="text-xs uppercase tracking-wide text-muted-foreground">Reading status</div>
+		<form
+			method="POST"
+			action="?/updateReadingStatus"
+			use:enhance={statusSubmit}
+			class="mt-2"
+		>
+			<input type="hidden" name="id" value={data.book.id} />
+			<select
+				name="reading_status"
+				value={effectiveStatus}
+				onchange={(e) => (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit()}
+				class={`w-full rounded-md border bg-background px-2 py-1.5 text-sm ${statusToneClasses(effectiveStatus)}`}
+				aria-label="Reading status"
+			>
+				{#each READING_STATUSES as s (s)}
+					<option value={s}>{READING_STATUS_LABELS[s]}</option>
+				{/each}
+			</select>
+		</form>
+		{#if data.book.rating}
+			<p class="mt-3 text-xs uppercase tracking-wide text-muted-foreground">Rating</p>
+			<p class="text-lg font-semibold">{data.book.rating} / 5</p>
+		{/if}
+	</div>
+{/snippet}
+
 <svelte:head>
 	<title>{data.book.title ?? '(untitled)'} — Library — ppp</title>
 </svelte:head>
 
 <div class="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-8">
-	<a href="/library" class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-		<ArrowLeft class="size-4" /> Library
-	</a>
+	<PageHeader
+		back={{ href: '/library', label: 'Library' }}
+		title={bookTitleLabel}
+		titlePlaceholder={bookTitleIsPlaceholder}
+		subtitle={data.book.subtitle?.trim() ? data.book.subtitle : undefined}
+		titleAfter={bookVolSuffix}
+		eyebrow={bookEyebrow}
+		meta={data.book.authors.length > 0 ? bookAuthorsMeta : undefined}
+		actions={bookDetailActions}
+	/>
 
-	<header class="mt-4 flex flex-wrap items-start justify-between gap-3">
-		<div class="min-w-0 flex-1">
-			<div class="flex items-center gap-2 text-muted-foreground">
-				<BookOpen class="size-5" />
-				{#if data.book.genre}
-					<span class="text-xs uppercase tracking-wide">{data.book.genre}</span>
-				{/if}
-				{#if data.book.needs_review}
-					<span
-						class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
-					>
-						<AlertCircle class="size-3" /> Needs review
-					</span>
-				{/if}
-			</div>
-			<h1 class="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-				{#if data.book.title}
-					{data.book.title}
-				{:else}
-					<span class="italic text-muted-foreground">(untitled book)</span>
-				{/if}
-				{#if data.book.volume_number}<span class="text-muted-foreground">, vol. {data.book.volume_number}</span>{/if}
-			</h1>
-			{#if data.book.subtitle}
-				<p class="mt-1 text-base text-muted-foreground">{data.book.subtitle}</p>
-			{/if}
-			{#if data.book.authors.length > 0}
-				<p class="mt-2 text-sm text-foreground">
-					{#each data.book.authors as a, i (a.person_id + a.role)}
-						<span>
-							{a.person_label}
-							{#if a.role !== 'author'}
-								<span class="text-muted-foreground">({AUTHOR_ROLE_LABELS[a.role]})</span>
-							{/if}
-						</span>{#if i < data.book.authors.length - 1},
-						{/if}
-					{/each}
-				</p>
-			{/if}
-		</div>
-		<div class="flex flex-wrap gap-2">
-			<Button variant="outline" href={`/library/books/${data.book.id}/edit`} hotkey="e">
-				<Pencil class="size-4" /> <HotkeyLabel label="Edit" mnemonic="e" />
-			</Button>
-			<Button variant="outline" href={`/library/books/${data.book.id}/edit?ol=1`} class="gap-2">
-				<ScanBarcode class="size-4" /> Refresh from ISBN
-			</Button>
-			<form method="POST" action="?/softDeleteBook" use:enhance={deleteEnhance} class="contents">
-				<input type="hidden" name="id" value={data.book.id} />
-				<Button type="submit" variant="destructive" disabled={deletePending} hotkey="d">
-					<Trash2 class="size-4" />
-					<HotkeyLabel label={deletePending ? 'Deleting…' : 'Delete'} mnemonic="d" />
+	<Sheet.Root bind:open={bookActionsSheetOpen}>
+		<Sheet.Content side="bottom" class="gap-0 p-0">
+			<Sheet.Header class="border-b border-border px-4 pb-3 pt-2 text-left">
+				<Sheet.Title class="text-base">Book actions</Sheet.Title>
+			</Sheet.Header>
+			<div class="flex flex-col gap-2 p-4">
+				<Button
+					variant="outline"
+					class="h-11 w-full justify-center gap-2"
+					href={`/library/books/${data.book.id}/edit?ol=1`}
+					onclick={() => (bookActionsSheetOpen = false)}
+				>
+					<ScanBarcode class="size-4" /> Refresh from ISBN
 				</Button>
-			</form>
+				<form method="POST" action="?/softDeleteBook" use:enhance={deleteEnhance} class="contents">
+					<input type="hidden" name="id" value={data.book.id} />
+					<Button
+						type="submit"
+						variant="destructive"
+						disabled={deletePending}
+						hotkey="d"
+						class="h-11 w-full"
+					>
+						<Trash2 class="size-4" />
+						<HotkeyLabel label={deletePending ? 'Deleting…' : 'Delete'} mnemonic="d" />
+					</Button>
+				</form>
+			</div>
+		</Sheet.Content>
+	</Sheet.Root>
+
+	<details
+		class="mt-4 rounded-lg border border-border bg-muted/25 md:hidden"
+		aria-label="Copy raw fields for citations"
+	>
+		<summary
+			class="cursor-pointer list-none px-3 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden"
+		>
+			Copy for drafts
+		</summary>
+		<div class="border-t border-border px-3 pb-3 pt-1">
+			{@render copyDraftButtons()}
 		</div>
-	</header>
+	</details>
 
 	<section
-		class="mt-4 rounded-lg border border-border bg-muted/25 px-3 py-3"
+		class="mt-4 hidden rounded-lg border border-border bg-muted/25 px-3 py-3 md:block"
 		aria-label="Copy raw fields for citations"
 	>
 		<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Copy for drafts</p>
-		<div class="mt-2 flex flex-wrap gap-2">
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				class="min-h-10 gap-1.5"
-				disabled={copyAuthorsLine(data.book.authors).length === 0}
-				onclick={() => void copyToClipboard('authors', copyAuthorsLine(data.book.authors))}
-			>
-				<Copy class="size-3.5" /> Authors
-			</Button>
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				class="min-h-10 gap-1.5"
-				disabled={copyTitleLine(data.book).length === 0}
-				onclick={() => void copyToClipboard('title', copyTitleLine(data.book))}
-			>
-				<Copy class="size-3.5" /> Title
-			</Button>
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				class="min-h-10 gap-1.5"
-				disabled={copyPublisherYearLine(data.book).length === 0}
-				onclick={() => void copyToClipboard('publisher and year', copyPublisherYearLine(data.book))}
-			>
-				<Copy class="size-3.5" /> Publisher + year
-			</Button>
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				class="min-h-10 gap-1.5"
-				disabled={copyAllFieldsLine(data.book).length === 0}
-				onclick={() => void copyToClipboard('all fields', copyAllFieldsLine(data.book))}
-			>
-				<Copy class="size-3.5" /> All fields
-			</Button>
-		</div>
+		{@render copyDraftButtons()}
 	</section>
 
 	{#if data.book.needs_review_note}
@@ -593,6 +705,10 @@
 			<strong class="font-semibold">Review note:</strong> {data.book.needs_review_note}
 		</p>
 	{/if}
+
+	<div class="mt-6 md:hidden">
+		{@render readingStatusCard()}
+	</div>
 
 	<div class="mt-6 grid gap-6 md:grid-cols-3">
 		<dl class="md:col-span-2 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
@@ -655,31 +771,8 @@
 		</dl>
 
 		<aside class="flex flex-col gap-3">
-			<div class="rounded-xl border border-border bg-card p-4 text-card-foreground">
-				<div class="text-xs uppercase tracking-wide text-muted-foreground">Reading status</div>
-				<form
-					method="POST"
-					action="?/updateReadingStatus"
-					use:enhance={statusSubmit}
-					class="mt-2"
-				>
-					<input type="hidden" name="id" value={data.book.id} />
-					<select
-						name="reading_status"
-						value={effectiveStatus}
-						onchange={(e) => (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit()}
-						class={`w-full rounded-md border bg-background px-2 py-1.5 text-sm ${statusToneClasses(effectiveStatus)}`}
-						aria-label="Reading status"
-					>
-						{#each READING_STATUSES as s (s)}
-							<option value={s}>{READING_STATUS_LABELS[s]}</option>
-						{/each}
-					</select>
-				</form>
-				{#if data.book.rating}
-					<p class="mt-3 text-xs uppercase tracking-wide text-muted-foreground">Rating</p>
-					<p class="text-lg font-semibold">{data.book.rating} / 5</p>
-				{/if}
+			<div class="hidden md:block">
+				{@render readingStatusCard()}
 			</div>
 
 			{#if data.book.personal_notes}
@@ -761,7 +854,7 @@
 									<li
 										id={`ref-${ref.id}`}
 										class={cn(
-											'group/row flex min-h-9 items-center gap-2 px-3 py-1.5 transition-colors',
+											'group/row flex min-h-12 items-center gap-2 px-3 py-1.5 transition-colors md:min-h-9',
 											highlightedRefId === ref.id &&
 												'bg-amber-500/10 ring-2 ring-amber-500/40 ring-inset'
 										)}
@@ -808,6 +901,7 @@
 													type="button"
 													variant="ghost"
 													size="icon-sm"
+													class="size-9 md:size-7"
 													onclick={() => startEdit(ref.id)}
 													aria-label={`Edit ${fmtRef(ref)}`}
 												>
@@ -817,9 +911,9 @@
 													type="button"
 													variant="ghost"
 													size="icon-sm"
+													class="size-9 text-destructive hover:text-destructive md:size-7"
 													onclick={() => requestDelete(ref.id)}
 													aria-label={`Delete ${fmtRef(ref)}`}
-													class="text-destructive hover:text-destructive"
 												>
 													<Trash2 class="size-3.5" />
 												</Button>
@@ -1136,7 +1230,7 @@
 
 {#if copyToast}
 	<div
-		class="fixed inset-x-0 bottom-20 z-50 mx-auto w-full max-w-sm rounded-lg border border-border bg-card px-4 py-3 text-center text-sm text-card-foreground shadow-lg md:bottom-6"
+		class="fixed inset-x-0 bottom-tabbar z-50 mx-auto w-full max-w-sm rounded-lg border border-border bg-card px-4 py-3 text-center text-sm text-card-foreground shadow-lg md:bottom-6"
 		role="status"
 		aria-live="polite"
 	>

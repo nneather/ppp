@@ -156,7 +156,7 @@
 
 		<!-- Main -->
 		<div
-			class="flex min-h-dvh min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom,0px)+0.5rem)] md:pb-8"
+			class="flex min-h-dvh min-w-0 flex-1 flex-col pb-tabbar md:pb-8"
 		>
 			<main class="flex-1">
 				{@render children()}

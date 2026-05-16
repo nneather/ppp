@@ -84,3 +84,13 @@
 		font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
 	}
 }
+
+/** Clearance above the mobile tab bar ([+layout.svelte](src/routes/+layout.svelte)). */
+@utility pb-tabbar {
+	padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);
+}
+
+/** Stack fixed UI (toasts, FABs) above the tab bar + home indicator. Pair with `fixed inset-x-0`. */
+@utility bottom-tabbar {
+	bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);
+}

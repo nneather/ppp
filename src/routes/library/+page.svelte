@@ -10,8 +10,10 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Plus from '@lucide/svelte/icons/plus';
+	import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -227,6 +229,7 @@
 	// -------------------------------------------------------------------------
 
 	let mobileFilterOpen = $state(false);
+	let libraryMenuOpen = $state(false);
 
 	/** Local mirror of the keyword input so typing feels instant — debounce
 	 * the URL update so we don't refetch on every keystroke. Initialized
@@ -539,57 +542,82 @@
 	</div>
 {/snippet}
 
+{#snippet libraryLead()}
+	<BookOpen class="size-6 shrink-0 text-muted-foreground" />
+{/snippet}
+
+{#snippet libraryListMeta()}
+	<span class="text-sm text-muted-foreground">
+		Showing {loadedBooks.length.toLocaleString()} of {filteredCount.toLocaleString()} filtered
+		({data.totalCount.toLocaleString()} total)
+		{#if filters.all !== true && filteredCount > LIBRARY_PAGE_SIZE}
+			<button
+				type="button"
+				class="ml-1.5 text-primary underline-offset-2 hover:underline"
+				onclick={() => pushFilters({ ...filters, all: true })}
+			>
+				View all ({filteredCount.toLocaleString()})
+			</button>
+		{:else if filters.all === true}
+			<button
+				type="button"
+				class="ml-1.5 text-primary underline-offset-2 hover:underline"
+				onclick={() => pushFilters({ ...filters, all: undefined })}
+			>
+				Switch to paged view
+			</button>
+		{/if}
+	</span>
+{/snippet}
+
+{#snippet libraryListActions()}
+	<div class="hidden md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
+		<Button variant="outline" href="/library/search-passage">
+			<Search class="size-4" /> Search passage
+		</Button>
+		<Button variant="outline" href="/library/add" class="gap-2">
+			<ScanBarcode class="size-4" /> Add by ISBN
+		</Button>
+		<Button variant="outline" href="/library/review" class="gap-2">
+			<ClipboardCheck class="size-4" />
+			{#if filters.needs_review === true && filteredCount > 0}
+				Review queue ({filteredCount.toLocaleString()})
+			{:else}
+				Review queue
+			{/if}
+		</Button>
+		<Button href="/library/books/new" class="gap-2" hotkey="b">
+			<Plus class="size-4" /> <HotkeyLabel label="New book" mnemonic="b" />
+		</Button>
+	</div>
+	<div class="flex items-stretch gap-2 md:hidden">
+		<Button href="/library/books/new" class="min-h-11 flex-1 gap-2" hotkey="b">
+			<Plus class="size-4" /> <HotkeyLabel label="New book" mnemonic="b" />
+		</Button>
+		<Button
+			type="button"
+			variant="outline"
+			size="icon"
+			class="size-11 shrink-0"
+			onclick={() => (libraryMenuOpen = true)}
+			aria-label="More library actions"
+		>
+			<MoreHorizontal class="size-5" />
+		</Button>
+	</div>
+{/snippet}
+
 <svelte:head>
 	<title>Library — ppp</title>
 </svelte:head>
 
 <div class="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
-	<header class="flex flex-wrap items-center gap-3">
-		<div class="flex items-center gap-2 text-muted-foreground">
-			<BookOpen class="size-6" />
-			<h1 class="text-2xl font-semibold tracking-tight text-foreground">Library</h1>
-		</div>
-		<span class="text-sm text-muted-foreground">
-			Showing {loadedBooks.length.toLocaleString()} of {filteredCount.toLocaleString()} filtered
-			({data.totalCount.toLocaleString()} total)
-			{#if filters.all !== true && filteredCount > LIBRARY_PAGE_SIZE}
-				<button
-					type="button"
-					class="ml-1.5 text-primary underline-offset-2 hover:underline"
-					onclick={() => pushFilters({ ...filters, all: true })}
-				>
-					View all ({filteredCount.toLocaleString()})
-				</button>
-			{:else if filters.all === true}
-				<button
-					type="button"
-					class="ml-1.5 text-primary underline-offset-2 hover:underline"
-					onclick={() => pushFilters({ ...filters, all: undefined })}
-				>
-					Switch to paged view
-				</button>
-			{/if}
-		</span>
-		<div class="ml-auto flex flex-wrap items-center justify-end gap-2">
-			<Button variant="outline" href="/library/search-passage">
-				<Search class="size-4" /> Search passage
-			</Button>
-			<Button variant="outline" href="/library/add" class="gap-2">
-				<ScanBarcode class="size-4" /> Add by ISBN
-			</Button>
-			<Button variant="outline" href="/library/review" class="gap-2">
-				<ClipboardCheck class="size-4" />
-				{#if filters.needs_review === true && filteredCount > 0}
-					Review queue ({filteredCount.toLocaleString()})
-				{:else}
-					Review queue
-				{/if}
-			</Button>
-			<Button href="/library/books/new" class="gap-2" hotkey="b">
-				<Plus class="size-4" /> <HotkeyLabel label="New book" mnemonic="b" />
-			</Button>
-		</div>
-	</header>
+	<PageHeader
+		title="Library"
+		lead={libraryLead}
+		meta={libraryListMeta}
+		actions={libraryListActions}
+	/>
 
 	{#if bulkFormFeedback?.message}
 		<p
@@ -1096,9 +1124,48 @@
 	</Sheet.Content>
 </Sheet.Root>
 
+<Sheet.Root bind:open={libraryMenuOpen}>
+	<Sheet.Content side="bottom" class="gap-0 p-0">
+		<Sheet.Header class="border-b border-border px-4 pb-3 pt-2 text-left">
+			<Sheet.Title class="text-base">More actions</Sheet.Title>
+		</Sheet.Header>
+		<div class="flex flex-col gap-2 p-4">
+			<Button
+				variant="outline"
+				class="h-11 w-full justify-center gap-2"
+				href="/library/search-passage"
+				onclick={() => (libraryMenuOpen = false)}
+			>
+				<Search class="size-4" /> Search passage
+			</Button>
+			<Button
+				variant="outline"
+				class="h-11 w-full justify-center gap-2"
+				href="/library/add"
+				onclick={() => (libraryMenuOpen = false)}
+			>
+				<ScanBarcode class="size-4" /> Add by ISBN
+			</Button>
+			<Button
+				variant="outline"
+				class="h-11 w-full justify-center gap-2"
+				href="/library/review"
+				onclick={() => (libraryMenuOpen = false)}
+			>
+				<ClipboardCheck class="size-4" />
+				{#if filters.needs_review === true && filteredCount > 0}
+					Review queue ({filteredCount.toLocaleString()})
+				{:else}
+					Review queue
+				{/if}
+			</Button>
+		</div>
+	</Sheet.Content>
+</Sheet.Root>
+
 {#if undoToastVisible && undoToastBookId}
 	<div
-		class="fixed inset-x-0 bottom-20 z-50 mx-auto flex w-full max-w-sm items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-card-foreground shadow-lg md:bottom-6"
+		class="fixed inset-x-0 bottom-tabbar z-50 mx-auto flex w-full max-w-sm items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-card-foreground shadow-lg md:bottom-6"
 		role="status"
 	>
 		<Trash2 class="size-4 text-muted-foreground" />

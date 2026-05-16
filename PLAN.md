@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-16 — Library taxonomy cleanup: Category → Genre backfill + structural removal of `categories` / `book_categories` / `books.primary_category_id`; genre is now the single content-type axis. Step A QA acceptance rows closed (owner phone smoke). Open Questions Q4 / Q6 / Q8 resolved; Pass 2 acceptance marked N/A (DB is source of truth); Q5 reframed as a trip-period observational task; Q12 added + resolved. Decision **[022](docs/decisions/022-library-category-removal.md)**.
+**Last updated:** 2026-05-16 — Library **mobile polish**: `<PageHeader>` + `pb-tabbar` / `bottom-tabbar` utilities; `/library` + `/library/books/[id]` headers, reading-status hoist, copy-for-drafts collapse on phone, scripture row touch targets, toast alignment. Decision **[023](docs/decisions/023-library-mobile-polish.md)**. (Earlier same day: taxonomy **[022](docs/decisions/022-library-category-removal.md)**.)
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -9,6 +9,8 @@
 ---
 
 ## Current focus
+
+**Library — mobile polish (2026-05-16):** see **[023](docs/decisions/023-library-mobile-polish.md)** — `<PageHeader>` on `/library` + `/library/books/[id]`; `pb-tabbar` / `bottom-tabbar` utilities; mobile overflow sheets; reading-status hoist + collapsed copy panel on book detail; larger scripture-row hit targets.
 
 **Library — taxonomy cleanup landed (2026-05-16):** see decision **[022](docs/decisions/022-library-category-removal.md)** — Category → Genre backfilled, `categories` / `book_categories` / `books.primary_category_id` dropped. Genre is now the sole content-type taxonomy; `books.shelving_location` (TEXT) remains the physical-location escape hatch.
 
@@ -41,9 +43,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [023 — Library mobile polish (PageHeader + tab bar utilities)](docs/decisions/023-library-mobile-polish.md) (2026-05-16) — `/library` + book detail mobile headers; `pb-tabbar` / `bottom-tabbar`; reading status + copy panel + scripture row UX.
 - [022 — Library category removal + genre-only taxonomy](docs/decisions/022-library-category-removal.md) (2026-05-16) — Category → Genre backfill; dropped `categories` / `book_categories` / `books.primary_category_id`; Q11 closed, Q12 resolved.
 - [021 — Library Session 9 OCR Anthropic + review list + trip policy](docs/decisions/021-library-session-9-ocr-anthropic-wired.md) (2026-05-16) — `ocr_scripture_refs` vision provider; `/library/review` scripture refs section; tracker trip-period amendment.
-- [016 — Library misc UX, bulk update, OL refresh, language audit](docs/decisions/016-library-misc-ux-bulk-ol-audit.md) (2026-05-06) — facet/layout polish; `title-sort.ts` German articles; ISBN OL refresh dialog; list bulk update; language-audit CLI.
 
 ---
 
@@ -55,7 +57,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow (repo convention):** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md); also [AGENTS.md](AGENTS.md) Scripts + session template + [.cursor/rules/always.mdc](.cursor/rules/always.mdc).
 
-**Repo gate:** `npm run check` last verified **2026-05-16** (Session 9 OCR continuation).
+**Repo gate:** `npm run check` last verified **2026-05-16** (Library mobile polish 023).
 
 **Phone smoke (owner):** `/library` filters at scale, `/library/search-passage` (e.g. Phil 2:5), `/library/review` drill, `/library/add` barcode path — tracker Session 3–6 acceptance (steps in runbook §A).
 
