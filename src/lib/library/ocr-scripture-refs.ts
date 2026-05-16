@@ -12,6 +12,8 @@ export type OcrScriptureCandidate = {
 	page_end?: string | null;
 	/** 0–1; UI sets needs_review when < 0.80 */
 	confidence_score: number;
+	/** Model marks run-on from previous printed page; empty bible_book until carry or user pick. */
+	continuation_from_previous_page?: boolean;
 };
 
 export type OcrScriptureExtractResponse = {

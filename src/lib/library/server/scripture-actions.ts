@@ -234,7 +234,7 @@ export async function updateScriptureRefAction(supabase: SupabaseClient, fd: For
 /**
  * Batch parser for the bulk "Add references" form. The form posts:
  *   - source_kind / book_id / essay_id (parent, validated once)
- *   - source_image_url (optional, shared across the batch — same page image)
+ *   - source_image_url (optional fallback when rows_json rows omit per-row source_image_url)
  *   - rows_json: a JSON array of per-row payloads
  *
  * Each row carries its own bible_book + chapter/verse/page fields + needs_review
@@ -262,6 +262,7 @@ type RawBatchRow = {
 	needs_review?: unknown;
 	review_note?: unknown;
 	confidence_score?: unknown;
+	source_image_url?: unknown;
 };
 
 function rawToFormData(row: RawBatchRow, sharedImage: string | null): FormData {
@@ -281,7 +282,13 @@ function rawToFormData(row: RawBatchRow, sharedImage: string | null): FormData {
 	set('review_note', row.review_note);
 	if (row.confidence_score != null && row.confidence_score !== '')
 		fd.set('confidence_score', String(row.confidence_score));
-	if (sharedImage) fd.set('source_image_url', sharedImage);
+	const perRowImage = trimOrNull(
+		row.source_image_url != null && row.source_image_url !== ''
+			? String(row.source_image_url)
+			: null
+	);
+	const imagePath = perRowImage ?? sharedImage;
+	if (imagePath) fd.set('source_image_url', imagePath);
 	// parent fields are not consumed by parseScriptureRefForm's payload — we
 	// fill them so parseParent's branch sees something, but the batch caller
 	// already validated the parent once; we'll discard parsed.parent below.

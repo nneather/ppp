@@ -34,6 +34,9 @@
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import type { BookTopicRow } from '$lib/types/library';
 	import type { PageProps } from './$types';
+	import { cn } from '$lib/utils.js';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Image from '@lucide/svelte/icons/image';
 
 	let { data, form }: PageProps = $props();
 
@@ -150,6 +153,51 @@
 		refs = data.scriptureRefs;
 	});
 
+	let addOpen = $state(false);
+	let editingId = $state<string | null>(null);
+	let pendingDeleteId = $state<string | null>(null);
+	let confirmDeleteOpen = $state(false);
+
+	/** Closed by default when the book has refs; open when empty, adding, or deep-linked. */
+	let refsOpen = $state(false);
+	let recordedImagesOpen = $state(false);
+	let scriptureRefsBookId: string | null = null;
+	$effect(() => {
+		const id = data.book.id;
+		if (scriptureRefsBookId !== id) {
+			scriptureRefsBookId = id;
+			refsOpen = data.scriptureRefs.length === 0 || addOpen;
+			recordedImagesOpen = false;
+		}
+	});
+
+	$effect(() => {
+		if (addOpen) refsOpen = true;
+	});
+
+	$effect(() => {
+		if (data.scriptureRefs.length === 0 && !addOpen) refsOpen = true;
+	});
+
+	const uniqueImageRefs = $derived.by(() => {
+		const seen = new Map<
+			string,
+			{ source_image_url: string; source_image_signed_url: string; refCount: number }
+		>();
+		for (const r of refs) {
+			if (!r.source_image_url || !r.source_image_signed_url) continue;
+			const existing = seen.get(r.source_image_url);
+			if (existing) existing.refCount += 1;
+			else
+				seen.set(r.source_image_url, {
+					source_image_url: r.source_image_url,
+					source_image_signed_url: r.source_image_signed_url,
+					refCount: 1
+				});
+		}
+		return [...seen.values()];
+	});
+
 	// Hash-driven scroll + briefly highlight the matching ref. Triggered by
 	// deep links from /library/search-passage (?#ref-<uuid>). The effect tracks
 	// page.url.hash so it re-fires on hash-only navigation, not just on mount.
@@ -164,6 +212,7 @@
 		// Wait for the matching <li> to be in the DOM (refs are populated by
 		// the parallel $effect above — both fire on load, ordering is racy).
 		const tryScroll = () => {
+			refsOpen = true;
 			const el = document.getElementById(`ref-${id}`);
 			if (!el) {
 				if (refs.find((r) => r.id === id)) {
@@ -181,13 +230,12 @@
 			}, 2200);
 		};
 		// Defer to next frame so we run after the {#each} finishes mounting.
-		queueMicrotask(tryScroll);
+		queueMicrotask(() => {
+			requestAnimationFrame(() => {
+				requestAnimationFrame(tryScroll);
+			});
+		});
 	});
-
-	let addOpen = $state(false);
-	let editingId = $state<string | null>(null);
-	let pendingDeleteId = $state<string | null>(null);
-	let confirmDeleteOpen = $state(false);
 
 	const formMessage = $derived.by(() => {
 		const f = form as { kind?: string; message?: string; refId?: string } | null;
@@ -258,6 +306,35 @@
 		return `${r.bible_book} ${rangeText}`.trim();
 	}
 
+	function fmtRefRangeOnly(r: ScriptureRefRow): string {
+		const cs = r.chapter_start;
+		const vs = r.verse_start;
+		const ce = r.chapter_end;
+		const ve = r.verse_end;
+		if (cs == null && ce == null) return '—';
+		const startPart =
+			cs != null && vs != null
+				? `${cs}:${vs}`
+				: cs != null
+					? `${cs}`
+					: '';
+		const endPart =
+			ce != null && ve != null
+				? `${ce}:${ve}`
+				: ce != null
+					? `${ce}`
+					: '';
+		let rangeText = startPart;
+		if (endPart && endPart !== startPart) {
+			if (cs != null && ce != null && cs === ce && ve != null && ve !== vs) {
+				rangeText = `${startPart}–${ve}`;
+			} else {
+				rangeText = `${startPart}–${endPart}`;
+			}
+		}
+		return rangeText.trim();
+	}
+
 	function fmtPages(r: ScriptureRefRow): string {
 		if (!r.page_start) return '';
 		const end = r.page_end ?? '';
@@ -269,6 +346,7 @@
 	function startEdit(id: string) {
 		editingId = id;
 		addOpen = false;
+		refsOpen = true;
 	}
 
 	function cancelEdit() {
@@ -605,9 +683,14 @@
 	<!-- ------------------------------------------------------------------- -->
 	<!-- Scripture references                                                  -->
 	<!-- ------------------------------------------------------------------- -->
-	<section class="mt-10" aria-labelledby="scripture-refs-heading">
-		<div class="flex items-center justify-between gap-3">
-			<h2
+	<details
+		class="mt-10 rounded-lg border border-border bg-card text-card-foreground shadow-sm"
+		bind:open={refsOpen}
+	>
+		<summary
+			class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden"
+		>
+			<span
 				id="scripture-refs-heading"
 				class="text-lg font-semibold tracking-tight text-foreground"
 			>
@@ -615,150 +698,196 @@
 				{#if refs.length > 0}
 					<span class="ml-1 text-sm font-normal text-muted-foreground">({refs.length})</span>
 				{/if}
-			</h2>
-			{#if !addOpen}
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					onclick={() => {
-						addOpen = true;
-						editingId = null;
-					}}
+			</span>
+			<ChevronDown
+				class={cn(
+					'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+					refsOpen && 'rotate-180'
+				)}
+				aria-hidden="true"
+			/>
+		</summary>
+		<div class="border-t border-border px-4 pb-4 pt-3">
+			<div class="mb-3 flex justify-end">
+				{#if !addOpen}
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onclick={() => {
+							addOpen = true;
+							editingId = null;
+						}}
+					>
+						<Plus class="size-4" /> Add references
+					</Button>
+				{/if}
+			</div>
+
+			{#if refs.length === 0 && !addOpen}
+				<p
+					class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground"
 				>
-					<Plus class="size-4" /> Add references
-				</Button>
+					No scripture references yet. Click <strong class="font-semibold text-foreground">Add references</strong>
+					to log a passage you found discussed in this book.
+				</p>
 			{/if}
-		</div>
 
-		{#if refs.length === 0 && !addOpen}
-			<p class="mt-4 rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-				No scripture references yet. Click <strong class="font-semibold text-foreground">Add</strong> to log a passage you found discussed in this book.
-			</p>
-		{/if}
-
-		{#if groupedRefs.length > 0}
-			<div class="mt-4 space-y-6">
-				{#each groupedRefs as group (group.bible_book)}
-					<div>
-						<h3
-							id={`scripture-group-${group.bible_book}`}
-							class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-						>
-							{group.bible_book}
-						</h3>
-						<ul class="flex flex-col gap-3">
-							{#each group.rows as ref (ref.id)}
-								<li id={`ref-${ref.id}`}>
-									{#if editingId === ref.id}
-										<ScriptureReferenceForm
-											books={sourcePickerBooks}
-											bibleBookNames={data.bibleBookNames}
-											lockedBookId={data.book.id}
-											userId={data.userId}
-											existingRef={ref}
-											{formMessage}
-											onSaved={onUpdated}
-											onCancel={cancelEdit}
-										/>
-									{:else}
-										<article
-											class={`flex flex-wrap items-start justify-between gap-3 rounded-lg border bg-card p-3 text-card-foreground transition-shadow ${
-												highlightedRefId === ref.id
-													? 'border-amber-500/60 ring-2 ring-amber-500/40 shadow-md'
-													: 'border-border'
-											}`}
-										>
-											<div class="flex min-w-0 flex-1 items-start gap-3">
-												{#if ref.source_image_signed_url}
-													<a
-														href={ref.source_image_signed_url}
-														target="_blank"
-														rel="noopener noreferrer"
-														class="shrink-0"
-														aria-label="Open page image in a new tab"
-													>
-														<img
-															src={ref.source_image_signed_url}
-															alt="Source page"
-															class="size-16 rounded-md border border-border object-cover"
-															loading="lazy"
-														/>
-													</a>
-												{/if}
-												<div class="min-w-0 flex-1">
-													<div class="flex flex-wrap items-center gap-2">
-														<span class="font-medium text-foreground">
-															{fmtRef(ref)}
-														</span>
-														<span class="text-sm text-muted-foreground">
-															{fmtPages(ref)}
-														</span>
-														{#if ref.needs_review}
-															<span
-																class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
-															>
-																<AlertCircle class="size-3" /> Needs review
-															</span>
-														{/if}
-													</div>
-													{#if ref.review_note}
-														<p class="mt-1 text-xs text-muted-foreground">
-															{ref.review_note}
-														</p>
-													{/if}
-												</div>
+			{#if groupedRefs.length > 0}
+				<div class="space-y-5">
+					{#each groupedRefs as group (group.bible_book)}
+						<div>
+							<h3
+								id={`scripture-group-${group.bible_book}`}
+								class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+							>
+								{group.bible_book}
+							</h3>
+							<ul
+								class="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60 bg-card text-sm"
+							>
+								{#each group.rows as ref (ref.id)}
+									<li
+										id={`ref-${ref.id}`}
+										class={cn(
+											'group/row flex min-h-9 items-center gap-2 px-3 py-1.5 transition-colors',
+											highlightedRefId === ref.id &&
+												'bg-amber-500/10 ring-2 ring-amber-500/40 ring-inset'
+										)}
+									>
+										{#if editingId === ref.id}
+											<div class="w-full py-2">
+												<ScriptureReferenceForm
+													books={sourcePickerBooks}
+													bibleBookNames={data.bibleBookNames}
+													lockedBookId={data.book.id}
+													userId={data.userId}
+													existingRef={ref}
+													{formMessage}
+													onSaved={onUpdated}
+													onCancel={cancelEdit}
+												/>
 											</div>
-											<div class="flex shrink-0 gap-1">
+										{:else}
+											<span class="shrink-0 font-medium tabular-nums text-foreground">
+												{fmtRefRangeOnly(ref)}
+											</span>
+											{#if fmtPages(ref)}
+												<span class="shrink-0 text-muted-foreground">— {fmtPages(ref)}</span>
+											{/if}
+											{#if ref.needs_review}
+												<span
+													class="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
+												>
+													<AlertCircle class="size-3" /> Review
+												</span>
+											{/if}
+											{#if ref.review_note}
+												<span
+													class="min-w-0 flex-1 truncate text-xs italic text-muted-foreground"
+													title={ref.review_note}
+												>
+													{ref.review_note}
+												</span>
+											{/if}
+											<div
+												class="ml-auto flex shrink-0 gap-0.5 opacity-70 group-hover/row:opacity-100"
+											>
 												<Button
 													type="button"
 													variant="ghost"
-													size="sm"
+													size="icon-sm"
 													onclick={() => startEdit(ref.id)}
 													aria-label={`Edit ${fmtRef(ref)}`}
 												>
-													<Pencil class="size-4" /> Edit
+													<Pencil class="size-3.5" />
 												</Button>
 												<Button
 													type="button"
 													variant="ghost"
-													size="sm"
+													size="icon-sm"
 													onclick={() => requestDelete(ref.id)}
 													aria-label={`Delete ${fmtRef(ref)}`}
 													class="text-destructive hover:text-destructive"
 												>
-													<Trash2 class="size-4" />
+													<Trash2 class="size-3.5" />
 												</Button>
 											</div>
-										</article>
-									{/if}
-								</li>
-							{/each}
-						</ul>
-					</div>
-				{/each}
-			</div>
-		{/if}
-
-		{#if addOpen}
-			<div class="mt-4">
-				<ScriptureReferenceForm
-					books={sourcePickerBooks}
-					bibleBookNames={data.bibleBookNames}
-					lockedBookId={data.book.id}
-					userId={data.userId}
-					{formMessage}
-					onSavedBatch={onCreatedBatch}
-					onCancel={() => (addOpen = false)}
-				/>
-				<div class="mt-2 flex justify-end">
-					<Button type="button" variant="ghost" size="sm" onclick={() => (addOpen = false)}>
-						Close add form
-					</Button>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/each}
 				</div>
-			</div>
-		{/if}
-	</section>
+			{/if}
+
+			{#if uniqueImageRefs.length > 0}
+				<details
+					class="mt-4 rounded-lg border border-border/60 bg-muted/20"
+					bind:open={recordedImagesOpen}
+				>
+					<summary
+						class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden"
+					>
+						<Image class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+						See recorded images ({uniqueImageRefs.length})
+						<ChevronDown
+							class={cn(
+								'ml-auto size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+								recordedImagesOpen && 'rotate-180'
+							)}
+							aria-hidden="true"
+						/>
+					</summary>
+					<div class="flex flex-wrap gap-2 border-t border-border/40 p-3">
+						{#each uniqueImageRefs as img (img.source_image_url)}
+							<a
+								href={img.source_image_signed_url}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="group/img relative"
+								title={`${img.refCount} ref${img.refCount === 1 ? '' : 's'}`}
+							>
+								<img
+									src={img.source_image_signed_url}
+									alt=""
+									loading="lazy"
+									class="size-28 rounded-md border border-border object-cover transition-transform group-hover/img:scale-105"
+								/>
+								{#if img.refCount > 1}
+									<span
+										class="absolute right-1 bottom-1 rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-foreground"
+									>
+										{img.refCount}
+									</span>
+								{/if}
+							</a>
+						{/each}
+					</div>
+				</details>
+			{/if}
+
+			{#if addOpen}
+				<div class="mt-4">
+					<ScriptureReferenceForm
+						books={sourcePickerBooks}
+						bibleBookNames={data.bibleBookNames}
+						lockedBookId={data.book.id}
+						userId={data.userId}
+						{formMessage}
+						onSavedBatch={onCreatedBatch}
+						onCancel={() => (addOpen = false)}
+					/>
+					<div class="mt-2 flex justify-end">
+						<Button type="button" variant="ghost" size="sm" onclick={() => (addOpen = false)}>
+							Close add form
+						</Button>
+					</div>
+				</div>
+			{/if}
+		</div>
+	</details>
 
 	<!-- ------------------------------------------------------------------- -->
 	<!-- Bible coverage                                                         -->

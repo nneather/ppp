@@ -127,19 +127,26 @@ type OcrCandidate = {
 	page_start?: string | null;
 	page_end?: string | null;
 	confidence_score: number;
+	continuation_from_previous_page?: boolean;
 };
 
 function normalizeCandidate(raw: unknown): OcrCandidate | null {
 	if (!raw || typeof raw !== 'object') return null;
 	const o = raw as Record<string, unknown>;
+	const cont = o.continuation_from_previous_page === true;
 	const book = typeof o.bible_book === 'string' ? o.bible_book.trim() : '';
-	if (!book || !BIBLE_BOOK_SET.has(book)) return null;
+
+	if (cont && book === '') {
+		// continuation row — bible book filled client-side from prior page / user
+	} else if (!book || !BIBLE_BOOK_SET.has(book)) {
+		return null;
+	}
 
 	const confRaw = asFiniteNumber(o.confidence_score);
 	const confidence_score =
 		confRaw == null ? 0.5 : Math.min(1, Math.max(0, confRaw));
 
-	return {
+	const out: OcrCandidate = {
 		bible_book: book,
 		chapter_start: asOptionalInt(o.chapter_start, 199),
 		verse_start: asOptionalInt(o.verse_start, 999),
@@ -149,6 +156,8 @@ function normalizeCandidate(raw: unknown): OcrCandidate | null {
 		page_end: asOptionalPageText(o.page_end),
 		confidence_score
 	};
+	if (cont) out.continuation_from_previous_page = true;
+	return out;
 }
 
 function parseExtractPayload(parsed: unknown): { rawText: string; candidates: OcrCandidate[] } {
@@ -274,14 +283,17 @@ Deno.serve(async (req) => {
 	const systemPrompt = `You extract Protestant Bible scripture citations from photos of printed commentary pages.
 Return ONLY valid JSON (no markdown fences, no commentary). Shape must be:
 {"rawText": string, "candidates": Candidate[]}
-Candidate: {"bible_book": string, "chapter_start"?: number, "verse_start"?: number, "chapter_end"?: number, "verse_end"?: number, "page_start"?: string, "page_end"?: string, "confidence_score": number}
+Candidate: {"bible_book": string, "chapter_start"?: number, "verse_start"?: number, "chapter_end"?: number, "verse_end"?: number, "page_start"?: string, "page_end"?: string, "confidence_score": number, "continuation_from_previous_page"?: boolean}
 Rules:
 - bible_book MUST be exactly one of these names (case-sensitive): ${allowlistBlock}
+  Exception: if the printed line continues a citation from the previous page WITHOUT naming the book (only chapter/verse and/or page), output bible_book as "" (empty string), set "continuation_from_previous_page": true, and still fill chapter/verse/page fields you can read.
 - Omit chapter/verse keys when not visible; use integers only.
 - page_start/page_end are printed page numbers as strings (Roman numerals ok), max 50 chars, omit if unreadable.
+- Page + footnote / endnote tokens: preserve the full token in page_start when the print uses note notation, e.g. "106n21" means page 106 note 21 — keep "106n21" as a single string (do not split or strip the "n21" part).
+- Multiple printed page pointers for the SAME verse/range (e.g. "Ps 27:4 — pp. 73, 101, 112"): emit separate Candidate objects with the same bible_book/chapter/verse but different page_start for each page (leave page_end empty for each).
 - confidence_score is 0–1 for how sure you are of that row's parse.
 - rawText: brief plain-text summary of visible citations (can be empty if none).
-- Include one candidate per distinct citation you can read; skip duplicates.`;
+- Include one candidate per distinct citation you can read; skip duplicates (but NOT when splitting multi-page pointers per the rule above — those are not duplicates).`;
 
 	const userText = `Extract all scripture references from this page image. Book context UUID (for your reasoning only): ${book_id}`;
 

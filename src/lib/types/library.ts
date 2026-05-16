@@ -211,7 +211,11 @@ export type PersonDedupHint = {
  *   free-text `books.shelving_location` column when needed.
  * - `author_id` — multi-select against the loadPeople set.
  *   Resolves to `book_id IN (...)` via a parallel SELECT on `book_authors`.
+ * - `all` — URL `?all=true` loads every matching row in one shot (off by default;
+ *   list uses `LIBRARY_PAGE_SIZE` + client pagination).
  */
+export const LIBRARY_PAGE_SIZE = 50;
+
 export type BookListFilters = {
 	genre?: string[];
 	series_id?: string[];
@@ -220,6 +224,8 @@ export type BookListFilters = {
 	reading_status?: ReadingStatus[];
 	needs_review?: boolean;
 	q?: string;
+	/** When true, skip pagination and return the full filtered list. */
+	all?: boolean;
 };
 
 /**

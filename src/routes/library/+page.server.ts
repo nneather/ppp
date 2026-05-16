@@ -11,59 +11,32 @@ import {
 	updateReadingStatusAction,
 	bulkUpdateBooksAction
 } from '$lib/library/server/book-actions';
-import { multiParam } from '$lib/library/server/url-params';
-import { LANGUAGES, READING_STATUSES } from '$lib/types/library';
-import type { BookListFilters, Language, ReadingStatus } from '$lib/types/library';
-
-function parseFilters(url: URL): BookListFilters {
-	const filters: BookListFilters = {};
-
-	const genres = multiParam(url, 'genre');
-	if (genres.length > 0) filters.genre = genres;
-
-	const series = multiParam(url, 'series_id');
-	if (series.length > 0) filters.series_id = series;
-
-	const authors = multiParam(url, 'author_id');
-	if (authors.length > 0) filters.author_id = authors;
-
-	const langSet = new Set<Language>(LANGUAGES);
-	const langs = multiParam(url, 'language').filter((l): l is Language =>
-		langSet.has(l as Language)
-	);
-	if (langs.length > 0) filters.language = langs;
-
-	const statusSet = new Set<ReadingStatus>(READING_STATUSES);
-	const statuses = multiParam(url, 'reading_status').filter((s): s is ReadingStatus =>
-		statusSet.has(s as ReadingStatus)
-	);
-	if (statuses.length > 0) filters.reading_status = statuses;
-
-	if (url.searchParams.get('needs_review') === 'true') filters.needs_review = true;
-
-	const q = (url.searchParams.get('q') ?? '').trim();
-	if (q.length > 0) filters.q = q;
-
-	return filters;
-}
+import { parseBookListFilters } from '$lib/library/server/url-params';
+import { LIBRARY_PAGE_SIZE } from '$lib/types/library';
 
 export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
 	const supabase = locals.supabase;
-	const filters = parseFilters(url);
+	const filters = parseBookListFilters(url);
 	const recentlyDeletedId = url.searchParams.get('deleted');
 
 	const { people, series, bibleBookNames } = await parent();
 
-	const [books, totalCount] = await Promise.all([
+	const [allFiltered, totalCount] = await Promise.all([
 		loadBookListFiltered(supabase, people, filters),
 		countLiveBooks(supabase)
 	]);
 
+	const filteredCount = allFiltered.length;
+	const books =
+		filters.all === true ? allFiltered : allFiltered.slice(0, LIBRARY_PAGE_SIZE);
+
 	return {
 		books,
+		filteredCount,
+		pageSize: LIBRARY_PAGE_SIZE,
 		series,
 		people,
 		bibleBookNames,

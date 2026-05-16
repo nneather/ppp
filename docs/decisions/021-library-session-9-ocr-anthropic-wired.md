@@ -36,6 +36,16 @@
 
 - (Fill on first prod smoke.) If Anthropic returns non-JSON prose, the function returns 502 “Could not parse structured citations…”.
 
+## 2026-05-16 follow-up — multi-image + prompt fixes
+
+- **Multi-select batch OCR (option C)** — `<ScriptureReferenceForm>` batch mode accepts up to **10** images per pass (`multiple`), sorted by `File.lastModified` ascending (filename tie-break). Each file runs **downscale → storage upload → `?/extractScriptureRefs`** in parallel; a **status chip strip** (thumbnail + status) tracks per page. When all jobs finish (`done` or `error`), candidates merge into draft rows in page order.
+- **Run-on / continuation (option C)** — Edge prompt asks the model for `bible_book: ""` + `continuation_from_previous_page: true` when the printed line continues without a book name. **`normalizeCandidate`** skips the 66-name allowlist **only** when both are true. The form runs a **post-merge pass**: carry the last resolved `bible_book` from earlier pages into continuation rows; rows that stay empty get an **amber “Choose book — continues from previous page”** path (sheet / desktop trigger) before save.
+- **Page + note tokens** — Prompt rule: keep tokens like **`106n21`** verbatim in `page_start` (already `text`, max 50 chars in Edge trim).
+- **Same citation, multiple printed pages** — Prompt rule: **N candidates**, one per `page_start`, not comma-joined `page_start`.
+- **Per-row `source_image_url`** — `rows_json` rows may include `source_image_url`; `parseScriptureRefBatchForm` / `rawToFormData` prefers per-row path with top-level hidden field as fallback (backward compatible).
+- **Desktop batch layout** — `sm+` compact single-line grid for draft rows; **mobile cards unchanged** (touch height). `npm run check` clean after the change set.
+- **Dense refs display + image disclosure** — On `/library/books/[id]`, the scripture-refs block is a **closed-by-default** `<details>` when the book has refs; **dense single-line rows** (no per-row thumbnail) under each Bible-book heading; **“See recorded images (N)”** nested `<details>` at the bottom dedupes by `source_image_url` and links each thumb to the signed URL in a new tab. **No schema change** — each JPEG is still one object in storage; only the path string repeats per row. Deep-link `#ref-<uuid>` opens the outer disclosure before `scrollIntoView`.
+
 ## Carry-forward updates
 
 - [x] `components.mdc` — no new PascalCase components.

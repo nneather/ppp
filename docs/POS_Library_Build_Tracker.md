@@ -492,7 +492,7 @@ _Order in the arc: lands AFTER Session 7 (shipped) and BEFORE Session 8 (Turabia
 | Confidence threshold — pre-flag `needs_review = true` when `confidence_score < 0.80`. Adjustable in settings. | ☑ | **0.80** in batch form when mapping candidates; settings knob still Session 10. |
 | "Extract from image/file" button inside `<ScriptureReferenceForm>` (batch mode) — triggers the Edge Function on the already-uploaded image, populates draft rows from the candidate array. | ☑ | **Extract from image** + `?/extractScriptureRefs` (2026-05-04). |
 | Review queue UI — surface `scripture_references` with `needs_review` on `/library/review`. | ☑ | Lightweight deep-link list (up to 50) below the books card stack — **021**; `/library` filter chips deferred. |
-| Smoke test — upload 5 sample page images, verify OCR pipeline → draft rows → review + save flow. | ☐ | **Owner** after `npm run supabase:deploy-functions` + secrets — see **021**. |
+| Smoke test — upload 5 sample page images, verify OCR pipeline → draft rows → review + save flow. | ☐ | **Owner** after `npm run supabase:deploy-functions` + secrets — see **021**. **2026-05-16:** Multi-image parallel extract + continuation carry + per-row image paths + prompt rules (021 follow-up) shipped; `npm run check` clean — run the **5-photo** acceptance pass on device when convenient. |
 
 **Acceptance:**
 - [x] Image upload + "Extract from image/file" populates draft rows in `<ScriptureReferenceForm>` with `needs_review = true` (when confidence < 0.80) and `confidence_score` populated per row. _Anthropic-backed Edge + client mapping + batch insert (**021**)._ 

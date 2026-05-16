@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
@@ -25,10 +26,19 @@
 		GENRES,
 		LANGUAGES,
 		LANGUAGE_LABELS,
+		LIBRARY_PAGE_SIZE,
 		READING_STATUSES,
 		READING_STATUS_LABELS
 	} from '$lib/types/library';
-	import type { ReadingStatus, Language, BookListFilters, PersonRow, Genre } from '$lib/types/library';
+	import type {
+		ReadingStatus,
+		Language,
+		BookListFilters,
+		PersonRow,
+		Genre,
+		BookListRow
+	} from '$lib/types/library';
+	import { bookListFiltersToSearchParams } from '$lib/library/server/url-params';
 	import { scorePersonMatch } from '$lib/library/person-search';
 	import MultiCombobox from '$lib/components/multi-combobox.svelte';
 	import type { MultiComboboxItem } from '$lib/components/multi-combobox.svelte';
@@ -36,6 +46,84 @@
 	import { cn } from '$lib/utils.js';
 
 	let { data, form }: PageProps = $props();
+
+	const filters = $derived<BookListFilters>(data.filters);
+
+	/** After first paint, show list (SSR always renders list HTML for SEO). */
+	let listMounted = $state(false);
+
+	let loadedBooks = $state<BookListRow[]>([]);
+	let loadingMore = $state(false);
+	let loadMoreError = $state<string | null>(null);
+	let loadMoreSentinel = $state<HTMLDivElement | null>(null);
+
+	$effect(() => {
+		void data.books;
+		loadedBooks = [...data.books];
+		loadMoreError = null;
+	});
+
+	onMount(() => {
+		if (data.filters.all === true) {
+			listMounted = true;
+			return;
+		}
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				listMounted = true;
+			});
+		});
+	});
+
+	$effect(() => {
+		if (filters.all === true) listMounted = true;
+	});
+
+	const filteredCount = $derived(data.filteredCount);
+	const showPagedMore = $derived(
+		data.filters.all !== true && loadedBooks.length < filteredCount && filteredCount > 0
+	);
+
+	async function loadMore() {
+		if (!browser || loadingMore || filters.all === true) return;
+		if (loadedBooks.length >= filteredCount) return;
+		loadingMore = true;
+		loadMoreError = null;
+		try {
+			const q = bookListFiltersToSearchParams(filters, page.url);
+			q.set('offset', String(loadedBooks.length));
+			const res = await fetch(`/library/books.json?${q.toString()}`);
+			if (!res.ok) {
+				loadMoreError = 'Could not load more.';
+				return;
+			}
+			const body = (await res.json()) as { books?: BookListRow[] };
+			const next = body.books ?? [];
+			const seen = new Set(loadedBooks.map((b) => b.id));
+			const appended = next.filter((b) => !seen.has(b.id));
+			loadedBooks = [...loadedBooks, ...appended];
+		} catch {
+			loadMoreError = 'Could not load more.';
+		} finally {
+			loadingMore = false;
+		}
+	}
+
+	$effect(() => {
+		if (!browser || !showPagedMore || filters.all === true) return;
+		const el = loadMoreSentinel;
+		if (!el) return;
+		const obs = new IntersectionObserver(
+			(entries) => {
+				for (const e of entries) {
+					if (e.isIntersecting) void loadMore();
+				}
+			},
+			{ root: null, rootMargin: '600px 0px', threshold: 0 }
+		);
+		obs.observe(el);
+		return () => obs.disconnect();
+	});
 
 	/** In-flight navigations that stay on the list route (filters / search). */
 	const listInFlight = $derived(
@@ -138,7 +226,6 @@
 	// against that for SSR-safety, mutate via goto() on toggle.
 	// -------------------------------------------------------------------------
 
-	const filters = $derived<BookListFilters>(data.filters);
 	let mobileFilterOpen = $state(false);
 
 	/** Local mirror of the keyword input so typing feels instant — debounce
@@ -164,26 +251,9 @@
 	 * empty strings drop the param entirely so back/forward gives a clean URL. */
 	function pushFilters(next: BookListFilters) {
 		if (!browser) return;
-		const url = new URL(page.url);
-		const params = url.searchParams;
-		// Preserve unrelated params (`deleted` on toast redirect).
-		const keep = new URLSearchParams();
-		for (const [k, v] of params.entries()) {
-			if (k === 'deleted') keep.set(k, v);
-		}
-		const setMulti = (key: string, vals: readonly string[] | undefined) => {
-			if (!vals || vals.length === 0) return;
-			for (const v of vals) keep.append(key, v);
-		};
-		setMulti('genre', next.genre);
-		setMulti('series_id', next.series_id);
-		setMulti('author_id', next.author_id);
-		setMulti('language', next.language);
-		setMulti('reading_status', next.reading_status);
-		if (next.needs_review === true) keep.set('needs_review', 'true');
-		if (next.q && next.q.length > 0) keep.set('q', next.q);
+		const keep = bookListFiltersToSearchParams(next, page.url);
 		const search = keep.toString();
-		const target = url.pathname + (search ? `?${search}` : '');
+		const target = page.url.pathname + (search ? `?${search}` : '');
 		goto(target, { replaceState: false, keepFocus: true, noScroll: true });
 	}
 
@@ -300,13 +370,13 @@
 
 	const selectedCount = $derived(selectedIds.length);
 	const allPageSelected = $derived(
-		data.books.length > 0 && data.books.every((b) => selectedIds.includes(b.id))
+		loadedBooks.length > 0 && loadedBooks.every((b) => selectedIds.includes(b.id))
 	);
 
 	/** Some but not all rows on this page are selected — drives header checkbox indeterminate. */
 	const pagePartialSelected = $derived(
-		data.books.length > 0 &&
-			data.books.some((b) => selectedIds.includes(b.id)) &&
+		loadedBooks.length > 0 &&
+			loadedBooks.some((b) => selectedIds.includes(b.id)) &&
 			!allPageSelected
 	);
 
@@ -318,7 +388,7 @@
 	});
 
 	function toggleSelectAllPage() {
-		const pageIds = data.books.map((b) => b.id);
+		const pageIds = loadedBooks.map((b) => b.id);
 		if (allPageSelected) {
 			const pageSet = new Set(pageIds);
 			selectedIds = selectedIds.filter((id) => !pageSet.has(id));
@@ -359,7 +429,7 @@
 	};
 
 	$effect(() => {
-		const ids = new Set(data.books.map((b) => b.id));
+		const ids = new Set(loadedBooks.map((b) => b.id));
 		const pruned = selectedIds.filter((id) => ids.has(id));
 		if (pruned.length !== selectedIds.length) {
 			selectedIds = pruned;
@@ -480,7 +550,25 @@
 			<h1 class="text-2xl font-semibold tracking-tight text-foreground">Library</h1>
 		</div>
 		<span class="text-sm text-muted-foreground">
-			Showing {data.books.length} of {data.totalCount}
+			Showing {loadedBooks.length.toLocaleString()} of {filteredCount.toLocaleString()} filtered
+			({data.totalCount.toLocaleString()} total)
+			{#if filters.all !== true && filteredCount > LIBRARY_PAGE_SIZE}
+				<button
+					type="button"
+					class="ml-1.5 text-primary underline-offset-2 hover:underline"
+					onclick={() => pushFilters({ ...filters, all: true })}
+				>
+					View all ({filteredCount.toLocaleString()})
+				</button>
+			{:else if filters.all === true}
+				<button
+					type="button"
+					class="ml-1.5 text-primary underline-offset-2 hover:underline"
+					onclick={() => pushFilters({ ...filters, all: undefined })}
+				>
+					Switch to paged view
+				</button>
+			{/if}
 		</span>
 		<div class="ml-auto flex flex-wrap items-center justify-end gap-2">
 			<Button variant="outline" href="/library/search-passage">
@@ -491,8 +579,8 @@
 			</Button>
 			<Button variant="outline" href="/library/review" class="gap-2">
 				<ClipboardCheck class="size-4" />
-				{#if filters.needs_review === true && data.books.length > 0}
-					Review queue ({data.books.length})
+				{#if filters.needs_review === true && filteredCount > 0}
+					Review queue ({filteredCount.toLocaleString()})
 				{:else}
 					Review queue
 				{/if}
@@ -654,7 +742,7 @@
 	{/if}
 
 	<div class="mt-6 min-w-0">
-			{#if data.books.length === 0 && data.totalCount === 0}
+			{#if data.filteredCount === 0 && data.totalCount === 0}
 				<div class="rounded-xl border border-dashed border-border p-8 text-center">
 					<BookOpen class="mx-auto size-8 text-muted-foreground" />
 					<p class="mt-3 text-sm text-muted-foreground">No books yet. Add one to get started.</p>
@@ -662,7 +750,7 @@
 						<Plus class="size-4" /> Add book
 					</Button>
 				</div>
-			{:else if data.books.length === 0}
+			{:else if data.filteredCount === 0}
 				<div class="rounded-xl border border-dashed border-border p-8 text-center">
 					<Search class="mx-auto size-8 text-muted-foreground" />
 					<p class="mt-3 text-sm text-muted-foreground">
@@ -688,9 +776,10 @@
 						</div>
 					</div>
 				{/if}
+				{#if !browser || listMounted}
 				<!-- Mobile cards -->
 				<ul class="flex flex-col gap-3 md:hidden">
-					{#each data.books as b (b.id)}
+					{#each loadedBooks as b (b.id)}
 						<li class="rounded-xl border border-border bg-card p-4 text-card-foreground transition-colors hover:border-ring/50">
 							<div class="flex gap-3">
 								<input
@@ -791,7 +880,7 @@
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-border">
-							{#each data.books as b (b.id)}
+							{#each loadedBooks as b (b.id)}
 								<tr class="hover:bg-muted/20">
 									<td class="px-2 py-2.5 align-top">
 										<input
@@ -857,6 +946,28 @@
 						</tbody>
 					</table>
 				</div>
+				{#if showPagedMore}
+					<div bind:this={loadMoreSentinel} class="h-2 w-full shrink-0" aria-hidden="true"></div>
+					<div class="mt-4 flex justify-center">
+						<Button
+							type="button"
+							variant="outline"
+							disabled={loadingMore}
+							onclick={() => void loadMore()}
+						>
+							{#if loadingMore}
+								<Loader2 class="mr-2 size-4 animate-spin" aria-hidden="true" />
+								Loading…
+							{:else}
+								Load more
+							{/if}
+						</Button>
+					</div>
+				{/if}
+				{#if loadMoreError}
+					<p class="mt-2 text-center text-sm text-destructive" role="alert">{loadMoreError}</p>
+				{/if}
+			{/if}
 			{/if}
 	</div>
 </div>
