@@ -10,6 +10,7 @@
 	import { cn } from '$lib/utils.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Copy from '@lucide/svelte/icons/copy';
+	import Mail from '@lucide/svelte/icons/mail';
 	import X from '@lucide/svelte/icons/x';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import SourcePicker from '$lib/components/source-picker.svelte';
@@ -32,7 +33,8 @@
 	 *   `?/updateScriptureRef`. Cancel button calls `onCancel`.
 	 *
 	 * - **Batch create mode** (default): renders N draft rows, starting with one.
-	 *   Optional **multi-image** OCR (up to 10 photos): parallel downscale → upload →
+	 *   Optional **multi-image** OCR (up to 10 photos): queue photos from the gallery and/or
+	 *   repeated **camera** captures, then **Run OCR** — parallel downscale → upload →
 	 *   `?/extractScriptureRefs` per page; results merge in file `lastModified` order
 	 *   with continuation `bible_book` carry from the prior page. Each row carries
 	 *   its own `source_image_url` (storage path) in `rows_json`. Posts to
@@ -104,6 +106,12 @@
 		status: 'uploading' | 'extracting' | 'done' | 'error';
 		error?: string;
 		candidates?: OcrScriptureCandidate[];
+	};
+
+	type QueuedOcrFile = {
+		id: string;
+		file: File;
+		previewUrl: string;
 	};
 
 	const MAX_BATCH_IMAGES = 10;
@@ -199,7 +207,13 @@
 	let batchUploadNotice = $state<string | null>(null);
 
 	let pages = $state<PageJob[]>([]);
+	/** Photos queued before "Run OCR" (gallery multi-pick + repeated camera shots). */
+	let ocrQueue = $state<QueuedOcrFile[]>([]);
 	let reviewNoteOpen = $state<Record<string, boolean>>({});
+
+	const ocrPipelineBusy = $derived(
+		pages.some((p) => p.status === 'uploading' || p.status === 'extracting')
+	);
 
 	/** Mobile-only: bottom sheet bible picker (`max-sm:` trigger replaces Select). */
 	let biblePickerOpen = $state(false);
@@ -277,6 +291,7 @@
 		batchUploadNotice = null;
 		revokeAllPagePreviewBlobs(pages);
 		pages = [];
+		clearOcrQueue();
 		reviewNoteOpen = {};
 	});
 
@@ -334,6 +349,79 @@
 		for (const j of jobs) {
 			if (j.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(j.previewUrl);
 		}
+	}
+
+	function clearOcrQueue() {
+		for (const q of ocrQueue) {
+			if (q.previewUrl.startsWith('blob:')) URL.revokeObjectURL(q.previewUrl);
+		}
+		ocrQueue = [];
+	}
+
+	function appendToOcrQueue(files: File[]) {
+		batchUploadNotice = null;
+		const sorted = [...files].sort((a, b) => {
+			const t = a.lastModified - b.lastModified;
+			if (t !== 0) return t;
+			return a.name.localeCompare(b.name);
+		});
+		const startLen = ocrQueue.length;
+		const next = [...ocrQueue];
+		for (const f of sorted) {
+			if (next.length >= MAX_BATCH_IMAGES) break;
+			next.push({
+				id:
+					typeof crypto !== 'undefined' && 'randomUUID' in crypto
+						? crypto.randomUUID()
+						: `q-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+				file: f,
+				previewUrl: URL.createObjectURL(f)
+			});
+		}
+		const added = next.length - startLen;
+		if (added < sorted.length) {
+			batchUploadNotice = `${sorted.length - added} photo(s) did not fit (queue max ${MAX_BATCH_IMAGES}).`;
+		}
+		ocrQueue = next;
+	}
+
+	function removeQueued(id: string) {
+		ocrQueue = ocrQueue.filter((q) => {
+			if (q.id === id && q.previewUrl.startsWith('blob:')) URL.revokeObjectURL(q.previewUrl);
+			return q.id !== id;
+		});
+	}
+
+	async function copyJobError(job: PageJob) {
+		if (!browser || !job.error) return;
+		try {
+			await navigator.clipboard.writeText(job.error);
+			extractMessage = null;
+			extractInfo = 'Error text copied to clipboard.';
+			window.setTimeout(() => {
+				if (extractInfo === 'Error text copied to clipboard.') extractInfo = null;
+			}, 2500);
+		} catch {
+			extractInfo = null;
+			extractMessage = 'Could not copy — select the error text manually.';
+		}
+	}
+
+	function ocrErrorMailtoHref(job: PageJob): string {
+		const bookIdForPath = lockedBookId ?? sourceBookId;
+		const report = [
+			`ppp / library / scripture OCR`,
+			`time (local): ${new Date().toISOString()}`,
+			`book_id: ${bookIdForPath ?? '(none)'}`,
+			`job_id: ${job.id}`,
+			`storage_path: ${job.sourcePath || '(none)'}`,
+			'',
+			'--- error ---',
+			job.error ?? '(no message)'
+		].join('\n');
+		const cap = 1800;
+		const body = report.length > cap ? `${report.slice(0, cap)}\n\n[truncated for mailto length]` : report;
+		return `mailto:?subject=${encodeURIComponent('ppp library OCR error')}&body=${encodeURIComponent(body)}`;
 	}
 
 	async function downscaleImage(file: File): Promise<Blob> {
@@ -498,12 +586,18 @@
 				headers: { 'x-sveltekit-action': 'true' },
 				body: fd
 			});
-			const result = deserialize(await resp.text());
+			const responseText = await resp.text();
+			const result = deserialize(responseText);
 			if (result.type === 'failure') {
 				const d = (result.data ?? {}) as { message?: string };
+				let err = (d.message ?? '').trim();
+				if (!err) err = responseText.slice(0, 4000);
+				else if (responseText.length > err.length + 40) {
+					err = `${err}\n\n--- HTTP ${resp.status} response ---\n${responseText.slice(0, 3500)}`;
+				}
 				patchPage(jobId, {
 					status: 'error',
-					error: d.message ?? 'Extraction failed.',
+					error: err,
 					sourcePath: objectPath,
 					previewUrl
 				});
@@ -549,23 +643,15 @@
 		tryFinalizeBatchMerge();
 	}
 
-	async function handleBatchFilesChange(e: Event) {
-		const input = e.currentTarget as HTMLInputElement;
-		const list = input.files;
-		if (!list?.length) return;
+	async function startBatchFromFiles(fileArr: File[]) {
+		if (fileArr.length === 0) return;
 
 		uploadError = null;
 		extractMessage = null;
 		extractInfo = null;
 		batchUploadNotice = null;
 
-		let fileArr = Array.from(list);
-		if (fileArr.length > MAX_BATCH_IMAGES) {
-			batchUploadNotice = `Only the first ${MAX_BATCH_IMAGES} images were queued.`;
-			fileArr = fileArr.slice(0, MAX_BATCH_IMAGES);
-		}
-
-		fileArr.sort((a, b) => {
+		const sorted = [...fileArr].sort((a, b) => {
 			const t = a.lastModified - b.lastModified;
 			if (t !== 0) return t;
 			return a.name.localeCompare(b.name);
@@ -573,7 +659,7 @@
 
 		revokeAllPagePreviewBlobs(pages);
 
-		const newJobs: PageJob[] = fileArr.map((f, i) => ({
+		const newJobs: PageJob[] = sorted.map((f, i) => ({
 			id:
 				typeof crypto !== 'undefined' && 'randomUUID' in crypto
 					? crypto.randomUUID()
@@ -585,19 +671,45 @@
 		}));
 		pages = newJobs;
 
-		void Promise.all(
+		await Promise.all(
 			newJobs.map((job, i) => {
-				const file = fileArr[i];
+				const file = sorted[i];
 				return runPagePipeline(job.id, file);
 			})
 		);
+	}
 
+	function enqueueGalleryFiles(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const list = input.files;
+		if (!list?.length) return;
+		appendToOcrQueue(Array.from(list));
 		input.value = '';
+	}
+
+	function enqueueCameraFile(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		appendToOcrQueue([file]);
+		input.value = '';
+	}
+
+	function runQueuedExtract() {
+		if (ocrQueue.length === 0 || ocrPipelineBusy) return;
+		const files = ocrQueue.map((q) => q.file);
+		clearOcrQueue();
+		void startBatchFromFiles(files);
+	}
+
+	async function handleBatchFilesChange(e: Event) {
+		enqueueGalleryFiles(e);
 	}
 
 	function clearBatchPages() {
 		revokeAllPagePreviewBlobs(pages);
 		pages = [];
+		clearOcrQueue();
 		batchUploadNotice = null;
 		extractMessage = null;
 		extractInfo = null;
@@ -649,6 +761,7 @@
 						source_image_url = '';
 						revokeAllPagePreviewBlobs(pages);
 						pages = [];
+						clearOcrQueue();
 						if (preview_url && preview_url.startsWith('blob:'))
 							URL.revokeObjectURL(preview_url);
 						preview_url = null;
@@ -703,8 +816,8 @@
 				Pages are free text — `IV.317`, `xiv`, `106n21`, etc. all welcome.
 			{:else}
 				Add as many references as you like — one save commits the whole batch. Pages are free
-				text. OCR: select up to 10 page photos at once; each row keeps the image path from its
-				page.
+				text. OCR: queue up to 10 page photos from the gallery and/or repeated camera shots, then
+				run OCR; each row keeps the image path from its page.
 			{/if}
 		</p>
 	</header>
@@ -739,29 +852,85 @@
 						class="hidden"
 					/>
 				</label>
-				{#if pages.length > 0}
+				<label class="inline-flex">
+					<span
+						class="inline-flex h-11 cursor-pointer items-center rounded-md border border-dashed border-input bg-background px-3 text-sm hover:bg-muted"
+					>
+						Take photo
+					</span>
+					<input
+						id="sr-img-camera"
+						type="file"
+						accept="image/*"
+						capture="environment"
+						onchange={enqueueCameraFile}
+						class="hidden"
+					/>
+				</label>
+				<Button
+					type="button"
+					variant="secondary"
+					size="sm"
+					class="h-11"
+					disabled={ocrQueue.length === 0 || ocrPipelineBusy}
+					onclick={runQueuedExtract}
+					hotkey="g"
+				>
+					Run OCR{ocrQueue.length > 0 ? ` (${ocrQueue.length})` : ''}
+				</Button>
+				{#if pages.length > 0 || ocrQueue.length > 0}
 					<Button type="button" variant="ghost" size="sm" onclick={clearBatchPages}>
-						Clear pages
+						Clear queue & pages
 					</Button>
 				{/if}
 			</div>
+			{#if ocrQueue.length > 0}
+				<div class="flex flex-wrap gap-2" aria-label="Queued photos before OCR">
+					{#each ocrQueue as q (q.id)}
+						<div class="relative w-16 shrink-0">
+							<img src={q.previewUrl} alt="" class="aspect-[3/4] w-full rounded-md border border-border object-cover" />
+							<Button
+								type="button"
+								variant="secondary"
+								size="icon"
+								class="absolute -right-1 -top-1 h-7 w-7 rounded-full shadow-sm"
+								onclick={() => removeQueued(q.id)}
+								aria-label="Remove from queue"
+							>
+								<X class="h-3.5 w-3.5" />
+							</Button>
+						</div>
+					{/each}
+				</div>
+			{/if}
 			{#if batchUploadNotice}
 				<p class="text-xs text-amber-700 dark:text-amber-400" role="status">{batchUploadNotice}</p>
 			{/if}
 			{#if pages.length > 0}
-				<div class="flex flex-wrap gap-2" aria-label="OCR page status">
+				<div class="flex flex-wrap gap-3" aria-label="OCR page status">
 					{#each pages as job (job.id)}
 						<div
-							class="flex w-[4.5rem] flex-col gap-1 rounded-md border border-border bg-muted/30 p-1 text-[10px]"
+							class={cn(
+								'flex flex-col gap-1 rounded-md border border-border bg-muted/30 p-2 text-[10px]',
+								job.error ? 'min-w-[min(100%,20rem)] max-w-full sm:max-w-md' : 'w-[4.5rem]'
+							)}
 						>
 							{#if job.previewUrl}
 								<img
 									src={job.previewUrl}
 									alt=""
-									class="aspect-[3/4] w-full rounded object-cover"
+									class={cn(
+										'rounded object-cover',
+										job.error ? 'mx-auto aspect-[3/4] max-h-40 w-auto' : 'aspect-[3/4] w-full'
+									)}
 								/>
 							{:else}
-								<div class="flex aspect-[3/4] w-full items-center justify-center rounded bg-muted text-muted-foreground">
+								<div
+									class={cn(
+										'flex items-center justify-center rounded bg-muted text-muted-foreground',
+										job.error ? 'aspect-[3/4] max-h-40 min-h-[6rem] w-full' : 'aspect-[3/4] w-full'
+									)}
+								>
 									…
 								</div>
 							{/if}
@@ -777,7 +946,23 @@
 								{job.status}
 							</span>
 							{#if job.error}
-								<span class="line-clamp-3 text-destructive" title={job.error}>{job.error}</span>
+								<pre
+									class="max-h-40 select-all overflow-auto whitespace-pre-wrap break-words rounded border border-destructive/20 bg-destructive/5 p-2 text-[10px] leading-snug text-destructive"
+									role="alert"
+								>{job.error}</pre>
+								<div class="flex flex-wrap items-center gap-2">
+									<Button type="button" variant="outline" size="sm" onclick={() => void copyJobError(job)}>
+										<Copy class="mr-1 h-3 w-3" />
+										Copy error
+									</Button>
+									<a
+										href={ocrErrorMailtoHref(job)}
+										class="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs font-medium hover:bg-muted"
+									>
+										<Mail class="h-3 w-3" />
+										Email report
+									</a>
+								</div>
 							{/if}
 						</div>
 					{/each}

@@ -154,6 +154,8 @@
 	});
 
 	let addOpen = $state(false);
+	/** Scroll batch form into view when opening (dense scripture block is long). */
+	let scriptureAddFormEl = $state<HTMLElement | null>(null);
 	let editingId = $state<string | null>(null);
 	let pendingDeleteId = $state<string | null>(null);
 	let confirmDeleteOpen = $state(false);
@@ -173,6 +175,15 @@
 
 	$effect(() => {
 		if (addOpen) refsOpen = true;
+	});
+
+	$effect(() => {
+		if (!browser || !addOpen) return;
+		queueMicrotask(() => {
+			requestAnimationFrame(() => {
+				scriptureAddFormEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			});
+		});
 	});
 
 	$effect(() => {
@@ -869,7 +880,7 @@
 			{/if}
 
 			{#if addOpen}
-				<div class="mt-4">
+				<div id="scripture-add-form" bind:this={scriptureAddFormEl} class="mt-4 scroll-mt-6">
 					<ScriptureReferenceForm
 						books={sourcePickerBooks}
 						bibleBookNames={data.bibleBookNames}
