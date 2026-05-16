@@ -5,6 +5,7 @@
 	import UserPlus from '@lucide/svelte/icons/user-plus';
 	import X from '@lucide/svelte/icons/x';
 	import type { PersonRow } from '$lib/types/library';
+	import { filterPeople } from '$lib/library/person-search';
 
 	/**
 	 * <PersonAutocomplete>
@@ -141,23 +142,9 @@
 
 	const queryLower = $derived(queryRaw.trim().toLowerCase());
 	const filtered = $derived.by(() => {
-		const q = queryLower;
+		const q = queryRaw.trim();
 		if (!q) return people.slice(0, 8);
-		const matches: PersonRow[] = [];
-		for (const p of people) {
-			const haystacks = [
-				p.last_name,
-				p.first_name ?? '',
-				p.middle_name ?? '',
-				formatPersonLong(p),
-				...(p.aliases ?? [])
-			];
-			if (haystacks.some((h) => h.toLowerCase().includes(q))) {
-				matches.push(p);
-				if (matches.length >= 8) break;
-			}
-		}
-		return matches;
+		return filterPeople(q, people, 8);
 	});
 
 	const hasExactMatch = $derived(

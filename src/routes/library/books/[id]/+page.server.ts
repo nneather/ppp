@@ -4,15 +4,12 @@ import {
 	loadAncientCoverageForBook,
 	loadAncientTexts,
 	loadAllTopicCounts,
-	loadBibleBookNames,
 	loadBibleCoverageForBook,
 	loadBookDetail,
 	loadBookTopicsForBook,
 	loadCategories,
-	loadPeople,
 	loadPersonBookCounts,
-	loadScriptureRefsForBook,
-	loadSeries
+	loadScriptureRefsForBook
 } from '$lib/library/server/loaders';
 import {
 	softDeleteBookAction,
@@ -50,7 +47,7 @@ function ocrInvokeDataError(data: unknown): string | null {
 	return null;
 }
 
-export const load: PageServerLoad = async ({ params, locals, depends }) => {
+export const load: PageServerLoad = async ({ params, locals, depends, parent }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
@@ -60,16 +57,13 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 	if (!UUID_RE.test(id)) error(404, 'Book not found.');
 
 	const supabase = locals.supabase;
+	const { people, series, bibleBookNames } = await parent();
 
-	const [people, categories, series, bibleBookNames, ancientTexts, topicCounts] =
-		await Promise.all([
-			loadPeople(supabase),
-			loadCategories(supabase),
-			loadSeries(supabase),
-			loadBibleBookNames(supabase),
-			loadAncientTexts(supabase),
-			loadAllTopicCounts(supabase)
-		]);
+	const [categories, ancientTexts, topicCounts] = await Promise.all([
+		loadCategories(supabase),
+		loadAncientTexts(supabase),
+		loadAllTopicCounts(supabase)
+	]);
 	const [
 		book,
 		personBookCounts,

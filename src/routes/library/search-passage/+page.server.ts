@@ -1,6 +1,5 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { loadBibleBookNames } from '$lib/library/server/loaders';
 import type { PassageResult } from '$lib/types/library';
 
 function parseIntOrNull(v: string | null): number | null {
@@ -38,12 +37,12 @@ type CoverageRow = {
 		| null;
 };
 
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
 	const supabase = locals.supabase;
-	const bibleBookNames = await loadBibleBookNames(supabase);
+	const { bibleBookNames } = await parent();
 
 	const bibleBookParam = url.searchParams.get('bible_book');
 	const bible_book =

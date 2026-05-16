@@ -6,7 +6,7 @@ import {
 	createPersonAction
 } from '$lib/library/server/book-actions';
 
-export const load: PageServerLoad = async ({ locals, depends }) => {
+export const load: PageServerLoad = async ({ locals, depends, parent }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
@@ -14,7 +14,8 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 	depends('app:library:series');
 
 	const supabase = locals.supabase;
-	return loadBookFormPageData(supabase);
+	const { people, series } = await parent();
+	return loadBookFormPageData(supabase, { people, series });
 };
 
 export const actions: Actions = {

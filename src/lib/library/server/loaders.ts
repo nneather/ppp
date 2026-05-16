@@ -495,11 +495,16 @@ export async function loadBibleBookList(supabase: SupabaseClient): Promise<Bible
 }
 
 /** Shared deps for `/library/books/new`, `/library/add`, etc. */
-export async function loadBookFormPageData(supabase: SupabaseClient) {
-	const [people, categories, series, personBookCounts, bibleBooks] = await Promise.all([
-		loadPeople(supabase),
+export async function loadBookFormPageData(
+	supabase: SupabaseClient,
+	opts?: { people?: PersonRow[]; series?: SeriesRow[] }
+) {
+	const [people, series] = await Promise.all([
+		opts?.people != null ? Promise.resolve(opts.people) : loadPeople(supabase),
+		opts?.series != null ? Promise.resolve(opts.series) : loadSeries(supabase)
+	]);
+	const [categories, personBookCounts, bibleBooks] = await Promise.all([
 		loadCategories(supabase),
-		loadSeries(supabase),
 		loadPersonBookCounts(supabase),
 		loadBibleBookList(supabase)
 	]);

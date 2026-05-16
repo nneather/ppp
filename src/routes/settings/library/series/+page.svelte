@@ -45,6 +45,7 @@
 				deleteTarget = null;
 				await invalidateAll();
 				await invalidate('app:library:series').catch(() => {});
+				await invalidate('app:library:facets').catch(() => {});
 			}
 		};
 	};
@@ -69,6 +70,7 @@
 				deleteTarget = null;
 				await invalidateAll();
 				await invalidate('app:library:series').catch(() => {});
+				await invalidate('app:library:facets').catch(() => {});
 			}
 		};
 	};

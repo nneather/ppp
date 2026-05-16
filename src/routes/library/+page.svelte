@@ -2,7 +2,7 @@
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -20,6 +20,7 @@
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import X from '@lucide/svelte/icons/x';
+	import Loader2 from '@lucide/svelte/icons/loader-2';
 	import {
 		GENRES,
 		LANGUAGES,
@@ -28,11 +29,20 @@
 		READING_STATUS_LABELS
 	} from '$lib/types/library';
 	import type { ReadingStatus, Language, BookListFilters, PersonRow, Genre } from '$lib/types/library';
+	import { scorePersonMatch } from '$lib/library/person-search';
 	import MultiCombobox from '$lib/components/multi-combobox.svelte';
 	import type { MultiComboboxItem } from '$lib/components/multi-combobox.svelte';
 	import type { PageProps } from './$types';
+	import { cn } from '$lib/utils.js';
 
 	let { data, form }: PageProps = $props();
+
+	/** In-flight navigations that stay on the list route (filters / search). */
+	const listInFlight = $derived(
+		navigating != null &&
+			navigating.to != null &&
+			navigating.to.url.pathname === '/library'
+	);
 
 	// 10s undo toast for soft-deletes coming back from the detail-page redirect.
 	let undoToastVisible = $state(false);
@@ -147,7 +157,7 @@
 		if (qDebounce != null) clearTimeout(qDebounce);
 		qDebounce = window.setTimeout(() => {
 			pushFilters({ ...filters, q: qInput.trim() || undefined });
-		}, 200);
+		}, 120);
 	}
 
 	/** Build the next URL from a filter object and navigate. Empty arrays /
@@ -242,6 +252,11 @@
 	}
 
 	const peopleById = $derived(new Map(data.people.map((p) => [p.id, p])));
+
+	function authorFacetMatcher(it: MultiComboboxItem, query: string): number {
+		const p = peopleById.get(it.id);
+		return p ? scorePersonMatch(query, p) : 0;
+	}
 
 	const seriesItems = $derived<MultiComboboxItem[]>(
 		data.series.map((s) => ({
@@ -382,6 +397,7 @@
 				items={peopleItems}
 				placeholder="Search authors by last name…"
 				ariaLabel="Authors"
+				matcher={authorFacetMatcher}
 				onChange={(next) => setArrayFilter('author_id', next)}
 			/>
 		</section>
@@ -500,13 +516,20 @@
 	<div class="mt-4 flex flex-wrap items-center gap-2">
 		<div class="relative flex-1 min-w-[14rem]">
 			<Search class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+			{#if listInFlight}
+				<Loader2
+					class="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
+					aria-hidden="true"
+				/>
+			{/if}
 			<Input
 				type="search"
 				placeholder="Search title, subtitle, or author last name…"
 				value={qInput}
 				oninput={onQInput}
-				class="pl-9"
+				class={cn('pl-9', listInFlight && 'pr-9')}
 				aria-label="Search books"
+				aria-busy={listInFlight}
 			/>
 		</div>
 		<Button

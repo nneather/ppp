@@ -754,6 +754,7 @@
 				personDialogOpen = false;
 				pendingAuthorRowKey = null;
 				await invalidate('app:library:people').catch(() => {});
+				await invalidate('app:library:facets').catch(() => {});
 			} else {
 				personDialogMessage = 'Network error creating person.';
 			}

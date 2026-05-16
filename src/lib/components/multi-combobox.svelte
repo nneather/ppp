@@ -12,6 +12,8 @@
 	 *
 	 * Items can opt into secondary search via `sublabel` + `keywords[]`.
 	 * Filtering is a case-insensitive substring scan against all three.
+	 * Optional `matcher` replaces that with a custom score (higher = better);
+	 * items with score &gt; 0 are sorted by score descending.
 	 * Selected values render as removable chips above the input.
 	 *
 	 * No create path — filter facets pull from existing data only. If a
@@ -31,7 +33,8 @@
 		items,
 		placeholder = 'Type to filter…',
 		ariaLabel = 'Filter',
-		onChange
+		onChange,
+		matcher
 	}: {
 		values?: string[];
 		items: MultiComboboxItem[];
@@ -39,6 +42,8 @@
 		ariaLabel?: string;
 		/** Fired after any add/remove. Host uses this to drive URL-param sync. */
 		onChange?: (next: string[]) => void;
+		/** When set, filter/sort by score instead of label/keyword substring match. */
+		matcher?: (item: MultiComboboxItem, query: string) => number;
 	} = $props();
 
 	let queryRaw = $state('');
@@ -63,9 +68,17 @@
 	}
 
 	const filtered = $derived.by(() => {
-		const q = queryRaw.trim().toLowerCase();
+		const qTrim = queryRaw.trim();
 		const pool = items.filter((it) => !valuesSet.has(it.id));
-		if (!q) return pool.slice(0, 10);
+		if (!qTrim) return pool.slice(0, 10);
+		if (matcher) {
+			const scored = pool
+				.map((it) => ({ it, s: matcher(it, qTrim) }))
+				.filter((x) => x.s > 0)
+				.sort((a, b) => b.s - a.s);
+			return scored.slice(0, 10).map((x) => x.it);
+		}
+		const q = qTrim.toLowerCase();
 		const out: MultiComboboxItem[] = [];
 		for (const it of pool) {
 			if (itemMatches(it, q)) {

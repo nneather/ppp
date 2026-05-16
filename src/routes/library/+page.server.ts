@@ -2,11 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	countLiveBooks,
-	loadBibleBookNames,
-	loadBookListFiltered,
-	loadPeople,
-	loadPersonBookCounts,
-	loadSeries
+	loadBookListFiltered
 } from '$lib/library/server/loaders';
 import {
 	createPersonAction,
@@ -28,9 +24,6 @@ function parseFilters(url: URL): BookListFilters {
 	const series = multiParam(url, 'series_id');
 	if (series.length > 0) filters.series_id = series;
 
-	// Author facet (Session 5). `category_id` param dropped per Open
-	// Question 11 — the column is still populated for shelving, but the
-	// facet duplicated Genre after Pass 1's SUBJECT_TO_GENRE mapping.
 	const authors = multiParam(url, 'author_id');
 	if (authors.length > 0) filters.author_id = authors;
 
@@ -54,32 +47,26 @@ function parseFilters(url: URL): BookListFilters {
 	return filters;
 }
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
 	const supabase = locals.supabase;
 	const filters = parseFilters(url);
-
-	const [people, series, totalCount, bibleBookNames] = await Promise.all([
-		loadPeople(supabase),
-		loadSeries(supabase),
-		countLiveBooks(supabase),
-		loadBibleBookNames(supabase)
-	]);
-	const [books, personBookCounts] = await Promise.all([
-		loadBookListFiltered(supabase, people, filters),
-		loadPersonBookCounts(supabase)
-	]);
-
 	const recentlyDeletedId = url.searchParams.get('deleted');
+
+	const { people, series, bibleBookNames } = await parent();
+
+	const [books, totalCount] = await Promise.all([
+		loadBookListFiltered(supabase, people, filters),
+		countLiveBooks(supabase)
+	]);
 
 	return {
 		books,
 		series,
 		people,
 		bibleBookNames,
-		personBookCounts: Object.fromEntries(personBookCounts),
 		recentlyDeletedId,
 		filters,
 		totalCount

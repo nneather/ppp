@@ -80,6 +80,7 @@
 				manualMergedAwayId = '';
 				await invalidateAll();
 				await invalidate('app:library:people').catch(() => {});
+				await invalidate('app:library:facets').catch(() => {});
 			}
 		};
 	};

@@ -4,9 +4,7 @@ import {
 	loadBookDetail,
 	loadBibleBookList,
 	loadCategories,
-	loadPeople,
-	loadPersonBookCounts,
-	loadSeries
+	loadPersonBookCounts
 } from '$lib/library/server/loaders';
 import {
 	createPersonAction,
@@ -17,7 +15,7 @@ import {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const load: PageServerLoad = async ({ params, locals, depends }) => {
+export const load: PageServerLoad = async ({ params, locals, depends, parent }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
@@ -28,11 +26,10 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 	if (!UUID_RE.test(id)) error(404, 'Book not found.');
 
 	const supabase = locals.supabase;
+	const { people, series } = await parent();
 
-	const [people, categories, series, bibleBooks] = await Promise.all([
-		loadPeople(supabase),
+	const [categories, bibleBooks] = await Promise.all([
 		loadCategories(supabase),
-		loadSeries(supabase),
 		loadBibleBookList(supabase)
 	]);
 	const [book, personBookCounts] = await Promise.all([
