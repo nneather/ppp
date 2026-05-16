@@ -625,6 +625,26 @@ export async function createBookAction(supabase: SupabaseClient, userId: string,
 		return fail(applied.message.includes('ISBN') ? 400 : 500, { kind, message: applied.message });
 	}
 
+	const autoBibleBook = String(fd.get('auto_bible_book') ?? '').trim();
+	if (autoBibleBook && applied.bookId) {
+		const { data: bbRow, error: bbErr } = await supabase
+			.from('bible_books')
+			.select('name')
+			.eq('name', autoBibleBook)
+			.maybeSingle();
+		if (bbErr) {
+			console.error('[createBook] bible_books lookup', bbErr);
+		} else if (bbRow) {
+			const { error: covErr } = await supabase.from('book_bible_coverage').insert({
+				book_id: applied.bookId,
+				bible_book: autoBibleBook,
+				essay_id: null,
+				created_by: userId
+			} as never);
+			if (covErr) console.error('[createBook] coverage insert', covErr);
+		}
+	}
+
 	return { kind: 'createBook' as const, bookId: applied.bookId, success: true as const };
 }
 

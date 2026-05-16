@@ -477,19 +477,38 @@ export async function countLiveBooksExact(
 	return fetchLiveBookCount(supabase, false);
 }
 
+export type BibleBookListRow = { name: string; testament: 'OT' | 'NT' };
+
+export async function loadBibleBookList(supabase: SupabaseClient): Promise<BibleBookListRow[]> {
+	const { data, error } = await supabase
+		.from('bible_books')
+		.select('name, testament, sort_order')
+		.order('sort_order', { ascending: true });
+	if (error) {
+		console.error(error);
+		return [];
+	}
+	return (data ?? []).map((r) => ({
+		name: (r as { name: string }).name,
+		testament: (r as { testament: 'OT' | 'NT' }).testament
+	}));
+}
+
 /** Shared deps for `/library/books/new`, `/library/add`, etc. */
 export async function loadBookFormPageData(supabase: SupabaseClient) {
-	const [people, categories, series, personBookCounts] = await Promise.all([
+	const [people, categories, series, personBookCounts, bibleBooks] = await Promise.all([
 		loadPeople(supabase),
 		loadCategories(supabase),
 		loadSeries(supabase),
-		loadPersonBookCounts(supabase)
+		loadPersonBookCounts(supabase),
+		loadBibleBookList(supabase)
 	]);
 	return {
 		people,
 		categories,
 		series,
-		personBookCounts: Object.fromEntries(personBookCounts)
+		personBookCounts: Object.fromEntries(personBookCounts),
+		bibleBooks
 	};
 }
 

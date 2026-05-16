@@ -7,6 +7,7 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import PersonAutocomplete from '$lib/components/person-autocomplete.svelte';
@@ -35,7 +36,8 @@
 		matchPersonExact,
 		matchPersonFuzzyCandidates,
 		matchSeries,
-		splitAuthorString
+		splitAuthorString,
+		detectBibleBookFromTitle
 	} from '$lib/library/match';
 	import BookOlRefreshDialog from '$lib/components/book-ol-refresh-dialog.svelte';
 	import type { OlApplyKey } from '$lib/components/book-ol-refresh-dialog.svelte';
@@ -44,6 +46,8 @@
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Save from '@lucide/svelte/icons/save';
 
 	/**
 	 * <BookForm>
@@ -87,6 +91,7 @@
 		personBookCounts,
 		categories,
 		series,
+		bibleBooks = [],
 		formMessage = null,
 		onSaved,
 		onDirtyChange,
@@ -103,6 +108,8 @@
 		personBookCounts: Record<string, number>;
 		categories: CategoryRow[];
 		series: SeriesRow[];
+		/** Canonical bible book names for commentary auto-coverage (create mode). */
+		bibleBooks?: { name: string; testament: 'OT' | 'NT' }[];
 		formMessage?: FormMessage;
 		onSaved?: (bookId: string, opts?: { returnToScanner?: boolean }) => void;
 		onDirtyChange?: (dirty: boolean) => void;
@@ -313,6 +320,39 @@
 	const languageLabel = $derived(LANGUAGE_LABELS[language]);
 	const readingStatusLabel = $derived(READING_STATUS_LABELS[reading_status]);
 
+	let prevGenreForDefaults = $state<Genre | '' | null>(null);
+	let bibleBookDismissed = $state<string | null>(null);
+
+	const detectedBibleBook = $derived.by(() => {
+		if (mode !== 'create' || genre !== 'Commentary') return null;
+		if (title.trim().length === 0) return null;
+		return detectBibleBookFromTitle(title, subtitle, bibleBooks);
+	});
+
+	$effect(() => {
+		const d = detectedBibleBook;
+		if (bibleBookDismissed != null && d !== bibleBookDismissed) {
+			bibleBookDismissed = null;
+		}
+	});
+
+	/** On transition into Commentary only, fill defaults if user hasn't changed them yet. */
+	$effect(() => {
+		const g = genre;
+		const prev = prevGenreForDefaults;
+		if (g === prev) return;
+		untrack(() => {
+			if (prev != null && g === 'Commentary' && prev !== 'Commentary') {
+				if (primary_category_id === '') {
+					const bs = categories.find((c) => c.name === 'Biblical Studies');
+					if (bs) primary_category_id = bs.id;
+				}
+				if (reading_status === 'unread') reading_status = 'reference';
+			}
+			prevGenreForDefaults = g;
+		});
+	});
+
 	const olScanMissingLabels = $derived.by(() => {
 		const snap = olImportSnapshot;
 		if (!snap || !scanSessionLayout) return [] as string[];
@@ -484,6 +524,7 @@
 				}
 			];
 		}
+		prevGenreForDefaults = untrack(() => genre);
 		initialSnapshot = untrack(() => currentFormSnapshot());
 	});
 
@@ -822,6 +863,12 @@
 		<input type="hidden" name="reading_status" value={reading_status} />
 		<input type="hidden" name="needs_review" value={needs_review ? 'true' : 'false'} />
 		<input type="hidden" name="authors_json" value={authorsJson} />
+		<input type="hidden" name="barcode" value={barcode} />
+		<input
+			type="hidden"
+			name="auto_bible_book"
+			value={detectedBibleBook && bibleBookDismissed !== detectedBibleBook ? detectedBibleBook : ''}
+		/>
 		{#each extra_category_ids as cid (cid)}
 			<input type="hidden" name="category_ids" value={cid} />
 		{/each}
@@ -856,7 +903,7 @@
 			<h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
 				Citation essentials
 			</h3>
-			<div class="grid gap-4 sm:grid-cols-3">
+			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<div class="space-y-2">
 					<Label for="bf-pub">Publisher</Label>
 					<Input id="bf-pub" name="publisher" bind:value={publisher} class="h-11 text-base" />
@@ -881,8 +928,48 @@
 						class="h-11 text-base tabular-nums"
 					/>
 				</div>
+				<div class="space-y-2">
+					<Label for="bf-genre">Genre</Label>
+					<Select.Root type="single" bind:value={genre} items={genreSelectItems}>
+						<Select.Trigger id="bf-genre" size="default" class="h-11 w-full justify-between px-3">
+							<span data-slot="select-value" class="truncate text-left">
+								{genre || '— None —'}
+							</span>
+						</Select.Trigger>
+						<Select.Content class="max-h-72">
+							<Select.Item
+								value=""
+								label="— None —"
+								class="min-h-10 py-2 text-muted-foreground"
+							>
+								— None —
+							</Select.Item>
+							{#each GENRES as g (g)}
+								<Select.Item value={g} label={g} class="min-h-10 py-2">
+									{g}
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
 			</div>
 		</section>
+
+		{#if detectedBibleBook && bibleBookDismissed !== detectedBibleBook}
+			<div
+				class="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-950 dark:text-emerald-100"
+			>
+				Detected Bible book: <strong>{detectedBibleBook}</strong>. Will be added to commentary
+				coverage on save.
+				<button
+					type="button"
+					class="ml-2 inline font-medium text-primary underline-offset-4 hover:underline"
+					onclick={() => (bibleBookDismissed = detectedBibleBook)}
+				>
+					Dismiss
+				</button>
+			</div>
+		{/if}
 
 		{#if scanSessionLayout}
 			<section
@@ -915,7 +1002,6 @@
 						<li>Subtitle: {subtitle.trim() || '—'}</li>
 						<li>Edition: {edition.trim() || '—'}</li>
 						<li>Page count: {page_count.trim() || '—'}</li>
-						<li>Barcode: {barcode.trim() || '—'}</li>
 					</ul>
 				</details>
 			</section>
@@ -1066,38 +1152,6 @@
 						Classification
 					</h3>
 					<div class="grid gap-4 sm:grid-cols-2">
-						<div class="space-y-2">
-							<Label for="bf-genre">Genre</Label>
-							<Select.Root
-								type="single"
-								bind:value={genre}
-								items={genreSelectItems}
-							>
-								<Select.Trigger
-									id="bf-genre"
-									size="default"
-									class="h-11 w-full justify-between px-3"
-								>
-									<span data-slot="select-value" class="truncate text-left">
-										{genre || '— None —'}
-									</span>
-								</Select.Trigger>
-								<Select.Content class="max-h-72">
-									<Select.Item
-										value=""
-										label="— None —"
-										class="min-h-10 py-2 text-muted-foreground"
-									>
-										— None —
-									</Select.Item>
-									{#each GENRES as g (g)}
-										<Select.Item value={g} label={g} class="min-h-10 py-2">
-											{g}
-										</Select.Item>
-									{/each}
-								</Select.Content>
-							</Select.Root>
-						</div>
 						<div class="space-y-2">
 							<Label for="bf-language"
 								>Language <span class="text-destructive">*</span></Label
@@ -1442,21 +1496,12 @@
 						Identifiers & shelf
 					</h3>
 					<div class="grid gap-4 sm:grid-cols-2">
-						<div class="space-y-2">
+						<div class="space-y-2 sm:col-span-2">
 							<Label for="bf-isbn">ISBN</Label>
 							<Input
 								id="bf-isbn"
 								name="isbn"
 								bind:value={isbn}
-								class="h-11 text-base tabular-nums"
-							/>
-						</div>
-						<div class="space-y-2">
-							<Label for="bf-barcode">Barcode</Label>
-							<Input
-								id="bf-barcode"
-								name="barcode"
-								bind:value={barcode}
 								class="h-11 text-base tabular-nums"
 							/>
 						</div>
@@ -1514,26 +1559,31 @@
 		<div
 			class="sticky z-10 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px)+0.5rem)] max-md:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.06)] max-md:dark:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.25)] md:bottom-0 sm:-mx-6 sm:px-6"
 		>
-			<div class="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+			<div
+				class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:justify-end"
+			>
 				{#if onCancel}
 					<Button
 						type="button"
 						variant="outline"
-						class="h-12 w-full text-base sm:w-auto sm:min-w-28"
+						class="h-10 w-full gap-1.5 text-sm sm:h-12 sm:w-auto sm:min-w-28 sm:text-base"
 						disabled={pending}
 						hotkey="Escape"
-						label="Cancel"
 						onclick={onCancel}
-					/>
+					>
+						<X class="size-4 shrink-0" />
+						<HotkeyLabel label="Cancel" />
+					</Button>
 				{/if}
 				{#if onBackToScanner}
 					<Button
 						type="button"
 						variant="ghost"
-						class="h-12 w-full text-base sm:w-auto sm:min-w-32"
+						class="h-10 w-full gap-1.5 text-sm sm:h-12 sm:w-auto sm:min-w-32 sm:text-base"
 						disabled={pending}
 						onclick={onBackToScanner}
 					>
+						<ArrowLeft class="size-4 shrink-0" />
 						Back to scanner
 					</Button>
 				{/if}
@@ -1541,33 +1591,39 @@
 					<Button
 						type="button"
 						variant="secondary"
-						class="h-12 w-full text-base sm:w-auto sm:min-w-40"
+						class="h-10 w-full gap-1.5 text-sm sm:h-12 sm:w-auto sm:min-w-40 sm:text-base"
 						disabled={pending || !hasAnyField}
 						onclick={() => {
 							returnToScannerAfterSave = true;
 							bookFormEl?.requestSubmit();
 						}}
 					>
+						<ScanBarcode class="size-4 shrink-0" />
 						Save &amp; scan another
 					</Button>
 				{/if}
 				<Button
 					type="submit"
-					class="h-12 w-full text-base sm:w-auto sm:min-w-40 sm:px-8"
+					class="h-10 w-full gap-1.5 text-sm sm:h-12 sm:w-auto sm:min-w-40 sm:px-8 sm:text-base"
 					disabled={pending || !hasAnyField}
 					hotkey={mode === 'create' ? 's' : 'u'}
-					label={pending ? 'Saving…' : mode === 'create' ? 'Save book' : 'Update book'}
 					onpointerdown={() => {
 						returnToScannerAfterSave = false;
 					}}
-				/>
+				>
+					<Save class="size-4 shrink-0" />
+					<HotkeyLabel
+						label={pending ? 'Saving…' : mode === 'create' ? 'Save book' : 'Update book'}
+						mnemonic={mode === 'create' ? 's' : 'u'}
+					/>
+				</Button>
 			</div>
 			{#if !pending && !hasAnyField}
-				<p class="text-center text-xs text-muted-foreground sm:text-right">
+				<p class="text-center text-[11px] text-muted-foreground sm:text-right sm:text-xs">
 					Add at least one detail (title, ISBN, an author, anything) before saving.
 				</p>
 			{:else if !pending && missingImportantPreview.length > 0 && !needs_review}
-				<p class="text-center text-xs text-amber-700 sm:text-right dark:text-amber-300">
+				<p class="text-center text-[11px] text-amber-700 sm:text-right sm:text-xs dark:text-amber-300">
 					Will be auto-flagged for review (missing: {missingImportantPreview.join(', ')}).
 				</p>
 			{/if}

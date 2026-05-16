@@ -129,6 +129,7 @@
 		personBookCounts={data.personBookCounts}
 		categories={data.categories}
 		series={data.series}
+		bibleBooks={data.bibleBooks}
 		{formMessage}
 		{onSaved}
 		onDirtyChange={(d) => (dirty = d)}

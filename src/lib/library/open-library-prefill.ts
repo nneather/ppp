@@ -216,11 +216,14 @@ function editionLineFromEdition(edition: Record<string, unknown>): string | null
 
 function pageCountFromEdition(edition: Record<string, unknown>): number | null {
 	const n = asNum(edition.number_of_pages);
-	if (n != null) return n;
+	if (n != null && n >= 4) return n;
 	const pag = asStr(edition.pagination);
-	if (!pag) return null;
-	const m = pag.match(/(\d+)\s*$/);
-	return m ? Number.parseInt(m[1]!, 10) : null;
+	if (!pag) return n ?? null;
+	const matches = pag.match(/\d+/g);
+	if (!matches || matches.length === 0) return n ?? null;
+	const largest = Math.max(...matches.map((m) => Number.parseInt(m, 10)));
+	if (Number.isFinite(largest) && largest > 0) return largest;
+	return n ?? null;
 }
 
 function firstSeriesString(series: unknown): string | null {

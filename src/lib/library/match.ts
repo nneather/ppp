@@ -132,3 +132,27 @@ export function matchSeries(olName: string, rows: SeriesRow[]): SeriesRow | null
 	}
 	return null;
 }
+
+function escapeRegex(s: string): string {
+	return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * When exactly one canonical `bible_books.name` appears in title+subtitle (word-boundary match), return it.
+ * Otherwise null (ambiguous or none).
+ */
+export function detectBibleBookFromTitle(
+	title: string,
+	subtitle: string,
+	bibleBooks: { name: string }[]
+): string | null {
+	const hay = `${title} ${subtitle}`.toLowerCase();
+	const sorted = [...bibleBooks].sort((a, b) => b.name.length - a.name.length);
+	const matches: string[] = [];
+	for (const b of sorted) {
+		const n = b.name.toLowerCase();
+		const re = new RegExp(`(^|[^a-z0-9])${escapeRegex(n)}([^a-z0-9]|$)`, 'i');
+		if (re.test(hay)) matches.push(b.name);
+	}
+	return matches.length === 1 ? matches[0]! : null;
+}

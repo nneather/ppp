@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	loadBookDetail,
+	loadBibleBookList,
 	loadCategories,
 	loadPeople,
 	loadPersonBookCounts,
@@ -28,10 +29,11 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
 	const supabase = locals.supabase;
 
-	const [people, categories, series] = await Promise.all([
+	const [people, categories, series, bibleBooks] = await Promise.all([
 		loadPeople(supabase),
 		loadCategories(supabase),
-		loadSeries(supabase)
+		loadSeries(supabase),
+		loadBibleBookList(supabase)
 	]);
 	const [book, personBookCounts] = await Promise.all([
 		loadBookDetail(supabase, id, people),
@@ -45,6 +47,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 		people,
 		categories,
 		series,
+		bibleBooks,
 		personBookCounts: Object.fromEntries(personBookCounts)
 	};
 };
