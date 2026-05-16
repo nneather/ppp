@@ -406,7 +406,7 @@
 	<Button
 		type="button"
 		class="fixed right-4 z-40 size-14 rounded-full shadow-lg md:hidden"
-		style="bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));"
+		style="bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);"
 		aria-label="New time entry"
 		onclick={openCreate}
 	>

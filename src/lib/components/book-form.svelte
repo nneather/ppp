@@ -76,6 +76,8 @@
 		/** Open Library name when `person_id` still needs linking. */
 		prefillName?: string;
 		fuzzyCandidates?: PersonRow[];
+		/** When false, OL-seeded query does not auto-open the dropdown (multi-author). */
+		olSeedAutoOpen?: boolean;
 	};
 
 	let {
@@ -530,6 +532,7 @@
 						: [];
 
 			const nextRows: AuthorRow[] = [];
+			let firstUnresolvedSeeded = false;
 			for (let idx = 0; idx < names.length; idx++) {
 				const nm = names[idx]!;
 				const exact = matchPersonExact(nm, plist);
@@ -542,11 +545,14 @@
 					continue;
 				}
 				const fuzzy = matchPersonFuzzyCandidates(nm, plist);
+				const openDropdown = !firstUnresolvedSeeded;
+				firstUnresolvedSeeded = true;
 				nextRows.push({
 					key: `ol-${idx}-${crypto.randomUUID()}`,
 					person_id: '',
 					role: 'author',
 					prefillName: nm,
+					olSeedAutoOpen: openDropdown,
 					...(fuzzy.length > 0 ? { fuzzyCandidates: fuzzy } : {})
 				});
 			}
@@ -845,6 +851,39 @@
 			</div>
 		</section>
 
+		<!-- Turabian-critical fields: always above scan summary / collapsible middle -->
+		<section class="flex flex-col gap-4">
+			<h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+				Citation essentials
+			</h3>
+			<div class="grid gap-4 sm:grid-cols-3">
+				<div class="space-y-2">
+					<Label for="bf-pub">Publisher</Label>
+					<Input id="bf-pub" name="publisher" bind:value={publisher} class="h-11 text-base" />
+				</div>
+				<div class="space-y-2">
+					<Label for="bf-pub-loc">Publisher location</Label>
+					<Input
+						id="bf-pub-loc"
+						name="publisher_location"
+						bind:value={publisher_location}
+						class="h-11 text-base"
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="bf-year">Year</Label>
+					<Input
+						id="bf-year"
+						name="year"
+						type="number"
+						inputmode="numeric"
+						bind:value={year}
+						class="h-11 text-base tabular-nums"
+					/>
+				</div>
+			</div>
+		</section>
+
 		{#if scanSessionLayout}
 			<section
 				class="rounded-lg border border-border bg-muted/20 p-4 md:hidden"
@@ -861,10 +900,6 @@
 						<dd class="font-mono tabular-nums">{isbn.trim() || '—'}</dd>
 						<dt class="text-muted-foreground">Author</dt>
 						<dd class="min-w-0">{olImportSnapshot?.authorTyped?.trim() || '—'}</dd>
-						<dt class="text-muted-foreground">Publisher</dt>
-						<dd class="min-w-0">{publisher.trim() || '—'}</dd>
-						<dt class="text-muted-foreground">Year</dt>
-						<dd>{year.trim() || '—'}</dd>
 						<dt class="text-muted-foreground">Genre</dt>
 						<dd>{genre || '—'}</dd>
 					</div>
@@ -878,7 +913,6 @@
 					<summary class="cursor-pointer text-xs font-medium text-primary">All field values</summary>
 					<ul class="mt-2 space-y-1 break-words font-mono text-xs text-muted-foreground">
 						<li>Subtitle: {subtitle.trim() || '—'}</li>
-						<li>Publisher location: {publisher_location.trim() || '—'}</li>
 						<li>Edition: {edition.trim() || '—'}</li>
 						<li>Page count: {page_count.trim() || '—'}</li>
 						<li>Barcode: {barcode.trim() || '—'}</li>
@@ -943,6 +977,7 @@
 									{personBookCounts}
 									initialQuery={row.prefillName ?? ''}
 									seedKey={row.key}
+									autoOpenOnSeed={row.olSeedAutoOpen ?? true}
 									onCreate={(text) => openPersonDialog(row.key, parseTypedName(text))}
 								/>
 							{/key}
@@ -1319,35 +1354,6 @@
 					</h3>
 					<div class="grid gap-4 sm:grid-cols-2">
 						<div class="space-y-2">
-							<Label for="bf-pub">Publisher</Label>
-							<Input
-								id="bf-pub"
-								name="publisher"
-								bind:value={publisher}
-								class="h-11 text-base"
-							/>
-						</div>
-						<div class="space-y-2">
-							<Label for="bf-pub-loc">Publisher location</Label>
-							<Input
-								id="bf-pub-loc"
-								name="publisher_location"
-								bind:value={publisher_location}
-								class="h-11 text-base"
-							/>
-						</div>
-						<div class="space-y-2">
-							<Label for="bf-year">Year</Label>
-							<Input
-								id="bf-year"
-								name="year"
-								type="number"
-								inputmode="numeric"
-								bind:value={year}
-								class="h-11 text-base tabular-nums"
-							/>
-						</div>
-						<div class="space-y-2">
 							<Label for="bf-edition">Edition</Label>
 							<Input
 								id="bf-edition"
@@ -1506,7 +1512,7 @@
 
 		<!-- Save bar (sticky; max-md bottom offset clears fixed module tab bar) -->
 		<div
-			class="sticky z-10 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-md:bottom-20 max-md:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.06)] max-md:dark:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.25)] md:bottom-0 sm:-mx-6 sm:px-6"
+			class="sticky z-10 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px)+0.5rem)] max-md:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.06)] max-md:dark:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.25)] md:bottom-0 sm:-mx-6 sm:px-6"
 		>
 			<div class="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
 				{#if onCancel}

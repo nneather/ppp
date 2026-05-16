@@ -10,6 +10,7 @@
 - New `src/lib/library/match.ts` — person exact/fuzzy matching + series matching + `splitAuthorString`.
 - `<BookForm>` create-mode prefill: one author row per OL author, auto-link on exact name, fuzzy strip with “Use …” / “Create new”; series match + unmatched hint with link to `/settings/library/series`; scan-session “Missing from Open Library” checklist.
 - `<PersonAutocomplete>`: `initialQuery` + `seedKey` to seed OL hints without extra typing.
+- **Follow-up polish:** `autoOpenOnSeed` — only the first unresolved OL author row auto-opens the dropdown; publisher imprint dedupe in `publishersFromEdition` (keep more specific, e.g. B&H Academic over B&H Publishing Group); **Citation essentials** section (Publisher, Publisher location, Year) always above the mobile scan summary / collapsible middle; trimmed duplicate read-only publisher/year/location lines from the scan card.
 
 ## Decided
 

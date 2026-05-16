@@ -155,7 +155,9 @@
 		</aside>
 
 		<!-- Main -->
-		<div class="flex min-h-dvh min-w-0 flex-1 flex-col pb-16 md:pb-8">
+		<div
+			class="flex min-h-dvh min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom,0px)+0.5rem)] md:pb-8"
+		>
 			<main class="flex-1">
 				{@render children()}
 			</main>
@@ -163,7 +165,7 @@
 
 		<!-- Mobile tab bar -->
 		<nav
-			class="fixed inset-x-0 bottom-0 z-50 flex border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur supports-[backdrop-filter]:bg-card/80 md:hidden"
+			class="fixed inset-x-0 bottom-0 z-50 flex border-t border-border bg-card/95 pl-[max(0.5rem,env(safe-area-inset-left,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-0.5 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:hidden"
 			aria-label="Main"
 		>
 			{#each navItems as { href, label, icon: Icon } (href)}

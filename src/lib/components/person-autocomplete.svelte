@@ -38,8 +38,10 @@
 	 *     externally set after a Create dialog), automatically exit search
 	 *     mode and clear the typed query.
 	 *   - **`initialQuery` + `seedKey`:** when the host row identity (`seedKey`)
-	 *     changes and `value` is empty, copy `initialQuery` into the input and
-	 *     open the list (ISBN / Open Library author prefill on `<BookForm>`).
+	 *     changes and `value` is empty, copy `initialQuery` into the input.
+	 *     **`autoOpenOnSeed`:** when true (default), also open the dropdown
+	 *     (ISBN prefill on `<BookForm>`); when false, keep the list closed until
+	 *     the user focuses the field.
 	 */
 
 	let {
@@ -52,7 +54,9 @@
 		/** When `seedKey` changes and `value` is empty, pre-fill the search box (Open Library author hint). */
 		initialQuery = '',
 		/** Stable row id from the host — changing it re-applies `initialQuery`. */
-		seedKey = ''
+		seedKey = '',
+		/** When seeding from `initialQuery`, open the dropdown (multi-author prefill only opens for the first unresolved row). */
+		autoOpenOnSeed = true
 	}: {
 		value?: string | null;
 		people: PersonRow[];
@@ -65,6 +69,7 @@
 		ariaLabel?: string;
 		initialQuery?: string;
 		seedKey?: string;
+		autoOpenOnSeed?: boolean;
 	} = $props();
 
 	let queryRaw = $state('');
@@ -84,6 +89,7 @@
 	/** When the host row identity changes, seed the query from `initialQuery` once per empty `value`. */
 	let prevSeedKey = $state<string | null>(null);
 	$effect(() => {
+		void autoOpenOnSeed;
 		if (value) {
 			prevSeedKey = null;
 			return;
@@ -94,8 +100,10 @@
 			if (q) {
 				queryRaw = q;
 				void tick().then(() => {
-					dropdownOpen = true;
 					highlightIdx = 0;
+					if (autoOpenOnSeed) {
+						dropdownOpen = true;
+					}
 				});
 			}
 		}

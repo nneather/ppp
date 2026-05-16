@@ -39,6 +39,8 @@
 
 	let videoEl = $state<HTMLVideoElement | null>(null);
 	let controlsStop: (() => void) | null = null;
+	/** One reader per page mount; avoids orphaning streams across rescans. */
+	let scanReader: BrowserMultiFormatReader | null = null;
 
 	let lastDecode: { digits: string; t: number } | null = null;
 	let cameraAutoStartAttempted = $state(false);
@@ -51,6 +53,23 @@
 		}
 		controlsStop = null;
 		BrowserMultiFormatReader.releaseAllStreams();
+		if (videoEl) {
+			try {
+				const stream = videoEl.srcObject;
+				if (stream instanceof MediaStream) {
+					for (const track of stream.getTracks()) {
+						try {
+							track.stop();
+						} catch {
+							/* noop */
+						}
+					}
+				}
+				videoEl.srcObject = null;
+			} catch {
+				/* noop */
+			}
+		}
 		scanActive = false;
 		lastDecode = null;
 	}
@@ -103,13 +122,14 @@
 
 	async function startScan() {
 		if (!browser || !videoEl) return;
+		stopScan();
 		errorMessage = null;
 		statusMessage = 'Point the camera at the barcode…';
 		scanActive = true;
 		lastDecode = null;
-		const reader = new BrowserMultiFormatReader(hints);
+		scanReader ??= new BrowserMultiFormatReader(hints);
 		try {
-			const controls = await reader.decodeFromVideoDevice(undefined, videoEl, (result, err) => {
+			const controls = await scanReader.decodeFromVideoDevice(undefined, videoEl, (result, err) => {
 				if (err) {
 					if (err instanceof NotFoundException) return;
 					errorMessage = err instanceof Error ? err.message : 'Scan error.';

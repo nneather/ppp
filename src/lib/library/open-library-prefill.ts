@@ -60,6 +60,46 @@ function extractYear(publishDate: unknown): number | null {
 	return m ? Number.parseInt(m[1]!, 10) : null;
 }
 
+const GENERIC_PUBLISHER_SUFFIX =
+	/\b(publishing\s+group|publishing\s+house|publishers?|publishing|group|holdings?|inc\.?|llc|co\.?|ltd\.?|company|division|imprint|books?)\b/gi;
+
+function publisherRoot(s: string): string {
+	return s
+		.toLowerCase()
+		.replace(/&/g, ' and ')
+		.replace(GENERIC_PUBLISHER_SUFFIX, ' ')
+		.replace(/[^a-z0-9\s]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+/** Drop generic parent imprint when a more specific sibling is present (e.g. B&H Academic vs B&H Publishing Group). */
+function dedupePublisherImprints(raw: string[]): string[] {
+	if (raw.length <= 1) return raw;
+	const items = raw
+		.map((r) => ({ raw: r, root: publisherRoot(r) }))
+		.filter((x) => x.root.length > 0);
+	if (items.length <= 1) return items.map((x) => x.raw);
+
+	items.sort((a, b) => b.root.length - a.root.length || b.raw.length - a.raw.length);
+	const kept: { raw: string; root: string }[] = [];
+	for (const e of items) {
+		const dominatedByKept = kept.some(
+			(k) => k.root === e.root || k.root.startsWith(e.root + ' ')
+		);
+		if (dominatedByKept) continue;
+		for (let i = kept.length - 1; i >= 0; i--) {
+			const k = kept[i]!;
+			if (e.root.startsWith(k.root + ' ') || (e.root.length > k.root.length && e.root.startsWith(k.root))) {
+				kept.splice(i, 1);
+			}
+		}
+		kept.push(e);
+	}
+	const set = new Set(kept.map((x) => x.raw));
+	return raw.filter((r) => set.has(r));
+}
+
 function publishersFromEdition(edition: Record<string, unknown>): string | null {
 	const pub = edition.publishers;
 	if (!Array.isArray(pub) || pub.length === 0) return null;
@@ -67,10 +107,11 @@ function publishersFromEdition(edition: Record<string, unknown>): string | null 
 	for (const item of pub) {
 		const s = typeof item === 'string' ? asStr(item) : null;
 		if (s) strs.push(s);
-		if (strs.length >= 4) break;
+		if (strs.length >= 8) break;
 	}
 	if (strs.length === 0) return null;
-	return strs.join('; ');
+	const deduped = dedupePublisherImprints(strs);
+	return deduped.length > 0 ? deduped.join('; ') : null;
 }
 
 /** `GET https://openlibrary.org{key}.json` — key like `/works/OL1W` or `/authors/OL1A`. */
