@@ -1,4 +1,5 @@
 import { multiParam } from '$lib/library/server/url-params';
+import { CITATION_CRITICAL_GENRES } from '$lib/library/turabian/types';
 import {
 	IMPORT_MATCH_TYPES,
 	LANGUAGES,
@@ -8,8 +9,11 @@ import type {
 	ImportMatchType,
 	Language,
 	ReadingStatus,
-	ReviewQueueFilters
+	ReviewQueueFilters,
+	ReviewSlice
 } from '$lib/types/library';
+
+const SLICE_SET = new Set<ReviewSlice>(['critical', 'backlog']);
 
 export function parseReviewFilters(url: URL): ReviewQueueFilters {
 	const filters: ReviewQueueFilters = {};
@@ -40,5 +44,30 @@ export function parseReviewFilters(url: URL): ReviewQueueFilters {
 	);
 	if (matches.length > 0) filters.import_match_type = matches;
 
+	const sliceParam = url.searchParams.get('slice');
+	if (sliceParam && SLICE_SET.has(sliceParam as ReviewSlice)) {
+		filters.slice = sliceParam as ReviewSlice;
+	}
+
 	return filters;
 }
+
+/** Apply Citation Critical / Backlog slice to a Supabase books query builder. */
+export function applyReviewSliceGenreFilter<
+	T extends {
+		in(column: string, values: string[]): T;
+		is(column: string, value: null): T;
+		or(filters: string, options?: { foreignTable?: string }): T;
+	}
+>(query: T, slice: ReviewSlice | undefined): T {
+	if (!slice) return query;
+	const genres = [...CITATION_CRITICAL_GENRES];
+	if (slice === 'critical') {
+		return query.in('genre', genres);
+	}
+	// Backlog: genre IS NULL OR genre not in scholarly core
+	const quoted = genres.map((g) => `"${g.replace(/"/g, '""')}"`).join(',');
+	return query.or(`genre.is.null,genre.not.in.(${quoted})`);
+}
+
+export { CITATION_CRITICAL_GENRES };

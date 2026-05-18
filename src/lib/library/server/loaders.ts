@@ -28,6 +28,11 @@ import {
 	formatScriptureRefPageSummary,
 	formatScriptureRefRangeDisplay
 } from '$lib/library/scripture-ref-format';
+import { applyReviewSliceGenreFilter } from '$lib/library/review';
+import {
+	bookDetailToCitationInput,
+	type BookCitationInput
+} from '$lib/library/turabian';
 
 /**
  * Shared load helpers for book list + detail pages.
@@ -640,9 +645,40 @@ export async function loadBookDetail(
 type RawReviewCard = RawBookListRow & {
 	year: number | null;
 	publisher: string | null;
+	publisher_location: string | null;
+	edition: string | null;
+	total_volumes: number | null;
+	original_year: number | null;
+	reprint_publisher: string | null;
+	reprint_location: string | null;
+	reprint_year: number | null;
 	needs_review_note: string | null;
 	import_match_type: string | null;
 };
+
+async function countRowsByBookId(
+	supabase: SupabaseClient,
+	table: 'book_topics' | 'scripture_references',
+	bookIds: string[]
+): Promise<Map<string, number>> {
+	const out = new Map<string, number>();
+	if (bookIds.length === 0) return out;
+	const { data, error } = await supabase
+		.from(table)
+		.select('book_id')
+		.in('book_id', bookIds)
+		.is('deleted_at', null);
+	if (error) {
+		console.error(`[countRowsByBookId ${table}]`, error);
+		return out;
+	}
+	for (const row of data ?? []) {
+		const id = (row as { book_id: string | null }).book_id;
+		if (!id) continue;
+		out.set(id, (out.get(id) ?? 0) + 1);
+	}
+	return out;
+}
 
 /**
  * Filter-aware loader for `/library/review`. Forces `needs_review = true`
@@ -679,6 +715,13 @@ export async function loadReviewQueue(
 			volume_number,
 			year,
 			publisher,
+			publisher_location,
+			edition,
+			total_volumes,
+			original_year,
+			reprint_publisher,
+			reprint_location,
+			reprint_year,
 			language,
 			import_match_type,
 			series ( name, abbreviation ),
@@ -687,6 +730,8 @@ export async function loadReviewQueue(
 		)
 		.is('deleted_at', null)
 		.eq('needs_review', true);
+
+	query = applyReviewSliceGenreFilter(query, filters.slice);
 
 	if (filters.subject_blank === true) {
 		query = query.is('genre', null);
@@ -719,17 +764,29 @@ export async function loadReviewQueue(
 	}
 
 	const peopleMap = new Map(people.map((p) => [p.id, p]));
+	const bookIds = (data ?? []).map((raw) => (raw as unknown as RawReviewCard).id);
+
+	const [topicsByBook, refsByBook] = await Promise.all([
+		countRowsByBookId(supabase, 'book_topics', bookIds),
+		countRowsByBookId(supabase, 'scripture_references', bookIds)
+	]);
 
 	return (data ?? []).map((raw) => {
 		const r = raw as unknown as RawReviewCard;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
-		const authorRows = (r.book_authors ?? [])
+		const junctionRows = (r.book_authors ?? []).slice().sort((a, b) => a.sort_order - b.sort_order);
+		const authors: BookAuthorAssignment[] = junctionRows.map((a) => {
+			const p = peopleMap.get(a.person_id);
+			return {
+				person_id: a.person_id,
+				person_label: p ? personDisplayLong(p) : 'Unknown',
+				role: a.role as AuthorRole,
+				sort_order: a.sort_order
+			};
+		});
+		const authorLabels = authors
 			.filter((a) => a.role === 'author')
-			.sort((a, b) => a.sort_order - b.sort_order);
-		const authorLabels = authorRows
-			.map((a) => peopleMap.get(a.person_id))
-			.filter((p): p is PersonRow => p != null)
-			.map((p) => personDisplayShort(p));
+			.map((a) => a.person_label);
 		const authors_label = authorLabels.length === 0 ? null : authorLabels.join(', ');
 
 		return {
@@ -746,8 +803,18 @@ export async function loadReviewQueue(
 			authors_label,
 			year: r.year ?? null,
 			publisher: r.publisher ?? null,
+			publisher_location: r.publisher_location ?? null,
+			edition: r.edition ?? null,
+			total_volumes: r.total_volumes ?? null,
+			original_year: r.original_year ?? null,
+			reprint_publisher: r.reprint_publisher ?? null,
+			reprint_location: r.reprint_location ?? null,
+			reprint_year: r.reprint_year ?? null,
 			needs_review_note: r.needs_review_note ?? null,
-			import_match_type: (r.import_match_type as ImportMatchType | null) ?? null
+			import_match_type: (r.import_match_type as ImportMatchType | null) ?? null,
+			authors,
+			topics_count: topicsByBook.get(r.id) ?? 0,
+			scripture_refs_count: refsByBook.get(r.id) ?? 0
 		} satisfies ReviewCard;
 	});
 }
@@ -767,6 +834,8 @@ export async function countReviewQueue(
 		.select('*', { count: 'exact', head: true })
 		.is('deleted_at', null)
 		.eq('needs_review', true);
+
+	query = applyReviewSliceGenreFilter(query, filters.slice);
 
 	if (filters.subject_blank === true) query = query.is('genre', null);
 	if (filters.genre && filters.genre.length > 0) query = query.in('genre', filters.genre);
@@ -1224,4 +1293,28 @@ export async function loadAllTopicCounts(supabase: SupabaseClient): Promise<Topi
 		counts.set(r.topic, (counts.get(r.topic) ?? 0) + 1);
 	}
 	return Array.from(counts.entries()).map(([topic, count]) => ({ topic, count }));
+}
+
+/** Hydrate citation inputs for bibliography builder (`/library/bibliography?ids=…`). */
+export async function loadBookCitationInputs(
+	supabase: SupabaseClient,
+	ids: string[],
+	people: PersonRow[]
+): Promise<BookCitationInput[]> {
+	const unique = [...new Set(ids.filter((id) => id.length > 0))];
+	if (unique.length === 0) return [];
+	const details = await Promise.all(
+		unique.map((id) => loadBookDetail(supabase, id, people))
+	);
+	return details
+		.filter((d): d is BookDetail => d != null)
+		.map((d) => bookDetailToCitationInput(d));
+}
+
+/** Count needs_review rows in a slice (for dashboard burndown denominators). */
+export async function countReviewQueueBySlice(
+	supabase: SupabaseClient,
+	slice: import('$lib/types/library').ReviewSlice
+): Promise<number> {
+	return countReviewQueue(supabase, { slice });
 }

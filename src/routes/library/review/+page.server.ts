@@ -2,9 +2,13 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	countReviewQueue,
+	countReviewQueueBySlice,
 	loadReviewQueue,
 	loadScriptureRefsNeedingReview
 } from '$lib/library/server/loaders';
+import { SLICE_DENOMINATORS } from '$lib/library/turabian';
+import { defaultReviewSlice } from '$lib/library/turabian/review-progress';
+import type { ReviewSlice } from '$lib/types/library';
 import {
 	reviewSaveAction,
 	softDeleteBookAction
@@ -18,22 +22,39 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	if (!user) redirect(303, '/login');
 
 	const supabase = locals.supabase;
-	const filters = parseReviewFilters(url);
+	let filters = parseReviewFilters(url);
+	if (!filters.slice && !url.searchParams.has('subject') && !url.searchParams.has('match_type')) {
+		const defaultSlice = defaultReviewSlice();
+		filters = { ...filters, slice: defaultSlice };
+	}
+
+	const activeSlice: ReviewSlice = filters.slice ?? defaultReviewSlice();
 
 	const { people } = await parent();
-	const [cards, remaining, scriptureRefsNeedingReview] = await Promise.all([
-		loadReviewQueue(supabase, people, filters, {
-			limit: QUEUE_PAGE_SIZE,
-			excludeIds: []
-		}),
-		countReviewQueue(supabase, filters),
-		loadScriptureRefsNeedingReview(supabase, { limit: 50 })
-	]);
+	const [cards, remaining, scriptureRefsNeedingReview, criticalRemaining, backlogRemaining] =
+		await Promise.all([
+			loadReviewQueue(supabase, people, filters, {
+				limit: QUEUE_PAGE_SIZE,
+				excludeIds: []
+			}),
+			countReviewQueue(supabase, filters),
+			loadScriptureRefsNeedingReview(supabase, { limit: 50 }),
+			countReviewQueueBySlice(supabase, 'critical'),
+			countReviewQueueBySlice(supabase, 'backlog')
+		]);
+
+	const sliceDenominator = SLICE_DENOMINATORS[activeSlice];
+	const sliceCleared = Math.max(0, sliceDenominator - remaining);
 
 	return {
 		cards,
 		remaining,
 		filters,
+		activeSlice,
+		sliceDenominator,
+		sliceCleared,
+		criticalRemaining,
+		backlogRemaining,
 		queuePageSize: QUEUE_PAGE_SIZE,
 		scriptureRefsNeedingReview
 	};

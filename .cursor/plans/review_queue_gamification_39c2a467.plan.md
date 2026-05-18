@@ -68,12 +68,21 @@ Reconcile skip hotkey with current `/library/review` (today: **Esc** + Skip butt
 
 ## Two queues, deadline-gated
 
+Post-[022](docs/decisions/022-library-category-removal.md) the slice is **genre-only** (no `categories` / `primary_category_id`).
+
 | Slice | Scope | Default | Why |
 | --- | --- | --- | --- |
-| **Citation Critical** | `genre IN (commentary, bibles, biblical reference, * language tools)` AND `needs_review = true` | Default until Sept 1, 2026 | The September seminary deadline. ~265 scholarly core books. |
-| **Backlog** | `needs_review = true` AND not in scholarly core | Default Sept 1 onward | The ~1,020 no-subject books. Phone-friendly, low stakes. |
+| **Citation Critical** | `needs_review = true` AND `genre IN (` `Commentary`, `Bibles`, `Biblical Reference`, `Greek Language Tools`, `Hebrew Language Tools`, `Latin Language Tools`, `German Language Tools`, `Chinese Language Tools` `)` | Default until Sept 1, 2026 | The September seminary deadline. ~265 scholarly-core books. |
+| **Backlog** | `needs_review = true` AND genre **not** in that set (includes `genre IS NULL`) | Default Sept 1 onward | The ~1,020 no-subject / general-library chunk. Phone-friendly, low stakes. |
 
-Date check is client-side on first slice load; user can override via slice pills at any time. Don't hard-block the user from working backlog before Sept 1 — just don't put them there by default.
+URL: `?slice=critical` or `?slice=backlog` (wired in `parseReviewFilters`).
+
+Date check is client-side on first slice load when `?slice` is absent; user can override via slice pills at any time. Don't hard-block backlog before Sept 1 — just don't default there.
+
+### Clipboard + trip policy (Session 8)
+
+- **Open Q4 resolved:** Copy Footnote / Copy Bibliography / bibliography builder use **HTML + plain-text clipboard** only — no `.docx` / file export. HTML carries `<i>` + en/em-dashes for Word paste; plain-text fallback for editors.
+- **[021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md) trip policy:** Session 8 **implementation + unit QA** may proceed during the trip; **full ~265-row scholarly-core citation spot-check** may wait until the shelf is home (August).
 
 ## Progress UI (no streaks)
 

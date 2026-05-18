@@ -4,7 +4,16 @@
 	import { disableScrollHandling, goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import { tick, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
+	import TurabianCitationBlock from '$lib/components/turabian-citation-block.svelte';
+	import {
+		formatBibliography,
+		formatFootnote,
+		incrementReviewProgress,
+		readReviewToday,
+		reviewCardToCitationInput
+	} from '$lib/library/turabian';
+	import { defaultReviewSlice } from '$lib/library/turabian/review-progress';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
@@ -30,7 +39,8 @@
 		Language,
 		ReadingStatus,
 		ReviewCard,
-		ReviewQueueFilters
+		ReviewQueueFilters,
+		ReviewSlice
 	} from '$lib/types/library';
 	import type { PageProps } from './$types';
 
@@ -67,6 +77,34 @@
 	let pendingSaveId = $state<string | null>(null);
 	let confirmDeleteOpen = $state(false);
 	let confirmDeletePending = $state(false);
+	let copyToast = $state<string | null>(null);
+	let todayCleared = $state(0);
+
+	onMount(() => {
+		todayCleared = readReviewToday().count;
+		if (!browser) return;
+		const url = new URL(page.url);
+		if (!url.searchParams.get('slice') && !url.searchParams.get('subject') && !url.searchParams.has('match_type')) {
+			url.searchParams.set('slice', defaultReviewSlice());
+			goto(url.pathname + url.search, { replaceState: true, keepFocus: true, noScroll: true });
+		}
+	});
+
+	const activeSlice = $derived<ReviewSlice>(data.activeSlice ?? data.filters.slice ?? 'critical');
+
+	const citationForCard = $derived.by(() => {
+		const c = currentCard;
+		if (!c) return null;
+		const input = reviewCardToCitationInput(c);
+		return {
+			footnote: formatFootnote(input),
+			bibliography: formatBibliography(input)
+		};
+	});
+
+	const burndownPct = $derived(
+		Math.min(100, Math.round((data.sliceCleared / (data.sliceDenominator || 1)) * 100))
+	);
 
 	/** Collapsed chip rows default closed when the server already has a value. */
 	let metaGenreExpanded = $state(false);
@@ -192,6 +230,8 @@
 				if (result.type === 'success') {
 					reviewedThisSession += 1;
 					remaining = Math.max(0, remaining - 1);
+					incrementReviewProgress(activeSlice);
+					todayCleared = readReviewToday().count;
 					advance(id);
 				}
 				pendingSaveId = null;
@@ -233,6 +273,8 @@
 	};
 
 	const SLICES: SliceSpec[] = [
+		{ key: 'critical', label: 'Citation Critical', filters: { slice: 'critical' } },
+		{ key: 'backlog', label: 'Backlog', filters: { slice: 'backlog' } },
 		{ key: 'all', label: 'All', filters: {} },
 		{ key: 'subject_blank', label: 'No subject', filters: { subject_blank: true } },
 		{
@@ -248,8 +290,12 @@
 	];
 
 	function isSliceActive(slice: SliceSpec): boolean {
+		if (slice.filters.slice) {
+			return data.filters.slice === slice.filters.slice;
+		}
 		if (slice.key === 'all') {
 			return (
+				!data.filters.slice &&
 				!data.filters.subject_blank &&
 				(!data.filters.import_match_type || data.filters.import_match_type.length === 0)
 			);
@@ -269,6 +315,8 @@
 		// Strip subject + match_type but keep other filter params (genre, language, …).
 		url.searchParams.delete('subject');
 		url.searchParams.delete('match_type');
+		url.searchParams.delete('slice');
+		if (slice.filters.slice) url.searchParams.set('slice', slice.filters.slice);
 		if (slice.filters.subject_blank) url.searchParams.set('subject', 'blank');
 		if (slice.filters.import_match_type) {
 			for (const m of slice.filters.import_match_type) url.searchParams.append('match_type', m);
@@ -361,7 +409,7 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="mx-auto flex min-h-screen max-w-md flex-col px-4 py-4 md:max-w-lg md:py-6">
+<div class="mx-auto flex min-h-screen max-w-md flex-col px-4 py-4 pb-32 md:max-w-lg md:py-6 md:pb-6">
 	<header class="flex items-center justify-between gap-3">
 		<a
 			href="/library"
@@ -369,12 +417,25 @@
 		>
 			<ArrowLeft class="size-4" /> Library
 		</a>
-		<div class="text-right text-xs text-muted-foreground">
+		<div class="min-w-0 flex-1 text-right text-xs text-muted-foreground">
 			<div class="font-medium text-foreground">
 				<CheckCircle2 class="inline-block size-3.5 text-emerald-600" />
-				{reviewedThisSession} reviewed
+				Today: {todayCleared}
+				<span class="mx-1 text-muted-foreground">·</span>
+				{reviewedThisSession} this session
 			</div>
-			<div>{remaining.toLocaleString()} left in this slice</div>
+			<div class="mt-1 tabular-nums">
+				{data.sliceCleared.toLocaleString()} / {data.sliceDenominator.toLocaleString()} in slice
+			</div>
+			<div
+				class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"
+				role="progressbar"
+				aria-valuenow={burndownPct}
+				aria-valuemin={0}
+				aria-valuemax={100}
+			>
+				<div class="h-full bg-emerald-600 transition-all" style={`width: ${burndownPct}%`}></div>
+			</div>
 		</div>
 	</header>
 
@@ -454,6 +515,37 @@
 				{/if}
 				{#if userNote}
 					<p class="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">{userNote}</p>
+				{/if}
+
+				{#if citationForCard}
+					<div class="mt-4 flex flex-col gap-3">
+						<TurabianCitationBlock
+							label="Footnote"
+							citation={citationForCard.footnote}
+							onCopied={(m) => (copyToast = m)}
+						/>
+						{#if citationForCard.bibliography.plain}
+							<TurabianCitationBlock
+								label="Bibliography"
+								citation={citationForCard.bibliography}
+								onCopied={(m) => (copyToast = m)}
+							/>
+						{/if}
+					</div>
+				{/if}
+
+				{#if card.scripture_refs_count > 0 || card.topics_count > 0}
+					<p class="mt-3 text-xs text-muted-foreground">
+						{#if card.scripture_refs_count > 0}
+							{card.scripture_refs_count} scripture ref{card.scripture_refs_count === 1 ? '' : 's'}
+						{/if}
+						{#if card.scripture_refs_count > 0 && card.topics_count > 0}
+							<span class="mx-1">·</span>
+						{/if}
+						{#if card.topics_count > 0}
+							{card.topics_count} topic{card.topics_count === 1 ? '' : 's'}
+						{/if}
+					</p>
 				{/if}
 
 				<!-- Quick-edit form -->
@@ -652,34 +744,13 @@
 						{/if}
 					</div>
 
-					<!-- Footer actions -->
-					<div class="flex flex-wrap items-center gap-2 pt-1">
-						<Button
-							type="submit"
-							hotkey="s"
-							label={pendingSaveId === card.id ? 'Saving…' : 'Save'}
-							disabled={pendingSaveId !== null}
-						/>
-						<Button
-							type="button"
-							variant="outline"
-							label="Back"
-							onclick={goBackToSkipped}
-							disabled={pendingSaveId !== null || skippedStack.length === 0}
-						/>
-						<Button
-							type="button"
-							variant="outline"
-							hotkey="Escape"
-							label="Skip"
-							onclick={skipCurrent}
-							disabled={pendingSaveId !== null}
-						/>
+					<!-- Desktop / overflow actions -->
+					<div class="hidden flex-wrap items-center gap-2 pt-1 md:flex">
 						<Button
 							variant="ghost"
 							size="sm"
 							href={`/library/books/${card.id}/edit`}
-							class="ml-auto gap-1 text-xs"
+							class="gap-1 text-xs"
 						>
 							<ExternalLink class="size-3.5" /> Edit full
 						</Button>
@@ -694,11 +765,69 @@
 							<Trash2 class="size-3.5" /> <HotkeyLabel label="Delete" mnemonic="d" />
 						</Button>
 					</div>
+
+					<div
+						class="bottom-tabbar fixed inset-x-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:mt-4 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+					>
+						<div class="mx-auto flex max-w-md flex-col gap-2">
+							<Button
+								type="submit"
+								hotkey="s"
+								class="min-h-12 w-full md:hidden"
+								label={pendingSaveId === card.id ? 'Saving…' : 'Confirm citation-ready'}
+								disabled={pendingSaveId !== null}
+							/>
+							<div class="grid grid-cols-2 gap-2 md:hidden">
+								<Button
+									type="button"
+									variant="outline"
+									hotkey="e"
+									class="min-h-11"
+									label="Field wrong"
+									href={`/library/books/${card.id}/edit`}
+									disabled={pendingSaveId !== null}
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									hotkey="Escape"
+									class="min-h-11"
+									label="Skip"
+									onclick={skipCurrent}
+									disabled={pendingSaveId !== null}
+								/>
+							</div>
+							<div class="hidden flex-wrap items-center gap-2 md:flex">
+								<Button
+									type="submit"
+									hotkey="s"
+									label={pendingSaveId === card.id ? 'Saving…' : 'Confirm citation-ready'}
+									disabled={pendingSaveId !== null}
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									hotkey="e"
+									label="Field wrong"
+									href={`/library/books/${card.id}/edit`}
+									disabled={pendingSaveId !== null}
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									hotkey="Escape"
+									label="Skip"
+									onclick={skipCurrent}
+									disabled={pendingSaveId !== null}
+								/>
+							</div>
+						</div>
+					</div>
 				</form>
 			</article>
 
 			<p class="mt-3 hidden text-center text-[11px] text-muted-foreground md:block">
-				<kbd class="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px]">⌘S</kbd> save
+				<kbd class="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px]">⌘S</kbd> confirm
 				·
 				<kbd class="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px]">Esc</kbd> skip
 				·
@@ -743,6 +872,15 @@
 			</div>
 		{/if}
 	</div>
+
+	{#if copyToast}
+		<p
+			class="bottom-tabbar fixed left-1/2 z-50 -translate-x-1/2 rounded-full border border-border bg-card px-4 py-2 text-sm shadow-lg"
+			role="status"
+		>
+			{copyToast}
+		</p>
+	{/if}
 
 	{#if data.scriptureRefsNeedingReview.length > 0}
 		<section

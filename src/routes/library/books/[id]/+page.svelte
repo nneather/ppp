@@ -22,6 +22,12 @@
 		copyTitleLine
 	} from '$lib/library/book-copy-text';
 	import {
+		bookDetailToCitationInput,
+		copyCitationToClipboard,
+		formatBibliography,
+		formatFootnote
+	} from '$lib/library/turabian';
+	import {
 		AUTHOR_ROLE_LABELS,
 		LANGUAGE_LABELS,
 		READING_STATUSES,
@@ -119,6 +125,25 @@
 		try {
 			await navigator.clipboard.writeText(t);
 			flashCopyToast(`Copied ${label}.`);
+		} catch {
+			flashCopyToast('Clipboard unavailable.');
+		}
+	}
+
+	const citationInput = $derived(bookDetailToCitationInput(data.book));
+	const citationFootnote = $derived(formatFootnote(citationInput));
+	const citationBibliography = $derived(formatBibliography(citationInput));
+
+	async function copyTurabian(kind: 'footnote' | 'bibliography') {
+		if (!browser) return;
+		const citation = kind === 'footnote' ? citationFootnote : citationBibliography;
+		if (!citation.plain) {
+			flashCopyToast('Nothing to copy.');
+			return;
+		}
+		try {
+			await copyCitationToClipboard(citation);
+			flashCopyToast(`Copied ${kind}.`);
 		} catch {
 			flashCopyToast('Clipboard unavailable.');
 		}
@@ -564,6 +589,26 @@
 			onclick={() => void copyToClipboard('all fields', copyAllFieldsLine(data.book))}
 		>
 			<Copy class="size-3.5" /> All fields
+		</Button>
+		<Button
+			type="button"
+			variant="outline"
+			size="sm"
+			class="min-h-10 gap-1.5"
+			disabled={!citationFootnote.plain}
+			onclick={() => void copyTurabian('footnote')}
+		>
+			<Copy class="size-3.5" /> Footnote
+		</Button>
+		<Button
+			type="button"
+			variant="outline"
+			size="sm"
+			class="min-h-10 gap-1.5"
+			disabled={!citationBibliography.plain}
+			onclick={() => void copyTurabian('bibliography')}
+		>
+			<Copy class="size-3.5" /> Bibliography
 		</Button>
 	</div>
 {/snippet}

@@ -798,6 +798,14 @@
 							<Button type="button" variant="outline" size="sm" onclick={clearBulkSelection}>
 								Clear selection
 							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								href={`/library/bibliography?ids=${selectedIds.join(',')}`}
+							>
+								Build bibliography ({selectedCount})
+							</Button>
 							<Button type="button" size="sm" onclick={() => (bulkDialogOpen = true)}>
 								Update multiple…
 							</Button>

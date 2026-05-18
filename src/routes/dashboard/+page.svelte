@@ -2,6 +2,7 @@
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
+	import DashboardLibraryTileFooter from '$lib/components/dashboard-library-tile-footer.svelte';
 	import { cn } from '$lib/utils';
 	import type { PageProps } from './$types';
 
@@ -55,11 +56,6 @@
 		return '–';
 	}
 
-	function libraryNeedsReviewLabel(): string {
-		const n = data.libraryNeedsReviewCount;
-		if (n == null) return '–';
-		return n === 1 ? '1 book needs review' : `${n} books need review`;
-	}
 </script>
 
 <div class="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
@@ -100,18 +96,17 @@
 								{tileStat(href)}
 							</p>
 						</a>
-						<div class="border-t border-border px-5 pb-4 pt-3">
-							{#if data.libraryNeedsReviewCount != null}
-								<a
-									href="/library?needs_review=true"
-									class="text-sm font-medium text-primary underline-offset-4 hover:underline"
-								>
-									{libraryNeedsReviewLabel()}
-								</a>
-							{:else}
+						{#if data.libraryNeedsReviewCount != null}
+							<DashboardLibraryTileFooter
+								needsReviewCount={data.libraryNeedsReviewCount}
+								criticalRemaining={data.libraryCriticalRemaining ?? 0}
+								backlogRemaining={data.libraryBacklogRemaining ?? 0}
+							/>
+						{:else}
+							<div class="border-t border-border px-5 pb-4 pt-3">
 								<span class="text-sm text-muted-foreground">Review queue: –</span>
-							{/if}
-						</div>
+							</div>
+						{/if}
 					</div>
 				{:else}
 					<a {href} class={cn(cardClass, 'p-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none')}>

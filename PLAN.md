@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-18 — **OCR PDF input** (Genius Scan multi-page, one Anthropic call). Decision **[030](docs/decisions/030-ocr-pdf-input.md)**. (Same day: **[029](docs/decisions/029-ocr-section-pointer-split.md)** patristic semicolons; **[028](docs/decisions/028-ocr-review-ux-and-accuracy.md)** review UX.)
+**Last updated:** 2026-05-18 — **Library Session 8 Turabian + review queue**. Decision **[031](docs/decisions/031-library-session-8-turabian.md)**. (Same day: **[030](docs/decisions/030-ocr-pdf-input.md)** OCR PDF input; **[029](docs/decisions/029-ocr-section-pointer-split.md)** patristic semicolons.)
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -9,6 +9,8 @@
 ---
 
 ## Current focus
+
+**Library — Session 8 Turabian (2026-05-18):** see **[031](docs/decisions/031-library-session-8-turabian.md)** — `turabian/` formatters; Copy Footnote/Bibliography on book detail; `/library/bibliography`; Turabian-first `/library/review` with Citation Critical / Backlog slices. **Owner:** mobile screenshot + optional August 20-row QA.
 
 **Library — OCR PDF input (2026-05-18):** see **[030](docs/decisions/030-ocr-pdf-input.md)** — batch OCR accepts Genius Scan PDFs (25 MiB); one Anthropic call per file; review strip **Page N/M** from `source_page_index`. **Owner:** smoke 5-page PDF + Augustine index (029 semicolons).
 
@@ -47,7 +49,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6). **Resend:** verified `npneathery.com`; `send-invoice` sends as Parker Neathery / `invoicing@`, replies to `parker@`. PDF letterhead **settled** (no `SENDER_*` change). **First real-client send:** **2026-05-11** (owner). **Key rotation:** owner reminder **September 2026** ([runbook](docs/Supabase_deployment_and_go_live.md)). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | 🟢 Pre-trip arc through Session 7 shipped. **Session 9 OCR** — Anthropic integration + review list (**021**); deploy + owner smoke pending. **Trip policy:** build allowed on the road; shelf-bound Pass 2 + spot-checks → August. Sequence **7 → 9 → 8** unchanged. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | 🟢 Session **8 Turabian shipped** (**031**). Session 9 OCR + PDF input (**030**). Owner: review-queue phone screenshot + OCR smokes. Shelf-bound Pass 2 → August. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -55,9 +57,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [031 — Library Session 8 Turabian + review queue](docs/decisions/031-library-session-8-turabian.md) (2026-05-18) — `turabian/` module; bibliography builder; Turabian-first `/library/review`; dashboard burndown tile.
 - [030 — OCR PDF input (multi-page, one call)](docs/decisions/030-ocr-pdf-input.md) (2026-05-18) — `application/pdf` on scripture-images bucket; Anthropic `document` block; `source_page_index` grouping in batch form.
 - [029 — OCR semicolon section pointers (patristic index)](docs/decisions/029-ocr-section-pointer-split.md) (2026-05-18) — `VI, 7; VIII, 10` → one candidate per pointer; prompt + `splitSemicolonPointers` normalizer.
-- [028 — OCR review UX + accuracy](docs/decisions/028-ocr-review-ux-and-accuracy.md) (2026-05-18) — compact batch rows; page-boundary markers; bulk confirm; page-range prompt + normalizer.
 
 ---
 
@@ -69,7 +71,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow (repo convention):** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md); also [AGENTS.md](AGENTS.md) Scripts + session template + [.cursor/rules/always.mdc](.cursor/rules/always.mdc).
 
-**Repo gate:** `npm run check` last verified **2026-05-18** (Library bundle split **025** + PWA service worker **024**).
+**Repo gate:** `npm run check` + `npm run test` last verified **2026-05-18** (Session 8 Turabian **031**).
 
 **Phone smoke (owner):** `/library` filters at scale, `/library/search-passage` (e.g. Phil 2:5), `/library/review` drill, `/library/add` barcode path — tracker Session 3–6 acceptance (steps in runbook §A).
 
@@ -81,7 +83,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 1. **Backfill review pass** — work the ~N "Genre backfilled from category — confirm or refine." rows surfaced by 022 via `/library/review` whenever convenient; refining lands directly in the genre column.
 2. **Session 9 — prod OCR:** ensure `supabase secrets set ANTHROPIC_API_KEY=…` (if not already) → **5-image smoke** (see [021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md)); tick tracker Session 9 smoke row. ~~`npm run supabase:deploy-functions`~~ **done 2026-05-16.**
-3. **Session 8 (Turabian):** Open Q4 **resolved** (HTML + plain-text clipboard, no file export); ~~Turabian skill in context~~ **done (Claude.ai, 2026-05-06)**; pure-function module may proceed during trip; full scholarly-core QA may wait until shelf is home. Turabian-first `/library/review` co-ships per [.cursor/plans/review_queue_gamification_39c2a467.plan.md](.cursor/plans/review_queue_gamification_39c2a467.plan.md).
+3. **Session 8 (Turabian):** **shipped in code** — see **[031](docs/decisions/031-library-session-8-turabian.md)**; owner: phone smoke `/library/review` Turabian card screenshot + optional August 20-row scholarly-core QA.
 4. **Shelf-bound queue (August):** deferred shelf-check items (Calvin CC, Bruce, Hodge, NBD); Q8 **resolved** (DB is source of truth — no Pass 2).
 5. **Carry-forward — viewer smoke:** [runbook](docs/library-trip-qa-runbook.md) §B — merge/ancient/permissions 403s; tick Session 7 viewer acceptance + deferred Session 1–6 viewer rows + Session 9 OCR viewer row when done.
 6. **Trip-period Q5 evaluation:** observe whether essay-level citations cause real friction during sermon prep / paper drafting; promote essays UI up the post-trip queue if yes.

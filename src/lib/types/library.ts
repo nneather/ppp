@@ -238,9 +238,14 @@ export type BookListFilters = {
  * - `import_match_type` (URL `?match_type=title-only` etc.) → filters by OL
  *   enrichment provenance from Pass 1.
  */
+/** Turabian-first review slices (Session 8). */
+export type ReviewSlice = 'critical' | 'backlog';
+
 export type ReviewQueueFilters = BookListFilters & {
 	subject_blank?: boolean;
 	import_match_type?: ImportMatchType[];
+	/** Citation Critical vs Backlog routing (`?slice=critical|backlog`). */
+	slice?: ReviewSlice;
 };
 
 /**
@@ -252,8 +257,19 @@ export type ReviewQueueFilters = BookListFilters & {
 export type ReviewCard = BookListRow & {
 	year: number | null;
 	publisher: string | null;
+	publisher_location: string | null;
+	edition: string | null;
+	total_volumes: number | null;
+	original_year: number | null;
+	reprint_publisher: string | null;
+	reprint_location: string | null;
+	reprint_year: number | null;
 	needs_review_note: string | null;
 	import_match_type: ImportMatchType | null;
+	/** Full junction rows for Turabian (all roles, sort_order). */
+	authors: BookAuthorAssignment[];
+	topics_count: number;
+	scripture_refs_count: number;
 };
 
 /**
