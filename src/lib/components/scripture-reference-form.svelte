@@ -16,6 +16,7 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import MapPin from '@lucide/svelte/icons/map-pin';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import SourcePicker from '$lib/components/source-picker.svelte';
 	import {
 		formatScriptureRefPageSummary,
@@ -115,6 +116,11 @@
 		positionInPage: PositionInPage;
 		/** Links row to `PageJob.id` for page-boundary thumbnail. */
 		pageJobId: string;
+		/** PDF page label within one uploaded file (1-based). */
+		pdfPageOrder: number;
+		pdfPageTotal: number;
+		/** How to render the page-boundary separator. */
+		pageLabelKind: 'file' | 'pdf-page';
 	};
 
 	type PageJob = {
@@ -125,12 +131,14 @@
 		status: 'uploading' | 'extracting' | 'done' | 'error';
 		error?: string;
 		candidates?: OcrScriptureCandidate[];
+		isPdf?: boolean;
 	};
 
 	type QueuedOcrFile = {
 		id: string;
 		file: File;
 		previewUrl: string;
+		isPdf: boolean;
 	};
 
 	const MAX_BATCH_IMAGES = 10;
@@ -207,8 +215,17 @@
 			pageJobOrder: 0,
 			pageJobTotal: 0,
 			positionInPage: 'only',
-			pageJobId: ''
+			pageJobId: '',
+			pdfPageOrder: 0,
+			pdfPageTotal: 0,
+			pageLabelKind: 'file'
 		};
+	}
+
+	function sourcePageIndexForCandidate(c: OcrScriptureCandidate): number {
+		const n = c.source_page_index;
+		if (typeof n !== 'number' || !Number.isFinite(n)) return 0;
+		return Math.max(0, Math.trunc(n));
 	}
 
 	function freshKey(): string {
@@ -237,7 +254,10 @@
 			pageJobOrder: 0,
 			pageJobTotal: 0,
 			positionInPage: 'only',
-			pageJobId: ''
+			pageJobId: '',
+			pdfPageOrder: 0,
+			pdfPageTotal: 0,
+			pageLabelKind: 'file'
 		};
 	}
 
@@ -261,7 +281,10 @@
 			pageJobOrder: 0,
 			pageJobTotal: 0,
 			positionInPage: 'only',
-			pageJobId: ''
+			pageJobId: '',
+			pdfPageOrder: 0,
+			pdfPageTotal: 0,
+			pageLabelKind: 'file'
 		};
 	}
 
@@ -497,6 +520,10 @@
 		}
 	}
 
+	function isPdfFile(file: File): boolean {
+		return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+	}
+
 	function clearOcrQueue() {
 		for (const q of ocrQueue) {
 			if (q.previewUrl.startsWith('blob:')) URL.revokeObjectURL(q.previewUrl);
@@ -515,18 +542,20 @@
 		const next = [...ocrQueue];
 		for (const f of sorted) {
 			if (next.length >= MAX_BATCH_IMAGES) break;
+			const isPdf = isPdfFile(f);
 			next.push({
 				id:
 					typeof crypto !== 'undefined' && 'randomUUID' in crypto
 						? crypto.randomUUID()
 						: `q-${Date.now()}-${Math.random().toString(36).slice(2)}`,
 				file: f,
-				previewUrl: URL.createObjectURL(f)
+				previewUrl: isPdf ? '' : URL.createObjectURL(f),
+				isPdf
 			});
 		}
 		const added = next.length - startLen;
 		if (added < sorted.length) {
-			batchUploadNotice = `${sorted.length - added} photo(s) did not fit (queue max ${MAX_BATCH_IMAGES}).`;
+			batchUploadNotice = `${sorted.length - added} file(s) did not fit (queue max ${MAX_BATCH_IMAGES}).`;
 		}
 		ocrQueue = next;
 	}
@@ -636,46 +665,98 @@
 		extractInfo = null;
 	}
 
+	function countOcrBoundaryGroups(jobs: PageJob[]): number {
+		let n = 0;
+		for (const job of jobs) {
+			if (job.status !== 'done' || !job.candidates?.length) continue;
+			if (job.isPdf) {
+				const indices = new Set<number>();
+				for (const c of job.candidates) indices.add(sourcePageIndexForCandidate(c));
+				n += indices.size > 0 ? indices.size : 1;
+			} else {
+				n += 1;
+			}
+		}
+		return n;
+	}
+
+	function applyContinuationCarry(row: DraftRow, lastBook: string): string {
+		if (row.continuation_from_previous_page && !row.bible_book.trim() && lastBook.length > 0) {
+			row.bible_book = lastBook;
+			row.continuation_from_previous_page = false;
+			const conf = row.confidence_score ?? 1;
+			row.needs_review = conf < CONFIDENCE_REVIEW_THRESHOLD;
+			row.expanded = row.needs_review;
+			row.included = isRowSaveable(row);
+		}
+		if (row.bible_book.trim().length > 0) return row.bible_book.trim();
+		return lastBook;
+	}
+
+	function setPositionInPageSlice(out: DraftRow[], pageStartIdx: number, pageEndIdx: number) {
+		if (pageEndIdx < pageStartIdx) return;
+		const count = pageEndIdx - pageStartIdx + 1;
+		for (let i = pageStartIdx; i <= pageEndIdx; i++) {
+			if (count === 1) out[i]!.positionInPage = 'only';
+			else if (i === pageStartIdx) out[i]!.positionInPage = 'first';
+			else if (i === pageEndIdx) out[i]!.positionInPage = 'last';
+			else out[i]!.positionInPage = 'middle';
+		}
+	}
+
 	function mergeJobsIntoRows(jobs: PageJob[]): DraftRow[] {
 		const ordered = [...jobs].sort((a, b) => a.order - b.order);
 		const doneJobs = ordered.filter((j) => j.status === 'done' && j.candidates?.length);
-		const pageJobTotal = doneJobs.length;
+		const boundaryTotal = countOcrBoundaryGroups(doneJobs);
 		let lastBook = '';
 		const out: DraftRow[] = [];
-		let pageIndex = 0;
+		let globalGroupIndex = 0;
+
 		for (const job of ordered) {
 			if (job.status !== 'done' || !job.candidates?.length) continue;
-			pageIndex++;
-			const pageStartIdx = out.length;
-			for (const c of job.candidates) {
-				const row = mapCandidateToRow(c);
-				row.source_image_url = job.sourcePath;
-				row.pageJobOrder = pageIndex;
-				row.pageJobTotal = pageJobTotal;
-				row.pageJobId = job.id;
-				if (
-					row.continuation_from_previous_page &&
-					!row.bible_book.trim() &&
-					lastBook.length > 0
-				) {
-					row.bible_book = lastBook;
-					row.continuation_from_previous_page = false;
-					const conf = row.confidence_score ?? 1;
-					row.needs_review = conf < CONFIDENCE_REVIEW_THRESHOLD;
-					row.expanded = row.needs_review;
-					row.included = isRowSaveable(row);
+
+			if (job.isPdf) {
+				const byPage = new Map<number, OcrScriptureCandidate[]>();
+				for (const c of job.candidates) {
+					const idx = sourcePageIndexForCandidate(c);
+					const list = byPage.get(idx) ?? [];
+					list.push(c);
+					byPage.set(idx, list);
 				}
-				if (row.bible_book.trim().length > 0) lastBook = row.bible_book.trim();
-				out.push(row);
-			}
-			const pageEndIdx = out.length - 1;
-			if (pageEndIdx < pageStartIdx) continue;
-			const count = pageEndIdx - pageStartIdx + 1;
-			for (let i = pageStartIdx; i <= pageEndIdx; i++) {
-				if (count === 1) out[i]!.positionInPage = 'only';
-				else if (i === pageStartIdx) out[i]!.positionInPage = 'first';
-				else if (i === pageEndIdx) out[i]!.positionInPage = 'last';
-				else out[i]!.positionInPage = 'middle';
+				const pageIndices = [...byPage.keys()].sort((a, b) => a - b);
+				const pdfPageTotal = pageIndices.length > 0 ? Math.max(...pageIndices) + 1 : 1;
+
+				for (const pageIdx of pageIndices) {
+					globalGroupIndex++;
+					const pageStartIdx = out.length;
+					for (const c of byPage.get(pageIdx) ?? []) {
+						const row = mapCandidateToRow(c);
+						row.source_image_url = job.sourcePath;
+						row.pageJobOrder = globalGroupIndex;
+						row.pageJobTotal = boundaryTotal;
+						row.pageJobId = job.id;
+						row.pageLabelKind = 'pdf-page';
+						row.pdfPageOrder = pageIdx + 1;
+						row.pdfPageTotal = pdfPageTotal;
+						lastBook = applyContinuationCarry(row, lastBook);
+						out.push(row);
+					}
+					setPositionInPageSlice(out, pageStartIdx, out.length - 1);
+				}
+			} else {
+				globalGroupIndex++;
+				const pageStartIdx = out.length;
+				for (const c of job.candidates) {
+					const row = mapCandidateToRow(c);
+					row.source_image_url = job.sourcePath;
+					row.pageJobOrder = globalGroupIndex;
+					row.pageJobTotal = boundaryTotal;
+					row.pageJobId = job.id;
+					row.pageLabelKind = 'file';
+					lastBook = applyContinuationCarry(row, lastBook);
+					out.push(row);
+				}
+				setPositionInPageSlice(out, pageStartIdx, out.length - 1);
 			}
 		}
 		return out;
@@ -713,33 +794,55 @@
 			return;
 		}
 
+		const isPdf = isPdfFile(file);
+		patchPage(jobId, { isPdf });
+
 		let mime = 'image/jpeg';
 		let objectPath = '';
+		let previewUrl: string | null = null;
 
 		try {
-			const blob = await downscaleImage(file);
-			mime = blob.type || 'image/jpeg';
-			const ext = mime.split('/')[1] ?? 'jpg';
-			objectPath = scriptureImagePath({ userId, bookId: bookIdForPath, ext });
-			const previewUrl = URL.createObjectURL(blob);
-			patchPage(jobId, { previewUrl, status: 'uploading' });
-
 			const supa = createClient();
-			const { error: upErr } = await supa.storage
-				.from(SCRIPTURE_IMAGES_BUCKET)
-				.upload(objectPath, blob, { contentType: mime, upsert: false });
-			if (upErr) {
-				patchPage(jobId, {
-					status: 'error',
-					error: upErr.message ?? 'Upload failed.',
-					sourcePath: '',
-					previewUrl
-				});
-				tryFinalizeBatchMerge();
-				return;
+			if (isPdf) {
+				mime = 'application/pdf';
+				objectPath = scriptureImagePath({ userId, bookId: bookIdForPath, ext: 'pdf' });
+				patchPage(jobId, { previewUrl: null, status: 'uploading' });
+				const { error: upErr } = await supa.storage
+					.from(SCRIPTURE_IMAGES_BUCKET)
+					.upload(objectPath, file, { contentType: mime, upsert: false });
+				if (upErr) {
+					patchPage(jobId, {
+						status: 'error',
+						error: upErr.message ?? 'Upload failed.',
+						sourcePath: ''
+					});
+					tryFinalizeBatchMerge();
+					return;
+				}
+			} else {
+				const blob = await downscaleImage(file);
+				mime = blob.type || 'image/jpeg';
+				const ext = mime.split('/')[1] ?? 'jpg';
+				objectPath = scriptureImagePath({ userId, bookId: bookIdForPath, ext });
+				previewUrl = URL.createObjectURL(blob);
+				patchPage(jobId, { previewUrl, status: 'uploading' });
+
+				const { error: upErr } = await supa.storage
+					.from(SCRIPTURE_IMAGES_BUCKET)
+					.upload(objectPath, blob, { contentType: mime, upsert: false });
+				if (upErr) {
+					patchPage(jobId, {
+						status: 'error',
+						error: upErr.message ?? 'Upload failed.',
+						sourcePath: '',
+						previewUrl
+					});
+					tryFinalizeBatchMerge();
+					return;
+				}
 			}
 
-			patchPage(jobId, { sourcePath: objectPath, status: 'extracting' });
+			patchPage(jobId, { sourcePath: objectPath, status: 'extracting', previewUrl });
 
 			const fd = new FormData();
 			fd.set('object_path', objectPath);
@@ -831,7 +934,8 @@
 			order: i,
 			sourcePath: '',
 			previewUrl: null,
-			status: 'uploading' as const
+			status: 'uploading' as const,
+			isPdf: isPdfFile(f)
 		}));
 		pages = newJobs;
 
@@ -982,8 +1086,8 @@
 				Pages are free text — `IV.317`, `xiv`, `106n21`, etc. all welcome.
 			{:else}
 				Add as many references as you like — one save commits the whole batch. Pages are free
-				text. OCR: queue up to 10 page photos from the gallery and/or repeated camera shots, then
-				run OCR; each row keeps the image path from its page.
+				text. OCR: queue up to 10 page photos or PDFs (e.g. Genius Scan) from the gallery and/or
+				repeated camera shots, then run OCR; each row keeps the source file path.
 			{/if}
 		</p>
 	</header>
@@ -1001,19 +1105,19 @@
 
 	{#if !isEdit}
 		<div class="space-y-2">
-			<Label for="sr-img-multi">Source images <span class="text-xs text-muted-foreground">(optional, OCR — up to 10)</span></Label>
+			<Label for="sr-img-multi">Source images / PDF <span class="text-xs text-muted-foreground">(optional, OCR — up to 10)</span></Label>
 			<div class="flex flex-wrap items-center gap-2">
 				<label class="inline-flex">
 					<span
 						class="inline-flex h-11 cursor-pointer items-center rounded-md border border-dashed border-input bg-background px-3 text-sm hover:bg-muted"
 					>
-						Choose page photos
+						Choose photos or PDF
 					</span>
 					<input
 						id="sr-img-multi"
 						type="file"
 						multiple
-						accept="image/*"
+						accept="image/*,application/pdf"
 						onchange={handleBatchFilesChange}
 						class="hidden"
 					/>
@@ -1054,7 +1158,23 @@
 				<div class="flex flex-wrap gap-2" aria-label="Queued photos before OCR">
 					{#each ocrQueue as q (q.id)}
 						<div class="relative w-16 shrink-0">
-							<img src={q.previewUrl} alt="" class="aspect-[3/4] w-full rounded-md border border-border object-cover" />
+							{#if q.isPdf}
+								<div
+									class="flex aspect-[3/4] w-full flex-col items-center justify-center gap-1 rounded-md border border-border bg-muted/40 px-1"
+									aria-label="PDF queued"
+								>
+									<FileText class="size-6 text-muted-foreground" aria-hidden="true" />
+									<span class="text-[9px] font-medium uppercase tracking-wide text-muted-foreground"
+										>PDF</span
+									>
+								</div>
+							{:else}
+								<img
+									src={q.previewUrl}
+									alt=""
+									class="aspect-[3/4] w-full rounded-md border border-border object-cover"
+								/>
+							{/if}
 							<Button
 								type="button"
 								variant="secondary"
@@ -1256,7 +1376,11 @@
 					<span class="h-px min-w-4 flex-1 bg-border"></span>
 					<span class="inline-flex shrink-0 items-center gap-1.5">
 						<MapPin class="size-3 text-amber-600/80 dark:text-amber-400/80" aria-hidden="true" />
-						from page {row.pageJobOrder} of {row.pageJobTotal}
+						{#if row.pageLabelKind === 'pdf-page'}
+							Page {row.pdfPageOrder} / {row.pdfPageTotal}
+						{:else}
+							from page {row.pageJobOrder} of {row.pageJobTotal}
+						{/if}
 						{#if pageJobPreviewUrl(row.pageJobId)}
 							<img
 								src={pageJobPreviewUrl(row.pageJobId)!}

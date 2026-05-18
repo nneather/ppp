@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-18 — **OCR patristic semicolon section pointers** (Augustine-style index). Decision **[029](docs/decisions/029-ocr-section-pointer-split.md)**. (Same day: **[028](docs/decisions/028-ocr-review-ux-and-accuracy.md)** review UX; **[026](docs/decisions/026-ocr-density-truncation.md)** truncation.)
+**Last updated:** 2026-05-18 — **OCR PDF input** (Genius Scan multi-page, one Anthropic call). Decision **[030](docs/decisions/030-ocr-pdf-input.md)**. (Same day: **[029](docs/decisions/029-ocr-section-pointer-split.md)** patristic semicolons; **[028](docs/decisions/028-ocr-review-ux-and-accuracy.md)** review UX.)
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,9 @@
 
 ## Current focus
 
-**Library — OCR patristic index (2026-05-18):** see **[029](docs/decisions/029-ocr-section-pointer-split.md)** — semicolon section pointers (`VI, 7; VIII, 10`) split to one candidate per pointer; prompt + server normalizer deployed. **Owner:** OCR smoke on Augustine *De Trinitate* index when photos are ready.
+**Library — OCR PDF input (2026-05-18):** see **[030](docs/decisions/030-ocr-pdf-input.md)** — batch OCR accepts Genius Scan PDFs (25 MiB); one Anthropic call per file; review strip **Page N/M** from `source_page_index`. **Owner:** smoke 5-page PDF + Augustine index (029 semicolons).
+
+**Library — OCR patristic index (2026-05-18):** see **[029](docs/decisions/029-ocr-section-pointer-split.md)** — semicolon section pointers split to one candidate per pointer.
 
 **Library — OCR review UX (2026-05-18):** see **[028](docs/decisions/028-ocr-review-ux-and-accuracy.md)** — collapsed batch rows, bulk confirm, page separators, picker suggestions.
 
@@ -53,9 +55,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [030 — OCR PDF input (multi-page, one call)](docs/decisions/030-ocr-pdf-input.md) (2026-05-18) — `application/pdf` on scripture-images bucket; Anthropic `document` block; `source_page_index` grouping in batch form.
 - [029 — OCR semicolon section pointers (patristic index)](docs/decisions/029-ocr-section-pointer-split.md) (2026-05-18) — `VI, 7; VIII, 10` → one candidate per pointer; prompt + `splitSemicolonPointers` normalizer.
 - [028 — OCR review UX + accuracy](docs/decisions/028-ocr-review-ux-and-accuracy.md) (2026-05-18) — compact batch rows; page-boundary markers; bulk confirm; page-range prompt + normalizer.
-- [026 — OCR density / truncation fix](docs/decisions/026-ocr-density-truncation.md) (2026-05-18) — `max_tokens` 64k; short `rawText` prompt; 422 when output still truncates.
 
 ---
 

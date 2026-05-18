@@ -14,6 +14,8 @@ export type OcrScriptureCandidate = {
 	confidence_score: number;
 	/** Model marks run-on from previous printed page; empty bible_book until carry or user pick. */
 	continuation_from_previous_page?: boolean;
+	/** 0-based page index within a multi-page PDF; omitted for single-image OCR. */
+	source_page_index?: number | null;
 };
 
 export type OcrScriptureExtractResponse = {

@@ -9,7 +9,7 @@
  *
  * Convention per `.cursor/rules/library-module.mdc` "Storage buckets":
  *   - bucket name = `${module}-${entity}-images`, private
- *   - object path = `${userId}/${parentId}/${random}.${ext}`
+ *   - object path = `${userId}/${parentId}/${random}.${ext}` (ext: jpg, png, webp, heic, pdf)
  *   - reads via signed URL (1h TTL) generated server-side in loaders
  *   - RLS gated by `app_is_viewer_writer('<module>')` + first-segment self-prefix
  */

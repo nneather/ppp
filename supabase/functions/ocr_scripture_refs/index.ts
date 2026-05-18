@@ -10,8 +10,8 @@ const corsHeaders: Record<string, string> = {
 };
 
 const SCRIPTURE_IMAGES_BUCKET = 'library-scripture-images';
-/** ~4.5 MiB raw keeps base64 payload under typical 5–8 MiB API limits after encoding. */
-const MAX_IMAGE_BYTES = 4_718_592;
+/** ~25 MiB — matches storage bucket cap; Anthropic document blocks accept up to 32 MiB. */
+const MAX_PAYLOAD_BYTES = 26_214_400;
 const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-6';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -56,12 +56,17 @@ function pathMatchesUserAndBook(objectPath: string, userId: string, bookId: stri
 	return segments[0] === userId && segments[1] === bookId;
 }
 
-function anthropicMediaType(mime: string): string | null {
+type AnthropicVisionInput =
+	| { kind: 'image'; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' }
+	| { kind: 'document'; mediaType: 'application/pdf' };
+
+function anthropicVisionInput(mime: string): AnthropicVisionInput | null {
 	const m = mime.toLowerCase().split(';')[0]?.trim() ?? '';
-	if (m === 'image/jpeg' || m === 'image/jpg') return 'image/jpeg';
-	if (m === 'image/png') return 'image/png';
-	if (m === 'image/webp') return 'image/webp';
-	if (m === 'image/gif') return 'image/gif';
+	if (m === 'image/jpeg' || m === 'image/jpg') return { kind: 'image', mediaType: 'image/jpeg' };
+	if (m === 'image/png') return { kind: 'image', mediaType: 'image/png' };
+	if (m === 'image/webp') return { kind: 'image', mediaType: 'image/webp' };
+	if (m === 'image/gif') return { kind: 'image', mediaType: 'image/gif' };
+	if (m === 'application/pdf') return { kind: 'document', mediaType: 'application/pdf' };
 	return null;
 }
 
@@ -128,6 +133,8 @@ type OcrCandidate = {
 	page_end?: string | null;
 	confidence_score: number;
 	continuation_from_previous_page?: boolean;
+	/** 0-based page index within a multi-page PDF input; omit for single images. */
+	source_page_index?: number | null;
 };
 
 function normalizeCandidate(raw: unknown): OcrCandidate | null {
@@ -157,6 +164,8 @@ function normalizeCandidate(raw: unknown): OcrCandidate | null {
 		confidence_score
 	};
 	if (cont) out.continuation_from_previous_page = true;
+	const spi = asOptionalInt(o.source_page_index, 999);
+	if (spi != null) out.source_page_index = spi;
 	return normalizePageRangeInCandidate(out);
 }
 
@@ -272,12 +281,12 @@ Deno.serve(async (req) => {
 		return jsonResponse({ error: 'object_path does not match your account or book.' }, 403);
 	}
 
-	const mediaType = anthropicMediaType(mime_type);
-	if (!mediaType) {
+	const visionInput = anthropicVisionInput(mime_type);
+	if (!visionInput) {
 		return jsonResponse(
 			{
 				error:
-					'Unsupported image type for OCR. Use JPEG, PNG, WebP, or GIF (HEIC is not supported by the vision API).'
+					'Unsupported file type for OCR. Use JPEG, PNG, WebP, GIF, or PDF (HEIC is not supported by the vision API).'
 			},
 			415
 		);
@@ -294,27 +303,30 @@ Deno.serve(async (req) => {
 	if (dlErr || !blob) {
 		console.error('[ocr_scripture_refs] storage download', dlErr);
 		return jsonResponse(
-			{ error: dlErr?.message ?? 'Could not read image from storage.' },
+			{ error: dlErr?.message ?? 'Could not read file from storage.' },
 			502
 		);
 	}
 
 	const buf = new Uint8Array(await blob.arrayBuffer());
-	if (buf.byteLength > MAX_IMAGE_BYTES) {
+	if (buf.byteLength > MAX_PAYLOAD_BYTES) {
 		return jsonResponse(
-			{ error: 'Image is too large for OCR after upload. Try a smaller photo or stronger downscale.' },
+			{
+				error:
+					'File is too large for OCR (max 25 MiB). For images try stronger downscale; for PDFs re-export from your scanner at lower quality.'
+			},
 			413
 		);
 	}
 
-	const imageB64 = encodeBase64(buf);
+	const payloadB64 = encodeBase64(buf);
 
 	const allowlistBlock = BIBLE_BOOK_NAMES.join(', ');
 
-	const systemPrompt = `You extract Protestant Bible scripture citations from photos of printed commentary pages.
+	const systemPrompt = `You extract Protestant Bible scripture citations from photos or PDF pages of printed commentary / index material.
 Return ONLY valid JSON (no markdown fences, no commentary). Shape must be:
 {"rawText": string, "candidates": Candidate[]}
-Candidate: {"bible_book": string, "chapter_start"?: number, "verse_start"?: number, "chapter_end"?: number, "verse_end"?: number, "page_start"?: string, "page_end"?: string, "confidence_score": number, "continuation_from_previous_page"?: boolean}
+Candidate: {"bible_book": string, "chapter_start"?: number, "verse_start"?: number, "chapter_end"?: number, "verse_end"?: number, "page_start"?: string, "page_end"?: string, "confidence_score": number, "continuation_from_previous_page"?: boolean, "source_page_index"?: number}
 Rules:
 - bible_book MUST be exactly one of these names (case-sensitive): ${allowlistBlock}
   Exception: if the printed line continues a citation from the previous page WITHOUT naming the book (only chapter/verse and/or page), output bible_book as "" (empty string), set "continuation_from_previous_page": true, and still fill chapter/verse/page fields you can read.
@@ -324,12 +336,32 @@ Rules:
 - Printed contiguous page ranges (e.g. "14-15", "14–15", "14—15" with hyphen / en-dash / em-dash) emit as ONE Candidate with page_start="14" and page_end="15". Do NOT split a printed range into two Candidates.
 - Multiple printed page pointers for the SAME verse/range (e.g. "Ps 27:4 — pp. 73, 101, 112"): emit separate Candidate objects with the same bible_book/chapter/verse but different page_start for each page (leave page_end empty for each). NOT for printed ranges — see contiguous page-range rule above.
 - Semicolon-separated section pointers (e.g. "Matt 22:40 — VI, 7; VIII, 10; XV, 30"): emit one Candidate per pointer, with the same bible_book/chapter/verse and the printed pointer text verbatim as page_start (leave page_end empty for each). This is the patristic-index analog of the comma-separated page-list rule.
-- Pay extra attention near page corners, margins, and the top/bottom 10% of the image. If a citation token is partially cropped, smudged, or visually uncertain, set confidence_score below 0.80 so a human can review.
+- When the input is a multi-page PDF, set source_page_index (0-based) on every Candidate for the PDF page where that citation appears. When the input is a single image, omit source_page_index. The continuation_from_previous_page rule still applies between adjacent pages within the same PDF.
+- Pay extra attention near page corners, margins, and the top/bottom 10% of each page. If a citation token is partially cropped, smudged, or visually uncertain, set confidence_score below 0.80 so a human can review.
 - confidence_score is 0–1 for how sure you are of that row's parse.
 - rawText: ONE short sentence (<= 200 chars) describing what kind of page this is (e.g. "Scripture index page" or "Commentary on Matthew 5"). Do NOT echo individual citations here — those go in candidates only.
 - Include one candidate per distinct citation you can read; skip duplicates (but NOT when splitting multi-page pointers per the rule above — those are not duplicates).`;
 
-	const userText = `Extract all scripture references from this page image. Book context UUID (for your reasoning only): ${book_id}`;
+	const userText = `Extract all scripture references from this document (image or PDF). Book context UUID (for your reasoning only): ${book_id}`;
+
+	const visionBlock =
+		visionInput.kind === 'image'
+			? {
+					type: 'image' as const,
+					source: {
+						type: 'base64' as const,
+						media_type: visionInput.mediaType,
+						data: payloadB64
+					}
+				}
+			: {
+					type: 'document' as const,
+					source: {
+						type: 'base64' as const,
+						media_type: 'application/pdf' as const,
+						data: payloadB64
+					}
+				};
 
 	let anthropicRes: Response;
 	try {
@@ -348,17 +380,7 @@ Rules:
 				messages: [
 					{
 						role: 'user',
-						content: [
-							{
-								type: 'image',
-								source: {
-									type: 'base64',
-									media_type: mediaType,
-									data: imageB64
-								}
-							},
-							{ type: 'text', text: userText }
-						]
+						content: [visionBlock, { type: 'text', text: userText }]
 					}
 				]
 			})
@@ -402,7 +424,7 @@ Rules:
 		return jsonResponse(
 			{
 				error:
-					'Vision provider hit the output token limit on this page (more than ~1,800 citations in one image). Split the page into two photos.'
+					'Vision provider hit the output token limit on this document (more than ~1,800 citations). Split into smaller PDFs or shorter image batches.'
 			},
 			422
 		);
