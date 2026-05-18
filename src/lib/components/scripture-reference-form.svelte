@@ -13,7 +13,14 @@
 	import Mail from '@lucide/svelte/icons/mail';
 	import X from '@lucide/svelte/icons/x';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import MapPin from '@lucide/svelte/icons/map-pin';
 	import SourcePicker from '$lib/components/source-picker.svelte';
+	import {
+		formatScriptureRefPageSummary,
+		formatScriptureRefRangeDisplay
+	} from '$lib/library/scripture-ref-format';
 	import type { PolymorphicParent } from '$lib/library/polymorphic';
 	import type { BookListRow, ScriptureRefRow } from '$lib/types/library';
 	import { createClient } from '$lib/supabase/client';
@@ -79,6 +86,8 @@
 
 	const isEdit = $derived(!!existingRef);
 
+	type PositionInPage = 'first' | 'middle' | 'last' | 'only';
+
 	type DraftRow = {
 		key: string;
 		bible_book: string;
@@ -96,6 +105,16 @@
 		source_image_url: string;
 		/** True when OCR marked a run-on from the prior printed page; cleared after book carry or user pick. */
 		continuation_from_previous_page: boolean;
+		/** Collapsed compact strip vs full field editor (batch OCR review). */
+		expanded: boolean;
+		/** Include this row in the batch save payload. */
+		included: boolean;
+		/** 1-based index of the source page image in this OCR batch. */
+		pageJobOrder: number;
+		pageJobTotal: number;
+		positionInPage: PositionInPage;
+		/** Links row to `PageJob.id` for page-boundary thumbnail. */
+		pageJobId: string;
 	};
 
 	type PageJob = {
@@ -117,6 +136,39 @@
 	const MAX_BATCH_IMAGES = 10;
 	const CONFIDENCE_REVIEW_THRESHOLD = 0.8;
 
+	function isRowSaveable(r: DraftRow): boolean {
+		return r.bible_book.trim().length > 0 && r.page_start.trim().length > 0;
+	}
+
+	function formatRowStripLabel(row: DraftRow): string {
+		const range = formatScriptureRefRangeDisplay({
+			bible_book: row.bible_book,
+			chapter_start: row.chapter_start.trim() ? Number(row.chapter_start) : null,
+			verse_start: row.verse_start.trim() ? Number(row.verse_start) : null,
+			chapter_end: row.chapter_end.trim() ? Number(row.chapter_end) : null,
+			verse_end: row.verse_end.trim() ? Number(row.verse_end) : null
+		});
+		const page = formatScriptureRefPageSummary(row.page_start, row.page_end);
+		if (!range && !page) return 'Incomplete reference';
+		if (range && page) return `${range} · ${page}`;
+		return range || page || '—';
+	}
+
+	function confidenceStripClass(conf: number | null): string {
+		if (conf == null) return 'text-muted-foreground';
+		if (conf >= 0.95) return 'text-muted-foreground/70';
+		if (conf >= CONFIDENCE_REVIEW_THRESHOLD) return 'text-muted-foreground';
+		return 'font-medium text-amber-700 dark:text-amber-300';
+	}
+
+	function rowShowsPageEdge(row: DraftRow): boolean {
+		return (
+			row.positionInPage === 'first' ||
+			row.positionInPage === 'last' ||
+			row.positionInPage === 'only'
+		);
+	}
+
 	function numStr(n: number | null | undefined): string {
 		if (n == null || !Number.isFinite(Number(n))) return '';
 		return String(n);
@@ -135,6 +187,7 @@
 			c.page_start != null && String(c.page_start).trim() !== ''
 				? String(c.page_start).trim()
 				: '';
+		const saveable = bookRaw.length > 0 && pageStartRaw.length > 0;
 		return {
 			key: freshKey(),
 			bible_book: bookRaw,
@@ -148,7 +201,13 @@
 			review_note: '',
 			confidence_score: conf,
 			source_image_url: '',
-			continuation_from_previous_page: cont
+			continuation_from_previous_page: cont,
+			expanded: needs,
+			included: saveable,
+			pageJobOrder: 0,
+			pageJobTotal: 0,
+			positionInPage: 'only',
+			pageJobId: ''
 		};
 	}
 
@@ -172,7 +231,13 @@
 			review_note: '',
 			confidence_score: null,
 			source_image_url: '',
-			continuation_from_previous_page: false
+			continuation_from_previous_page: false,
+			expanded: true,
+			included: false,
+			pageJobOrder: 0,
+			pageJobTotal: 0,
+			positionInPage: 'only',
+			pageJobId: ''
 		};
 	}
 
@@ -190,7 +255,13 @@
 			review_note: r.review_note ?? '',
 			confidence_score: r.confidence_score,
 			source_image_url: r.source_image_url ?? '',
-			continuation_from_previous_page: false
+			continuation_from_previous_page: false,
+			expanded: r.needs_review,
+			included: true,
+			pageJobOrder: 0,
+			pageJobTotal: 0,
+			positionInPage: 'only',
+			pageJobId: ''
 		};
 	}
 
@@ -210,6 +281,7 @@
 	/** Photos queued before "Run OCR" (gallery multi-pick + repeated camera shots). */
 	let ocrQueue = $state<QueuedOcrFile[]>([]);
 	let reviewNoteOpen = $state<Record<string, boolean>>({});
+	let pulseRowKeys = $state<Record<string, true>>({});
 
 	const ocrPipelineBusy = $derived(
 		pages.some((p) => p.status === 'uploading' || p.status === 'extracting')
@@ -225,6 +297,36 @@
 			? bibleBookNames
 			: bibleBookNames.filter((n) => n.toLowerCase().includes(bibleFilter.trim().toLowerCase()))
 	);
+
+	const biblePickerSuggestions = $derived.by(() => {
+		const key = biblePickerRowKey;
+		if (!key) return [] as string[];
+		const row = rows.find((r) => r.key === key);
+		const idx = rows.findIndex((r) => r.key === key);
+		const seen = new Set<string>();
+		const out: string[] = [];
+		const add = (name: string) => {
+			const t = name.trim();
+			if (!t || seen.has(t)) return;
+			seen.add(t);
+			out.push(t);
+		};
+		if (row?.bible_book.trim()) add(row.bible_book);
+		for (const r of rows) {
+			if (r.key !== key) add(r.bible_book);
+		}
+		if (idx > 0) add(rows[idx - 1]?.bible_book ?? '');
+		return out.slice(0, 8);
+	});
+
+	const batchReviewStats = $derived.by(() => {
+		if (isEdit) return null;
+		const total = rows.length;
+		const flagged = rows.filter((r) => r.needs_review).length;
+		const confident = rows.filter((r) => !r.needs_review && isRowSaveable(r)).length;
+		const includedCount = rows.filter((r) => r.included && isRowSaveable(r)).length;
+		return { total, flagged, confident, includedCount };
+	});
 
 	function openBiblePicker(rowKey: string) {
 		biblePickerRowKey = rowKey;
@@ -310,10 +412,54 @@
 			: `${actionPath}?/createScriptureRefsBatch`
 	);
 
-	// Save bar: enabled when at least one row has both bible_book + page_start.
-	const hasAnyValidRow = $derived(
-		rows.some((r) => r.bible_book.trim().length > 0 && r.page_start.trim().length > 0)
-	);
+	// Save bar: enabled when at least one included row is saveable.
+	const hasAnyValidRow = $derived(rows.some((r) => r.included && isRowSaveable(r)));
+
+	function toggleRowExpanded(key: string) {
+		rows = rows.map((r) => (r.key === key ? { ...r, expanded: !r.expanded } : r));
+	}
+
+	function setRowIncluded(key: string, included: boolean) {
+		rows = rows.map((r) => (r.key === key ? { ...r, included } : r));
+	}
+
+	function expandAllRows() {
+		rows = rows.map((r) => ({ ...r, expanded: true }));
+	}
+
+	function confirmConfidentRows() {
+		const keys: string[] = [];
+		rows = rows.map((r) => {
+			if (!r.needs_review && isRowSaveable(r)) {
+				keys.push(r.key);
+				return { ...r, included: true, expanded: false };
+			}
+			return r;
+		});
+		if (keys.length > 0) {
+			const next: Record<string, true> = {};
+			for (const k of keys) next[k] = true;
+			pulseRowKeys = next;
+			setTimeout(() => {
+				pulseRowKeys = {};
+			}, 600);
+		}
+	}
+
+	function pageJobPreviewUrl(jobId: string): string | null {
+		if (!jobId) return null;
+		return pages.find((p) => p.id === jobId)?.previewUrl ?? null;
+	}
+
+	function handleStripKeydown(e: KeyboardEvent, key: string) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			toggleRowExpanded(key);
+		} else if (e.key === 'Escape') {
+			e.preventDefault();
+			rows = rows.map((r) => (r.key === key ? { ...r, expanded: false } : r));
+		}
+	}
 
 	function addRow() {
 		rows = [...rows, blankRow()];
@@ -321,7 +467,7 @@
 
 	function duplicateRow(idx: number) {
 		const src = rows[idx];
-		const copy: DraftRow = { ...src, key: freshKey() };
+		const copy: DraftRow = { ...src, key: freshKey(), expanded: true };
 		rows = [...rows.slice(0, idx + 1), copy, ...rows.slice(idx + 1)];
 	}
 
@@ -492,13 +638,21 @@
 
 	function mergeJobsIntoRows(jobs: PageJob[]): DraftRow[] {
 		const ordered = [...jobs].sort((a, b) => a.order - b.order);
+		const doneJobs = ordered.filter((j) => j.status === 'done' && j.candidates?.length);
+		const pageJobTotal = doneJobs.length;
 		let lastBook = '';
 		const out: DraftRow[] = [];
+		let pageIndex = 0;
 		for (const job of ordered) {
 			if (job.status !== 'done' || !job.candidates?.length) continue;
+			pageIndex++;
+			const pageStartIdx = out.length;
 			for (const c of job.candidates) {
 				const row = mapCandidateToRow(c);
 				row.source_image_url = job.sourcePath;
+				row.pageJobOrder = pageIndex;
+				row.pageJobTotal = pageJobTotal;
+				row.pageJobId = job.id;
 				if (
 					row.continuation_from_previous_page &&
 					!row.bible_book.trim() &&
@@ -507,11 +661,21 @@
 					row.bible_book = lastBook;
 					row.continuation_from_previous_page = false;
 					const conf = row.confidence_score ?? 1;
-					row.needs_review =
-						conf < CONFIDENCE_REVIEW_THRESHOLD;
+					row.needs_review = conf < CONFIDENCE_REVIEW_THRESHOLD;
+					row.expanded = row.needs_review;
+					row.included = isRowSaveable(row);
 				}
 				if (row.bible_book.trim().length > 0) lastBook = row.bible_book.trim();
 				out.push(row);
+			}
+			const pageEndIdx = out.length - 1;
+			if (pageEndIdx < pageStartIdx) continue;
+			const count = pageEndIdx - pageStartIdx + 1;
+			for (let i = pageStartIdx; i <= pageEndIdx; i++) {
+				if (count === 1) out[i]!.positionInPage = 'only';
+				else if (i === pageStartIdx) out[i]!.positionInPage = 'first';
+				else if (i === pageEndIdx) out[i]!.positionInPage = 'last';
+				else out[i]!.positionInPage = 'middle';
 			}
 		}
 		return out;
@@ -721,19 +885,21 @@
 
 	const rowsJson = $derived(
 		JSON.stringify(
-			rows.map((r) => ({
-				bible_book: r.bible_book,
-				chapter_start: r.chapter_start,
-				verse_start: r.verse_start,
-				chapter_end: r.chapter_end,
-				verse_end: r.verse_end,
-				page_start: r.page_start,
-				page_end: r.page_end,
-				needs_review: r.needs_review,
-				review_note: r.review_note,
-				...(r.confidence_score != null ? { confidence_score: r.confidence_score } : {}),
-				...(r.source_image_url.trim() !== '' ? { source_image_url: r.source_image_url } : {})
-			}))
+			rows
+				.filter((r) => r.included && isRowSaveable(r))
+				.map((r) => ({
+					bible_book: r.bible_book,
+					chapter_start: r.chapter_start,
+					verse_start: r.verse_start,
+					chapter_end: r.chapter_end,
+					verse_end: r.verse_end,
+					page_start: r.page_start,
+					page_end: r.page_end,
+					needs_review: r.needs_review,
+					review_note: r.review_note,
+					...(r.confidence_score != null ? { confidence_score: r.confidence_score } : {}),
+					...(r.source_image_url.trim() !== '' ? { source_image_url: r.source_image_url } : {})
+				}))
 		)
 	);
 
@@ -1054,7 +1220,54 @@
 			</div>
 		{/if}
 
+		{#if !isEdit && batchReviewStats && batchReviewStats.total > 1}
+			<div
+				class="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center"
+				role="region"
+				aria-label="Batch review tools"
+			>
+				<p class="min-w-0 flex-1 leading-snug text-foreground">
+					{batchReviewStats.total} references parsed.
+					{#if batchReviewStats.flagged > 0}
+						<span class="text-amber-800 dark:text-amber-200">
+							{batchReviewStats.flagged} flagged for review.
+						</span>
+					{/if}
+				</p>
+				<div class="flex flex-wrap gap-2">
+					{#if batchReviewStats.confident > 0}
+						<Button type="button" variant="secondary" size="sm" onclick={confirmConfidentRows}>
+							Confirm {batchReviewStats.confident} confident
+						</Button>
+					{/if}
+					<Button type="button" variant="outline" size="sm" onclick={expandAllRows}>
+						Expand all
+					</Button>
+				</div>
+			</div>
+		{/if}
+
 		{#each rows as row, idx (row.key)}
+			{#if !isEdit && idx > 0 && row.pageJobOrder > 0 && rows[idx - 1]!.pageJobOrder !== row.pageJobOrder}
+				<div
+					class="flex items-center gap-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+					role="separator"
+				>
+					<span class="h-px min-w-4 flex-1 bg-border"></span>
+					<span class="inline-flex shrink-0 items-center gap-1.5">
+						<MapPin class="size-3 text-amber-600/80 dark:text-amber-400/80" aria-hidden="true" />
+						from page {row.pageJobOrder} of {row.pageJobTotal}
+						{#if pageJobPreviewUrl(row.pageJobId)}
+							<img
+								src={pageJobPreviewUrl(row.pageJobId)!}
+								alt=""
+								class="ml-1 inline-block h-7 w-5 rounded border border-border object-cover"
+							/>
+						{/if}
+					</span>
+					<span class="h-px min-w-4 flex-1 bg-border"></span>
+				</div>
+			{/if}
 			{#if isEdit}
 				<div
 					class="flex flex-col gap-3 rounded-lg border border-border/70 bg-muted/20 p-3"
@@ -1202,10 +1415,100 @@
 					</div>
 				</div>
 			{:else}
+				{#if !row.expanded}
+					<div
+						class={cn(
+							'flex min-h-11 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-2 py-1 sm:hidden',
+							rowShowsPageEdge(row) && 'border-l-2 border-l-amber-400/60',
+							pulseRowKeys[row.key] && 'bg-emerald-500/15 ring-1 ring-emerald-500/40',
+							continuationNeedsBook(row) && 'border-amber-500/50 bg-amber-500/10'
+						)}
+						aria-label={`Reference row ${idx + 1} (compact)`}
+					>
+						<input
+							type="checkbox"
+							class="size-4 shrink-0"
+							checked={row.included}
+							disabled={!isRowSaveable(row)}
+							aria-label="Include in save"
+							onchange={(e) =>
+								setRowIncluded(row.key, (e.currentTarget as HTMLInputElement).checked)}
+						/>
+						<button
+							type="button"
+							class="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
+							onclick={() => toggleRowExpanded(row.key)}
+							onkeydown={(e) => handleStripKeydown(e, row.key)}
+						>
+							<span class="min-w-0 flex-1 truncate font-medium text-foreground">
+								{formatRowStripLabel(row)}
+							</span>
+							{#if row.confidence_score != null}
+								<span class={cn('shrink-0 text-xs tabular-nums', confidenceStripClass(row.confidence_score))}>
+									{Math.round(row.confidence_score * 100)}%
+								</span>
+							{/if}
+						</button>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							class="size-9 shrink-0"
+							aria-label="Expand row"
+							onclick={() => toggleRowExpanded(row.key)}
+						>
+							<ChevronDown class="size-4" />
+						</Button>
+					</div>
+					<div
+						class={cn(
+							'hidden min-h-9 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-2 py-1 sm:flex',
+							rowShowsPageEdge(row) && 'border-l-2 border-l-amber-400/60',
+							pulseRowKeys[row.key] && 'bg-emerald-500/15 ring-1 ring-emerald-500/40',
+							continuationNeedsBook(row) && 'border-amber-500/50 bg-amber-500/10'
+						)}
+						aria-label={`Reference row ${idx + 1} (compact)`}
+					>
+						<input
+							type="checkbox"
+							class="size-3.5 shrink-0"
+							checked={row.included}
+							disabled={!isRowSaveable(row)}
+							aria-label="Include in save"
+							onchange={(e) =>
+								setRowIncluded(row.key, (e.currentTarget as HTMLInputElement).checked)}
+						/>
+						<button
+							type="button"
+							class="flex min-w-0 flex-1 items-center gap-2 text-left text-xs"
+							onclick={() => toggleRowExpanded(row.key)}
+							onkeydown={(e) => handleStripKeydown(e, row.key)}
+						>
+							<span class="min-w-0 flex-1 truncate">{formatRowStripLabel(row)}</span>
+							{#if row.confidence_score != null}
+								<span class={cn('shrink-0 tabular-nums', confidenceStripClass(row.confidence_score))}>
+									{Math.round(row.confidence_score * 100)}%
+								</span>
+							{/if}
+						</button>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							class="size-8 shrink-0"
+							aria-label="Expand row"
+							onclick={() => toggleRowExpanded(row.key)}
+						>
+							<ChevronDown class="size-3.5" />
+						</Button>
+					</div>
+				{/if}
+				{#if row.expanded}
 				<!-- Mobile: card -->
 				<div
 					class={cn(
 						'flex flex-col gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 sm:hidden',
+						rowShowsPageEdge(row) && 'border-l-2 border-l-amber-400/60',
 						continuationNeedsBook(row) && 'border-amber-500/50 bg-amber-500/10'
 					)}
 					aria-label={`Reference row ${idx + 1}`}
@@ -1215,6 +1518,15 @@
 							Row {idx + 1}
 						</span>
 						<div class="flex gap-1">
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onclick={() => toggleRowExpanded(row.key)}
+								aria-label="Collapse row"
+							>
+								<ChevronUp class="size-3.5" /> Collapse
+							</Button>
 							<Button
 								type="button"
 								variant="ghost"
@@ -1345,6 +1657,18 @@
 
 					<div class="flex flex-wrap items-center gap-2 text-xs">
 						<label class="flex items-center gap-2">
+							<input
+								type="checkbox"
+								class="size-4"
+								checked={row.included}
+								disabled={!isRowSaveable(row)}
+								aria-label="Include in save"
+								onchange={(e) =>
+									setRowIncluded(row.key, (e.currentTarget as HTMLInputElement).checked)}
+							/>
+							<span>Include in save</span>
+						</label>
+						<label class="flex items-center gap-2">
 							<input type="checkbox" bind:checked={row.needs_review} class="size-4" />
 							<span>Needs review</span>
 						</label>
@@ -1378,6 +1702,7 @@
 					<div
 						class={cn(
 							'min-w-[48rem] rounded-lg border border-border/70 bg-muted/20 px-2 py-1.5',
+							rowShowsPageEdge(row) && 'border-l-2 border-l-amber-400/60',
 							continuationNeedsBook(row) && 'border-amber-500/50 bg-amber-500/10'
 						)}
 					>
@@ -1529,6 +1854,7 @@
 						{/if}
 					</div>
 				</div>
+				{/if}
 			{/if}
 		{/each}
 
@@ -1559,8 +1885,15 @@
 				: isEdit
 					? 'Save changes'
 					: (() => {
-							const n = rows.filter((r) => r.bible_book && r.page_start).length;
-							return n === 1 ? 'Save 1 reference' : `Save ${n} references`;
+							const stats = batchReviewStats;
+							if (!stats) return 'Save references';
+							const { includedCount, total } = stats;
+							if (includedCount === 0) return 'Save references';
+							if (includedCount === total)
+								return includedCount === 1
+									? 'Save 1 reference'
+									: `Save ${includedCount} references`;
+							return `Save ${includedCount} of ${total}`;
 						})()}
 		/>
 	</div>
@@ -1586,6 +1919,24 @@
 				autocomplete="off"
 			/>
 		</div>
+		{#if biblePickerSuggestions.length > 0 && bibleFilter.trim().length === 0}
+			<div class="border-b border-border px-3 py-2">
+				<p class="mb-2 text-xs font-medium text-muted-foreground">Suggestions</p>
+				<div class="grid grid-cols-2 gap-2">
+					{#each biblePickerSuggestions as name (name)}
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							class="h-10 justify-start truncate px-2 text-sm font-normal"
+							onclick={() => pickBibleForRow(name)}
+						>
+							{name}
+						</Button>
+					{/each}
+				</div>
+			</div>
+		{/if}
 		<div class="max-h-[60vh] overflow-y-auto overscroll-contain px-2 py-2">
 			{#each filteredBibleNames as name (name)}
 				<button

@@ -157,7 +157,35 @@ function normalizeCandidate(raw: unknown): OcrCandidate | null {
 		confidence_score
 	};
 	if (cont) out.continuation_from_previous_page = true;
-	return out;
+	return normalizePageRangeInCandidate(out);
+}
+
+/** Split literal "14-15" / "14–15" in page_start when model did not set page_end. */
+const PAGE_RANGE_RE = /^(\d+)\s*[-–—]\s*(\d+)$/;
+
+function normalizePageRangeInCandidate(c: OcrCandidate): OcrCandidate {
+	const ps = c.page_start?.trim() ?? '';
+	const pe = c.page_end?.trim() ?? '';
+	if (!ps || pe) return c;
+	const m = PAGE_RANGE_RE.exec(ps);
+	if (!m) return c;
+	const first = Number(m[1]);
+	const second = Number(m[2]);
+	if (!Number.isFinite(first) || !Number.isFinite(second)) return c;
+	if (second <= first || second - first > 50) return c;
+	return { ...c, page_start: String(first), page_end: String(second) };
+}
+
+/** Split "VI, 7; VIII, 10; XV, 30" in page_start into one candidate per segment. */
+function splitSemicolonPointers(c: OcrCandidate): OcrCandidate[] {
+	const ps = c.page_start?.trim() ?? '';
+	if (!ps.includes(';')) return [c];
+	const segments = ps
+		.split(';')
+		.map((s) => s.trim())
+		.filter((s) => s.length > 0 && s.length <= 50);
+	if (segments.length < 2) return [c];
+	return segments.map((seg) => ({ ...c, page_start: seg, page_end: null }));
 }
 
 function parseExtractPayload(parsed: unknown): { rawText: string; candidates: OcrCandidate[] } {
@@ -177,7 +205,10 @@ function parseExtractPayload(parsed: unknown): { rawText: string; candidates: Oc
 	const candidates: OcrCandidate[] = [];
 	for (const item of list) {
 		const c = normalizeCandidate(item);
-		if (c) candidates.push(c);
+		if (!c) continue;
+		for (const split of splitSemicolonPointers(c)) {
+			candidates.push(split);
+		}
 	}
 	return { rawText, candidates };
 }
@@ -288,9 +319,12 @@ Rules:
 - bible_book MUST be exactly one of these names (case-sensitive): ${allowlistBlock}
   Exception: if the printed line continues a citation from the previous page WITHOUT naming the book (only chapter/verse and/or page), output bible_book as "" (empty string), set "continuation_from_previous_page": true, and still fill chapter/verse/page fields you can read.
 - Omit chapter/verse keys when not visible; use integers only.
-- page_start/page_end are printed page numbers as strings (Roman numerals ok), max 50 chars, omit if unreadable.
+- page_start/page_end are where this citation appears in the source — typically a page number, but for patristic/classical works can be a printed book/section pointer such as "VI, 7" (book VI, section 7). Strings, max 50 chars; omit if unreadable. Roman numerals ok for pages and sections.
 - Page + footnote / endnote tokens: preserve the full token in page_start when the print uses note notation, e.g. "106n21" means page 106 note 21 — keep "106n21" as a single string (do not split or strip the "n21" part).
-- Multiple printed page pointers for the SAME verse/range (e.g. "Ps 27:4 — pp. 73, 101, 112"): emit separate Candidate objects with the same bible_book/chapter/verse but different page_start for each page (leave page_end empty for each).
+- Printed contiguous page ranges (e.g. "14-15", "14–15", "14—15" with hyphen / en-dash / em-dash) emit as ONE Candidate with page_start="14" and page_end="15". Do NOT split a printed range into two Candidates.
+- Multiple printed page pointers for the SAME verse/range (e.g. "Ps 27:4 — pp. 73, 101, 112"): emit separate Candidate objects with the same bible_book/chapter/verse but different page_start for each page (leave page_end empty for each). NOT for printed ranges — see contiguous page-range rule above.
+- Semicolon-separated section pointers (e.g. "Matt 22:40 — VI, 7; VIII, 10; XV, 30"): emit one Candidate per pointer, with the same bible_book/chapter/verse and the printed pointer text verbatim as page_start (leave page_end empty for each). This is the patristic-index analog of the comma-separated page-list rule.
+- Pay extra attention near page corners, margins, and the top/bottom 10% of the image. If a citation token is partially cropped, smudged, or visually uncertain, set confidence_score below 0.80 so a human can review.
 - confidence_score is 0–1 for how sure you are of that row's parse.
 - rawText: ONE short sentence (<= 200 chars) describing what kind of page this is (e.g. "Scripture index page" or "Commentary on Matthew 5"). Do NOT echo individual citations here — those go in candidates only.
 - Include one candidate per distinct citation you can read; skip duplicates (but NOT when splitting multi-page pointers per the rule above — those are not duplicates).`;

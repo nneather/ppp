@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-18 — **OCR density / truncation fix** (`max_tokens` 64k, short `rawText` prompt, 422 on token limit). Decision **[026](docs/decisions/026-ocr-density-truncation.md)**. (Same day: bundle split **[025](docs/decisions/025-library-bundle-split.md)**; PWA SW **[024](docs/decisions/024-service-worker.md)**.)
+**Last updated:** 2026-05-18 — **OCR patristic semicolon section pointers** (Augustine-style index). Decision **[029](docs/decisions/029-ocr-section-pointer-split.md)**. (Same day: **[028](docs/decisions/028-ocr-review-ux-and-accuracy.md)** review UX; **[026](docs/decisions/026-ocr-density-truncation.md)** truncation.)
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,11 @@
 
 ## Current focus
 
-**Library — OCR truncation fix (2026-05-18):** see **[026](docs/decisions/026-ocr-density-truncation.md)** — scripture index pages no longer 502 when model output is long; `ocr_scripture_refs` deployed. **Owner:** re-OCR the page that failed (book `c500a7ba-…`).
+**Library — OCR patristic index (2026-05-18):** see **[029](docs/decisions/029-ocr-section-pointer-split.md)** — semicolon section pointers (`VI, 7; VIII, 10`) split to one candidate per pointer; prompt + server normalizer deployed. **Owner:** OCR smoke on Augustine *De Trinitate* index when photos are ready.
+
+**Library — OCR review UX (2026-05-18):** see **[028](docs/decisions/028-ocr-review-ux-and-accuracy.md)** — collapsed batch rows, bulk confirm, page separators, picker suggestions.
+
+**Library — OCR truncation fix (2026-05-18):** see **[026](docs/decisions/026-ocr-density-truncation.md)** — `max_tokens` 64k; deployed.
 
 **Library — bundle split (2026-05-18):** see **[025](docs/decisions/025-library-bundle-split.md)** — `rollup-plugin-visualizer` behind `PPP_BUNDLE_VIZ=1`; dynamic `import()` for `<BookOlRefreshDialog>` from `<BookForm>`; scripture/topic forms + coverage editors split on `/library/books/[id]`; ~64% smaller initial book-detail entry vs pre-split monolith (Vite size table in 025).
 
@@ -49,9 +53,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
-- [026 — OCR density / truncation fix](docs/decisions/026-ocr-density-truncation.md) (2026-05-18) — `max_tokens` 64k; short `rawText` prompt; 422 when output still truncates; prose-only → empty candidates.
-- [025 — Library client bundle split + treemap tooling](docs/decisions/025-library-bundle-split.md) (2026-05-18) — dynamic imports on book detail + OL refresh from `BookForm`; `PPP_BUNDLE_VIZ=1` visualizer; gzip size table vs baseline.
-- [024 — PWA service worker (Workbox + gated refresh)](docs/decisions/024-service-worker.md) (2026-05-18) — precache hashed assets; NetworkFirst HTML; auth/login/`?/` bypass; `<PwaReloadToast />`.
+- [029 — OCR semicolon section pointers (patristic index)](docs/decisions/029-ocr-section-pointer-split.md) (2026-05-18) — `VI, 7; VIII, 10` → one candidate per pointer; prompt + `splitSemicolonPointers` normalizer.
+- [028 — OCR review UX + accuracy](docs/decisions/028-ocr-review-ux-and-accuracy.md) (2026-05-18) — compact batch rows; page-boundary markers; bulk confirm; page-range prompt + normalizer.
+- [026 — OCR density / truncation fix](docs/decisions/026-ocr-density-truncation.md) (2026-05-18) — `max_tokens` 64k; short `rawText` prompt; 422 when output still truncates.
 
 ---
 
