@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-18 — Library **client bundle split** (dynamic imports for book detail + OL refresh; `PPP_BUNDLE_VIZ` treemap). Decision **[025](docs/decisions/025-library-bundle-split.md)**. (Same day: PWA service worker **[024](docs/decisions/024-service-worker.md)**.)
+**Last updated:** 2026-05-18 — **OCR density / truncation fix** (`max_tokens` 64k, short `rawText` prompt, 422 on token limit). Decision **[026](docs/decisions/026-ocr-density-truncation.md)**. (Same day: bundle split **[025](docs/decisions/025-library-bundle-split.md)**; PWA SW **[024](docs/decisions/024-service-worker.md)**.)
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -9,6 +9,8 @@
 ---
 
 ## Current focus
+
+**Library — OCR truncation fix (2026-05-18):** see **[026](docs/decisions/026-ocr-density-truncation.md)** — scripture index pages no longer 502 when model output is long; `ocr_scripture_refs` deployed. **Owner:** re-OCR the page that failed (book `c500a7ba-…`).
 
 **Library — bundle split (2026-05-18):** see **[025](docs/decisions/025-library-bundle-split.md)** — `rollup-plugin-visualizer` behind `PPP_BUNDLE_VIZ=1`; dynamic `import()` for `<BookOlRefreshDialog>` from `<BookForm>`; scripture/topic forms + coverage editors split on `/library/books/[id]`; ~64% smaller initial book-detail entry vs pre-split monolith (Vite size table in 025).
 
@@ -47,9 +49,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [026 — OCR density / truncation fix](docs/decisions/026-ocr-density-truncation.md) (2026-05-18) — `max_tokens` 64k; short `rawText` prompt; 422 when output still truncates; prose-only → empty candidates.
 - [025 — Library client bundle split + treemap tooling](docs/decisions/025-library-bundle-split.md) (2026-05-18) — dynamic imports on book detail + OL refresh from `BookForm`; `PPP_BUNDLE_VIZ=1` visualizer; gzip size table vs baseline.
 - [024 — PWA service worker (Workbox + gated refresh)](docs/decisions/024-service-worker.md) (2026-05-18) — precache hashed assets; NetworkFirst HTML; auth/login/`?/` bypass; `<PwaReloadToast />`.
-- [023 — Library mobile polish (PageHeader + tab bar utilities)](docs/decisions/023-library-mobile-polish.md) (2026-05-16) — `/library` + book detail mobile headers; `pb-tabbar` / `bottom-tabbar`; reading status + copy panel + scripture row UX.
 
 ---
 

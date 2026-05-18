@@ -292,7 +292,7 @@ Rules:
 - Page + footnote / endnote tokens: preserve the full token in page_start when the print uses note notation, e.g. "106n21" means page 106 note 21 — keep "106n21" as a single string (do not split or strip the "n21" part).
 - Multiple printed page pointers for the SAME verse/range (e.g. "Ps 27:4 — pp. 73, 101, 112"): emit separate Candidate objects with the same bible_book/chapter/verse but different page_start for each page (leave page_end empty for each).
 - confidence_score is 0–1 for how sure you are of that row's parse.
-- rawText: brief plain-text summary of visible citations (can be empty if none).
+- rawText: ONE short sentence (<= 200 chars) describing what kind of page this is (e.g. "Scripture index page" or "Commentary on Matthew 5"). Do NOT echo individual citations here — those go in candidates only.
 - Include one candidate per distinct citation you can read; skip duplicates (but NOT when splitting multi-page pointers per the rule above — those are not duplicates).`;
 
 	const userText = `Extract all scripture references from this page image. Book context UUID (for your reasoning only): ${book_id}`;
@@ -308,7 +308,7 @@ Rules:
 			},
 			body: JSON.stringify({
 				model,
-				max_tokens: 4096,
+				max_tokens: 64000,
 				temperature: 0,
 				system: systemPrompt,
 				messages: [
@@ -355,11 +355,23 @@ Rules:
 
 	let anthropicJson: {
 		content?: Array<{ type?: string; text?: string }>;
+		stop_reason?: string;
 	};
 	try {
 		anthropicJson = await anthropicRes.json();
 	} catch {
 		return jsonResponse({ error: 'Vision provider returned invalid JSON.' }, 502);
+	}
+
+	if (anthropicJson.stop_reason === 'max_tokens') {
+		console.error('[ocr_scripture_refs] Anthropic stop_reason=max_tokens');
+		return jsonResponse(
+			{
+				error:
+					'Vision provider hit the output token limit on this page (more than ~1,800 citations in one image). Split the page into two photos.'
+			},
+			422
+		);
 	}
 
 	const textBlock = anthropicJson.content?.find((c) => c.type === 'text' && typeof c.text === 'string')
@@ -373,6 +385,9 @@ Rules:
 		parsed = parseModelJson(textBlock);
 	} catch (e) {
 		console.error('[ocr_scripture_refs] JSON parse', e, textBlock.slice(0, 500));
+		if (!textBlock.includes('{') && !textBlock.includes('[')) {
+			return jsonResponse({ rawText: textBlock.slice(0, 500), candidates: [] });
+		}
 		return jsonResponse(
 			{ error: 'Could not parse structured citations from vision model output.' },
 			502

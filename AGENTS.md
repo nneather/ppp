@@ -80,7 +80,7 @@ End-of-session deliverables:
   - `src/lib/library/server/ancient-texts-settings-actions.ts` / `ancient-texts-settings-book-counts.ts` — `/settings/library/ancient-texts` CRUD + `mergeAncientTextsSettingsAction` (RPC `library_merge_ancient_texts`, owner-only).
   - `src/lib/library/server/permissions-actions.ts` — `upsertUserPermissionAction` for `/settings/permissions` (owner-only).
   - `src/lib/library/server/scripture-actions.ts` — same shape for `scripture_references`: `createScriptureRefAction`, `createScriptureRefsBatchAction`, `updateScriptureRefAction`, `softDeleteScriptureRefAction`. Wired into `/library/books/[id]` Session 2.
-  - **`supabase/functions/ocr_scripture_refs`** — Library OCR: user JWT via `/auth/v1/user`, service-role storage download from `library-scripture-images`, Anthropic Messages API (vision). Secrets: `ANTHROPIC_API_KEY` (+ optional `ANTHROPIC_OCR_MODEL`); see [supabase/README.md](supabase/README.md) + [021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md).
+  - **`supabase/functions/ocr_scripture_refs`** — Library OCR: user JWT via `/auth/v1/user`, service-role storage download from `library-scripture-images`, Anthropic Messages API (vision). Secrets: `ANTHROPIC_API_KEY` (+ optional `ANTHROPIC_OCR_MODEL`); see [supabase/README.md](supabase/README.md) + [021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md). Dense index pages: `max_tokens` 64k + short `rawText` prompt; `stop_reason=max_tokens` → HTTP 422 — see [026](docs/decisions/026-ocr-density-truncation.md).
 
 ### Scripts
 
