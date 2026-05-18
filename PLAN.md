@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-16 — Library **mobile polish**: `<PageHeader>` + `pb-tabbar` / `bottom-tabbar` utilities; `/library` + `/library/books/[id]` headers, reading-status hoist, copy-for-drafts collapse on phone, scripture row touch targets, toast alignment. Decision **[023](docs/decisions/023-library-mobile-polish.md)**. (Earlier same day: taxonomy **[022](docs/decisions/022-library-category-removal.md)**.)
+**Last updated:** 2026-05-18 — Library **client bundle split** (dynamic imports for book detail + OL refresh; `PPP_BUNDLE_VIZ` treemap). Decision **[025](docs/decisions/025-library-bundle-split.md)**. (Same day: PWA service worker **[024](docs/decisions/024-service-worker.md)**.)
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -9,6 +9,10 @@
 ---
 
 ## Current focus
+
+**Library — bundle split (2026-05-18):** see **[025](docs/decisions/025-library-bundle-split.md)** — `rollup-plugin-visualizer` behind `PPP_BUNDLE_VIZ=1`; dynamic `import()` for `<BookOlRefreshDialog>` from `<BookForm>`; scripture/topic forms + coverage editors split on `/library/books/[id]`; ~64% smaller initial book-detail entry vs pre-split monolith (Vite size table in 025).
+
+**PWA — service worker (2026-05-18):** see **[024](docs/decisions/024-service-worker.md)** — Workbox precache for hashed client bundles; NetworkFirst + cache fallback for navigation HTML; bypass `/auth/*`, `/login`, `?/` form-action queries; `<PwaReloadToast />` gates `skipWaiting` + reload. **Owner:** Lighthouse before/after + iPhone home-screen smoke (checklist in 024).
 
 **Library — mobile polish (2026-05-16):** see **[023](docs/decisions/023-library-mobile-polish.md)** — `<PageHeader>` on `/library` + `/library/books/[id]`; `pb-tabbar` / `bottom-tabbar` utilities; mobile overflow sheets; reading-status hoist + collapsed copy panel on book detail; larger scripture-row hit targets.
 
@@ -43,9 +47,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [025 — Library client bundle split + treemap tooling](docs/decisions/025-library-bundle-split.md) (2026-05-18) — dynamic imports on book detail + OL refresh from `BookForm`; `PPP_BUNDLE_VIZ=1` visualizer; gzip size table vs baseline.
+- [024 — PWA service worker (Workbox + gated refresh)](docs/decisions/024-service-worker.md) (2026-05-18) — precache hashed assets; NetworkFirst HTML; auth/login/`?/` bypass; `<PwaReloadToast />`.
 - [023 — Library mobile polish (PageHeader + tab bar utilities)](docs/decisions/023-library-mobile-polish.md) (2026-05-16) — `/library` + book detail mobile headers; `pb-tabbar` / `bottom-tabbar`; reading status + copy panel + scripture row UX.
-- [022 — Library category removal + genre-only taxonomy](docs/decisions/022-library-category-removal.md) (2026-05-16) — Category → Genre backfill; dropped `categories` / `book_categories` / `books.primary_category_id`; Q11 closed, Q12 resolved.
-- [021 — Library Session 9 OCR Anthropic + review list + trip policy](docs/decisions/021-library-session-9-ocr-anthropic-wired.md) (2026-05-16) — `ocr_scripture_refs` vision provider; `/library/review` scripture refs section; tracker trip-period amendment.
 
 ---
 
@@ -57,7 +61,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow (repo convention):** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md); also [AGENTS.md](AGENTS.md) Scripts + session template + [.cursor/rules/always.mdc](.cursor/rules/always.mdc).
 
-**Repo gate:** `npm run check` last verified **2026-05-16** (Library mobile polish 023).
+**Repo gate:** `npm run check` last verified **2026-05-18** (Library bundle split **025** + PWA service worker **024**).
 
 **Phone smoke (owner):** `/library` filters at scale, `/library/search-passage` (e.g. Phil 2:5), `/library/review` drill, `/library/add` barcode path — tracker Session 3–6 acceptance (steps in runbook §A).
 

@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { onMount } from 'svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
@@ -27,10 +28,6 @@
 		READING_STATUS_LABELS
 	} from '$lib/types/library';
 	import type { ReadingStatus, ScriptureRefRow, BookListRow } from '$lib/types/library';
-	import ScriptureReferenceForm from '$lib/components/scripture-reference-form.svelte';
-	import BookTopicForm from '$lib/components/book-topic-form.svelte';
-	import BookBibleCoverageEditor from '$lib/components/book-bible-coverage-editor.svelte';
-	import BookAncientCoverageEditor from '$lib/components/book-ancient-coverage-editor.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -481,6 +478,49 @@
 		}
 		return null;
 	});
+
+	type ScriptureReferenceFormType = Awaited<
+		typeof import('$lib/components/scripture-reference-form.svelte')
+	>['default'];
+	type BookTopicFormType = Awaited<typeof import('$lib/components/book-topic-form.svelte')>['default'];
+	type BookBibleCoverageEditorType = Awaited<
+		typeof import('$lib/components/book-bible-coverage-editor.svelte')
+	>['default'];
+	type BookAncientCoverageEditorType = Awaited<
+		typeof import('$lib/components/book-ancient-coverage-editor.svelte')
+	>['default'];
+
+	let ScriptureReferenceFormCmp = $state<ScriptureReferenceFormType | null>(null);
+	let BookTopicFormCmp = $state<BookTopicFormType | null>(null);
+	let BookBibleCoverageEditorCmp = $state<BookBibleCoverageEditorType | null>(null);
+	let BookAncientCoverageEditorCmp = $state<BookAncientCoverageEditorType | null>(null);
+
+	$effect(() => {
+		if (!browser) return;
+		if ((addOpen || editingId !== null) && ScriptureReferenceFormCmp === null) {
+			void import('$lib/components/scripture-reference-form.svelte').then((m) => {
+				ScriptureReferenceFormCmp = m.default;
+			});
+		}
+	});
+
+	$effect(() => {
+		if (!browser) return;
+		if ((topicAddOpen || editingTopicId !== null) && BookTopicFormCmp === null) {
+			void import('$lib/components/book-topic-form.svelte').then((m) => {
+				BookTopicFormCmp = m.default;
+			});
+		}
+	});
+
+	onMount(() => {
+		void import('$lib/components/book-bible-coverage-editor.svelte').then((m) => {
+			BookBibleCoverageEditorCmp = m.default;
+		});
+		void import('$lib/components/book-ancient-coverage-editor.svelte').then((m) => {
+			BookAncientCoverageEditorCmp = m.default;
+		});
+	});
 </script>
 
 {#snippet copyDraftButtons()}
@@ -861,16 +901,23 @@
 									>
 										{#if editingId === ref.id}
 											<div class="w-full py-2">
-												<ScriptureReferenceForm
-													books={sourcePickerBooks}
-													bibleBookNames={data.bibleBookNames}
-													lockedBookId={data.book.id}
-													userId={data.userId}
-													existingRef={ref}
-													{formMessage}
-													onSaved={onUpdated}
-													onCancel={cancelEdit}
-												/>
+												{#if ScriptureReferenceFormCmp}
+													<ScriptureReferenceFormCmp
+														books={sourcePickerBooks}
+														bibleBookNames={data.bibleBookNames}
+														lockedBookId={data.book.id}
+														userId={data.userId}
+														existingRef={ref}
+														{formMessage}
+														onSaved={onUpdated}
+														onCancel={cancelEdit}
+													/>
+												{:else}
+													<div
+														class="h-16 w-full animate-pulse rounded-lg bg-muted/40"
+														aria-hidden="true"
+													></div>
+												{/if}
 											</div>
 										{:else}
 											<span class="shrink-0 font-medium tabular-nums text-foreground">
@@ -975,15 +1022,19 @@
 
 			{#if addOpen}
 				<div id="scripture-add-form" bind:this={scriptureAddFormEl} class="mt-4 scroll-mt-6">
-					<ScriptureReferenceForm
-						books={sourcePickerBooks}
-						bibleBookNames={data.bibleBookNames}
-						lockedBookId={data.book.id}
-						userId={data.userId}
-						{formMessage}
-						onSavedBatch={onCreatedBatch}
-						onCancel={() => (addOpen = false)}
-					/>
+					{#if ScriptureReferenceFormCmp}
+						<ScriptureReferenceFormCmp
+							books={sourcePickerBooks}
+							bibleBookNames={data.bibleBookNames}
+							lockedBookId={data.book.id}
+							userId={data.userId}
+							{formMessage}
+							onSavedBatch={onCreatedBatch}
+							onCancel={() => (addOpen = false)}
+						/>
+					{:else}
+						<div class="h-16 w-full animate-pulse rounded-lg bg-muted/40" aria-hidden="true"></div>
+					{/if}
 					<div class="mt-2 flex justify-end">
 						<Button type="button" variant="ghost" size="sm" onclick={() => (addOpen = false)}>
 							Close add form
@@ -1013,11 +1064,18 @@
 			Which biblical books does this work cover? Tagged books surface on passage search.
 		</p>
 		<div class="mt-3">
-			<BookBibleCoverageEditor
-				bookId={data.book.id}
-				bibleBookNames={data.bibleBookNames}
-				covered={data.bibleCoverage}
-			/>
+			{#if BookBibleCoverageEditorCmp}
+				<BookBibleCoverageEditorCmp
+					bookId={data.book.id}
+					bibleBookNames={data.bibleBookNames}
+					covered={data.bibleCoverage}
+				/>
+			{:else}
+				<div
+					class="h-24 animate-pulse rounded-lg border border-border bg-muted/20"
+					aria-hidden="true"
+				></div>
+			{/if}
 		</div>
 	</section>
 
@@ -1037,12 +1095,19 @@
 			</h2>
 		</div>
 		<div class="mt-3">
-			<BookAncientCoverageEditor
-				bookId={data.book.id}
-				ancientTexts={data.ancientTexts}
-				coverage={data.ancientCoverage}
-				isOwner={data.isOwner}
-			/>
+			{#if BookAncientCoverageEditorCmp}
+				<BookAncientCoverageEditorCmp
+					bookId={data.book.id}
+					ancientTexts={data.ancientTexts}
+					coverage={data.ancientCoverage}
+					isOwner={data.isOwner}
+				/>
+			{:else}
+				<div
+					class="h-24 animate-pulse rounded-lg border border-border bg-muted/20"
+					aria-hidden="true"
+				></div>
+			{/if}
 		</div>
 	</section>
 
@@ -1083,16 +1148,20 @@
 				{#each topics as topic (topic.id)}
 					<li>
 						{#if editingTopicId === topic.id}
-							<BookTopicForm
-								books={sourcePickerBooks}
-								topicCounts={data.topicCounts}
-								lockedBookId={data.book.id}
-								userId={data.userId}
-								existingTopic={topic}
-								formMessage={topicFormMessage}
-								onSaved={onTopicUpdated}
-								onCancel={cancelEditTopic}
-							/>
+							{#if BookTopicFormCmp}
+								<BookTopicFormCmp
+									books={sourcePickerBooks}
+									topicCounts={data.topicCounts}
+									lockedBookId={data.book.id}
+									userId={data.userId}
+									existingTopic={topic}
+									formMessage={topicFormMessage}
+									onSaved={onTopicUpdated}
+									onCancel={cancelEditTopic}
+								/>
+							{:else}
+								<div class="h-16 w-full animate-pulse rounded-lg bg-muted/40" aria-hidden="true"></div>
+							{/if}
 						{:else}
 							<article class="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card p-3 text-card-foreground">
 								<div class="flex min-w-0 flex-1 items-start gap-3">
@@ -1165,15 +1234,19 @@
 
 		{#if topicAddOpen}
 			<div class="mt-4">
-				<BookTopicForm
-					books={sourcePickerBooks}
-					topicCounts={data.topicCounts}
-					lockedBookId={data.book.id}
-					userId={data.userId}
-					formMessage={topicFormMessage}
-					onSavedBatch={onTopicCreated}
-					onCancel={() => (topicAddOpen = false)}
-				/>
+				{#if BookTopicFormCmp}
+					<BookTopicFormCmp
+						books={sourcePickerBooks}
+						topicCounts={data.topicCounts}
+						lockedBookId={data.book.id}
+						userId={data.userId}
+						formMessage={topicFormMessage}
+						onSavedBatch={onTopicCreated}
+						onCancel={() => (topicAddOpen = false)}
+					/>
+				{:else}
+					<div class="h-16 w-full animate-pulse rounded-lg bg-muted/40" aria-hidden="true"></div>
+				{/if}
 			</div>
 		{/if}
 	</section>

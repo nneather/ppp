@@ -25,6 +25,9 @@ supabase/.temp/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# Bundle treemap (PPP_BUNDLE_VIZ=1 npm run build)
+.bundle-viz/
+
 # Library import — local-only data + generated artifacts (Session 4)
 scripts/library-import/data/
 scripts/library-import/output/

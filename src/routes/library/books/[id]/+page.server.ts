@@ -46,6 +46,36 @@ function ocrInvokeDataError(data: unknown): string | null {
 	return null;
 }
 
+/** Non-2xx invokes set `error` with generic text; real `{ error }` JSON is on `context` (Response). */
+async function readEdgeErrorBody(
+	err: unknown
+): Promise<{ status: number | null; message: string | null }> {
+	if (!err || typeof err !== 'object') return { status: null, message: null };
+	const ctx = (err as { context?: unknown }).context;
+	if (!(ctx instanceof Response)) return { status: null, message: null };
+	const status = ctx.status;
+	try {
+		const j: unknown = await ctx.clone().json();
+		if (
+			j &&
+			typeof j === 'object' &&
+			'error' in j &&
+			typeof (j as { error: unknown }).error === 'string'
+		) {
+			return { status, message: (j as { error: string }).error };
+		}
+	} catch {
+		/* not json */
+	}
+	try {
+		const t = (await ctx.clone().text()).trim();
+		if (t && !t.startsWith('<')) return { status, message: t.slice(0, 500) };
+	} catch {
+		/* ignore */
+	}
+	return { status, message: null };
+}
+
 export const load: PageServerLoad = async ({ params, locals, depends, parent }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
@@ -202,12 +232,25 @@ export const actions: Actions = {
 			}
 		);
 
-		const msgFromData = ocrInvokeDataError(ocrData);
-		if (ocrErr || msgFromData) {
-			console.error('[extractScriptureRefs]', ocrErr ?? ocrData);
+		if (ocrErr) {
+			const { status, message } = await readEdgeErrorBody(ocrErr);
+			const detail =
+				message ??
+				ocrInvokeDataError(ocrData) ??
+				(ocrErr instanceof Error ? ocrErr.message : String(ocrErr)) ??
+				'OCR request failed.';
+			const suffix = status ? ` (HTTP ${status})` : '';
+			console.error('[extractScriptureRefs]', status, detail);
 			return fail(500, {
 				kind: 'extractScriptureRefs' as const,
-				message: msgFromData ?? ocrErr?.message ?? 'OCR request failed.'
+				message: `${detail}${suffix}`
+			});
+		}
+		const msgFromData = ocrInvokeDataError(ocrData);
+		if (msgFromData) {
+			return fail(500, {
+				kind: 'extractScriptureRefs' as const,
+				message: msgFromData
 			});
 		}
 

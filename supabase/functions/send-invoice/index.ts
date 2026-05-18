@@ -68,6 +68,17 @@ function escapeHtml(s: string): string {
 		.replace(/'/g, '&#39;');
 }
 
+/** Resend-friendly default; matches https://resend.com/docs/api-reference/emails/send-email */
+const DEFAULT_INVOICE_RESEND_FROM = 'Parker Neathery <invoicing@npneathery.com>';
+
+function resolveInvoiceResendFrom(): string {
+	const raw = Deno.env.get('INVOICE_RESEND_FROM')?.trim();
+	if (!raw || raw.length < 5 || raw.length > 512 || !raw.includes('@')) {
+		return DEFAULT_INVOICE_RESEND_FROM;
+	}
+	return raw;
+}
+
 function formatDateYmd(ymd: string): string {
 	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
 	if (!m) return ymd;
@@ -308,8 +319,11 @@ Deno.serve(async (req) => {
 	const safeFileBase = invoice.invoice_number.replace(/[^a-zA-Z0-9._-]+/g, '_');
 	const filename = `${safeFileBase || 'invoice'}.pdf`;
 
+	const resendFrom = resolveInvoiceResendFrom();
+	console.info('[send-invoice] Resend from:', resendFrom);
+
 	const resendPayload: Record<string, unknown> = {
-		from: '"Parker Neathery" <invoicing@npneathery.com>',
+		from: resendFrom,
 		reply_to: ['parker@npneathery.com'],
 		headers: { 'Reply-To': 'parker@npneathery.com' },
 		to: toList,

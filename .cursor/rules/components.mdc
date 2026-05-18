@@ -19,7 +19,7 @@ If you reach for one of these capabilities, use the existing component.
 | "Generate derived record" wizard | [src/lib/components/generate-invoice-sheet.svelte](mdc:src/lib/components/generate-invoice-sheet.svelte) |
 | Audit log row with collapsible JSONB diff | [src/lib/components/audit-row.svelte](mdc:src/lib/components/audit-row.svelte) |
 | Book entity form (create + edit) with author + category junctions — used inside dedicated `/library/books/new` + `/library/books/[id]/edit` pages (not a sheet) | [src/lib/components/book-form.svelte](mdc:src/lib/components/book-form.svelte) |
-| Open Library ISBN refresh (camera + manual fetch, field pickers) — edit-mode metadata merge; hosted by `<BookForm>` | [src/lib/components/book-ol-refresh-dialog.svelte](mdc:src/lib/components/book-ol-refresh-dialog.svelte) |
+| Open Library ISBN refresh (camera + manual fetch, field pickers) — edit-mode metadata merge; **dynamic-imported** from `<BookForm>` when the dialog opens (keeps `@zxing/*` out of new-book + edit base chunks) | [src/lib/components/book-ol-refresh-dialog.svelte](mdc:src/lib/components/book-ol-refresh-dialog.svelte) |
 | Polymorphic `(book_id OR essay_id)` source picker (essay branch stubbed pre-essays-UI) | [src/lib/components/source-picker.svelte](mdc:src/lib/components/source-picker.svelte) |
 | Embedded scripture-reference sub-form — create + per-row inline edit (`existingRef` + `onCancel` props), browser-side image upload to `library-scripture-images` (downscale + signed-URL preview); host page handles soft-delete via `<ConfirmDialog>` | [src/lib/components/scripture-reference-form.svelte](mdc:src/lib/components/scripture-reference-form.svelte) |
 | Typeahead person picker with B14 dedup warnings + inline create; optional `initialQuery` + `seedKey` to seed OL author hints; `autoOpenOnSeed` to open the list only for the first unresolved row | [src/lib/components/person-autocomplete.svelte](mdc:src/lib/components/person-autocomplete.svelte) |
@@ -30,6 +30,7 @@ If you reach for one of these capabilities, use the existing component.
 | Ancient-text coverage picker + chip list for `book_ancient_coverage`; owner-only inline `ancient_texts` create via combobox `onCreate` | [src/lib/components/book-ancient-coverage-editor.svelte](mdc:src/lib/components/book-ancient-coverage-editor.svelte) |
 | Underline-the-mnemonic-letter label helper (used inside `<Button hotkey>` and standalone) | [src/lib/components/hotkey-label.svelte](mdc:src/lib/components/hotkey-label.svelte) |
 | Page title + optional back link + `lead` / `eyebrow` / `meta` / `actions` snippets (mobile-stacked actions, `break-words` title); pair with `pb-tabbar` / `bottom-tabbar` in `app.css` for the mobile tab bar | [src/lib/components/page-header.svelte](mdc:src/lib/components/page-header.svelte) |
+| PWA new-version toast (`virtual:pwa-register/svelte`); **Update now** + Dismiss; mounted from root layout via dynamic import | [src/lib/components/PwaReloadToast.svelte](mdc:src/lib/components/PwaReloadToast.svelte) |
 
 shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator) live under `src/lib/components/ui/`. The `Button` accepts a `hotkey` prop (Cmd+letter from the reserved set `s u d e g b`, or the special string `Escape` for Cancel) and an optional `label` prop; together they wire the chord, an underlined-letter label, and a tooltip. **Cancel buttons use `hotkey="Escape"`** (bare Esc; bubble phase, defaults-prevented bail). Anchors (`href`) skip the dev-warn but can still take a hotkey. Full convention: [.cursor/rules/hotkeys.mdc](mdc:.cursor/rules/hotkeys.mdc).
 
@@ -40,6 +41,7 @@ shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator
 - **Bindable props for v-model-style state**: `let { open = $bindable(false), value = $bindable<T[]>([]) } = $props();`
 - **Form actions inside components**: use `use:enhance` and call back to the page via `onSaved` / `onSuccess` / `onError` callback props. For full-page forms also expose `onDirtyChange` so the host page can wire `beforeNavigate` for unsaved-edit confirmation.
 - **Svelte 5 runes**: `$state`, `$props`, `$bindable`, `$derived`, `$effect`. Do not use Svelte 4 reactive `$:` syntax.
+- **Heavy route-local sub-forms (bundle)**: if a child `.svelte` is large (bulk editors, uploads, barcode) but only mounts after a click or `bind:open`, **do not statically import it from the page** — use `import()` + a `$state` constructor holder (or `{#await import(...)}` inside the open gate). For `$effect`-driven preloads, gate with `browser` from `$app/environment` so SSR does not execute client-only dynamic imports. Reference: [025](mdc:docs/decisions/025-library-bundle-split.md), `/library/books/[id]/+page.svelte`, `book-form.svelte` + OL dialog.
 
 ## When to add a new component
 

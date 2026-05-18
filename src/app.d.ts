@@ -1,3 +1,4 @@
+/// <reference types="vite-plugin-pwa/svelte" />
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 
 declare global {

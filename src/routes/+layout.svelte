@@ -17,6 +17,7 @@
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
 	import LogOut from '@lucide/svelte/icons/log-out';
+	import geistLatinWoff2Url from '@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url';
 
 	const STORAGE_KEY = 'ppp_nav_collapsed';
 
@@ -69,7 +70,10 @@
 	}
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head>
+	<link rel="icon" href={favicon} />
+	<link rel="preload" href={geistLatinWoff2Url} as="font" type="font/woff2" crossorigin="anonymous" />
+</svelte:head>
 
 {#if isLogin}
 	{@render children()}
@@ -185,4 +189,10 @@
 			{/each}
 		</nav>
 	</div>
+{/if}
+
+{#if browser}
+	{#await import('$lib/components/PwaReloadToast.svelte') then { default: PwaReloadToast }}
+		<PwaReloadToast />
+	{/await}
 {/if}

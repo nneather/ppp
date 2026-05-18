@@ -12,6 +12,11 @@
 	} from '$lib/library/open-library-prefill';
 	import { parseIsbnWithChecksum } from '$lib/library/isbn';
 	import { markScanSessionForNewBook } from '$lib/library/scan-session';
+	import {
+		acquireCameraStream,
+		releaseCameraStreamNow,
+		scheduleReleaseCameraStream
+	} from '$lib/library/camera-stream';
 	import { BrowserMultiFormatReader } from '@zxing/browser';
 	import { BarcodeFormat, DecodeHintType, NotFoundException } from '@zxing/library';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -52,19 +57,10 @@
 			/* noop */
 		}
 		controlsStop = null;
-		BrowserMultiFormatReader.releaseAllStreams();
+		/* Keep module-scoped stream warm; do not stop tracks here. */
 		if (videoEl) {
 			try {
-				const stream = videoEl.srcObject;
-				if (stream instanceof MediaStream) {
-					for (const track of stream.getTracks()) {
-						try {
-							track.stop();
-						} catch {
-							/* noop */
-						}
-					}
-				}
+				videoEl.pause();
 				videoEl.srcObject = null;
 			} catch {
 				/* noop */
@@ -72,6 +68,11 @@
 		}
 		scanActive = false;
 		lastDecode = null;
+	}
+
+	function stopCameraAndRelease() {
+		stopScan();
+		releaseCameraStreamNow();
 	}
 
 	function noteDecodeForConfirm(digits: string): boolean {
@@ -102,6 +103,7 @@
 				sessionStorage.setItem(LIBRARY_OL_PREFILL_KEY, JSON.stringify(prefill));
 				markScanSessionForNewBook();
 			}
+			scheduleReleaseCameraStream();
 			goto('/library/books/new');
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Lookup failed.';
@@ -129,7 +131,10 @@
 		lastDecode = null;
 		scanReader ??= new BrowserMultiFormatReader(hints);
 		try {
-			const controls = await scanReader.decodeFromVideoDevice(undefined, videoEl, (result, err) => {
+			const stream = await acquireCameraStream();
+			videoEl.srcObject = stream;
+			await videoEl.play().catch(() => {});
+			const controls = await scanReader.decodeFromVideoElement(videoEl, (result, err) => {
 				if (err) {
 					if (err instanceof NotFoundException) return;
 					errorMessage = err instanceof Error ? err.message : 'Scan error.';
@@ -184,6 +189,7 @@
 	$effect(() => {
 		return () => {
 			stopScan();
+			scheduleReleaseCameraStream();
 		};
 	});
 </script>
@@ -225,10 +231,12 @@
 		<details class="mt-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
 			<summary class="cursor-pointer font-medium text-foreground">Camera tips</summary>
 			<p class="mt-2">
-				The browser controls camera access. For fewer prompts, use this site over HTTPS, avoid private
-				browsing, and set this site’s camera permission to <strong class="text-foreground">Allow</strong>
-				(not “Ask every time”) in site settings (lock or tune icon in the address bar on desktop; Safari
-				<strong class="text-foreground">Settings → Safari → Camera</strong> on iOS for per-site behavior).
+				On iPhone (installed from the home screen), set <strong class="text-foreground"
+					>Settings → Apps → Safari → Camera</strong
+				>
+				for this site to <strong class="text-foreground">Allow</strong> so you are not asked every time
+				you open the scanner. On desktop, use the lock or tune icon in the address bar and set camera to
+				<strong class="text-foreground">Allow</strong>. Use HTTPS and avoid private browsing.
 			</p>
 			<Button
 				type="button"
@@ -272,7 +280,7 @@
 		</div>
 		<div class="flex flex-wrap gap-2">
 			{#if scanActive}
-				<Button type="button" variant="outline" class="min-h-11" onclick={() => stopScan()}>
+				<Button type="button" variant="outline" class="min-h-11" onclick={() => stopCameraAndRelease()}>
 					Stop camera
 				</Button>
 			{:else}

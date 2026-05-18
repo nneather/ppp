@@ -23,6 +23,10 @@
 		type OpenLibraryBookPrefill
 	} from '$lib/library/open-library-prefill';
 	import { parseIsbnWithChecksum } from '$lib/library/isbn';
+	import {
+		acquireCameraStream,
+		scheduleReleaseCameraStream
+	} from '$lib/library/camera-stream';
 	import { BrowserMultiFormatReader } from '@zxing/browser';
 	import { BarcodeFormat, DecodeHintType, NotFoundException } from '@zxing/library';
 	import Loader2 from '@lucide/svelte/icons/loader-2';
@@ -92,19 +96,10 @@
 			/* noop */
 		}
 		controlsStop = null;
-		BrowserMultiFormatReader.releaseAllStreams();
+		/* Keep module-scoped stream warm; do not stop tracks here. */
 		if (videoEl) {
 			try {
-				const stream = videoEl.srcObject;
-				if (stream instanceof MediaStream) {
-					for (const track of stream.getTracks()) {
-						try {
-							track.stop();
-						} catch {
-							/* noop */
-						}
-					}
-				}
+				videoEl.pause();
 				videoEl.srcObject = null;
 			} catch {
 				/* noop */
@@ -173,6 +168,7 @@
 	$effect(() => {
 		if (!open) {
 			stopScan();
+			scheduleReleaseCameraStream();
 			errorMessage = null;
 			statusMessage = null;
 			lookupPending = false;
@@ -187,7 +183,10 @@
 	});
 
 	onMount(() => {
-		return () => stopScan();
+		return () => {
+			stopScan();
+			scheduleReleaseCameraStream();
+		};
 	});
 
 	async function runLookup(isbnRaw: string) {
@@ -225,7 +224,10 @@
 		lastDecode = null;
 		scanReader ??= new BrowserMultiFormatReader(hints);
 		try {
-			const controls = await scanReader.decodeFromVideoDevice(undefined, videoEl, (result, err) => {
+			const stream = await acquireCameraStream();
+			videoEl.srcObject = stream;
+			await videoEl.play().catch(() => {});
+			const controls = await scanReader.decodeFromVideoElement(videoEl, (result, err) => {
 				if (err) {
 					if (err instanceof NotFoundException) return;
 					errorMessage = err instanceof Error ? err.message : 'Scan error.';

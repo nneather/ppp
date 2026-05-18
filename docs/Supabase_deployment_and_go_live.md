@@ -72,6 +72,7 @@ Production deploy must use **production** project URL and keys. Preview deploys 
 Set on the **same** project the app calls (usually production for prod deploy):
 
 - `RESEND_API_KEY` — required for `send-invoice`.
+- `INVOICE_RESEND_FROM` — optional; full Resend `from` string for invoice email (default in code: `Parker Neathery <invoicing@npneathery.com>` on verified `npneathery.com`).
 - `SENDER_NAME`, `SENDER_EMAIL`, `SENDER_ADDRESS_LINE_1`, `SENDER_ADDRESS_LINE_2`, `SENDER_TAGLINE`, `SENDER_PHONE` — PDF letterhead (`generate-invoice-pdf`).
 
 Use the Dashboard (Edge Functions → Secrets) or:

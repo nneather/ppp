@@ -38,7 +38,6 @@
 		splitAuthorString,
 		detectBibleBookFromTitle
 	} from '$lib/library/match';
-	import BookOlRefreshDialog from '$lib/components/book-ol-refresh-dialog.svelte';
 	import type { OlApplyKey } from '$lib/components/book-ol-refresh-dialog.svelte';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -802,12 +801,16 @@
 			<ScanBarcode class="size-4" /> Refresh from Open Library
 		</Button>
 	</div>
-	<BookOlRefreshDialog
-		bind:open={olRefreshOpen}
-		initialIsbn={isbn}
-		current={olRefreshCurrent}
-		onApply={applyOlRefresh}
-	/>
+	{#if olRefreshOpen}
+		{#await import('$lib/components/book-ol-refresh-dialog.svelte') then mod}
+			<mod.default
+				bind:open={olRefreshOpen}
+				initialIsbn={isbn}
+				current={olRefreshCurrent}
+				onApply={applyOlRefresh}
+			/>
+		{/await}
+	{/if}
 {/if}
 
 <form

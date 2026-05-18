@@ -45,6 +45,7 @@
 - **Per-row `source_image_url`** — `rows_json` rows may include `source_image_url`; `parseScriptureRefBatchForm` / `rawToFormData` prefers per-row path with top-level hidden field as fallback (backward compatible).
 - **Desktop batch layout** — `sm+` compact single-line grid for draft rows; **mobile cards unchanged** (touch height). `npm run check` clean after the change set.
 - **Dense refs display + image disclosure** — On `/library/books/[id]`, the scripture-refs block is a **closed-by-default** `<details>` when the book has refs; **dense single-line rows** (no per-row thumbnail) under each Bible-book heading; **“See recorded images (N)”** nested `<details>` at the bottom dedupes by `source_image_url` and links each thumb to the signed URL in a new tab. **No schema change** — each JPEG is still one object in storage; only the path string repeats per row. Deep-link `#ref-<uuid>` opens the outer disclosure before `scrollIntoView`.
+- **`extractScriptureRefs` error surfacing** — On `functions.invoke` non-2xx, supabase-js returns `FunctionsHttpError` with generic text and `data: null`; the Edge Function’s `{ "error": "…" }` body lives on `error.context` (a `Response`). The server action now reads that body (JSON `error`, else short non-HTML text) and appends `(HTTP <status>)` so the batch OCR UI shows the real reason (e.g. 415 HEIC, 502 Anthropic) instead of “Edge Function returned a non-2xx status code”.
 
 ## Carry-forward updates
 
