@@ -10,6 +10,7 @@
 - **Edge** — [`ocr_scripture_refs`](../../supabase/functions/ocr_scripture_refs/index.ts): `anthropicVisionInput` routes images vs PDF; Anthropic `document` content block for PDFs; `MAX_PAYLOAD_BYTES` 25 MiB; prompt + `source_page_index` on candidates; generalized truncation 422 message.
 - **Client** — [`scripture-reference-form.svelte`](../../src/lib/components/scripture-reference-form.svelte): batch `accept="image/*,application/pdf"`; PDF upload without canvas downscale; queue PDF chip (`FileText`); merge groups by `source_page_index` with **Page N/M** separators; shared type in [`ocr-scripture-refs.ts`](../../src/lib/library/ocr-scripture-refs.ts).
 - **Follow-up (same day)** — [`ocr-invoke-client.ts`](../../src/lib/library/ocr-invoke-client.ts): batch OCR calls Edge **from the browser** (`functions.invoke`) instead of `?/extractScriptureRefs` server action, avoiding Vercel serverless timeout (`Load failed` on multi-page PDFs). Server action kept as thin proxy with `maxDuration: 300`.
+- **Per-page PDF split (same day)** — Edge `pdf-lib`: `op: pdf_page_count` + `pdf_page_index` per extract; client loops **Page 1/N** sequentially. Error mailto defaults to `parker.neathery@gmail.com`.
 - **Deployed** migration + `ocr_scripture_refs` **2026-05-18**.
 
 ## Decided
@@ -40,7 +41,8 @@
 
 ## Surprises
 
-- **Multi-page PDF via server action → `Load failed`** — upload succeeded but `fetch('?/extractScriptureRefs')` aborted when Vercel’s serverless limit cut the proxy hop before Anthropic finished (~60s+). Fixed by browser-direct `functions.invoke` (same JWT auth as Edge already expects).
+- **Multi-page PDF via server action → `Load failed`** — upload succeeded but `fetch('?/extractScriptureRefs')` aborted when Vercel’s serverless limit cut the proxy hop before Anthropic finished (~60s+). Fixed by browser-direct `functions.invoke`.
+- **Full PDF single Edge call → `Failed to send a request to the Edge Function` + log `shutdown`** — Supabase ~150s idle limit. Fixed by **one Anthropic call per PDF page** (`pdf_page_index` + `pdf-lib` page extract on Edge).
 
 ## Carry-forward updates
 

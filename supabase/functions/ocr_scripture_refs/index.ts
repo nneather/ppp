@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
+import { PDFDocument } from 'pdf-lib';
 import { BIBLE_BOOK_SET, BIBLE_BOOK_NAMES } from './bible-book-allowlist.ts';
 
 const corsHeaders: Record<string, string> = {
@@ -222,6 +223,30 @@ function parseExtractPayload(parsed: unknown): { rawText: string; candidates: Oc
 	return { rawText, candidates };
 }
 
+function stampPdfPageIndex(candidates: OcrCandidate[], pdfPageIndex: number): OcrCandidate[] {
+	return candidates.map((c) => ({
+		...c,
+		source_page_index: c.source_page_index ?? pdfPageIndex
+	}));
+}
+
+async function pdfPageCountFromBytes(buf: Uint8Array): Promise<number> {
+	const doc = await PDFDocument.load(buf);
+	return doc.getPageCount();
+}
+
+async function extractSinglePdfPageBytes(buf: Uint8Array, pageIndex: number): Promise<Uint8Array> {
+	const src = await PDFDocument.load(buf);
+	const pageCount = src.getPageCount();
+	if (pageIndex < 0 || pageIndex >= pageCount) {
+		throw new Error(`pdf_page_index out of range (0..${pageCount - 1}).`);
+	}
+	const out = await PDFDocument.create();
+	const [copied] = await out.copyPages(src, [pageIndex]);
+	out.addPage(copied);
+	return new Uint8Array(await out.save());
+}
+
 Deno.serve(async (req) => {
 	if (req.method === 'OPTIONS') {
 		return new Response('ok', { headers: corsHeaders });
@@ -243,10 +268,6 @@ Deno.serve(async (req) => {
 	if (!serviceRoleKey) {
 		return jsonResponse({ error: 'Server configuration error: missing service role.' }, 500);
 	}
-	if (!anthropicKey) {
-		return jsonResponse({ error: 'OCR is not configured (missing ANTHROPIC_API_KEY).' }, 503);
-	}
-
 	const authHeader = req.headers.get('Authorization');
 	if (!authHeader?.startsWith('Bearer ')) {
 		return jsonResponse({ error: 'Unauthorized' }, 401);
@@ -257,7 +278,13 @@ Deno.serve(async (req) => {
 		return jsonResponse({ error: 'Unauthorized' }, 401);
 	}
 
-	let body: { object_path?: string; mime_type?: string; book_id?: string };
+	let body: {
+		object_path?: string;
+		mime_type?: string;
+		book_id?: string;
+		op?: string;
+		pdf_page_index?: unknown;
+	};
 	try {
 		body = await req.json();
 	} catch {
@@ -267,6 +294,9 @@ Deno.serve(async (req) => {
 	const object_path = typeof body.object_path === 'string' ? body.object_path.trim() : '';
 	const mime_type = typeof body.mime_type === 'string' ? body.mime_type.trim() : '';
 	const book_id = typeof body.book_id === 'string' ? body.book_id.trim() : '';
+	const opRaw = typeof body.op === 'string' ? body.op.trim() : 'extract';
+	const op = opRaw === 'pdf_page_count' ? 'pdf_page_count' : 'extract';
+	const pdf_page_index = asOptionalInt(body.pdf_page_index, 999);
 
 	if (!object_path || !mime_type || !book_id) {
 		return jsonResponse(
@@ -319,7 +349,63 @@ Deno.serve(async (req) => {
 		);
 	}
 
-	const payloadB64 = encodeBase64(buf);
+	if (op === 'pdf_page_count') {
+		if (visionInput.kind !== 'document') {
+			return jsonResponse({ error: 'pdf_page_count is only valid for PDF files.' }, 400);
+		}
+		try {
+			const page_count = await pdfPageCountFromBytes(buf);
+			return jsonResponse({ page_count });
+		} catch (e) {
+			console.error('[ocr_scripture_refs] pdf_page_count', e);
+			return jsonResponse({ error: 'Could not read PDF page count.' }, 502);
+		}
+	}
+
+	if (!anthropicKey) {
+		return jsonResponse({ error: 'OCR is not configured (missing ANTHROPIC_API_KEY).' }, 503);
+	}
+
+	let payloadBytes = buf;
+	let effectivePdfPageIndex: number | null = null;
+
+	if (visionInput.kind === 'document') {
+		let pageCount: number;
+		try {
+			pageCount = await pdfPageCountFromBytes(buf);
+		} catch (e) {
+			console.error('[ocr_scripture_refs] PDF load', e);
+			return jsonResponse({ error: 'Could not read PDF for OCR.' }, 502);
+		}
+		if (pageCount > 1) {
+			if (pdf_page_index == null) {
+				return jsonResponse(
+					{
+						error:
+							'Multi-page PDF requires per-page OCR. Call pdf_page_count, then extract with pdf_page_index for each page.'
+					},
+					400
+				);
+			}
+			try {
+				payloadBytes = await extractSinglePdfPageBytes(buf, pdf_page_index);
+				effectivePdfPageIndex = pdf_page_index;
+			} catch (e) {
+				console.error('[ocr_scripture_refs] PDF page extract', e);
+				return jsonResponse(
+					{
+						error:
+							e instanceof Error ? e.message : 'Could not extract PDF page for OCR.'
+					},
+					400
+				);
+			}
+		} else if (pdf_page_index != null && pdf_page_index !== 0) {
+			return jsonResponse({ error: 'pdf_page_index must be 0 for a single-page PDF.' }, 400);
+		}
+	}
+
+	const payloadB64 = encodeBase64(payloadBytes);
 
 	const allowlistBlock = BIBLE_BOOK_NAMES.join(', ');
 
@@ -342,7 +428,11 @@ Rules:
 - rawText: ONE short sentence (<= 200 chars) describing what kind of page this is (e.g. "Scripture index page" or "Commentary on Matthew 5"). Do NOT echo individual citations here — those go in candidates only.
 - Include one candidate per distinct citation you can read; skip duplicates (but NOT when splitting multi-page pointers per the rule above — those are not duplicates).`;
 
-	const userText = `Extract all scripture references from this document (image or PDF). Book context UUID (for your reasoning only): ${book_id}`;
+	const pageHint =
+		effectivePdfPageIndex != null
+			? ` This is PDF page ${effectivePdfPageIndex + 1} (0-based index ${effectivePdfPageIndex}). Set source_page_index=${effectivePdfPageIndex} on every Candidate.`
+			: '';
+	const userText = `Extract all scripture references from this document (image or PDF). Book context UUID (for your reasoning only): ${book_id}.${pageHint}`;
 
 	const visionBlock =
 		visionInput.kind === 'image'
@@ -450,6 +540,9 @@ Rules:
 		);
 	}
 
-	const { rawText, candidates } = parseExtractPayload(parsed);
+	let { rawText, candidates } = parseExtractPayload(parsed);
+	if (effectivePdfPageIndex != null) {
+		candidates = stampPdfPageIndex(candidates, effectivePdfPageIndex);
+	}
 	return jsonResponse({ rawText, candidates });
 });

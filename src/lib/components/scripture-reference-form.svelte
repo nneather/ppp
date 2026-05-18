@@ -32,6 +32,7 @@
 	import type { OcrScriptureCandidate } from '$lib/library/ocr-scripture-refs';
 	import {
 		formatOcrPipelineError,
+		getPdfPageCount,
 		invokeOcrScriptureRefs
 	} from '$lib/library/ocr-invoke-client';
 
@@ -137,6 +138,8 @@
 		error?: string;
 		candidates?: OcrScriptureCandidate[];
 		isPdf?: boolean;
+		/** e.g. "Page 2/5" while per-page PDF OCR runs */
+		extractLabel?: string;
 	};
 
 	type QueuedOcrFile = {
@@ -601,7 +604,7 @@
 		].join('\n');
 		const cap = 1800;
 		const body = report.length > cap ? `${report.slice(0, cap)}\n\n[truncated for mailto length]` : report;
-		return `mailto:?subject=${encodeURIComponent('ppp library OCR error')}&body=${encodeURIComponent(body)}`;
+		return `mailto:parker.neathery@gmail.com?subject=${encodeURIComponent('ppp library OCR error')}&body=${encodeURIComponent(body)}`;
 	}
 
 	async function downscaleImage(file: File): Promise<Blob> {
@@ -847,29 +850,79 @@
 				}
 			}
 
-			patchPage(jobId, { sourcePath: objectPath, status: 'extracting', previewUrl });
+			patchPage(jobId, { sourcePath: objectPath, status: 'extracting', previewUrl, extractLabel: undefined });
 
-			const ocrResult = await invokeOcrScriptureRefs(supa, {
+			const invokeBase = {
 				object_path: objectPath,
 				mime_type: mime,
 				book_id: bookIdForPath
-			});
-			if (!ocrResult.ok) {
+			};
+
+			if (isPdf) {
+				const countResult = await getPdfPageCount(supa, invokeBase);
+				if (!countResult.ok) {
+					patchPage(jobId, {
+						status: 'error',
+						error: countResult.message,
+						sourcePath: objectPath,
+						previewUrl
+					});
+					tryFinalizeBatchMerge();
+					return;
+				}
+				const pageTotal = countResult.page_count;
+				const mergedCandidates: OcrScriptureCandidate[] = [];
+
+				for (let i = 0; i < pageTotal; i++) {
+					patchPage(jobId, {
+						status: 'extracting',
+						extractLabel: pageTotal > 1 ? `Page ${i + 1}/${pageTotal}` : undefined
+					});
+					const pageArgs =
+						pageTotal > 1
+							? { ...invokeBase, pdf_page_index: i }
+							: invokeBase;
+					const pageResult = await invokeOcrScriptureRefs(supa, pageArgs);
+					if (!pageResult.ok) {
+						patchPage(jobId, {
+							status: 'error',
+							error: pageTotal > 1 ? `${pageResult.message} (page ${i + 1}/${pageTotal})` : pageResult.message,
+							sourcePath: objectPath,
+							previewUrl,
+							extractLabel: undefined
+						});
+						tryFinalizeBatchMerge();
+						return;
+					}
+					mergedCandidates.push(...pageResult.data.candidates);
+				}
+
 				patchPage(jobId, {
-					status: 'error',
-					error: ocrResult.message,
+					status: 'done',
+					candidates: mergedCandidates,
+					sourcePath: objectPath,
+					previewUrl,
+					extractLabel: undefined
+				});
+			} else {
+				const ocrResult = await invokeOcrScriptureRefs(supa, invokeBase);
+				if (!ocrResult.ok) {
+					patchPage(jobId, {
+						status: 'error',
+						error: ocrResult.message,
+						sourcePath: objectPath,
+						previewUrl
+					});
+					tryFinalizeBatchMerge();
+					return;
+				}
+				patchPage(jobId, {
+					status: 'done',
+					candidates: ocrResult.data.candidates,
 					sourcePath: objectPath,
 					previewUrl
 				});
-				tryFinalizeBatchMerge();
-				return;
 			}
-			patchPage(jobId, {
-				status: 'done',
-				candidates: ocrResult.data.candidates,
-				sourcePath: objectPath,
-				previewUrl
-			});
 		} catch (e) {
 			patchPage(jobId, {
 				status: 'error',
@@ -1180,6 +1233,18 @@
 										job.error ? 'mx-auto aspect-[3/4] max-h-40 w-auto' : 'aspect-[3/4] w-full'
 									)}
 								/>
+							{:else if job.isPdf}
+								<div
+									class={cn(
+										'flex flex-col items-center justify-center gap-1 rounded border border-border bg-muted/40',
+										job.error ? 'aspect-[3/4] max-h-40 min-h-[6rem] w-full' : 'aspect-[3/4] w-full'
+									)}
+								>
+									<FileText class="size-6 text-muted-foreground" aria-hidden="true" />
+									<span class="text-[9px] font-medium uppercase tracking-wide text-muted-foreground"
+										>PDF</span
+									>
+								</div>
 							{:else}
 								<div
 									class={cn(
@@ -1199,7 +1264,11 @@
 										'bg-amber-500/15 text-amber-900 dark:text-amber-200'
 								)}
 							>
-								{job.status}
+								{#if job.status === 'extracting' && job.extractLabel}
+									{job.extractLabel}
+								{:else}
+									{job.status}
+								{/if}
 							</span>
 							{#if job.error}
 								<pre
