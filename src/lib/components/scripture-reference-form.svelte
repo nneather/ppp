@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { enhance, deserialize } from '$app/forms';
+	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
@@ -30,6 +30,10 @@
 		scriptureImagePath
 	} from '$lib/library/storage';
 	import type { OcrScriptureCandidate } from '$lib/library/ocr-scripture-refs';
+	import {
+		formatOcrPipelineError,
+		invokeOcrScriptureRefs
+	} from '$lib/library/ocr-invoke-client';
 
 	/**
 	 * <ScriptureReferenceForm>
@@ -43,7 +47,8 @@
 	 * - **Batch create mode** (default): renders N draft rows, starting with one.
 	 *   Optional **multi-image** OCR (up to 10 photos): queue photos from the gallery and/or
 	 *   repeated **camera** captures, then **Run OCR** — parallel downscale → upload →
-	 *   `?/extractScriptureRefs` per page; results merge in file `lastModified` order
+	 *   `ocr_scripture_refs` Edge invoke per file (browser-direct; avoids Vercel timeout on PDFs);
+	 *   results merge in file `lastModified` order
 	 *   with continuation `bible_book` carry from the prior page. Each row carries
 	 *   its own `source_image_url` (storage path) in `rows_json`. Posts to
 	 *   `?/createScriptureRefsBatch`. Empty draft rows (no bible_book AND no page_start)
@@ -844,66 +849,31 @@
 
 			patchPage(jobId, { sourcePath: objectPath, status: 'extracting', previewUrl });
 
-			const fd = new FormData();
-			fd.set('object_path', objectPath);
-			fd.set('mime_type', mime);
-			fd.set('book_id', bookIdForPath);
-			const resp = await fetch('?/extractScriptureRefs', {
-				method: 'POST',
-				headers: { 'x-sveltekit-action': 'true' },
-				body: fd
+			const ocrResult = await invokeOcrScriptureRefs(supa, {
+				object_path: objectPath,
+				mime_type: mime,
+				book_id: bookIdForPath
 			});
-			const responseText = await resp.text();
-			const result = deserialize(responseText);
-			if (result.type === 'failure') {
-				const d = (result.data ?? {}) as { message?: string };
-				let err = (d.message ?? '').trim();
-				if (!err) err = responseText.slice(0, 4000);
-				else if (responseText.length > err.length + 40) {
-					err = `${err}\n\n--- HTTP ${resp.status} response ---\n${responseText.slice(0, 3500)}`;
-				}
+			if (!ocrResult.ok) {
 				patchPage(jobId, {
 					status: 'error',
-					error: err,
+					error: ocrResult.message,
 					sourcePath: objectPath,
 					previewUrl
 				});
 				tryFinalizeBatchMerge();
 				return;
 			}
-			if (result.type === 'success') {
-				const d = (result.data ?? {}) as {
-					kind?: string;
-					candidates?: OcrScriptureCandidate[];
-				};
-				if (d.kind !== 'extractScriptureRefs' || !Array.isArray(d.candidates)) {
-					patchPage(jobId, {
-						status: 'error',
-						error: 'Unexpected response from server.',
-						sourcePath: objectPath,
-						previewUrl
-					});
-					tryFinalizeBatchMerge();
-					return;
-				}
-				patchPage(jobId, {
-					status: 'done',
-					candidates: d.candidates,
-					sourcePath: objectPath,
-					previewUrl
-				});
-			} else {
-				patchPage(jobId, {
-					status: 'error',
-					error: 'Unexpected response from server.',
-					sourcePath: objectPath || '',
-					previewUrl
-				});
-			}
+			patchPage(jobId, {
+				status: 'done',
+				candidates: ocrResult.data.candidates,
+				sourcePath: objectPath,
+				previewUrl
+			});
 		} catch (e) {
 			patchPage(jobId, {
 				status: 'error',
-				error: e instanceof Error ? e.message : 'Pipeline failed.',
+				error: formatOcrPipelineError(e),
 				sourcePath: objectPath
 			});
 		}

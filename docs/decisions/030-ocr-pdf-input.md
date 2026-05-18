@@ -9,6 +9,7 @@
 - **Storage** — [`20260518180000_library_scripture_images_pdf_mime.sql`](../../supabase/migrations/20260518180000_library_scripture_images_pdf_mime.sql): `application/pdf` on `library-scripture-images`; `file_size_limit` 25 MiB.
 - **Edge** — [`ocr_scripture_refs`](../../supabase/functions/ocr_scripture_refs/index.ts): `anthropicVisionInput` routes images vs PDF; Anthropic `document` content block for PDFs; `MAX_PAYLOAD_BYTES` 25 MiB; prompt + `source_page_index` on candidates; generalized truncation 422 message.
 - **Client** — [`scripture-reference-form.svelte`](../../src/lib/components/scripture-reference-form.svelte): batch `accept="image/*,application/pdf"`; PDF upload without canvas downscale; queue PDF chip (`FileText`); merge groups by `source_page_index` with **Page N/M** separators; shared type in [`ocr-scripture-refs.ts`](../../src/lib/library/ocr-scripture-refs.ts).
+- **Follow-up (same day)** — [`ocr-invoke-client.ts`](../../src/lib/library/ocr-invoke-client.ts): batch OCR calls Edge **from the browser** (`functions.invoke`) instead of `?/extractScriptureRefs` server action, avoiding Vercel serverless timeout (`Load failed` on multi-page PDFs). Server action kept as thin proxy with `maxDuration: 300`.
 - **Deployed** migration + `ocr_scripture_refs` **2026-05-18**.
 
 ## Decided
@@ -39,7 +40,7 @@
 
 ## Surprises
 
-- TBD after first multi-page Genius Scan run.
+- **Multi-page PDF via server action → `Load failed`** — upload succeeded but `fetch('?/extractScriptureRefs')` aborted when Vercel’s serverless limit cut the proxy hop before Anthropic finished (~60s+). Fixed by browser-direct `functions.invoke` (same JWT auth as Edge already expects).
 
 ## Carry-forward updates
 

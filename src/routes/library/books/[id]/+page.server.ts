@@ -21,7 +21,7 @@ import {
 	softDeleteScriptureRefAction,
 	updateScriptureRefAction
 } from '$lib/library/server/scripture-actions';
-import type { OcrScriptureExtractResponse } from '$lib/library/ocr-scripture-refs';
+import { invokeOcrScriptureRefs } from '$lib/library/ocr-invoke-client';
 import {
 	createBookTopicsBatchAction,
 	softDeleteBookTopicAction,
@@ -37,44 +37,8 @@ import {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Edge Functions return `{ error: string }` on non-2xx; supabase-js may surface it on `data`. */
-function ocrInvokeDataError(data: unknown): string | null {
-	if (data && typeof data === 'object' && data !== null && 'error' in data) {
-		const e = (data as { error: unknown }).error;
-		if (typeof e === 'string' && e.length > 0) return e;
-	}
-	return null;
-}
-
-/** Non-2xx invokes set `error` with generic text; real `{ error }` JSON is on `context` (Response). */
-async function readEdgeErrorBody(
-	err: unknown
-): Promise<{ status: number | null; message: string | null }> {
-	if (!err || typeof err !== 'object') return { status: null, message: null };
-	const ctx = (err as { context?: unknown }).context;
-	if (!(ctx instanceof Response)) return { status: null, message: null };
-	const status = ctx.status;
-	try {
-		const j: unknown = await ctx.clone().json();
-		if (
-			j &&
-			typeof j === 'object' &&
-			'error' in j &&
-			typeof (j as { error: unknown }).error === 'string'
-		) {
-			return { status, message: (j as { error: string }).error };
-		}
-	} catch {
-		/* not json */
-	}
-	try {
-		const t = (await ctx.clone().text()).trim();
-		if (t && !t.startsWith('<')) return { status, message: t.slice(0, 500) };
-	} catch {
-		/* ignore */
-	}
-	return { status, message: null };
-}
+/** Extended duration when the server-action OCR path is used (browser invoke is preferred). */
+export const config = { maxDuration: 300 };
 
 export const load: PageServerLoad = async ({ params, locals, depends, parent }) => {
 	const { user } = await locals.safeGetSession();
@@ -217,60 +181,25 @@ export const actions: Actions = {
 			});
 		}
 
-		const {
-			data: { session }
-		} = await locals.supabase.auth.getSession();
-		const authHeaders = session?.access_token
-			? { Authorization: `Bearer ${session.access_token}` }
-			: undefined;
+		const result = await invokeOcrScriptureRefs(locals.supabase, {
+			object_path,
+			mime_type,
+			book_id: bookId
+		});
 
-		const { data: ocrData, error: ocrErr } = await locals.supabase.functions.invoke(
-			'ocr_scripture_refs',
-			{
-				body: { object_path, mime_type, book_id: bookId },
-				headers: authHeaders
-			}
-		);
-
-		if (ocrErr) {
-			const { status, message } = await readEdgeErrorBody(ocrErr);
-			const detail =
-				message ??
-				ocrInvokeDataError(ocrData) ??
-				(ocrErr instanceof Error ? ocrErr.message : String(ocrErr)) ??
-				'OCR request failed.';
-			const suffix = status ? ` (HTTP ${status})` : '';
-			console.error('[extractScriptureRefs]', status, detail);
+		if (!result.ok) {
+			console.error('[extractScriptureRefs]', result.message);
 			return fail(500, {
 				kind: 'extractScriptureRefs' as const,
-				message: `${detail}${suffix}`
-			});
-		}
-		const msgFromData = ocrInvokeDataError(ocrData);
-		if (msgFromData) {
-			return fail(500, {
-				kind: 'extractScriptureRefs' as const,
-				message: msgFromData
-			});
-		}
-
-		const payload = ocrData as Partial<OcrScriptureExtractResponse> | null;
-		if (
-			!payload ||
-			typeof payload.rawText !== 'string' ||
-			!Array.isArray(payload.candidates)
-		) {
-			return fail(500, {
-				kind: 'extractScriptureRefs' as const,
-				message: 'Unexpected response from OCR service.'
+				message: result.message
 			});
 		}
 
 		return {
 			kind: 'extractScriptureRefs' as const,
 			success: true as const,
-			rawText: payload.rawText,
-			candidates: payload.candidates
+			rawText: result.data.rawText,
+			candidates: result.data.candidates
 		};
 	},
 	createBookTopicsBatch: async ({ request, locals }) => {
