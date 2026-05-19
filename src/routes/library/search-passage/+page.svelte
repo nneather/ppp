@@ -3,8 +3,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Search from '@lucide/svelte/icons/search';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import type { PassageResult } from '$lib/types/library';
@@ -82,22 +82,25 @@
 	<title>Search passage — Library — ppp</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
-	<a
-		href="/library"
-		class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-	>
-		<ArrowLeft class="size-4" /> Library
-	</a>
+{#snippet searchPassageLead()}
+	<Search class="size-6" />
+{/snippet}
 
-	<header class="mt-3 flex items-center gap-2 text-muted-foreground">
-		<Search class="size-6" />
-		<h1 class="text-2xl font-semibold tracking-tight text-foreground">Search passage</h1>
-	</header>
-	<p class="mt-1 text-sm text-muted-foreground">
+{#snippet searchPassageMeta()}
+	<p class="text-sm text-muted-foreground">
 		Find every book in your library that engages a passage. Includes overlapping
 		ranges (a book covering Phil 2:1–11 surfaces on a search for Phil 2:5).
 	</p>
+{/snippet}
+
+<div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
+	<PageHeader
+		back={{ href: '/library', label: 'Library' }}
+		title="Search passage"
+		lead={searchPassageLead}
+		meta={searchPassageMeta}
+		class="mb-4"
+	/>
 
 	<form
 		onsubmit={onSubmit}

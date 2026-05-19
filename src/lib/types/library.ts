@@ -146,6 +146,11 @@ export type PersonRow = {
 export type BookAuthorAssignment = {
 	person_id: string;
 	person_label: string;
+	/** Structured fields for Turabian (optional; populated from `people` in loaders). */
+	first_name?: string | null;
+	middle_name?: string | null;
+	last_name?: string | null;
+	suffix?: string | null;
 	role: AuthorRole;
 	sort_order: number;
 };

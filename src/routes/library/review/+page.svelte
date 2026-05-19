@@ -19,6 +19,7 @@
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -409,15 +410,9 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="mx-auto flex min-h-screen max-w-md flex-col px-4 py-4 pb-32 md:max-w-lg md:py-6 md:pb-6">
-	<header class="flex items-center justify-between gap-3">
-		<a
-			href="/library"
-			class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-		>
-			<ArrowLeft class="size-4" /> Library
-		</a>
-		<div class="min-w-0 flex-1 text-right text-xs text-muted-foreground">
+<div class="mx-auto flex min-h-screen max-w-md flex-col px-4 py-4 pb-tabbar md:max-w-lg md:py-6 md:pb-6">
+	{#snippet reviewBurndownActions()}
+		<div class="min-w-0 flex-1 text-right text-xs text-muted-foreground md:max-w-xs">
 			<div class="font-medium text-foreground">
 				<CheckCircle2 class="inline-block size-3.5 text-emerald-600" />
 				Today: {todayCleared}
@@ -434,10 +429,23 @@
 				aria-valuemin={0}
 				aria-valuemax={100}
 			>
-				<div class="h-full bg-emerald-600 transition-all" style={`width: ${burndownPct}%`}></div>
+				<div
+					class="h-full bg-emerald-600 transition-all {burndownPct >= 100
+						? 'w-full'
+						: burndownPct <= 0
+							? 'w-0'
+							: `w-[${burndownPct}%]`}"
+				></div>
 			</div>
 		</div>
-	</header>
+	{/snippet}
+
+	<PageHeader
+		back={{ href: '/library', label: 'Library' }}
+		title="Review queue"
+		actions={reviewBurndownActions}
+		class="mb-3"
+	/>
 
 	<!-- Slice pill rail -->
 	<div class="mt-3 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">

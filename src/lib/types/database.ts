@@ -791,6 +791,24 @@ export type Database = {
           },
         ]
       }
+      library_ocr_usage: {
+        Row: {
+          call_count: number
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          call_count?: number
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          call_count?: number
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       module_registry: {
         Row: {
           created_at: string

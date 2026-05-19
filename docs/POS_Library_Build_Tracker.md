@@ -15,9 +15,25 @@
 >
 > Standards live in those files; the tracker is the plan. Where this tracker would otherwise restate a standard, it links instead.
 
-_Last updated: May 16, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
+_Last updated: May 19, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
 
-**Trip QA + viewer closure:** Step-by-step phone + viewer script → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md). Tick acceptance rows after hands-on verification; repo gate `npm run check` passed 2026-05-16 (Session 9 OCR continuation).
+**Trip QA + viewer closure:** Step-by-step phone + viewer script → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md). Tick acceptance rows after hands-on verification; repo gate `npm run check` + `npm run test` passed 2026-05-19 ([033](decisions/033-library-pm-review-may-2026.md)).
+
+---
+
+## Wave 2 — Fall-ready library (2026-08 → 2026-09)
+
+_Post-trip; do not renumber Sessions 1–9 below._
+
+| Item | Notes | Decision / skill |
+|---|---|---|
+| Owner smokes | Runbook §A + OCR PDF matrix (030) + review-queue screenshot | `.claude/skills/library-owner-smoke/` |
+| Genre burndown | `/library/review` Citation Critical slice drill | [031](decisions/031-library-session-8-turabian.md) |
+| Turabian 20-row QA | Covenant fixtures on scholarly-core shelf list | `.claude/skills/turabian-qa/` |
+| Citation blockers | Short-form registry in papers; full `s.v.` UI; structured names in all loaders | [033](decisions/033-library-pm-review-may-2026.md) |
+| Megacomponent split | `scripture-reference-form` → OCR queue + row editor; `book-form` → authors + publication + OL hook | [033](decisions/033-library-pm-review-may-2026.md) |
+| Essays UI (Q5) | Decision 003 — link, do not inline 1.5a–1.5k in Session 1 | [003](decisions/003-essays-polymorphic.md) |
+| Ship discipline | `npm run ship-library:apply` every schema change | `.claude/skills/ship-library-change/` |
 
 ---
 

@@ -5,10 +5,27 @@ import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import { PDFDocument } from 'pdf-lib';
 import { BIBLE_BOOK_SET, BIBLE_BOOK_NAMES } from './bible-book-allowlist.ts';
 
-const corsHeaders: Record<string, string> = {
-	'Access-Control-Allow-Origin': '*',
-	'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-};
+const OCR_DAILY_CAP = 50;
+
+function resolveCorsOrigin(req: Request): string | null {
+	const origin = req.headers.get('Origin');
+	if (!origin) return null;
+	const site = Deno.env.get('SITE_URL')?.replace(/\/$/, '');
+	if (site && origin === site) return origin;
+	const extras = Deno.env.get('CORS_ALLOWED_ORIGINS')?.split(',').map((s) => s.trim()) ?? [];
+	if (extras.includes(origin)) return origin;
+	if (origin.endsWith('.vercel.app')) return origin;
+	return null;
+}
+
+function corsHeadersFor(req: Request): Record<string, string> {
+	const origin = resolveCorsOrigin(req);
+	return {
+		...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
+		'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+		Vary: 'Origin'
+	};
+}
 
 const SCRIPTURE_IMAGES_BUCKET = 'library-scripture-images';
 /** ~25 MiB — matches storage bucket cap; Anthropic document blocks accept up to 32 MiB. */
@@ -17,10 +34,10 @@ const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-6';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(req: Request, body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
 		status,
-		headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+		headers: { ...corsHeadersFor(req), 'Content-Type': 'application/json' }
 	});
 }
 
@@ -247,13 +264,71 @@ async function extractSinglePdfPageBytes(buf: Uint8Array, pageIndex: number): Pr
 	return new Uint8Array(await out.save());
 }
 
+async function assertLibraryAccess(
+	supabaseUrl: string,
+	anonKey: string,
+	authHeader: string,
+	bookId: string
+): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+	const userClient = createClient(supabaseUrl, anonKey, {
+		auth: { persistSession: false, autoRefreshToken: false },
+		global: { headers: { Authorization: authHeader } }
+	});
+	const { data: canRead, error: permErr } = await userClient.rpc('app_has_module_read', {
+		p_module: 'library'
+	});
+	if (permErr || canRead !== true) {
+		return { ok: false, status: 403, message: 'Library access required.' };
+	}
+	const { data: book, error: bookErr } = await userClient
+		.from('books')
+		.select('id')
+		.eq('id', bookId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (bookErr || !book) {
+		return { ok: false, status: 404, message: 'Book not found or not accessible.' };
+	}
+	return { ok: true };
+}
+
+async function bumpOcrUsage(
+	supabase: ReturnType<typeof createClient>,
+	userId: string
+): Promise<{ allowed: true } | { allowed: false }> {
+	const usageDate = new Date().toISOString().slice(0, 10);
+	const { data: row, error: readErr } = await supabase
+		.from('library_ocr_usage')
+		.select('call_count')
+		.eq('user_id', userId)
+		.eq('usage_date', usageDate)
+		.maybeSingle();
+	if (readErr) {
+		console.error('[ocr_scripture_refs] usage read', readErr);
+		return { allowed: true };
+	}
+	const current = (row as { call_count?: number } | null)?.call_count ?? 0;
+	if (current >= OCR_DAILY_CAP) return { allowed: false };
+	const { error: upsertErr } = await supabase.from('library_ocr_usage').upsert(
+		{
+			user_id: userId,
+			usage_date: usageDate,
+			call_count: current + 1
+		},
+		{ onConflict: 'user_id,usage_date' }
+	);
+	if (upsertErr) console.error('[ocr_scripture_refs] usage bump', upsertErr);
+	return { allowed: true };
+}
+
 Deno.serve(async (req) => {
+	const cors = corsHeadersFor(req);
 	if (req.method === 'OPTIONS') {
-		return new Response('ok', { headers: corsHeaders });
+		return new Response('ok', { headers: cors });
 	}
 
 	if (req.method !== 'POST') {
-		return jsonResponse({ error: 'Method not allowed' }, 405);
+		return jsonResponse(req, { error: 'Method not allowed' }, 405);
 	}
 
 	const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -263,19 +338,19 @@ Deno.serve(async (req) => {
 	const model = Deno.env.get('ANTHROPIC_OCR_MODEL')?.trim() || DEFAULT_ANTHROPIC_MODEL;
 
 	if (!supabaseUrl || !anonKey) {
-		return jsonResponse({ error: 'Server configuration error' }, 500);
+		return jsonResponse(req, { error: 'Server configuration error' }, 500);
 	}
 	if (!serviceRoleKey) {
-		return jsonResponse({ error: 'Server configuration error: missing service role.' }, 500);
+		return jsonResponse(req, { error: 'Server configuration error: missing service role.' }, 500);
 	}
 	const authHeader = req.headers.get('Authorization');
 	if (!authHeader?.startsWith('Bearer ')) {
-		return jsonResponse({ error: 'Unauthorized' }, 401);
+		return jsonResponse(req, { error: 'Unauthorized' }, 401);
 	}
 
 	const userId = await getUserIdFromAuthApi(supabaseUrl, anonKey, authHeader);
 	if (!userId) {
-		return jsonResponse({ error: 'Unauthorized' }, 401);
+		return jsonResponse(req, { error: 'Unauthorized' }, 401);
 	}
 
 	let body: {
@@ -288,7 +363,7 @@ Deno.serve(async (req) => {
 	try {
 		body = await req.json();
 	} catch {
-		return jsonResponse({ error: 'Invalid JSON body' }, 400);
+		return jsonResponse(req, { error: 'Invalid JSON body' }, 400);
 	}
 
 	const object_path = typeof body.object_path === 'string' ? body.object_path.trim() : '';
@@ -299,21 +374,26 @@ Deno.serve(async (req) => {
 	const pdf_page_index = asOptionalInt(body.pdf_page_index, 999);
 
 	if (!object_path || !mime_type || !book_id) {
-		return jsonResponse(
+		return jsonResponse(req,
 			{ error: 'object_path, mime_type, and book_id are required.' },
 			400
 		);
 	}
 	if (!UUID_RE.test(book_id)) {
-		return jsonResponse({ error: 'Invalid book_id.' }, 400);
+		return jsonResponse(req, { error: 'Invalid book_id.' }, 400);
 	}
 	if (!pathMatchesUserAndBook(object_path, userId, book_id)) {
-		return jsonResponse({ error: 'object_path does not match your account or book.' }, 403);
+		return jsonResponse(req, { error: 'object_path does not match your account or book.' }, 403);
+	}
+
+	const access = await assertLibraryAccess(supabaseUrl, anonKey, authHeader, book_id);
+	if (!access.ok) {
+		return jsonResponse(req, { error: access.message }, access.status);
 	}
 
 	const visionInput = anthropicVisionInput(mime_type);
 	if (!visionInput) {
-		return jsonResponse(
+		return jsonResponse(req,
 			{
 				error:
 					'Unsupported file type for OCR. Use JPEG, PNG, WebP, GIF, or PDF (HEIC is not supported by the vision API).'
@@ -326,13 +406,24 @@ Deno.serve(async (req) => {
 		auth: { persistSession: false, autoRefreshToken: false }
 	});
 
+	if (op === 'extract') {
+		const usage = await bumpOcrUsage(supabase, userId);
+		if (!usage.allowed) {
+			return jsonResponse(
+				req,
+				{ error: `Daily OCR limit reached (${OCR_DAILY_CAP} calls). Try again tomorrow.` },
+				429
+			);
+		}
+	}
+
 	const { data: blob, error: dlErr } = await supabase.storage
 		.from(SCRIPTURE_IMAGES_BUCKET)
 		.download(object_path);
 
 	if (dlErr || !blob) {
 		console.error('[ocr_scripture_refs] storage download', dlErr);
-		return jsonResponse(
+		return jsonResponse(req,
 			{ error: dlErr?.message ?? 'Could not read file from storage.' },
 			502
 		);
@@ -340,7 +431,7 @@ Deno.serve(async (req) => {
 
 	const buf = new Uint8Array(await blob.arrayBuffer());
 	if (buf.byteLength > MAX_PAYLOAD_BYTES) {
-		return jsonResponse(
+		return jsonResponse(req,
 			{
 				error:
 					'File is too large for OCR (max 25 MiB). For images try stronger downscale; for PDFs re-export from your scanner at lower quality.'
@@ -351,19 +442,19 @@ Deno.serve(async (req) => {
 
 	if (op === 'pdf_page_count') {
 		if (visionInput.kind !== 'document') {
-			return jsonResponse({ error: 'pdf_page_count is only valid for PDF files.' }, 400);
+			return jsonResponse(req, { error: 'pdf_page_count is only valid for PDF files.' }, 400);
 		}
 		try {
 			const page_count = await pdfPageCountFromBytes(buf);
-			return jsonResponse({ page_count });
+			return jsonResponse(req, { page_count });
 		} catch (e) {
 			console.error('[ocr_scripture_refs] pdf_page_count', e);
-			return jsonResponse({ error: 'Could not read PDF page count.' }, 502);
+			return jsonResponse(req, { error: 'Could not read PDF page count.' }, 502);
 		}
 	}
 
 	if (!anthropicKey) {
-		return jsonResponse({ error: 'OCR is not configured (missing ANTHROPIC_API_KEY).' }, 503);
+		return jsonResponse(req, { error: 'OCR is not configured (missing ANTHROPIC_API_KEY).' }, 503);
 	}
 
 	let payloadBytes = buf;
@@ -375,11 +466,11 @@ Deno.serve(async (req) => {
 			pageCount = await pdfPageCountFromBytes(buf);
 		} catch (e) {
 			console.error('[ocr_scripture_refs] PDF load', e);
-			return jsonResponse({ error: 'Could not read PDF for OCR.' }, 502);
+			return jsonResponse(req, { error: 'Could not read PDF for OCR.' }, 502);
 		}
 		if (pageCount > 1) {
 			if (pdf_page_index == null) {
-				return jsonResponse(
+				return jsonResponse(req,
 					{
 						error:
 							'Multi-page PDF requires per-page OCR. Call pdf_page_count, then extract with pdf_page_index for each page.'
@@ -392,7 +483,7 @@ Deno.serve(async (req) => {
 				effectivePdfPageIndex = pdf_page_index;
 			} catch (e) {
 				console.error('[ocr_scripture_refs] PDF page extract', e);
-				return jsonResponse(
+				return jsonResponse(req,
 					{
 						error:
 							e instanceof Error ? e.message : 'Could not extract PDF page for OCR.'
@@ -401,7 +492,7 @@ Deno.serve(async (req) => {
 				);
 			}
 		} else if (pdf_page_index != null && pdf_page_index !== 0) {
-			return jsonResponse({ error: 'pdf_page_index must be 0 for a single-page PDF.' }, 400);
+			return jsonResponse(req, { error: 'pdf_page_index must be 0 for a single-page PDF.' }, 400);
 		}
 	}
 
@@ -477,7 +568,7 @@ Rules:
 		});
 	} catch (e) {
 		console.error('[ocr_scripture_refs] Anthropic fetch', e);
-		return jsonResponse({ error: 'Vision provider request failed.' }, 502);
+		return jsonResponse(req, { error: 'Vision provider request failed.' }, 502);
 	}
 
 	if (!anthropicRes.ok) {
@@ -496,7 +587,7 @@ Rules:
 			}
 		}
 		console.error('[ocr_scripture_refs] Anthropic HTTP', anthropicRes.status, detail);
-		return jsonResponse({ error: `Vision provider error: ${detail}` }, 502);
+		return jsonResponse(req, { error: `Vision provider error: ${detail}` }, 502);
 	}
 
 	let anthropicJson: {
@@ -506,12 +597,12 @@ Rules:
 	try {
 		anthropicJson = await anthropicRes.json();
 	} catch {
-		return jsonResponse({ error: 'Vision provider returned invalid JSON.' }, 502);
+		return jsonResponse(req, { error: 'Vision provider returned invalid JSON.' }, 502);
 	}
 
 	if (anthropicJson.stop_reason === 'max_tokens') {
 		console.error('[ocr_scripture_refs] Anthropic stop_reason=max_tokens');
-		return jsonResponse(
+		return jsonResponse(req,
 			{
 				error:
 					'Vision provider hit the output token limit on this document (more than ~1,800 citations). Split into smaller PDFs or shorter image batches.'
@@ -523,7 +614,7 @@ Rules:
 	const textBlock = anthropicJson.content?.find((c) => c.type === 'text' && typeof c.text === 'string')
 		?.text;
 	if (!textBlock || textBlock.trim().length === 0) {
-		return jsonResponse({ error: 'Vision provider returned no text content.' }, 502);
+		return jsonResponse(req, { error: 'Vision provider returned no text content.' }, 502);
 	}
 
 	let parsed: unknown;
@@ -532,9 +623,9 @@ Rules:
 	} catch (e) {
 		console.error('[ocr_scripture_refs] JSON parse', e, textBlock.slice(0, 500));
 		if (!textBlock.includes('{') && !textBlock.includes('[')) {
-			return jsonResponse({ rawText: textBlock.slice(0, 500), candidates: [] });
+			return jsonResponse(req, { rawText: textBlock.slice(0, 500), candidates: [] });
 		}
-		return jsonResponse(
+		return jsonResponse(req,
 			{ error: 'Could not parse structured citations from vision model output.' },
 			502
 		);
@@ -544,5 +635,5 @@ Rules:
 	if (effectivePdfPageIndex != null) {
 		candidates = stampPdfPageIndex(candidates, effectivePdfPageIndex);
 	}
-	return jsonResponse({ rawText, candidates });
+	return jsonResponse(req, { rawText, candidates });
 });

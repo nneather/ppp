@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Copy from '@lucide/svelte/icons/copy';
 	import { Button } from '$lib/components/ui/button';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import { copyCitationToClipboard } from '$lib/library/turabian/clipboard';
 	import type { PageProps } from './$types';
 
@@ -36,27 +36,32 @@
 	<title>Bibliography — Library — ppp</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl px-4 py-6 md:px-6">
-	<a
-		href="/library"
-		class="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-	>
-		<ArrowLeft class="size-4" /> Library
-	</a>
+{#snippet bibliographyMeta()}
+	<p class="text-sm text-muted-foreground">
+		{data.books.length} {data.books.length === 1 ? 'book' : 'books'}, sorted by first author last name.
+	</p>
+{/snippet}
 
-	<header class="mb-6 flex flex-wrap items-end justify-between gap-3">
-		<div>
-			<h1 class="text-2xl font-semibold tracking-tight">Bibliography</h1>
-			<p class="mt-1 text-sm text-muted-foreground">
-				{data.books.length} {data.books.length === 1 ? 'book' : 'books'}, sorted by first author last
-				name.
-			</p>
-		</div>
-		<Button type="button" disabled={copying || data.books.length === 0} onclick={() => void copyBibliography()}>
-			<Copy class="size-4" />
-			{copying ? 'Copying…' : 'Copy bibliography'}
-		</Button>
-	</header>
+{#snippet bibliographyActions()}
+	<Button
+		type="button"
+		class="max-md:min-h-11"
+		disabled={copying || data.books.length === 0}
+		onclick={() => void copyBibliography()}
+	>
+		<Copy class="size-4" />
+		{copying ? 'Copying…' : 'Copy bibliography'}
+	</Button>
+{/snippet}
+
+<div class="mx-auto max-w-3xl px-4 py-6 md:px-6">
+	<PageHeader
+		back={{ href: '/library', label: 'Library' }}
+		title="Bibliography"
+		meta={bibliographyMeta}
+		actions={bibliographyActions}
+		class="mb-6"
+	/>
 
 	{#if data.books.length === 0}
 		<p class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">

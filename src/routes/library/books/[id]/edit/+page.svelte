@@ -4,8 +4,8 @@
 	import { page } from '$app/state';
 	import BookForm from '$lib/components/book-form.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Pencil from '@lucide/svelte/icons/pencil';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -73,22 +73,18 @@
 	<title>Edit: {titleLabel} — Library — ppp</title>
 </svelte:head>
 
-<div class="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-	<a
-		href={detailHref}
-		class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-	>
-		<ArrowLeft class="size-4" /> {titleLabel}
-	</a>
+{#snippet editBookLead()}
+	<Pencil class="size-5" />
+{/snippet}
 
-	<header class="mt-4 mb-6 flex items-center gap-2 text-muted-foreground">
-		<Pencil class="size-5" />
-		<h1 class="text-2xl font-semibold tracking-tight text-foreground">
-			Edit: {#if data.book.title}{data.book.title}{:else}<span class="italic"
-					>(untitled book)</span
-				>{/if}
-		</h1>
-	</header>
+<div class="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
+	<PageHeader
+		back={{ href: detailHref, label: titleLabel }}
+		title={`Edit: ${titleLabel}`}
+		titlePlaceholder={!data.book.title?.trim()}
+		lead={editBookLead}
+		class="mb-6"
+	/>
 
 	<BookForm
 		mode="edit"

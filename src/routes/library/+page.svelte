@@ -20,6 +20,7 @@
 	import Search from '@lucide/svelte/icons/search';
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
+	import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import X from '@lucide/svelte/icons/x';
 	import Loader2 from '@lucide/svelte/icons/loader-2';
@@ -228,6 +229,7 @@
 	// -------------------------------------------------------------------------
 
 	let mobileFilterOpen = $state(false);
+	let libraryMenuOpen = $state(false);
 
 	/** Local mirror of the keyword input so typing feels instant — debounce
 	 * the URL update so we don't refetch on every keystroke. Initialized
@@ -588,46 +590,20 @@
 			<Plus class="size-4" /> <HotkeyLabel label="New book" mnemonic="b" />
 		</Button>
 	</div>
-	<div class="grid w-full grid-cols-4 gap-1 md:hidden">
-		<a
-			href="/library/books/new"
-			class="relative flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-md border border-input bg-primary px-1 py-2 text-[0.65rem] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+	<div class="flex items-stretch gap-2 md:hidden">
+		<Button href="/library/books/new" class="min-h-11 flex-1 gap-2" hotkey="b">
+			<Plus class="size-4" /> <HotkeyLabel label="New book" mnemonic="b" />
+		</Button>
+		<Button
+			type="button"
+			variant="outline"
+			size="icon"
+			class="size-11 shrink-0"
+			onclick={() => (libraryMenuOpen = true)}
+			aria-label="More library actions"
 		>
-			<Plus class="size-5 shrink-0" />
-			<span class="max-w-full truncate px-0.5">New book</span>
-		</a>
-		<a
-			href="/library/add"
-			class="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-md border border-input bg-background px-1 py-2 text-[0.65rem] font-medium text-foreground transition-colors hover:bg-muted/80"
-		>
-			<ScanBarcode class="size-5 shrink-0" />
-			<span class="max-w-full truncate px-0.5">Add by ISBN</span>
-		</a>
-		<a
-			href="/library/search-passage"
-			class="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-md border border-input bg-background px-1 py-2 text-[0.65rem] font-medium text-foreground transition-colors hover:bg-muted/80"
-		>
-			<Search class="size-5 shrink-0" />
-			<span class="max-w-full truncate px-0.5">Search passage</span>
-		</a>
-		<a
-			href="/library/review"
-			class="relative flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-md border border-input bg-background px-1 py-2 text-[0.65rem] font-medium text-foreground transition-colors hover:bg-muted/80"
-			aria-label={filters.needs_review === true && filteredCount > 0
-				? `Review queue (${filteredCount.toLocaleString()})`
-				: 'Review queue'}
-		>
-			{#if filters.needs_review === true && filteredCount > 0}
-				<span
-					class="absolute -right-0.5 -top-0.5 flex size-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-[0.55rem] font-semibold leading-none text-primary-foreground"
-					aria-hidden="true"
-				>
-					{filteredCount > 99 ? '99+' : filteredCount}
-				</span>
-			{/if}
-			<ClipboardCheck class="size-5 shrink-0" />
-			<span class="max-w-full truncate px-0.5">Review queue</span>
-		</a>
+			<MoreHorizontal class="size-5" />
+		</Button>
 	</div>
 {/snippet}
 
@@ -675,7 +651,7 @@
 		<Button
 			type="button"
 			variant="outline"
-			class="md:hidden"
+			class="max-md:min-h-11 md:hidden"
 			onclick={() => (mobileFilterOpen = true)}
 		>
 			<SlidersHorizontal class="size-4" />
@@ -844,7 +820,7 @@
 							<div class="flex gap-3">
 								<input
 									type="checkbox"
-									class="mt-1 size-4 shrink-0 rounded border-border"
+									class="mt-1 size-4 shrink-0 rounded border-border max-md:h-11 max-md:w-11"
 									bind:group={selectedIds}
 									value={b.id}
 									aria-label={`Select ${b.title ?? 'book'}`}
@@ -1153,6 +1129,45 @@
 			</Button>
 			<Button type="button" onclick={() => (mobileFilterOpen = false)} hotkey="Escape" label="Done" />
 		</Sheet.Footer>
+	</Sheet.Content>
+</Sheet.Root>
+
+<Sheet.Root bind:open={libraryMenuOpen}>
+	<Sheet.Content side="bottom" class="gap-0 p-0">
+		<Sheet.Header class="border-b border-border px-4 pb-3 pt-2 text-left">
+			<Sheet.Title class="text-base">More actions</Sheet.Title>
+		</Sheet.Header>
+		<div class="flex flex-col gap-2 p-4">
+			<Button
+				variant="outline"
+				class="h-11 w-full justify-center gap-2"
+				href="/library/search-passage"
+				onclick={() => (libraryMenuOpen = false)}
+			>
+				<Search class="size-4" /> Search passage
+			</Button>
+			<Button
+				variant="outline"
+				class="h-11 w-full justify-center gap-2"
+				href="/library/add"
+				onclick={() => (libraryMenuOpen = false)}
+			>
+				<ScanBarcode class="size-4" /> Add by ISBN
+			</Button>
+			<Button
+				variant="outline"
+				class="h-11 w-full justify-center gap-2"
+				href="/library/review"
+				onclick={() => (libraryMenuOpen = false)}
+			>
+				<ClipboardCheck class="size-4" />
+				{#if filters.needs_review === true && filteredCount > 0}
+					Review queue ({filteredCount.toLocaleString()})
+				{:else}
+					Review queue
+				{/if}
+			</Button>
+		</div>
 	</Sheet.Content>
 </Sheet.Root>
 

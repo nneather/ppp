@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
-	import { invalidate } from '$app/navigation';
+	import { beforeNavigate, invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -205,6 +205,8 @@
 	});
 
 	let addOpen = $state(false);
+	let batchFormDirty = $state(false);
+	let confirmedBatchDiscard = $state(false);
 	/** Scroll batch form into view when opening (dense scripture block is long). */
 	let scriptureAddFormEl = $state<HTMLElement | null>(null);
 	let editingId = $state<string | null>(null);
@@ -226,6 +228,34 @@
 
 	$effect(() => {
 		if (addOpen) refsOpen = true;
+	});
+
+	$effect(() => {
+		if (!addOpen) {
+			batchFormDirty = false;
+			confirmedBatchDiscard = false;
+		}
+	});
+
+	beforeNavigate(({ cancel, to, type }) => {
+		if (!addOpen || !batchFormDirty || confirmedBatchDiscard) return;
+		if (type === 'leave') return;
+		if (!to) return;
+		if (
+			to.url.pathname === page.url.pathname &&
+			to.url.search === page.url.search
+		) {
+			return;
+		}
+		if (
+			!confirm(
+				'You have unsaved scripture references in the batch form. Leave without saving?'
+			)
+		) {
+			cancel();
+		} else {
+			confirmedBatchDiscard = true;
+		}
 	});
 
 	$effect(() => {
@@ -1117,6 +1147,7 @@
 							userId={data.userId}
 							{formMessage}
 							onSavedBatch={onCreatedBatch}
+							onBatchDirtyChange={(d) => (batchFormDirty = d)}
 							onCancel={() => (addOpen = false)}
 						/>
 					{:else}

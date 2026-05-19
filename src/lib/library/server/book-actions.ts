@@ -672,7 +672,11 @@ export async function updateReadingStatusAction(supabase: SupabaseClient, fd: Fo
 		});
 	}
 
-	const { error } = await supabase.from('books').update({ reading_status: status }).eq('id', id);
+	const { error } = await supabase
+		.from('books')
+		.update({ reading_status: status })
+		.eq('id', id)
+		.is('deleted_at', null);
 
 	if (error) {
 		console.error(error);

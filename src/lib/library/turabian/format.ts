@@ -1,5 +1,6 @@
 import { resolveCitationSourceType } from './dispatch';
 import {
+	bibliographySortLastName,
 	formatAuthorsBibliography,
 	formatAuthorsNote,
 	formatEditorsBibliography,
@@ -19,11 +20,15 @@ import {
 } from './publication';
 import type { BookCitationInput, CitationFormatted, CitationSourceType } from './types';
 
+export type FootnoteShortForm = 'ibid' | 'short';
+
 export type FormatOptions = {
 	/** Footnote page placeholder when no page supplied. */
 	page?: string;
 	/** Bible version label for first-citation parenthetical. */
 	bibleVersion?: string;
+	/** §16.4.1 subsequent note: `ibid` or author-short-title short form. */
+	shortForm?: FootnoteShortForm;
 };
 
 type PubFacts = { plain: string; html: string };
@@ -181,9 +186,32 @@ function authorPresentBibSegments(
 	};
 }
 
+function formatShortFootnote(
+	book: BookCitationInput,
+	sourceType: CitationSourceType,
+	page: string,
+	shortForm: FootnoteShortForm
+): CitationFormatted {
+	if (shortForm === 'ibid') {
+		const plain = page && page !== '[page]' ? `Ibid., ${page}.` : 'Ibid.';
+		const html = page && page !== '[page]' ? `Ibid., ${escapeHtml(page)}.` : 'Ibid.';
+		return buildPair(plain, html, sourceType);
+	}
+	const last = bibliographySortLastName(book.authors);
+	const shortTitle = formatTitleWithSubtitle(book, 'plain');
+	const authorLead = last || formatAuthorsNote(book.authors);
+	const plain = `${authorLead}, ${shortTitle}, ${page}.`;
+	const html = `${escapeHtml(authorLead)}, <i>${escapeHtml(shortTitle)}</i>, ${escapeHtml(page)}.`;
+	return buildPair(plain, html, sourceType);
+}
+
 export function formatFootnote(book: BookCitationInput, opts?: FormatOptions): CitationFormatted {
 	const sourceType = resolveCitationSourceType(book);
 	const page = opts?.page ?? '[page]';
+
+	if (opts?.shortForm && sourceType !== 'bible') {
+		return formatShortFootnote(book, sourceType, page, opts.shortForm);
+	}
 
 	if (sourceType === 'bible') {
 		const versionLabel = opts?.bibleVersion ?? 'English Standard Version';

@@ -9,6 +9,29 @@ export type ParsedName = {
 	label: string;
 };
 
+const NAME_SUFFIX_RE = /^(.*?)\s+(Jr\.?|Sr\.?|II|III|IV)$/i;
+
+function splitSuffixFromLast(last: string): { last: string; suffix: string } {
+	const m = last.trim().match(NAME_SUFFIX_RE);
+	if (!m) return { last: last.trim(), suffix: '' };
+	return { last: m[1]!.trim(), suffix: m[2]!.replace(/\.$/, '') === 'Jr' ? 'Jr.' : m[2]! };
+}
+
+/** Prefer structured `people` fields when present on the assignment. */
+export function parseAuthorAssignment(a: BookAuthorAssignment): ParsedName {
+	const label = a.person_label.trim();
+	if (a.last_name?.trim()) {
+		return {
+			first: a.first_name?.trim() ?? '',
+			middle: a.middle_name?.trim() ?? '',
+			last: a.last_name.trim(),
+			suffix: a.suffix?.trim() ?? '',
+			label: label || a.last_name.trim()
+		};
+	}
+	return parsePersonLabel(label);
+}
+
 /** Parse "Last, First Middle" or "First Middle Last" from person_label. */
 export function parsePersonLabel(label: string): ParsedName {
 	const t = label.trim();
@@ -19,11 +42,12 @@ export function parsePersonLabel(label: string): ParsedName {
 		const restBits = rest.split(/\s+/).filter(Boolean);
 		const first = restBits[0] ?? '';
 		const middle = restBits.slice(1).join(' ');
+		const { last, suffix } = splitSuffixFromLast((lastPart ?? '').trim());
 		return {
 			first,
 			middle,
-			last: (lastPart ?? '').trim(),
-			suffix: '',
+			last,
+			suffix,
 			label: t
 		};
 	}
@@ -31,10 +55,10 @@ export function parsePersonLabel(label: string): ParsedName {
 	if (parts.length === 1) {
 		return { first: '', middle: '', last: parts[0]!, suffix: '', label: t };
 	}
-	const last = parts[parts.length - 1]!;
+	const { last, suffix } = splitSuffixFromLast(parts[parts.length - 1]!);
 	const first = parts[0]!;
 	const middle = parts.slice(1, -1).join(' ');
-	return { first, middle, last, suffix: '', label: t };
+	return { first, middle, last, suffix, label: t };
 }
 
 export function noteNameOrder(p: ParsedName): string {
@@ -45,8 +69,8 @@ export function noteNameOrder(p: ParsedName): string {
 export function bibNameOrder(p: ParsedName): string {
 	const firstBits = [p.first, p.middle].filter((s) => s.length > 0).join(' ');
 	if (!p.last) return p.label;
-	if (!firstBits) return p.last;
-	return `${p.last}, ${firstBits}`;
+	if (!firstBits) return p.last + (p.suffix ? ` ${p.suffix}` : '');
+	return `${p.last}${p.suffix ? ` ${p.suffix}` : ''}, ${firstBits}`;
 }
 
 export function authorsByRole(
@@ -63,7 +87,7 @@ export function formatAuthorsNote(
 	const etAl = opts?.etAlThreshold ?? 4;
 	const rows = authorsByRole(authors, 'author');
 	if (rows.length === 0) return '';
-	const parsed = rows.map((a) => parsePersonLabel(a.person_label));
+	const parsed = rows.map((a) => parseAuthorAssignment(a));
 	if (parsed.length >= etAl) {
 		return `${noteNameOrder(parsed[0]!)} et al.`;
 	}
@@ -78,7 +102,7 @@ export function formatAuthorsNote(
 export function formatAuthorsBibliography(authors: BookAuthorAssignment[]): string {
 	const rows = authorsByRole(authors, 'author');
 	if (rows.length === 0) return '';
-	const parsed = rows.map((a) => parsePersonLabel(a.person_label));
+	const parsed = rows.map((a) => parseAuthorAssignment(a));
 	if (parsed.length === 1) return bibNameOrder(parsed[0]!);
 	if (parsed.length === 2) {
 		return `${bibNameOrder(parsed[0]!)}, and ${noteNameOrder(parsed[1]!)}`;
@@ -94,7 +118,7 @@ export function formatAuthorsBibliography(authors: BookAuthorAssignment[]): stri
 export function formatEditorsNote(authors: BookAuthorAssignment[]): string {
 	const rows = authorsByRole(authors, 'editor');
 	if (rows.length === 0) return '';
-	const parsed = rows.map((a) => parsePersonLabel(a.person_label));
+	const parsed = rows.map((a) => parseAuthorAssignment(a));
 	const names =
 		parsed.length >= 4
 			? `${noteNameOrder(parsed[0]!)} et al.`
@@ -112,18 +136,18 @@ export function formatEditorsNote(authors: BookAuthorAssignment[]): string {
 export function formatEditorsBibliography(authors: BookAuthorAssignment[]): string {
 	const rows = authorsByRole(authors, 'editor');
 	if (rows.length === 0) return '';
-	const parsed = rows.map((a) => parsePersonLabel(a.person_label));
+	const parsed = rows.map((a) => parseAuthorAssignment(a));
 	const names =
 		parsed.length === 1
 			? bibNameOrder(parsed[0]!)
 			: parsed.length === 2
 				? `${bibNameOrder(parsed[0]!)}, and ${noteNameOrder(parsed[1]!)}`
 				: parsed.length === 3
-				? `${bibNameOrder(parsed[0]!)}, ${noteNameOrder(parsed[1]!)}, and ${noteNameOrder(parsed[2]!)}`
-				: `${bibNameOrder(parsed[0]!)}, ${parsed
-						.slice(1, -1)
-						.map(noteNameOrder)
-						.join(', ')}, and ${noteNameOrder(parsed[parsed.length - 1]!)}`;
+					? `${bibNameOrder(parsed[0]!)}, ${noteNameOrder(parsed[1]!)}, and ${noteNameOrder(parsed[2]!)}`
+					: `${bibNameOrder(parsed[0]!)}, ${parsed
+							.slice(1, -1)
+							.map(noteNameOrder)
+							.join(', ')}, and ${noteNameOrder(parsed[parsed.length - 1]!)}`;
 	return `${names}, ${parsed.length === 1 ? 'ed.' : 'eds.'}`;
 }
 
@@ -131,7 +155,7 @@ export function formatEditorsBibliography(authors: BookAuthorAssignment[]): stri
 export function formatEditorsCreditNote(authors: BookAuthorAssignment[]): string {
 	const rows = authorsByRole(authors, 'editor');
 	if (rows.length === 0) return '';
-	const parsed = rows.map((a) => parsePersonLabel(a.person_label));
+	const parsed = rows.map((a) => parseAuthorAssignment(a));
 	const names =
 		parsed.length >= 4
 			? `${noteNameOrder(parsed[0]!)} et al.`
@@ -150,7 +174,7 @@ export function formatEditorsCreditNote(authors: BookAuthorAssignment[]): string
 export function formatEditorsCreditBibliography(authors: BookAuthorAssignment[]): string {
 	const rows = authorsByRole(authors, 'editor');
 	if (rows.length === 0) return '';
-	const parsed = rows.map((a) => parsePersonLabel(a.person_label));
+	const parsed = rows.map((a) => parseAuthorAssignment(a));
 	const names =
 		parsed.length === 1
 			? noteNameOrder(parsed[0]!)
@@ -168,7 +192,7 @@ export function formatEditorsCreditBibliography(authors: BookAuthorAssignment[])
 export function formatTranslatorsNote(authors: BookAuthorAssignment[]): string {
 	const rows = authorsByRole(authors, 'translator');
 	if (rows.length === 0) return '';
-	const parsed = rows.map((a) => parsePersonLabel(a.person_label));
+	const parsed = rows.map((a) => parseAuthorAssignment(a));
 	const names =
 		parsed.length === 1
 			? noteNameOrder(parsed[0]!)
@@ -179,7 +203,7 @@ export function formatTranslatorsNote(authors: BookAuthorAssignment[]): string {
 export function formatTranslatorsBibliography(authors: BookAuthorAssignment[]): string {
 	const rows = authorsByRole(authors, 'translator');
 	if (rows.length === 0) return '';
-	const parsed = rows.map((a) => parsePersonLabel(a.person_label));
+	const parsed = rows.map((a) => parseAuthorAssignment(a));
 	const names =
 		parsed.length === 1
 			? noteNameOrder(parsed[0]!)
@@ -193,5 +217,5 @@ export function bibliographySortLastName(authors: BookAuthorAssignment[]): strin
 	const editorRows = authorsByRole(authors, 'editor');
 	const primary = authorRows.length > 0 ? authorRows : editorRows;
 	if (primary.length === 0) return '';
-	return parsePersonLabel(primary[0]!.person_label).last.toLowerCase();
+	return parseAuthorAssignment(primary[0]!).last.toLowerCase();
 }

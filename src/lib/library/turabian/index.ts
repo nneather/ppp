@@ -10,7 +10,13 @@ export {
 	type ReviewSlice
 } from './types';
 export { resolveCitationSourceType } from './dispatch';
-export { formatFootnote, formatBibliography, type FormatOptions } from './format';
+export {
+	formatFootnote,
+	formatBibliography,
+	type FormatOptions,
+	type FootnoteShortForm
+} from './format';
+export { formatEssayFootnote, type EssayCitationInput } from './article';
 export {
 	sortBibliographyInputs,
 	formatCompiledBibliography,

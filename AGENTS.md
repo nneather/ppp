@@ -75,7 +75,7 @@ End-of-session deliverables:
   - `src/lib/library/open-library-prefill.ts` — re-exports `normalizeIsbnDigits` from `isbn.ts`; `fetchOpenLibraryPrefill` (checksum-validated ISBN, edition + optional OL work + up to 5 author JSON fetches; `authors[]`, `authorTyped`, `publisher_location`, `edition`, `genreSuggested`, `seriesName` / `seriesVolume`, `languageCode`); `LIBRARY_OL_PREFILL_KEY` (`library_ol_prefill_v2`) for `/library/add` → `/library/books/new` prefill.
   - `src/lib/library/match.ts` — `matchPersonExact`, `matchPersonFuzzyCandidates`, `matchSeries`, `splitAuthorString`, `normalizePersonName` / `normalizeSeriesName` for ISBN prefill consumption in `<BookForm>`.
   - `src/lib/library/book-copy-text.ts` — plain-text strings for book-detail clipboard helpers (Session 6 raw-field copy; coexists with Turabian).
-  - `src/lib/library/turabian/` — pure-function Turabian 9th-ed. formatters (`formatFootnote`, `formatBibliography`, `formatCompiledBibliography`, `copyCitationToClipboard`, `CITATION_CRITICAL_GENRES`, `review-progress.ts` localStorage burndown). `joinNoteSegments` / `joinBibSegments` per Covenant §17.1; `book-with-editor` dispatch; `work_type` on `BookCitationInput`. Powers book-detail Copy Footnote/Bibliography, `/library/bibliography`, and Turabian-first `/library/review` cards. Unit tests: `npm run test`.
+  - `src/lib/library/turabian/` — pure-function Turabian 9th-ed. formatters (`formatFootnote` + `shortForm` `ibid`/`short`, `formatBibliography`, `formatCompiledBibliography`, `formatEssayFootnote` / `s.v.`, `copyCitationToClipboard`, `CITATION_CRITICAL_GENRES`, `review-progress.ts` localStorage burndown). Structured names via `BookAuthorAssignment` + `parseAuthorAssignment`. `joinNoteSegments` / `joinBibSegments` per Covenant §17.1; `work_type` on `BookCitationInput`. Powers book-detail Copy Footnote/Bibliography, `/library/bibliography`, and Turabian-first `/library/review` cards. Unit tests: `npm run test`.
   - `WORK_TYPES` / `WORK_TYPE_LABELS` in `src/lib/types/library.ts` — `monograph` | `edited_volume` | `reference_work` on `books.work_type` (Turabian dispatch + review missing-field rules). Book form + OL prefill (`workTypeSuggested` for dictionaries).
   - `src/lib/library/server/book-actions.ts` — `createBookAction`, `updateBookAction`, `softDeleteBookAction`, `undoSoftDeleteBookAction`, `createPersonAction`, `updateReadingStatusAction`. Returns `{ kind, success?, message?, bookId?|personId? }`.
   - `src/lib/library/server/people-settings-actions.ts` — `updatePersonSettingsAction`, `softDeletePersonSettingsAction`, `mergePeopleSettingsAction` (merge calls RPC `library_merge_people`, owner-only). Used by `/settings/library/people` and `/settings/library/people/merge`. Exports `loadProfileRole` for reuse.
@@ -86,6 +86,9 @@ End-of-session deliverables:
   - `src/lib/library/server/scripture-actions.ts` — same shape for `scripture_references`: `createScriptureRefAction`, `createScriptureRefsBatchAction`, `updateScriptureRefAction`, `softDeleteScriptureRefAction`. Wired into `/library/books/[id]` Session 2.
   - `src/lib/library/ocr-invoke-client.ts` — `getPdfPageCount`, `invokeOcrScriptureRefs` (+ optional `pdf_page_index`), Edge error parsing; batch form uploads PDF once then OCRs pages via **client rasterize** ([`pdf-page-render.ts`](src/lib/library/pdf-page-render.ts): `pdfjs-dist` dynamic import → JPEG → `image/jpeg` Edge) with original PDF as `source_image_url`; partial batch + retry failed pages ([030](docs/decisions/030-ocr-pdf-input.md)).
   - `src/lib/library/pdf-page-render.ts` — `getPdfPageCountFromFile`, `renderPdfPageToJpegBlob` (~2048px JPEG); loaded only when user queues a PDF for OCR.
+ - `src/lib/library/scripture-batch-upload.ts` — `buildRowsJsonPayload`, `collapseRowsAfterMerge`, `computeRowWindow`, `chunkArray` (batch OCR perf; see [034](docs/decisions/034-scripture-batch-upload-perf.md)).
+ - `src/lib/library/scripture-batch-draft.ts` — `loadScriptureBatchDraft` / `saveScriptureBatchDraft` / `clearScriptureBatchDraft` (sessionStorage resume for batch scripture form).
+ - `src/lib/library/run-with-concurrency.ts` — `runWithConcurrency` (OCR file pipeline cap).
   - **`supabase/functions/ocr_scripture_refs`** — Library OCR: user JWT via `/auth/v1/user`, service-role storage download from `library-scripture-images`, Anthropic Messages API (vision + PDF `document` block). Secrets: `ANTHROPIC_API_KEY` (+ optional `ANTHROPIC_OCR_MODEL`); see [supabase/README.md](supabase/README.md) + [021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md). Dense index pages: `max_tokens` 64k + short `rawText` prompt; `stop_reason=max_tokens` → HTTP 422 — [026](docs/decisions/026-ocr-density-truncation.md). Post-OCR batch review: compact rows, page-boundary markers, bulk confirm, contiguous page-range prompt — [028](docs/decisions/028-ocr-review-ux-and-accuracy.md). Patristic semicolon section pointers (`VI, 7; VIII, 10`) → one row per pointer — [029](docs/decisions/029-ocr-section-pointer-split.md). Multi-page PDF input (one call per file; `source_page_index` for strip grouping) — [030](docs/decisions/030-ocr-pdf-input.md); bucket allows `application/pdf` up to 25 MiB.
 
 ### Scripts
@@ -98,7 +101,16 @@ End-of-session deliverables:
 - `npm run supabase:gen-types` — regenerate `src/lib/types/database.ts` (run after every migration)
 - `npm run supabase:deploy-functions` — deploy Edge Functions
 - `npm run supabase:ship` / `:ship:apply` — combined flow
+- **`npm run ship-library`** / **`ship-library:apply`** — library schema gate: `check` → `db:push:dry` (or full push + `gen-types` + `test` + `deploy-functions` on apply). Use after any library migration or OCR Edge change.
 - **`library:language-audit`** — dry-run / optional `--apply` English→German hints; uses `LIBRARY_AUDIT_DATABASE_URL` or **`LIBRARY_DST_DATABASE_URL`** / `LIBRARY_SRC_DATABASE_URL` (same migrate vars). See [`scripts/library-language-audit/README.md`](scripts/library-language-audit/README.md).
+
+## Commit messages (library)
+
+Prefer: `library: <decision-slug> — <outcome>` (e.g. `library: 033-pm-review — sticky scripture save bar`). Makes `git log` bisectable alongside `docs/decisions/`.
+
+## Large diffs (library)
+
+Any commit touching **>400 LOC** under `src/lib/library/` or `src/lib/components/` should get a **read-only review subagent** pass before push (mobile + RLS + citation regressions).
 
 ## Environment variables
 

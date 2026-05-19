@@ -19,8 +19,8 @@
 	} from '$lib/library/camera-stream';
 	import { BrowserMultiFormatReader } from '@zxing/browser';
 	import { BarcodeFormat, DecodeHintType, NotFoundException } from '@zxing/library';
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Barcode from '@lucide/svelte/icons/scan-barcode';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Loader2 from '@lucide/svelte/icons/loader-2';
 	const hints = new Map<DecodeHintType, BarcodeFormat[]>();
@@ -198,19 +198,12 @@
 	<title>Add by ISBN — Library — ppp</title>
 </svelte:head>
 
-<div class="mx-auto max-w-lg px-4 py-6 md:px-6 md:py-8">
-	<a
-		href="/library"
-		class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-	>
-		<ArrowLeft class="size-4" /> Library
-	</a>
+{#snippet addIsbnLead()}
+	<Barcode class="size-6" />
+{/snippet}
 
-	<header class="mt-4 flex items-center gap-2 text-muted-foreground">
-		<Barcode class="size-6" />
-		<h1 class="text-2xl font-semibold tracking-tight text-foreground">Add by ISBN</h1>
-	</header>
-	<p class="mt-2 text-sm text-muted-foreground">
+{#snippet addIsbnMeta()}
+	<p class="text-sm text-muted-foreground">
 		Scan a book barcode or type an ISBN. We fetch metadata from
 		<a
 			href="https://openlibrary.org"
@@ -220,6 +213,16 @@
 		>
 		then open the new-book form so you can review everything before saving.
 	</p>
+{/snippet}
+
+<div class="mx-auto max-w-lg px-4 py-6 md:px-6 md:py-8">
+	<PageHeader
+		back={{ href: '/library', label: 'Library' }}
+		title="Add by ISBN"
+		lead={addIsbnLead}
+		meta={addIsbnMeta}
+		class="mb-2"
+	/>
 
 	{#if permissionHint}
 		<p class="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-100">

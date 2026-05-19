@@ -50,3 +50,10 @@ alwaysApply: false
 ## Observability
 
 - Every HTML response includes `Server-Timing: total;dur=…` from `hooks.server.ts`. Use Chrome DevTools → Network → Timing when regressing.
+
+## Client-heavy forms (batch OCR)
+
+- Do **not** `$derived` / `JSON.stringify` an entire editable row array for submit — build the payload **once** at submit time ([`buildRowsJsonPayload`](mdc:src/lib/library/scripture-batch-upload.ts)).
+- Lists with **>50** editable rows: **collapse-by-default** after OCR merge + **windowed** `{#each}` ([`computeRowWindow`](mdc:src/lib/library/scripture-batch-upload.ts)); use `patchRow` for single-row toggles instead of full `rows.map`.
+- Long-running OCR/upload pipelines: **sessionStorage draft** ([`scripture-batch-draft.ts`](mdc:src/lib/library/scripture-batch-draft.ts)) + `beforeunload` / parent `beforeNavigate` when dirty.
+- Batch saves **>75** rows: client **chunked** `fetch` to `?/createScriptureRefsBatch`; cap parallel file pipelines with [`runWithConcurrency`](mdc:src/lib/library/run-with-concurrency.ts) (default 2).

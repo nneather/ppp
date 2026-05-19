@@ -130,13 +130,17 @@ export async function loadPeople(supabase: SupabaseClient): Promise<PersonRow[]>
 	}));
 }
 
-/** Map of person_id -> count of books that person is on (any role, any deletion state). */
+/** Map of person_id -> count of live books that person is on (any role). */
 export async function loadPersonBookCounts(
 	supabase: SupabaseClient
 ): Promise<Map<string, number>> {
 	const rows = await paginateAll<{ person_id: string; book_id: string }>(
 		([from, to]) =>
-			supabase.from('book_authors').select('person_id, book_id').range(from, to),
+			supabase
+				.from('book_authors')
+				.select('person_id, book_id, books!inner(deleted_at)')
+				.is('books.deleted_at', null)
+				.range(from, to),
 		'loadPersonBookCounts'
 	);
 	const counts = new Map<string, number>();
@@ -748,15 +752,7 @@ export async function loadBookDetail(
 	const authors: BookAuthorAssignment[] = (r.book_authors ?? [])
 		.slice()
 		.sort((a, b) => a.sort_order - b.sort_order)
-		.map((a) => {
-			const p = peopleMap.get(a.person_id);
-			return {
-				person_id: a.person_id,
-				person_label: p ? personDisplayLong(p) : 'Unknown',
-				role: a.role as AuthorRole,
-				sort_order: a.sort_order
-			};
-		});
+		.map((a) => bookAuthorAssignmentFromJunction(a, peopleMap));
 
 	return {
 		id: r.id,
@@ -932,15 +928,9 @@ export async function loadReviewQueue(
 		const r = raw as unknown as RawReviewCard;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
 		const junctionRows = (r.book_authors ?? []).slice().sort((a, b) => a.sort_order - b.sort_order);
-		const authors: BookAuthorAssignment[] = junctionRows.map((a) => {
-			const p = peopleMap.get(a.person_id);
-			return {
-				person_id: a.person_id,
-				person_label: p ? personDisplayLong(p) : 'Unknown',
-				role: a.role as AuthorRole,
-				sort_order: a.sort_order
-			};
-		});
+		const authors: BookAuthorAssignment[] = junctionRows.map((a) =>
+			bookAuthorAssignmentFromJunction(a, peopleMap)
+		);
 		const workType = parseWorkType(r.work_type);
 		const authors_label = authorsLabelForBook(workType, r.book_authors ?? [], peopleMap);
 
@@ -1229,6 +1219,23 @@ export function personDisplayLong(p: PersonRow): string {
 	segments.push(p.last_name);
 	if (p.suffix) segments.push(p.suffix);
 	return segments.filter((s) => s.length > 0).join(' ');
+}
+
+function bookAuthorAssignmentFromJunction(
+	a: { person_id: string; role: string; sort_order: number },
+	peopleMap: Map<string, PersonRow>
+): BookAuthorAssignment {
+	const p = peopleMap.get(a.person_id);
+	return {
+		person_id: a.person_id,
+		person_label: p ? personDisplayLong(p) : 'Unknown',
+		first_name: p?.first_name ?? null,
+		middle_name: p?.middle_name ?? null,
+		last_name: p?.last_name ?? null,
+		suffix: p?.suffix ?? null,
+		role: a.role as AuthorRole,
+		sort_order: a.sort_order
+	};
 }
 
 // ---------------------------------------------------------------------------

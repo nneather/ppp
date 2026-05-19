@@ -9,8 +9,8 @@
 		type OpenLibraryBookPrefill
 	} from '$lib/library/open-library-prefill';
 	import { LIBRARY_SCAN_SESSION_KEY } from '$lib/library/scan-session';
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import BookOpen from '@lucide/svelte/icons/book-open';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -110,18 +110,17 @@
 	<title>New book — Library — ppp</title>
 </svelte:head>
 
-<div class="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-	<a
-		href="/library"
-		class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-	>
-		<ArrowLeft class="size-4" /> Library
-	</a>
+{#snippet newBookLead()}
+	<BookOpen class="size-6" />
+{/snippet}
 
-	<header class="mt-4 mb-6 flex items-center gap-2 text-muted-foreground">
-		<BookOpen class="size-6" />
-		<h1 class="text-2xl font-semibold tracking-tight text-foreground">New book</h1>
-	</header>
+<div class="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
+	<PageHeader
+		back={{ href: '/library', label: 'Library' }}
+		title="New book"
+		lead={newBookLead}
+		class="mb-6"
+	/>
 
 	<BookForm
 		mode="create"

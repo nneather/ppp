@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { formatEssayFootnote } from '../article';
 import { formatBibliography, formatFootnote } from '../format';
 import { resolveCitationSourceType } from '../dispatch';
 import type { BookCitationInput } from '../types';
@@ -369,6 +370,45 @@ describe('formatFootnote', () => {
 		expect(fn.plain).toBe('Gen. 1:1 (English Standard Version).');
 		expect(formatBibliography(book({ genre: 'Bibles' })).plain).toBe('');
 	});
+
+	it('formats ibid short footnote', () => {
+		const b = book({
+			title: 'The Art of Biblical History',
+			authors: [
+				{ person_id: 'p1', person_label: 'V. Philips Long', role: 'author', sort_order: 0 }
+			]
+		});
+		expect(formatFootnote(b, { shortForm: 'ibid', page: '42' }).plain).toBe('Ibid., 42.');
+	});
+
+	it('formats author-title short footnote', () => {
+		const b = book({
+			title: 'The Art of Biblical History',
+			authors: [
+				{ person_id: 'p1', person_label: 'V. Philips Long', role: 'author', sort_order: 0 }
+			]
+		});
+		expect(formatFootnote(b, { shortForm: 'short', page: '42' }).plain).toBe(
+			'long, The Art of Biblical History, 42.'
+		);
+	});
+
+	it('formats author+editor+translator footnote', () => {
+		const b = book({
+			title: 'Biblical Hermeneutics',
+			authors: [
+				{ person_id: 'a1', person_label: 'Gerhard Maier', role: 'author', sort_order: 0 },
+				{ person_id: 'e1', person_label: 'J. P. Lange', role: 'editor', sort_order: 1 },
+				{ person_id: 't1', person_label: 'Robert W. Yarbrough', role: 'translator', sort_order: 2 }
+			],
+			publisher: 'Crossway Books',
+			year: 1994
+		});
+		const fn = formatFootnote(b, { page: '12' });
+		expect(fn.plain).toContain('Gerhard Maier');
+		expect(fn.plain).toContain('trans. Robert W. Yarbrough');
+		expect(fn.html).toContain('<i>');
+	});
 });
 
 describe('formatBibliography', () => {
@@ -396,7 +436,15 @@ describe('formatBibliography', () => {
 			title: 'Introduction to Biblical Interpretation',
 			authors: [
 				{ person_id: '1', person_label: 'William W. Klein', role: 'author', sort_order: 0 },
-				{ person_id: '2', person_label: 'Robert L. Hubbard Jr.', role: 'author', sort_order: 1 },
+				{
+					person_id: '2',
+					person_label: 'Robert L. Hubbard Jr.',
+					last_name: 'Hubbard',
+					first_name: 'Robert L.',
+					suffix: 'Jr.',
+					role: 'author',
+					sort_order: 1
+				},
 				{ person_id: '3', person_label: 'Craig L. Blomberg', role: 'author', sort_order: 2 }
 			],
 			publisher: 'Word Books',
@@ -500,5 +548,67 @@ describe('formatBibliography', () => {
 		expect(bib).toContain('2 vols.');
 		expect(bib).toContain("Clark's Foreign Theological Library.");
 		expect(bib).toContain('Edinburgh: T. & T. Clark, 1869.');
+	});
+
+	it('formats four-author bibliography with all names', () => {
+		const b = book({
+			title: 'Communicating for Life',
+			authors: [
+				{ person_id: '1', person_label: 'Quentin J. Schultze', role: 'author', sort_order: 0 },
+				{ person_id: '2', person_label: 'Roy M. Anker', role: 'author', sort_order: 1 },
+				{ person_id: '3', person_label: 'James D. Bratt', role: 'author', sort_order: 2 },
+				{ person_id: '4', person_label: 'William D. Romanowski', role: 'author', sort_order: 3 }
+			],
+			publisher: 'Baker Academic',
+			year: 2000
+		});
+		const bib = formatBibliography(b).plain;
+		expect(bib).toContain('Schultze, Quentin J.');
+		expect(bib).toContain('Romanowski');
+	});
+
+	it('formats multi-volume standalone bibliography', () => {
+		const b = book({
+			title: 'Church Dogmatics',
+			authors: [{ person_id: 'a1', person_label: 'Karl Barth', role: 'author', sort_order: 0 }],
+			total_volumes: 14,
+			publisher: 'T. & T. Clark',
+			year: 1936
+		});
+		expect(formatBibliography(b).plain).toContain('14 vols.');
+	});
+
+	it('formats edited_volume with only editors', () => {
+		const b = book({
+			work_type: 'edited_volume',
+			title: 'Dictionary of Paul and His Letters',
+			authors: [
+				{ person_id: 'e1', person_label: 'Gerald F. Hawthorne', role: 'editor', sort_order: 0 },
+				{ person_id: 'e2', person_label: 'Ralph P. Martin', role: 'editor', sort_order: 1 }
+			],
+			publisher: 'InterVarsity Press',
+			year: 1993
+		});
+		const bib = formatBibliography(b).plain;
+		expect(bib).toContain('Hawthorne, Gerald F., and Ralph P. Martin, eds.');
+	});
+
+	it('formats dictionary essay s.v. footnote', () => {
+		const volume = book({
+			work_type: 'reference_work',
+			title: 'Anchor Bible Dictionary',
+			authors: [
+				{ person_id: 'e1', person_label: 'David Noel Freedman', role: 'editor', sort_order: 0 }
+			],
+			publisher: 'Doubleday',
+			year: 1992
+		});
+		const fn = formatEssayFootnote(
+			{ essay_title: 'Abraham', page_start: 35 },
+			volume,
+			{ page: '35' }
+		);
+		expect(fn.plain).toContain('s.v. "Abraham,"');
+		expect(fn.plain).toContain('Anchor Bible Dictionary');
 	});
 });

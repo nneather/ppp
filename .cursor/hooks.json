@@ -7,6 +7,9 @@
 			},
 			{
 				"command": ".cursor/hooks/hotkey-missing.sh"
+			},
+			{
+				"command": ".cursor/hooks/large-svelte-growth.sh"
 			}
 		]
 	}

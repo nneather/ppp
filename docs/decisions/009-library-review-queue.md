@@ -159,8 +159,7 @@
    duplicating logic. Named exports on route modules conflict with SvelteKit
    expectations / deployment tooling, so **`parseReviewFilters` moved to
    `src/lib/library/review.ts`** and is imported from there by the review
-   page server, the queue endpoint, and `/library/+page.server.ts` (same
-   filter params on the nav link).
+   page server and the queue endpoint (`?slice=`, etc. on `/library/review` links).
 3. **`$state(data.foo)` on mount triggers Svelte's
    `state_referenced_locally` warning.** The intended pattern (re-seed via
    `$effect` when `data` changes) is correct, but the initial seed reads
