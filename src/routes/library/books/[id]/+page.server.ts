@@ -2,12 +2,9 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	loadAncientCoverageForBook,
-	loadAncientTexts,
-	loadAllTopicCounts,
 	loadBibleCoverageForBook,
 	loadBookDetail,
 	loadBookTopicsForBook,
-	loadPersonBookCounts,
 	loadScriptureRefsForBook
 } from '$lib/library/server/loaders';
 import {
@@ -44,33 +41,18 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
-	depends('app:library:ancient_texts');
-
 	const { id } = params;
 	if (!UUID_RE.test(id)) error(404, 'Book not found.');
+
+	depends(`app:library:book:${id}`);
+	depends('app:library:ancient_texts');
 
 	const supabase = locals.supabase;
 	const { people, series, bibleBookNames } = await parent();
 
-	const [ancientTexts, topicCounts] = await Promise.all([
-		loadAncientTexts(supabase),
-		loadAllTopicCounts(supabase)
-	]);
-	const [
-		book,
-		personBookCounts,
-		scriptureRefs,
-		bookTopics,
-		bibleCoverage,
-		ancientCoverage,
-		profileRow
-	] = await Promise.all([
+	const [book, scriptureRefs, profileRow] = await Promise.all([
 		loadBookDetail(supabase, id, people),
-		loadPersonBookCounts(supabase),
 		loadScriptureRefsForBook(supabase, id),
-		loadBookTopicsForBook(supabase, id),
-		loadBibleCoverageForBook(supabase, id),
-		loadAncientCoverageForBook(supabase, id),
 		supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
 	]);
 
@@ -84,15 +66,12 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		people,
 		series,
 		bibleBookNames,
-		ancientTexts,
-		topicCounts,
 		scriptureRefs,
-		bookTopics,
-		bibleCoverage,
-		ancientCoverage,
 		isOwner,
-		personBookCounts: Object.fromEntries(personBookCounts),
-		userId: user.id
+		userId: user.id,
+		bookTopicsPromise: loadBookTopicsForBook(supabase, id),
+		bibleCoveragePromise: loadBibleCoverageForBook(supabase, id),
+		ancientCoveragePromise: loadAncientCoverageForBook(supabase, id)
 	};
 };
 

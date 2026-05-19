@@ -16,8 +16,8 @@
 
 export const SCRIPTURE_IMAGES_BUCKET = 'library-scripture-images';
 
-/** Signed URL TTL in seconds. 1h per Tracker_1 S8. */
-export const SCRIPTURE_IMAGES_SIGNED_URL_TTL = 60 * 60;
+/** Signed URL TTL in seconds. 24h — paths are immutable after upload (perf 033). */
+export const SCRIPTURE_IMAGES_SIGNED_URL_TTL = 60 * 60 * 24;
 
 /**
  * Build the canonical object path for a scripture image.

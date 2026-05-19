@@ -45,5 +45,15 @@ export default defineConfig({
 	],
 	test: {
 		include: ['src/**/*.test.ts']
+	},
+	build: {
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					supabase: ['@supabase/ssr', '@supabase/supabase-js'],
+					lucide: ['@lucide/svelte']
+				}
+			}
+		}
 	}
 });

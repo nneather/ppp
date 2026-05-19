@@ -17,9 +17,11 @@ import { parseReviewFilters } from '$lib/library/review';
 
 const QUEUE_PAGE_SIZE = 10;
 
-export const load: PageServerLoad = async ({ locals, url, parent }) => {
+export const load: PageServerLoad = async ({ locals, url, parent, depends }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
+
+	depends('app:library:review');
 
 	const supabase = locals.supabase;
 	let filters = parseReviewFilters(url);

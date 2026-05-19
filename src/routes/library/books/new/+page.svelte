@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
+	import { beforeNavigate, goto, invalidate } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import BookForm from '$lib/components/book-form.svelte';
@@ -78,7 +78,8 @@
 
 	async function onSaved(bookId: string, opts?: { returnToScanner?: boolean }) {
 		confirmedDiscard = true; // success path; bypass beforeNavigate
-		await invalidateAll();
+		await invalidate('app:library:facets');
+		await invalidate('app:library:list');
 		if (opts?.returnToScanner) {
 			goto('/library/add');
 		} else {

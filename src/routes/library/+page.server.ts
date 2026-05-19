@@ -14,9 +14,11 @@ import {
 import { parseBookListFilters } from '$lib/library/server/url-params';
 import { LIBRARY_PAGE_SIZE } from '$lib/types/library';
 
-export const load: PageServerLoad = async ({ locals, url, parent }) => {
+export const load: PageServerLoad = async ({ locals, url, parent, depends }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
+
+	depends('app:library:list');
 
 	const supabase = locals.supabase;
 	const filters = parseBookListFilters(url);
@@ -24,14 +26,13 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 
 	const { people, series, bibleBookNames } = await parent();
 
-	const [allFiltered, totalCount] = await Promise.all([
-		loadBookListFiltered(supabase, people, filters),
+	const [{ books, filteredCount }, totalCount] = await Promise.all([
+		loadBookListFiltered(supabase, people, filters, {
+			limit: filters.all === true ? undefined : LIBRARY_PAGE_SIZE,
+			offset: 0
+		}),
 		countLiveBooks(supabase)
 	]);
-
-	const filteredCount = allFiltered.length;
-	const books =
-		filters.all === true ? allFiltered : allFiltered.slice(0, LIBRARY_PAGE_SIZE);
 
 	return {
 		books,

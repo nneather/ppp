@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
+	import { beforeNavigate, goto, invalidate } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import BookForm from '$lib/components/book-form.svelte';
@@ -51,7 +51,8 @@
 
 	async function onSaved(bookId: string, _opts?: { returnToScanner?: boolean }) {
 		confirmedDiscard = true;
-		await invalidateAll();
+		await invalidate(`app:library:book:${data.book.id}`);
+		await invalidate('app:library:list');
 		goto(`/library/books/${bookId}`);
 	}
 

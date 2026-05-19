@@ -8,7 +8,6 @@
 	import { cn } from '$lib/utils';
 	import { createClient } from '$lib/supabase/client';
 	import { Button } from '$lib/components/ui/button';
-	import { Separator } from '$lib/components/ui/separator';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import BookOpen from '@lucide/svelte/icons/book-open';
@@ -134,7 +133,7 @@
 				{/each}
 			</nav>
 
-			<Separator />
+			<hr class="border-border" />
 
 			<div class="flex flex-col gap-2 p-2">
 				{#if !navCollapsed && data.user?.email}

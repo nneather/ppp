@@ -2,7 +2,7 @@
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
-	import { invalidateAll, goto } from '$app/navigation';
+	import { invalidate, goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
@@ -181,7 +181,7 @@
 				undoToastVisible = false;
 				const restoredId = undoToastBookId;
 				undoToastBookId = null;
-				await invalidateAll();
+				await invalidate('app:library:list');
 				if (browser && restoredId) {
 					goto(`/library/books/${restoredId}`);
 				}
@@ -423,7 +423,7 @@
 				if (d?.kind === 'bulkUpdateBooks' && d.success) {
 					selectedIds = [];
 					bulkDialogOpen = false;
-					await invalidateAll();
+					await invalidate('app:library:list');
 				}
 			}
 		};

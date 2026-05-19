@@ -24,6 +24,7 @@ import {
 	SCRIPTURE_IMAGES_BUCKET,
 	SCRIPTURE_IMAGES_SIGNED_URL_TTL
 } from '$lib/library/storage';
+import { signStorageUrlsLimited } from '$lib/library/sign-storage-urls';
 import { titleSortKey } from '$lib/library/title-sort';
 import {
 	formatScriptureRefPageSummary,
@@ -285,6 +286,159 @@ function escapeForPostgrestOrFilter(q: string): string {
  */
 const MAX_IN_LIST = 200;
 
+const BOOK_LIST_SELECT = `
+				id,
+				title,
+				subtitle,
+				work_type,
+				genre,
+				language,
+				reading_status,
+				needs_review,
+				volume_number,
+				series ( name, abbreviation ),
+				book_authors (
+					person_id,
+					sort_order,
+					role,
+					people (
+						id,
+						first_name,
+						last_name,
+						middle_name,
+						suffix,
+						aliases
+					)
+				)
+			`;
+
+export type LoadBookListFilteredOptions = {
+	limit?: number;
+	offset?: number;
+};
+
+export type LoadBookListFilteredResult = {
+	books: BookListRow[];
+	filteredCount: number;
+};
+
+type BookListFilterContext = {
+	orClause: string | null;
+	authorBookIds: string[] | null;
+	authorFilterClientSide: boolean;
+};
+
+function personRowFromRaw(p: RawPerson | null | undefined): PersonRow | null {
+	if (!p?.id) return null;
+	return {
+		id: p.id,
+		first_name: p.first_name,
+		last_name: p.last_name,
+		middle_name: p.middle_name,
+		suffix: p.suffix,
+		aliases: p.aliases ?? []
+	};
+}
+
+function peopleMapFromBookListRows(data: unknown[]): Map<string, PersonRow> {
+	const map = new Map<string, PersonRow>();
+	for (const raw of data) {
+		const r = raw as unknown as RawBookListRow;
+		for (const ba of r.book_authors ?? []) {
+			const embedded = asArrayOrSingle(
+				(ba as { people?: RawPerson | RawPerson[] | null }).people
+			)[0];
+			const row = personRowFromRaw(embedded);
+			if (row) map.set(row.id, row);
+		}
+	}
+	return map;
+}
+
+function applyBookListFilters(
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	query: any,
+	filters: BookListFilters,
+	ctx: BookListFilterContext
+) {
+	let q = query.is('deleted_at', null);
+	if (filters.genre && filters.genre.length > 0) {
+		q = q.in('genre', filters.genre);
+	}
+	if (filters.series_id && filters.series_id.length > 0) {
+		q = q.in('series_id', filters.series_id);
+	}
+	if (filters.language && filters.language.length > 0) {
+		q = q.in('language', filters.language);
+	}
+	if (filters.reading_status && filters.reading_status.length > 0) {
+		q = q.in('reading_status', filters.reading_status);
+	}
+	if (filters.needs_review === true) {
+		q = q.eq('needs_review', true);
+	}
+	if (
+		ctx.authorBookIds &&
+		!ctx.authorFilterClientSide &&
+		ctx.authorBookIds.length > 0
+	) {
+		q = q.in('id', ctx.authorBookIds);
+	}
+	if (ctx.orClause) {
+		q = q.or(ctx.orClause);
+	}
+	return q;
+}
+
+async function countFilteredBooks(
+	supabase: SupabaseClient,
+	filters: BookListFilters,
+	ctx: BookListFilterContext
+): Promise<number> {
+	let query = supabase.from('books').select('id', { count: 'exact', head: true });
+	query = applyBookListFilters(query, filters, ctx);
+	const { count, error } = await query;
+	if (error) {
+		console.error('[countFilteredBooks]', error);
+		return 0;
+	}
+	return count ?? 0;
+}
+
+function mapBookListRows(data: unknown[], people: PersonRow[]): BookListRow[] {
+	const peopleMap = peopleMapFromBookListRows(data);
+	for (const p of people) {
+		if (!peopleMap.has(p.id)) peopleMap.set(p.id, p);
+	}
+
+	const rows = data.map((raw) => {
+		const r = raw as unknown as RawBookListRow;
+		const ser = asArrayOrSingle(r.series)[0] ?? null;
+		const workType = parseWorkType(r.work_type);
+		const authors_label = authorsLabelForBook(workType, r.book_authors ?? [], peopleMap);
+
+		return {
+			id: r.id,
+			title: r.title ?? null,
+			subtitle: r.subtitle ?? null,
+			work_type: workType,
+			genre: r.genre ?? null,
+			language: (r.language as Language) ?? 'english',
+			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
+			needs_review: Boolean(r.needs_review),
+			series_abbreviation: ser?.abbreviation ?? null,
+			series_name: ser?.name ?? null,
+			volume_number: r.volume_number ?? null,
+			authors_label
+		} satisfies BookListRow;
+	});
+
+	rows.sort((a, b) =>
+		titleSortKey(a.title, a.language).localeCompare(titleSortKey(b.title, b.language))
+	);
+	return rows;
+}
+
 /**
  * Filter-aware book list loader. URL params on `/library` flow through
  * `+page.server.ts` → `BookListFilters` → here. AND between filter types,
@@ -305,46 +459,33 @@ const MAX_IN_LIST = 200;
  *     prune client-side after hydration (same-module trade-off as the
  *     category filter pre-Session-5).
  */
-export async function loadBookListFiltered(
+async function resolveBookListFilterContext(
 	supabase: SupabaseClient,
-	people: PersonRow[],
 	filters: BookListFilters
-): Promise<BookListRow[]> {
-	// Resolve the keyword-search author lookup ONCE up front so the per-page
-	// factory below is pure (same inputs → same query). Otherwise we'd be
-	// re-running the people + book_authors lookup on every page iteration.
+): Promise<BookListFilterContext> {
 	let orClause: string | null = null;
 	if (filters.q && filters.q.trim().length > 0) {
 		const raw = filters.q.trim();
 		const escaped = escapeForPostgrestOrFilter(raw);
 		const orParts = [`title.ilike.*${escaped}*`, `subtitle.ilike.*${escaped}*`];
 
-		const { data: peopleHits, error: peopleErr } = await supabase
-			.from('people')
-			.select('id')
-			.is('deleted_at', null)
-			.ilike('last_name', `%${raw}%`);
-		if (peopleErr) console.error('[loadBookListFiltered] people search', peopleErr);
-		const personIds = (peopleHits ?? []).map((p) => (p as { id: string }).id);
-
-		if (personIds.length > 0) {
-			const { data: authorBooks, error: abErr } = await supabase
-				.from('book_authors')
-				.select('book_id')
-				.in('person_id', personIds);
-			if (abErr) console.error('[loadBookListFiltered] book_authors lookup', abErr);
-			const bookIds = Array.from(
-				new Set((authorBooks ?? []).map((a) => (a as { book_id: string }).book_id))
-			);
-			if (bookIds.length > 0 && bookIds.length <= MAX_IN_LIST) {
-				orParts.push(`id.in.(${bookIds.join(',')})`);
-			}
+		// One round-trip: book_ids for authors whose last_name matches q.
+		const { data: authorBooks, error: abErr } = await supabase
+			.from('book_authors')
+			.select('book_id, people!inner(id)')
+			.is('people.deleted_at', null)
+			.ilike('people.last_name', `%${raw}%`);
+		if (abErr) console.error('[loadBookListFiltered] author name search', abErr);
+		const bookIds = Array.from(
+			new Set((authorBooks ?? []).map((a) => (a as { book_id: string }).book_id))
+		);
+		if (bookIds.length > 0 && bookIds.length <= MAX_IN_LIST) {
+			orParts.push(`id.in.(${bookIds.join(',')})`);
 		}
 
 		orClause = orParts.join(',');
 	}
 
-	// Resolve the author facet.
 	let authorBookIds: string[] | null = null;
 	let authorFilterClientSide = false;
 	if (filters.author_id && filters.author_id.length > 0) {
@@ -358,95 +499,81 @@ export async function loadBookListFiltered(
 		);
 		if (authorBookIds.length > MAX_IN_LIST) {
 			authorFilterClientSide = true;
-		} else if (authorBookIds.length === 0) {
-			// Selected authors have no books → empty result set.
-			return [];
 		}
 	}
 
-	const data = await paginateAll<unknown>(([from, to]) => {
-		let query = supabase
-			.from('books')
-			.select(
-				`
-				id,
-				title,
-				subtitle,
-				work_type,
-				genre,
-				language,
-				reading_status,
-				needs_review,
-				volume_number,
-				series ( name, abbreviation ),
-				book_authors ( person_id, sort_order, role )
-			`
-			)
-			.is('deleted_at', null);
+	return { orClause, authorBookIds, authorFilterClientSide };
+}
 
-		if (filters.genre && filters.genre.length > 0) {
-			query = query.in('genre', filters.genre);
-		}
-		if (filters.series_id && filters.series_id.length > 0) {
-			query = query.in('series_id', filters.series_id);
-		}
-		if (filters.language && filters.language.length > 0) {
-			query = query.in('language', filters.language);
-		}
-		if (filters.reading_status && filters.reading_status.length > 0) {
-			query = query.in('reading_status', filters.reading_status);
-		}
-		if (filters.needs_review === true) {
-			query = query.eq('needs_review', true);
-		}
-		if (authorBookIds && !authorFilterClientSide && authorBookIds.length > 0) {
-			query = query.in('id', authorBookIds);
-		}
-		if (orClause) {
-			query = query.or(orClause);
-		}
-		return query.range(from, to);
-	}, 'loadBookListFiltered');
+export async function loadBookListFiltered(
+	supabase: SupabaseClient,
+	people: PersonRow[],
+	filters: BookListFilters,
+	opts: LoadBookListFilteredOptions = {}
+): Promise<LoadBookListFilteredResult> {
+	const ctx = await resolveBookListFilterContext(supabase, filters);
 
-	const peopleMap = new Map(people.map((p) => [p.id, p]));
-
-	let rows = data.map((raw) => {
-		const r = raw as unknown as RawBookListRow;
-		const ser = asArrayOrSingle(r.series)[0] ?? null;
-		const workType = parseWorkType(r.work_type);
-		const authors_label = authorsLabelForBook(workType, r.book_authors ?? [], peopleMap);
-		const raw_author_ids = (r.book_authors ?? []).map((a) => a.person_id);
-
-		return {
-			row: {
-				id: r.id,
-				title: r.title ?? null,
-				subtitle: r.subtitle ?? null,
-				work_type: workType,
-				genre: r.genre ?? null,
-				language: (r.language as Language) ?? 'english',
-				reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
-				needs_review: Boolean(r.needs_review),
-				series_abbreviation: ser?.abbreviation ?? null,
-				series_name: ser?.name ?? null,
-				volume_number: r.volume_number ?? null,
-				authors_label
-			} satisfies BookListRow,
-			author_person_ids: raw_author_ids
-		};
-	});
-
-	// Client-side prune when the author id list exceeded MAX_IN_LIST.
-	if (authorFilterClientSide && filters.author_id && filters.author_id.length > 0) {
-		const wanted = new Set(filters.author_id);
-		rows = rows.filter((r) => r.author_person_ids.some((pid) => wanted.has(pid)));
+	if (
+		ctx.authorBookIds &&
+		!ctx.authorFilterClientSide &&
+		ctx.authorBookIds.length === 0
+	) {
+		return { books: [], filteredCount: 0 };
 	}
 
-	const out = rows.map((r) => r.row);
-	out.sort((a, b) =>
-		titleSortKey(a.title, a.language).localeCompare(titleSortKey(b.title, b.language))
-	);
-	return out;
+	const usePagination =
+		opts.limit != null && filters.all !== true && !ctx.authorFilterClientSide;
+
+	if (!usePagination) {
+		const data = await paginateAll<unknown>(([from, to]) => {
+			let query = supabase.from('books').select(BOOK_LIST_SELECT);
+			query = applyBookListFilters(query, filters, ctx);
+			return query.range(from, to);
+		}, 'loadBookListFiltered');
+
+		let rows = data.map((raw) => {
+			const r = raw as unknown as RawBookListRow;
+			return {
+				raw: r,
+				author_person_ids: (r.book_authors ?? []).map((a) => a.person_id)
+			};
+		});
+
+		if (ctx.authorFilterClientSide && filters.author_id && filters.author_id.length > 0) {
+			const wanted = new Set(filters.author_id);
+			rows = rows.filter((r) =>
+				r.author_person_ids.some((pid) => wanted.has(pid))
+			);
+		}
+
+		const books = mapBookListRows(
+			rows.map((r) => r.raw),
+			people
+		);
+		return { books, filteredCount: books.length };
+	}
+
+	const limit = opts.limit ?? 50;
+	const offset = opts.offset ?? 0;
+
+	let pageQuery = supabase.from('books').select(BOOK_LIST_SELECT);
+	pageQuery = applyBookListFilters(pageQuery, filters, ctx);
+	const pagePromise = pageQuery
+		.order('title', { ascending: true, nullsFirst: false })
+		.range(offset, offset + limit - 1);
+
+	const [filteredCount, pageRes] = await Promise.all([
+		countFilteredBooks(supabase, filters, ctx),
+		pagePromise
+	]);
+
+	if (pageRes.error) {
+		console.error('[loadBookListFiltered] paginated page', pageRes.error);
+		return { books: [], filteredCount };
+	}
+
+	const books = mapBookListRows(pageRes.data ?? [], people);
+	return { books, filteredCount };
 }
 
 async function fetchLiveBookCount(
@@ -985,19 +1112,11 @@ export async function loadScriptureRefsForBook(
 
 	const rows = (data ?? []) as unknown as RawScriptureRefRow[];
 
-	// Sign in parallel; null path → null URL.
-	const signed = await Promise.all(
-		rows.map(async (r) => {
-			if (!r.source_image_url) return null;
-			const { data: s, error: sErr } = await supabase.storage
-				.from(SCRIPTURE_IMAGES_BUCKET)
-				.createSignedUrl(r.source_image_url, SCRIPTURE_IMAGES_SIGNED_URL_TTL);
-			if (sErr) {
-				console.error('[loadScriptureRefsForBook] signed URL error', sErr);
-				return null;
-			}
-			return s?.signedUrl ?? null;
-		})
+	const signed = await signStorageUrlsLimited(
+		supabase,
+		SCRIPTURE_IMAGES_BUCKET,
+		rows.map((r) => r.source_image_url),
+		SCRIPTURE_IMAGES_SIGNED_URL_TTL
 	);
 
 	return rows.map((r, i) => ({
@@ -1211,18 +1330,11 @@ export async function loadBookTopicsForBook(
 		return [];
 	}
 	const rows = (data ?? []) as unknown as RawBookTopic[];
-	const signed = await Promise.all(
-		rows.map(async (r) => {
-			if (!r.source_image_url) return null;
-			const { data: s, error: sErr } = await supabase.storage
-				.from(SCRIPTURE_IMAGES_BUCKET)
-				.createSignedUrl(r.source_image_url, SCRIPTURE_IMAGES_SIGNED_URL_TTL);
-			if (sErr) {
-				console.error('[loadBookTopicsForBook] signed URL error', sErr);
-				return null;
-			}
-			return s?.signedUrl ?? null;
-		})
+	const signed = await signStorageUrlsLimited(
+		supabase,
+		SCRIPTURE_IMAGES_BUCKET,
+		rows.map((r) => r.source_image_url),
+		SCRIPTURE_IMAGES_SIGNED_URL_TTL
 	);
 	return rows.map((r, i) => ({
 		id: r.id,

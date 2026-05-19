@@ -31,14 +31,16 @@ async function main() {
 	const t1 = Date.now();
 	const counts = await loadPersonBookCounts(sb);
 	const t2 = Date.now();
-	const books = await loadBookListFiltered(sb, people, {});
+	const { books, filteredCount } = await loadBookListFiltered(sb, people, { all: true });
 	const t3 = Date.now();
 
 	console.log(`loadPeople:           ${people.length} rows  (${t1 - t0}ms)`);
 	console.log(`loadPersonBookCounts: ${counts.size} unique people  (${t2 - t1}ms)`);
 	const totalAuthorRows = [...counts.values()].reduce((a, b) => a + b, 0);
 	console.log(`  total author rows:  ${totalAuthorRows}`);
-	console.log(`loadBookListFiltered: ${books.length} rows  (${t3 - t2}ms)`);
+	console.log(
+		`loadBookListFiltered: ${books.length} rows (count ${filteredCount})  (${t3 - t2}ms)`
+	);
 
 	// Sanity: how many books have authors_label populated?
 	const withAuthors = books.filter((b) => b.authors_label != null).length;

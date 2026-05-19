@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
-	import { disableScrollHandling, goto, invalidateAll } from '$app/navigation';
+	import { disableScrollHandling, goto, invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { onMount, tick, untrack } from 'svelte';
@@ -864,7 +864,7 @@
 						<ArrowLeft class="size-4" /> Back to library
 					</Button>
 					{#if remaining > 0}
-						<Button onclick={() => invalidateAll()} class="gap-1">
+						<Button onclick={() => invalidate('app:library:review')} class="gap-1">
 							<ChevronRight class="size-4" /> Reload queue
 						</Button>
 					{/if}

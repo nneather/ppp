@@ -1,6 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { loadBookListFiltered, loadPeople } from '$lib/library/server/loaders';
+import { loadBookListFiltered } from '$lib/library/server/loaders';
 import { parseBookListFilters } from '$lib/library/server/url-params';
 import { LIBRARY_PAGE_SIZE } from '$lib/types/library';
 
@@ -13,9 +13,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	const supabase = locals.supabase;
 	const filters = parseBookListFilters(url);
-	const people = await loadPeople(supabase);
-	const all = await loadBookListFiltered(supabase, people, filters);
-	const books = all.slice(offset, offset + LIBRARY_PAGE_SIZE);
+	// Embedded `people` on book_authors — no layout `loadPeople` refetch per scroll chunk.
+	const { books, filteredCount } = await loadBookListFiltered(supabase, [], filters, {
+		limit: LIBRARY_PAGE_SIZE,
+		offset
+	});
 
-	return json({ books, filteredCount: all.length });
+	return json({ books, filteredCount });
 };

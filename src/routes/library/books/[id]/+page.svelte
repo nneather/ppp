@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -33,17 +33,28 @@
 		READING_STATUSES,
 		READING_STATUS_LABELS
 	} from '$lib/types/library';
-	import type { ReadingStatus, ScriptureRefRow, BookListRow } from '$lib/types/library';
+	import type {
+		AncientTextRow,
+		BookListRow,
+		BookTopicRow,
+		ReadingStatus,
+		ScriptureRefRow,
+		TopicCount
+	} from '$lib/types/library';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
-	import type { BookTopicRow } from '$lib/types/library';
 	import type { PageProps } from './$types';
 	import { cn } from '$lib/utils.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Image from '@lucide/svelte/icons/image';
 
 	let { data, form }: PageProps = $props();
+
+	const bookInvalidateKey = $derived(`app:library:book:${data.book.id}`);
+	async function invalidateBook() {
+		await invalidate(bookInvalidateKey);
+	}
 
 	let bookActionsSheetOpen = $state(false);
 
@@ -184,7 +195,7 @@
 	]);
 
 	// Optimistic local list — start from server state, mutate on add/edit/delete
-	// for snappy feedback. After invalidateAll the canonical state takes over.
+	// for snappy feedback. After invalidate(book) the canonical state takes over.
 	// Keep `refs` in sync with `data.scriptureRefs` via $effect; the warning
 	// "state_referenced_locally" is suppressed by initializing to [] then
 	// hydrating in the effect (which tracks data.scriptureRefs as a dep).
@@ -406,12 +417,12 @@
 
 	async function onCreatedBatch(refIds: string[]) {
 		addOpen = false;
-		await invalidateAll();
+		await invalidateBook();
 	}
 
 	async function onUpdated(refId: string) {
 		editingId = null;
-		await invalidateAll();
+		await invalidateBook();
 	}
 
 	function requestDelete(id: string) {
@@ -439,10 +450,10 @@
 			confirmDeleteOpen = false;
 			pendingDeleteId = null;
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidateBook();
 			} else {
 				// Revert optimistic remove on failure by reloading.
-				await invalidateAll();
+				await invalidateBook();
 			}
 		};
 	};
@@ -460,8 +471,29 @@
 
 	let topics = $state<BookTopicRow[]>([]);
 	$effect(() => {
-		topics = data.bookTopics;
+		void data.bookTopicsPromise.then((t) => {
+			topics = t;
+		});
 	});
+
+	let topicCounts = $state<TopicCount[]>([]);
+	let ancientTexts = $state<AncientTextRow[]>([]);
+
+	async function ensureTopicCounts() {
+		if (topicCounts.length > 0) return;
+		const res = await fetch('/library/topic-counts.json');
+		if (!res.ok) return;
+		const body = (await res.json()) as { topicCounts?: TopicCount[] };
+		topicCounts = body.topicCounts ?? [];
+	}
+
+	async function ensureAncientTexts() {
+		if (ancientTexts.length > 0) return;
+		const res = await fetch('/library/ancient-texts.json');
+		if (!res.ok) return;
+		const body = (await res.json()) as { ancientTexts?: AncientTextRow[] };
+		ancientTexts = body.ancientTexts ?? [];
+	}
 
 	function startEditTopic(id: string) {
 		editingTopicId = id;
@@ -472,11 +504,11 @@
 	}
 	async function onTopicCreated() {
 		topicAddOpen = false;
-		await invalidateAll();
+		await invalidateBook();
 	}
 	async function onTopicUpdated() {
 		editingTopicId = null;
-		await invalidateAll();
+		await invalidateBook();
 	}
 	function requestDeleteTopic(id: string) {
 		topicPendingDeleteId = id;
@@ -495,7 +527,7 @@
 			topicDeletePending = false;
 			topicConfirmDeleteOpen = false;
 			topicPendingDeleteId = null;
-			await invalidateAll();
+			await invalidateBook();
 		};
 	};
 
@@ -540,6 +572,7 @@
 	$effect(() => {
 		if (!browser) return;
 		if ((topicAddOpen || editingTopicId !== null) && BookTopicFormCmp === null) {
+			void ensureTopicCounts();
 			void import('$lib/components/book-topic-form.svelte').then((m) => {
 				BookTopicFormCmp = m.default;
 			});
@@ -550,6 +583,7 @@
 		void import('$lib/components/book-bible-coverage-editor.svelte').then((m) => {
 			BookBibleCoverageEditorCmp = m.default;
 		});
+		void ensureAncientTexts();
 		void import('$lib/components/book-ancient-coverage-editor.svelte').then((m) => {
 			BookAncientCoverageEditorCmp = m.default;
 		});
@@ -1108,27 +1142,36 @@
 				class="text-lg font-semibold tracking-tight text-foreground"
 			>
 				Bible coverage
-				{#if data.bibleCoverage.length > 0}
-					<span class="ml-1 text-sm font-normal text-muted-foreground">({data.bibleCoverage.length})</span>
-				{/if}
 			</h2>
 		</div>
 		<p class="mt-1 text-xs text-muted-foreground">
 			Which biblical books does this work cover? Tagged books surface on passage search.
 		</p>
 		<div class="mt-3">
-			{#if BookBibleCoverageEditorCmp}
-				<BookBibleCoverageEditorCmp
-					bookId={data.book.id}
-					bibleBookNames={data.bibleBookNames}
-					covered={data.bibleCoverage}
-				/>
-			{:else}
+			{#await data.bibleCoveragePromise}
 				<div
 					class="h-24 animate-pulse rounded-lg border border-border bg-muted/20"
 					aria-hidden="true"
 				></div>
-			{/if}
+			{:then bibleCoverage}
+				{#if bibleCoverage.length > 0}
+					<p class="mb-2 text-sm text-muted-foreground">
+						{bibleCoverage.length} book{bibleCoverage.length === 1 ? '' : 's'} tagged
+					</p>
+				{/if}
+				{#if BookBibleCoverageEditorCmp}
+					<BookBibleCoverageEditorCmp
+						bookId={data.book.id}
+						bibleBookNames={data.bibleBookNames}
+						covered={bibleCoverage}
+					/>
+				{:else}
+					<div
+					class="h-24 animate-pulse rounded-lg border border-border bg-muted/20"
+					aria-hidden="true"
+					></div>
+				{/if}
+			{/await}
 		</div>
 	</section>
 
@@ -1142,25 +1185,34 @@
 				class="text-lg font-semibold tracking-tight text-foreground"
 			>
 				Ancient-text coverage
-				{#if data.ancientCoverage.length > 0}
-					<span class="ml-1 text-sm font-normal text-muted-foreground">({data.ancientCoverage.length})</span>
-				{/if}
 			</h2>
 		</div>
 		<div class="mt-3">
-			{#if BookAncientCoverageEditorCmp}
-				<BookAncientCoverageEditorCmp
-					bookId={data.book.id}
-					ancientTexts={data.ancientTexts}
-					coverage={data.ancientCoverage}
-					isOwner={data.isOwner}
-				/>
-			{:else}
+			{#await data.ancientCoveragePromise}
 				<div
 					class="h-24 animate-pulse rounded-lg border border-border bg-muted/20"
 					aria-hidden="true"
 				></div>
-			{/if}
+			{:then ancientCoverage}
+				{#if ancientCoverage.length > 0}
+					<p class="mb-2 text-sm text-muted-foreground">
+						{ancientCoverage.length} text{ancientCoverage.length === 1 ? '' : 's'} tagged
+					</p>
+				{/if}
+				{#if BookAncientCoverageEditorCmp}
+					<BookAncientCoverageEditorCmp
+						bookId={data.book.id}
+						{ancientTexts}
+						coverage={ancientCoverage}
+						isOwner={data.isOwner}
+					/>
+				{:else}
+					<div
+						class="h-24 animate-pulse rounded-lg border border-border bg-muted/20"
+						aria-hidden="true"
+					></div>
+				{/if}
+			{/await}
 		</div>
 	</section>
 
@@ -1204,7 +1256,7 @@
 							{#if BookTopicFormCmp}
 								<BookTopicFormCmp
 									books={sourcePickerBooks}
-									topicCounts={data.topicCounts}
+									{topicCounts}
 									lockedBookId={data.book.id}
 									userId={data.userId}
 									existingTopic={topic}
@@ -1290,7 +1342,7 @@
 				{#if BookTopicFormCmp}
 					<BookTopicFormCmp
 						books={sourcePickerBooks}
-						topicCounts={data.topicCounts}
+						{topicCounts}
 						lockedBookId={data.book.id}
 						userId={data.userId}
 						formMessage={topicFormMessage}
