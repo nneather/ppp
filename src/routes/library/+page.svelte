@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { invalidate, goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
@@ -51,9 +50,6 @@
 
 	const filters = $derived<BookListFilters>(data.filters);
 
-	/** After first paint, show list (SSR always renders list HTML for SEO). */
-	let listMounted = $state(false);
-
 	let loadedBooks = $state<BookListRow[]>([]);
 	let loadingMore = $state(false);
 	let loadMoreError = $state<string | null>(null);
@@ -63,22 +59,6 @@
 		void data.books;
 		loadedBooks = [...data.books];
 		loadMoreError = null;
-	});
-
-	onMount(() => {
-		if (data.filters.all === true) {
-			listMounted = true;
-			return;
-		}
-		requestAnimationFrame(() => {
-			requestAnimationFrame(() => {
-				listMounted = true;
-			});
-		});
-	});
-
-	$effect(() => {
-		if (filters.all === true) listMounted = true;
 	});
 
 	const filteredCount = $derived(data.filteredCount);
@@ -812,76 +792,85 @@
 						</div>
 					</div>
 				{/if}
-				{#if !browser || listMounted}
 				<!-- Mobile cards -->
 				<ul class="flex flex-col gap-3 md:hidden">
 					{#each loadedBooks as b (b.id)}
-						<li class="rounded-xl border border-border bg-card p-4 text-card-foreground transition-colors hover:border-ring/50">
-							<div class="flex gap-3">
+						<li
+							class="relative rounded-xl border border-border bg-card p-4 text-card-foreground transition-colors hover:border-ring/50"
+						>
+							<a
+								href={`/library/books/${b.id}`}
+								class="absolute inset-0 z-0 rounded-xl"
+								aria-label={`Open ${b.title ?? 'book'}`}
+							></a>
+							<div class="relative z-10 flex gap-3 pointer-events-none">
 								<input
 									type="checkbox"
-									class="mt-1 size-4 shrink-0 rounded border-border max-md:h-11 max-md:w-11"
+									class="pointer-events-auto mt-1 size-11 shrink-0 rounded border-border"
 									bind:group={selectedIds}
 									value={b.id}
 									aria-label={`Select ${b.title ?? 'book'}`}
 								/>
 								<div class="min-w-0 flex-1">
-							<a href={`/library/books/${b.id}`} class="flex flex-col gap-1.5">
-								<div class="flex items-start justify-between gap-3">
-									<div class="min-w-0 flex-1">
-										<p class="truncate text-base font-medium leading-snug">
-											{#if b.title}{b.title}{:else}<span class="italic text-muted-foreground">(untitled)</span>{/if}{#if b.volume_number}, vol. {b.volume_number}{/if}
-										</p>
-										{#if b.subtitle}
-											<p class="truncate text-sm text-muted-foreground">{b.subtitle}</p>
-										{/if}
-										{#if b.authors_label}
-											<p class="mt-0.5 truncate text-xs text-muted-foreground">{b.authors_label}</p>
-										{/if}
+									<div class="flex flex-col gap-1.5">
+										<div class="flex items-start justify-between gap-3">
+											<div class="min-w-0 flex-1">
+												<p class="truncate text-base font-medium leading-snug">
+													{#if b.title}{b.title}{:else}<span class="italic text-muted-foreground">(untitled)</span>{/if}{#if b.volume_number}, vol. {b.volume_number}{/if}
+												</p>
+												{#if b.subtitle}
+													<p class="truncate text-sm text-muted-foreground">{b.subtitle}</p>
+												{/if}
+												{#if b.authors_label}
+													<p class="mt-0.5 truncate text-xs text-muted-foreground">{b.authors_label}</p>
+												{/if}
+											</div>
+											{#if b.needs_review}
+												<span
+													class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
+												>
+													<AlertCircle class="size-3" /> Review
+												</span>
+											{/if}
+										</div>
+										<div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+											{#if b.genre}
+												<span
+													class="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground"
+												>
+													{b.genre}
+												</span>
+											{/if}
+											{#if b.series_abbreviation}
+												<span
+													class="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground"
+													title={b.series_name ?? undefined}
+												>
+													{b.series_abbreviation}
+												</span>
+											{/if}
+										</div>
 									</div>
-									{#if b.needs_review}
-										<span
-											class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
+									<form
+										method="POST"
+										action="?/updateReadingStatus"
+										use:enhance={statusSubmit(b.id)}
+										class="pointer-events-auto mt-3"
+									>
+										<input type="hidden" name="id" value={b.id} />
+										<select
+											name="reading_status"
+											value={effectiveStatus(b)}
+											onchange={(e) =>
+												(e.currentTarget.form as HTMLFormElement | null)?.requestSubmit()}
+											class={`w-full rounded-md border bg-background px-2 py-1.5 text-xs ${statusToneClasses(effectiveStatus(b))}`}
+											aria-label="Reading status"
 										>
-											<AlertCircle class="size-3" /> Review
-										</span>
-									{/if}
-								</div>
-								<div class="flex flex-wrap items-center gap-1.5 text-[11px]">
-									{#if b.genre}
-										<span class="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground">
-											{b.genre}
-										</span>
-									{/if}
-									{#if b.series_abbreviation}
-										<span
-											class="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground"
-											title={b.series_name ?? undefined}
-										>
-											{b.series_abbreviation}
-										</span>
-									{/if}
-								</div>
-							</a>
-							<form
-								method="POST"
-								action="?/updateReadingStatus"
-								use:enhance={statusSubmit(b.id)}
-								class="mt-3"
-							>
-								<input type="hidden" name="id" value={b.id} />
-								<select
-									name="reading_status"
-									value={effectiveStatus(b)}
-									onchange={(e) => (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit()}
-									class={`w-full rounded-md border bg-background px-2 py-1.5 text-xs ${statusToneClasses(effectiveStatus(b))}`}
-									aria-label="Reading status"
-								>
-									{#each READING_STATUSES as s (s)}
-										<option value={s}>{READING_STATUS_LABELS[s]}</option>
-									{/each}
-								</select>
-							</form>
+											{#each READING_STATUSES as s (s)}
+												<option value={s}>{READING_STATUS_LABELS[s]}</option>
+											{/each}
+										</select>
+									</form>
 								</div>
 							</div>
 						</li>
@@ -1003,7 +992,6 @@
 				{#if loadMoreError}
 					<p class="mt-2 text-center text-sm text-destructive" role="alert">{loadMoreError}</p>
 				{/if}
-			{/if}
 			{/if}
 	</div>
 </div>

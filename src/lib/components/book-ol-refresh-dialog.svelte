@@ -23,6 +23,7 @@
 		fetchOpenLibraryPrefill,
 		type OpenLibraryBookPrefill
 	} from '$lib/library/open-library-prefill';
+	import type { PublisherRow } from '$lib/types/library';
 	import { parseIsbnWithChecksum } from '$lib/library/isbn';
 	import {
 		acquireCameraStream,
@@ -49,11 +50,13 @@
 	let {
 		open = $bindable(false),
 		initialIsbn = '',
+		publishers = [],
 		current,
 		onApply
 	}: {
 		open?: boolean;
 		initialIsbn?: string;
+		publishers?: PublisherRow[];
 		current: CurrentSnapshot;
 		onApply: (keys: OlApplyKey[], data: OpenLibraryBookPrefill) => void;
 	} = $props();
@@ -208,7 +211,7 @@
 		}
 		lookupPending = true;
 		try {
-			const p = await fetchOpenLibraryPrefill(validated);
+			const p = await fetchOpenLibraryPrefill(validated, publishers);
 			prefill = p;
 			setPicksFromPrefill(p);
 		} catch (e) {

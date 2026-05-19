@@ -57,6 +57,8 @@ Component name: `<CanonicalizingCombobox>` (or similar). Inputs: existing values
 
 `books.genre` is enforced by `books_genre_check` (see migration `20260507190000`) and must match `GENRES` in `src/lib/types/library.ts`. `books.work_type` is enforced by CHECK (`monograph` | `edited_volume` | `reference_work`, migration `20260519120000`) and must match `WORK_TYPES` in `src/lib/types/library.ts` — use for Turabian dispatch (edited volume vs reference work vs monograph) and review missing-field rules (editor required when not monograph). `books.language` is constrained by a CHECK. Treat as Settings concerns or named constants in `src/lib/types/library.ts` — do not improvise free-text lists in forms.
 
+**Publisher citations** — `publishers` registry (migration `20260520120000`); `books.publisher_id` optional FK. Turabian + loaders resolve: `books.publisher_location` (override) → `publishers.default_location` → parent `default_location`; display name prefers `publishers.canonical_name` when linked. OL prefill and review queue use `matchPublisher` in `src/lib/library/match.ts`. Settings: `/settings/library/publishers`.
+
 ## Patterns landed in Session 1
 
 - **Diff-based junction sync.** `syncAuthors` in `src/lib/library/server/book-actions.ts` computes insert / update / delete sets relative to current rows. Audit log shows minimal diffs. Reuse this shape for any future junction with sort_order or extra columns. (Originally paired with `syncCategories`; the categories junction was removed in decision 022 when genre became the single content-type axis.)

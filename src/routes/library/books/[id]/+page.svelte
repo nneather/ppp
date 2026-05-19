@@ -179,6 +179,9 @@
 			series_abbreviation: data.book.series_abbreviation,
 			series_name: data.book.series_name,
 			volume_number: data.book.volume_number,
+			publisher_id: data.book.publisher_id,
+			publisher_canonical: data.book.publisher_canonical,
+			publisher_effective_location: data.book.publisher_effective_location,
 			authors_label: (() => {
 				const authorLabels = data.book.authors
 					.filter((a) => a.role === 'author')

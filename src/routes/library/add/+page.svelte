@@ -21,6 +21,9 @@
 	import { BarcodeFormat, DecodeHintType, NotFoundException } from '@zxing/library';
 	import Barcode from '@lucide/svelte/icons/scan-barcode';
 	import PageHeader from '$lib/components/page-header.svelte';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Loader2 from '@lucide/svelte/icons/loader-2';
 	const hints = new Map<DecodeHintType, BarcodeFormat[]>();
@@ -98,7 +101,10 @@
 		}
 		lookupPending = true;
 		try {
-			const prefill: OpenLibraryBookPrefill = await fetchOpenLibraryPrefill(validated);
+			const prefill: OpenLibraryBookPrefill = await fetchOpenLibraryPrefill(
+				validated,
+				data.publishers
+			);
 			if (browser) {
 				sessionStorage.setItem(LIBRARY_OL_PREFILL_KEY, JSON.stringify(prefill));
 				markScanSessionForNewBook();

@@ -134,6 +134,17 @@ export type SeriesRow = {
 	abbreviation: string | null;
 };
 
+export type PublisherRow = {
+	id: string;
+	canonical_name: string;
+	parent_id: string | null;
+	default_location: string | null;
+	/** Parent imprint default location (from join). */
+	parent_default_location?: string | null;
+	aliases: string[];
+	notes: string | null;
+};
+
 export type PersonRow = {
 	id: string;
 	first_name: string | null;
@@ -169,6 +180,9 @@ export type BookListRow = {
 	series_name: string | null;
 	volume_number: string | null;
 	authors_label: string | null;
+	publisher_id: string | null;
+	publisher_canonical: string | null;
+	publisher_effective_location: string | null;
 };
 
 export type BookDetail = {
@@ -177,6 +191,10 @@ export type BookDetail = {
 	subtitle: string | null;
 	publisher: string | null;
 	publisher_location: string | null;
+	publisher_id: string | null;
+	reprint_publisher_id: string | null;
+	publisher_canonical: string | null;
+	publisher_effective_location: string | null;
 	year: number | null;
 	edition: string | null;
 	total_volumes: number | null;

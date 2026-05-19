@@ -16,6 +16,7 @@ export const _INVOICING_TABLES = [
 export const _LIBRARY_TABLES = [
 	'ancient_texts',
 	'people',
+	'publishers',
 	'series',
 	'books',
 	'book_authors',
@@ -157,6 +158,8 @@ function entityLabelFor(
 		case 'categories':
 			return get('name');
 		case 'ancient_texts':
+			return get('canonical_name');
+		case 'publishers':
 			return get('canonical_name');
 		case 'clients':
 			return get('name');

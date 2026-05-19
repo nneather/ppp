@@ -13,6 +13,8 @@
 		readReviewToday,
 		reviewCardToCitationInput
 	} from '$lib/library/turabian';
+	import { matchPublisher } from '$lib/library/match';
+	import { publisherDefaultLocationForRow } from '$lib/library/publisher-resolve';
 	import { defaultReviewSlice } from '$lib/library/turabian/review-progress';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -72,6 +74,8 @@
 	let editTitle = $state<string | null>(null);
 	let editYear = $state<string | null>(null);
 	let editPublisher = $state<string | null>(null);
+	let editPublisherLocation = $state<string | null>(null);
+	let editPublisherId = $state<string | null>(null);
 	let editGenre = $state<Genre | null>(null);
 	let editLanguage = $state<Language | null>(null);
 	let editReadingStatus = $state<ReadingStatus | null>(null);
@@ -96,7 +100,13 @@
 	const citationForCard = $derived.by(() => {
 		const c = currentCard;
 		if (!c) return null;
-		const input = reviewCardToCitationInput(c);
+		const input = reviewCardToCitationInput({
+			...c,
+			publisher: effectivePublisher(c),
+			publisher_location: effectivePublisherLocation(c),
+			publisher_canonical: effectivePublisher(c),
+			publisher_effective_location: effectivePublisherLocation(c)
+		});
 		return {
 			footnote: formatFootnote(input),
 			bibliography: formatBibliography(input)
@@ -134,6 +144,8 @@
 		editTitle = null;
 		editYear = null;
 		editPublisher = null;
+		editPublisherLocation = null;
+		editPublisherId = null;
 		editGenre = null;
 		editLanguage = null;
 		editReadingStatus = null;
@@ -144,6 +156,8 @@
 		editTitle = null;
 		editYear = null;
 		editPublisher = null;
+		editPublisherLocation = null;
+		editPublisherId = null;
 		editGenre = null;
 		editLanguage = null;
 		editReadingStatus = null;
@@ -351,6 +365,18 @@
 	function effectivePublisher(c: ReviewCard): string | null {
 		return editPublisher !== null ? editPublisher.trim() || null : c.publisher;
 	}
+	function effectivePublisherLocation(c: ReviewCard): string | null {
+		if (editPublisherLocation !== null) return editPublisherLocation.trim() || null;
+		return c.publisher_effective_location ?? c.publisher_location;
+	}
+
+	const publisherRegistryMatch = $derived.by(() => {
+		const c = currentCard;
+		if (!c) return null;
+		const raw = effectivePublisher(c);
+		if (!raw) return null;
+		return matchPublisher(raw, data.publishers);
+	});
 	function effectiveGenre(c: ReviewCard): Genre | null {
 		return editGenre !== null ? editGenre : (c.genre as Genre | null);
 	}
@@ -596,6 +622,34 @@
 								/>
 							</label>
 						{/if}
+						{#if publisherRegistryMatch && effectivePublisher(card) !== publisherRegistryMatch.canonical_name}
+							<div class="flex flex-wrap gap-1.5">
+								<button
+									type="button"
+									class="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs text-primary"
+									onclick={() => {
+										editPublisher = publisherRegistryMatch.canonical_name;
+										editPublisherId = publisherRegistryMatch.id;
+									}}
+								>
+									Use {publisherRegistryMatch.canonical_name}
+								</button>
+							</div>
+						{/if}
+						{#if publisherRegistryMatch && !effectivePublisherLocation(card)}
+							{@const loc = publisherDefaultLocationForRow(publisherRegistryMatch)}
+							{#if loc}
+								<div class="flex flex-wrap gap-1.5">
+									<button
+										type="button"
+										class="rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs"
+										onclick={() => (editPublisherLocation = loc)}
+									>
+										Use location: {loc}
+									</button>
+								</div>
+							{/if}
+						{/if}
 						{#if !card.publisher}
 							<label class="flex flex-col gap-1 text-xs">
 								<span class="font-medium text-muted-foreground">Publisher</span>
@@ -609,7 +663,34 @@
 										(editPublisher = (e.currentTarget as HTMLInputElement).value)}
 								/>
 							</label>
+						{:else}
+							<input type="hidden" name="publisher" value={effectivePublisher(card) ?? ''} />
 						{/if}
+						{#if !card.publisher_location && !card.publisher_effective_location}
+							<label class="flex flex-col gap-1 text-xs">
+								<span class="font-medium text-muted-foreground">Publisher location</span>
+								<Input
+									name="publisher_location"
+									type="text"
+									autocomplete="off"
+									placeholder="Grand Rapids, MI"
+									value={editPublisherLocation ?? ''}
+									oninput={(e) =>
+										(editPublisherLocation = (e.currentTarget as HTMLInputElement).value)}
+								/>
+							</label>
+						{:else if editPublisherLocation !== null}
+							<input
+								type="hidden"
+								name="publisher_location"
+								value={effectivePublisherLocation(card) ?? ''}
+							/>
+						{/if}
+						<input
+							type="hidden"
+							name="publisher_id"
+							value={editPublisherId ?? card.publisher_id ?? ''}
+						/>
 					</div>
 
 					<!-- Genre chip row -->

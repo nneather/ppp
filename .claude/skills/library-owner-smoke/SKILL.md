@@ -12,7 +12,7 @@ description: Owner phone smoke for the library module after UI or OCR changes. U
 
 ## Runbook §A (core)
 
-1. **`/library`** — search debounce; Filters sheet; **New book** + **⋯** sheet (Search passage, Add by ISBN, Review queue)
+1. **`/library`** — **tap a book card** → book detail loads (iOS PWA regression fixed in [035](../../docs/decisions/035-library-list-pwa-navigation.md)); reading-status on card does not navigate; search debounce; Filters sheet; **New book** + **⋯** sheet (Search passage, Add by ISBN, Review queue)
 2. **`/library/add`** — barcode or manual ISBN → new book prefill
 3. **`/library/books/[id]`** — Edit + ⋯ sheet; reading status; scripture tab
 4. **`/library/search-passage`** — e.g. Phil 2:5 returns hits

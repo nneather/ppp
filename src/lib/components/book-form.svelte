@@ -26,6 +26,7 @@
 	import type {
 		BookDetail,
 		SeriesRow,
+		PublisherRow,
 		PersonRow,
 		AuthorRole,
 		Genre,
@@ -37,10 +38,12 @@
 	import {
 		matchPersonExact,
 		matchPersonFuzzyCandidates,
+		matchPublisher,
 		matchSeries,
 		splitAuthorString,
 		detectBibleBookFromTitle
 	} from '$lib/library/match';
+	import { publisherDefaultLocationForRow } from '$lib/library/publisher-resolve';
 	import type { OlApplyKey } from '$lib/components/book-ol-refresh-dialog.svelte';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -91,6 +94,7 @@
 		people: initialPeople,
 		personBookCounts,
 		series,
+		publishers,
 		bibleBooks = [],
 		formMessage = null,
 		onSaved,
@@ -107,6 +111,7 @@
 		people: PersonRow[];
 		personBookCounts: Record<string, number>;
 		series: SeriesRow[];
+		publishers: PublisherRow[];
 		/** Canonical bible book names for commentary auto-coverage (create mode). */
 		bibleBooks?: { name: string; testament: 'OT' | 'NT' }[];
 		formMessage?: FormMessage;
@@ -134,6 +139,8 @@
 	let subtitle = $state('');
 	let publisher = $state('');
 	let publisher_location = $state('');
+	let publisher_id = $state('');
+	let reprint_publisher_id = $state('');
 	let year = $state('');
 	let edition = $state('');
 	let total_volumes = $state('');
@@ -201,6 +208,8 @@
 			subtitle,
 			publisher,
 			publisher_location,
+			publisher_id,
+			reprint_publisher_id,
 			year,
 			edition,
 			total_volumes,
@@ -239,6 +248,8 @@
 			subtitle,
 			publisher,
 			publisher_location,
+			publisher_id,
+			reprint_publisher_id,
 			year,
 			edition,
 			total_volumes,
@@ -279,6 +290,36 @@
 
 	const formAction = $derived(`?/${mode === 'create' ? 'createBook' : 'updateBook'}`);
 	const personActionPath = '?/createPerson';
+
+	const publisherSelectItems = $derived([
+		{ value: '', label: '— Custom / not listed —' },
+		...publishers.map((p) => ({
+			value: p.id,
+			label: p.canonical_name
+		}))
+	]);
+
+	const reprintPublisherSelectItems = $derived(publisherSelectItems);
+
+	function applyPublisherPick(id: string, target: 'primary' | 'reprint') {
+		if (!id) {
+			if (target === 'primary') publisher_id = '';
+			else reprint_publisher_id = '';
+			return;
+		}
+		const row = publishers.find((p) => p.id === id);
+		if (!row) return;
+		if (target === 'primary') {
+			publisher_id = id;
+			publisher = row.canonical_name;
+			if (!publisher_location.trim()) {
+				publisher_location = publisherDefaultLocationForRow(row) ?? '';
+			}
+		} else {
+			reprint_publisher_id = id;
+			reprint_publisher = row.canonical_name;
+		}
+	}
 
 	const seriesSelectItems = $derived([
 		{ value: '', label: '— None —' },
@@ -465,6 +506,8 @@
 			subtitle = book.subtitle ?? '';
 			publisher = book.publisher ?? '';
 			publisher_location = book.publisher_location ?? '';
+			publisher_id = book.publisher_id ?? '';
+			reprint_publisher_id = book.reprint_publisher_id ?? '';
 			year = book.year != null ? String(book.year) : '';
 			edition = book.edition ?? '';
 			total_volumes = book.total_volumes != null ? String(book.total_volumes) : '';
@@ -527,6 +570,7 @@
 			if (p.title) title = p.title;
 			if (p.subtitle != null && p.subtitle !== '') subtitle = p.subtitle;
 			if (p.publisher != null && p.publisher !== '') publisher = p.publisher;
+			if (p.publisher_id) publisher_id = p.publisher_id;
 			if (p.publisher_location != null && p.publisher_location !== '')
 				publisher_location = p.publisher_location;
 			if (p.edition != null && p.edition !== '') edition = p.edition;
@@ -789,6 +833,7 @@
 			if (set.has('title') && data.title) title = data.title;
 			if (set.has('subtitle') && data.subtitle != null) subtitle = data.subtitle;
 			if (set.has('publisher') && data.publisher != null) publisher = data.publisher;
+			if (set.has('publisher') && data.publisher_id) publisher_id = data.publisher_id;
 			if (set.has('publisher_location') && data.publisher_location != null)
 				publisher_location = data.publisher_location;
 			if (set.has('year') && data.year != null) year = String(data.year);
@@ -823,6 +868,7 @@
 			<mod.default
 				bind:open={olRefreshOpen}
 				initialIsbn={isbn}
+				{publishers}
 				current={olRefreshCurrent}
 				onApply={applyOlRefresh}
 			/>
@@ -882,9 +928,59 @@
 				Citation essentials
 			</h3>
 			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-				<div class="space-y-2">
+				<div class="space-y-2 sm:col-span-2">
 					<Label for="bf-pub">Publisher</Label>
-					<Input id="bf-pub" name="publisher" bind:value={publisher} class="h-11 text-base" />
+					<Input
+						id="bf-pub"
+						name="publisher"
+						bind:value={publisher}
+						class="h-11 text-base"
+						oninput={() => {
+							if (publisher_id) {
+								const row = publishers.find((p) => p.id === publisher_id);
+								if (row && publisher.trim() !== row.canonical_name) publisher_id = '';
+							}
+						}}
+						onblur={() => {
+							const matched = publisher.trim()
+								? matchPublisher(publisher, publishers)
+								: null;
+							if (matched) applyPublisherPick(matched.id, 'primary');
+						}}
+					/>
+					<Select.Root
+						type="single"
+						value={publisher_id}
+						onValueChange={(v) => applyPublisherPick(v ?? '', 'primary')}
+						items={publisherSelectItems}
+					>
+						<Select.Trigger class="mt-1.5 h-9 w-full justify-between px-3 text-xs">
+							<span class="truncate text-left text-muted-foreground">
+								{publisher_id
+									? (publishers.find((p) => p.id === publisher_id)?.canonical_name ??
+										'Registry imprint')
+									: 'Pick from publishers list…'}
+							</span>
+						</Select.Trigger>
+						<Select.Content class="max-h-72">
+							{#each publisherSelectItems as item (item.value)}
+								<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+					{#if publisher.trim() && !publisher_id}
+						<p class="text-xs text-muted-foreground">
+							Not in publishers list —
+							<a
+								href="/settings/library/publishers"
+								class="underline underline-offset-2"
+								target="_blank"
+								rel="noopener noreferrer">add in settings</a
+							>
+							for consistent citations.
+						</p>
+					{/if}
+					<input type="hidden" name="publisher_id" value={publisher_id} />
 				</div>
 				<div class="space-y-2">
 					<Label for="bf-pub-loc">Publisher location</Label>
@@ -1409,14 +1505,45 @@
 								class="h-11 text-base tabular-nums"
 							/>
 						</div>
-						<div class="space-y-2">
+						<div class="space-y-2 sm:col-span-2">
 							<Label for="bf-rep-pub">Reprint publisher</Label>
 							<Input
 								id="bf-rep-pub"
 								name="reprint_publisher"
 								bind:value={reprint_publisher}
 								class="h-11 text-base"
+								oninput={() => {
+									if (reprint_publisher_id) {
+										const row = publishers.find((p) => p.id === reprint_publisher_id);
+										if (row && reprint_publisher.trim() !== row.canonical_name) {
+											reprint_publisher_id = '';
+										}
+									}
+								}}
 							/>
+							<Select.Root
+								type="single"
+								value={reprint_publisher_id}
+								onValueChange={(v) => applyPublisherPick(v ?? '', 'reprint')}
+								items={reprintPublisherSelectItems}
+							>
+								<Select.Trigger class="mt-1.5 h-9 w-full justify-between px-3 text-xs">
+									<span class="truncate text-left text-muted-foreground">
+										{reprint_publisher_id
+											? (publishers.find((p) => p.id === reprint_publisher_id)
+													?.canonical_name ?? 'Registry imprint')
+											: 'Pick from publishers list…'}
+									</span>
+								</Select.Trigger>
+								<Select.Content class="max-h-72">
+									{#each reprintPublisherSelectItems as item (item.value)}
+										<Select.Item value={item.value} label={item.label}
+											>{item.label}</Select.Item
+										>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+							<input type="hidden" name="reprint_publisher_id" value={reprint_publisher_id} />
 						</div>
 						<div class="space-y-2">
 							<Label for="bf-rep-loc">Reprint location</Label>

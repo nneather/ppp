@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	countReviewQueue,
 	countReviewQueueBySlice,
+	loadPublishers,
 	loadReviewQueue,
 	loadScriptureRefsNeedingReview
 } from '$lib/library/server/loaders';
@@ -33,7 +34,7 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 	const activeSlice: ReviewSlice = filters.slice ?? defaultReviewSlice();
 
 	const { people } = await parent();
-	const [cards, remaining, scriptureRefsNeedingReview, criticalRemaining, backlogRemaining] =
+	const [cards, remaining, scriptureRefsNeedingReview, criticalRemaining, backlogRemaining, publishers] =
 		await Promise.all([
 			loadReviewQueue(supabase, people, filters, {
 				limit: QUEUE_PAGE_SIZE,
@@ -42,7 +43,8 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 			countReviewQueue(supabase, filters),
 			loadScriptureRefsNeedingReview(supabase, { limit: 50 }),
 			countReviewQueueBySlice(supabase, 'critical'),
-			countReviewQueueBySlice(supabase, 'backlog')
+			countReviewQueueBySlice(supabase, 'backlog'),
+			loadPublishers(supabase)
 		]);
 
 	const sliceDenominator = SLICE_DENOMINATORS[activeSlice];
@@ -58,7 +60,8 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 		criticalRemaining,
 		backlogRemaining,
 		queuePageSize: QUEUE_PAGE_SIZE,
-		scriptureRefsNeedingReview
+		scriptureRefsNeedingReview,
+		publishers
 	};
 };
 

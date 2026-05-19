@@ -370,11 +370,13 @@ export type Database = {
           page_count: number | null
           personal_notes: string | null
           publisher: string | null
+          publisher_id: string | null
           publisher_location: string | null
           rating: number | null
           reading_status: string
           reprint_location: string | null
           reprint_publisher: string | null
+          reprint_publisher_id: string | null
           reprint_year: number | null
           series_id: string | null
           shelving_location: string | null
@@ -404,11 +406,13 @@ export type Database = {
           page_count?: number | null
           personal_notes?: string | null
           publisher?: string | null
+          publisher_id?: string | null
           publisher_location?: string | null
           rating?: number | null
           reading_status?: string
           reprint_location?: string | null
           reprint_publisher?: string | null
+          reprint_publisher_id?: string | null
           reprint_year?: number | null
           series_id?: string | null
           shelving_location?: string | null
@@ -438,11 +442,13 @@ export type Database = {
           page_count?: number | null
           personal_notes?: string | null
           publisher?: string | null
+          publisher_id?: string | null
           publisher_location?: string | null
           rating?: number | null
           reading_status?: string
           reprint_location?: string | null
           reprint_publisher?: string | null
+          reprint_publisher_id?: string | null
           reprint_year?: number | null
           series_id?: string | null
           shelving_location?: string | null
@@ -460,6 +466,20 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "books_publisher_id_fkey"
+            columns: ["publisher_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "books_reprint_publisher_id_fkey"
+            columns: ["reprint_publisher_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
             referencedColumns: ["id"]
           },
           {
@@ -929,6 +949,70 @@ export type Database = {
         }
         Relationships: []
       }
+      publishers: {
+        Row: {
+          aliases: string[]
+          canonical_name: string
+          created_at: string
+          created_by: string | null
+          default_location: string | null
+          deleted_at: string | null
+          id: string
+          merged_into_id: string | null
+          notes: string | null
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          canonical_name: string
+          created_at?: string
+          created_by?: string | null
+          default_location?: string | null
+          deleted_at?: string | null
+          id?: string
+          merged_into_id?: string | null
+          notes?: string | null
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          canonical_name?: string
+          created_at?: string
+          created_by?: string | null
+          default_location?: string | null
+          deleted_at?: string | null
+          id?: string
+          merged_into_id?: string | null
+          notes?: string | null
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publishers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publishers_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publishers_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scripture_references: {
         Row: {
           bible_book: string
@@ -1188,6 +1272,11 @@ export type Database = {
         Args: { p_canonical: string; p_merged_away: string }
         Returns: undefined
       }
+      library_merge_publishers: {
+        Args: { p_canonical: string; p_merged_away: string }
+        Returns: undefined
+      }
+      normalize_publisher_text: { Args: { raw: string }; Returns: string }
       search_scripture_refs: {
         Args: { p_bible_book: string; p_chapter?: number; p_verse?: number }
         Returns: {

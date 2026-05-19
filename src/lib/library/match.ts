@@ -2,7 +2,7 @@
  * Pure helpers for Open Library → book form matching (people + series).
  */
 
-import type { PersonRow, SeriesRow } from '$lib/types/library';
+import type { PersonRow, PublisherRow, SeriesRow } from '$lib/types/library';
 
 export function normalizePersonName(s: string): string {
 	return s
@@ -12,6 +12,45 @@ export function normalizePersonName(s: string): string {
 		.replace(/[^a-z0-9\s]/g, ' ')
 		.replace(/\s+/g, ' ')
 		.trim();
+}
+
+const GENERIC_PUBLISHER_SUFFIX =
+	/\b(publishing\s+group|publishing\s+house|publishers?|publishing|group|holdings?|inc\.?|llc|co\.?|ltd\.?|company|division|imprint|books?)\b/gi;
+
+/** Strip legal suffixes for OL / raw publisher matching. */
+export function normalizePublisherName(s: string): string {
+	return s
+		.toLowerCase()
+		.replace(/&/g, ' and ')
+		.replace(GENERIC_PUBLISHER_SUFFIX, ' ')
+		.replace(/[^a-z0-9\s]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+export function matchPublisher(raw: string, rows: PublisherRow[]): PublisherRow | null {
+	const n = normalizePublisherName(raw);
+	if (!n || n.length < 2) return null;
+
+	for (const p of rows) {
+		if (normalizePublisherName(p.canonical_name) === n) return p;
+		for (const alias of p.aliases ?? []) {
+			if (normalizePublisherName(alias) === n) return p;
+		}
+	}
+
+	const sorted = [...rows].sort(
+		(a, b) => b.canonical_name.length - a.canonical_name.length
+	);
+	for (const p of sorted) {
+		const cn = normalizePublisherName(p.canonical_name);
+		if (cn.length >= 4 && (n.includes(cn) || cn.includes(n))) return p;
+		for (const alias of p.aliases ?? []) {
+			const an = normalizePublisherName(alias);
+			if (an.length >= 4 && (n.includes(an) || an.includes(n))) return p;
+		}
+	}
+	return null;
 }
 
 export function normalizeSeriesName(s: string): string {

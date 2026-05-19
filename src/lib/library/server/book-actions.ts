@@ -42,6 +42,8 @@ export type BookFormPayload = {
 	subtitle: string | null;
 	publisher: string | null;
 	publisher_location: string | null;
+	publisher_id: string | null;
+	reprint_publisher_id: string | null;
 	year: number | null;
 	edition: string | null;
 	total_volumes: number | null;
@@ -80,6 +82,12 @@ const LANGUAGE_SET: ReadonlySet<string> = new Set(LANGUAGES);
 const READING_STATUS_SET: ReadonlySet<string> = new Set(READING_STATUSES);
 const AUTHOR_ROLE_SET: ReadonlySet<string> = new Set(AUTHOR_ROLES);
 const WORK_TYPE_SET: ReadonlySet<string> = new Set(WORK_TYPES);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseUuidOrNull(raw: FormDataEntryValue | null): string | null {
+	const t = String(raw ?? '').trim();
+	return t.length > 0 && UUID_RE.test(t) ? t : null;
+}
 
 function trimOrNull(raw: FormDataEntryValue | null): string | null {
 	const t = String(raw ?? '').trim();
@@ -260,6 +268,8 @@ export function parseBookForm(fd: FormData): ParseResult {
 	const subtitle = trimOrNull(fd.get('subtitle'));
 	const publisher = trimOrNull(fd.get('publisher'));
 	const publisher_location = trimOrNull(fd.get('publisher_location'));
+	const publisher_id = parseUuidOrNull(fd.get('publisher_id'));
+	const reprint_publisher_id = parseUuidOrNull(fd.get('reprint_publisher_id'));
 	const edition = trimOrNull(fd.get('edition'));
 	const reprint_publisher = trimOrNull(fd.get('reprint_publisher'));
 	const reprint_location = trimOrNull(fd.get('reprint_location'));
@@ -281,6 +291,8 @@ export function parseBookForm(fd: FormData): ParseResult {
 		subtitle != null ||
 		publisher != null ||
 		publisher_location != null ||
+		publisher_id != null ||
+		reprint_publisher_id != null ||
 		year != null ||
 		edition != null ||
 		total_volumes != null ||
@@ -329,6 +341,8 @@ export function parseBookForm(fd: FormData): ParseResult {
 			subtitle,
 			publisher,
 			publisher_location,
+			publisher_id,
+			reprint_publisher_id,
 			year,
 			edition,
 			total_volumes,
@@ -362,6 +376,8 @@ function bookColumnsPayload(p: BookFormPayload): Record<string, unknown> {
 		subtitle: p.subtitle,
 		publisher: p.publisher,
 		publisher_location: p.publisher_location,
+		publisher_id: p.publisher_id,
+		reprint_publisher_id: p.reprint_publisher_id,
 		year: p.year,
 		edition: p.edition,
 		total_volumes: p.total_volumes,
@@ -921,7 +937,8 @@ export async function createPersonAction(supabase: SupabaseClient, userId: strin
  * three deliberate ways:
  *
  * 1. **Partial overlay only.** Only the fields the card surfaces (`title`,
- *    `year`, `publisher`, `genre`, `language`, `reading_status`) are read
+ *    `year`, `publisher`, `publisher_location`, `publisher_id`, `genre`,
+ *    `language`, `reading_status`) are read
  *    from FormData and merged onto the existing row. Everything else stays
  *    byte-identical — no junctions, no `personal_notes`, no `rating`.
  * 2. **`needs_review = false` is unconditional.** The user explicitly
@@ -939,7 +956,7 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 	const { data: existingRow, error: fetchErr } = await supabase
 		.from('books')
 		.select(
-			'id, title, year, publisher, genre, work_type, language, reading_status, needs_review_note, deleted_at'
+			'id, title, year, publisher, publisher_location, publisher_id, genre, work_type, language, reading_status, needs_review_note, deleted_at'
 		)
 		.eq('id', id)
 		.maybeSingle();
@@ -955,6 +972,8 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		title: string | null;
 		year: number | null;
 		publisher: string | null;
+		publisher_location: string | null;
+		publisher_id: string | null;
 		genre: string | null;
 		work_type: string;
 		language: string;
@@ -972,6 +991,12 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 
 	const title = trimOrNull(fd.get('title')) ?? ex.title;
 	const publisher = trimOrNull(fd.get('publisher')) ?? ex.publisher;
+	const publisher_location =
+		fd.get('publisher_location') !== null
+			? trimOrNull(fd.get('publisher_location'))
+			: ex.publisher_location;
+	const publisher_id =
+		fd.get('publisher_id') !== null ? parseUuidOrNull(fd.get('publisher_id')) : ex.publisher_id;
 	const yearRaw = fd.get('year');
 	const year =
 		yearRaw === null
@@ -1061,6 +1086,8 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		title,
 		year,
 		publisher,
+		publisher_location,
+		publisher_id,
 		genre,
 		language,
 		reading_status,

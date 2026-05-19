@@ -1,9 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+	publisherCanonicalText,
+	publisherEffectiveLocation,
+	type PublisherJoin
+} from '$lib/library/publisher-resolve';
 import type {
 	BookListFilters,
 	BookListRow,
 	BookDetail,
 	SeriesRow,
+	PublisherRow,
 	PersonRow,
 	BookAuthorAssignment,
 	ReadingStatus,
@@ -108,6 +114,108 @@ export async function loadSeries(supabase: SupabaseClient): Promise<SeriesRow[]>
 	});
 }
 
+type RawPublisherRow = {
+	id: string;
+	canonical_name: string;
+	parent_id: string | null;
+	default_location: string | null;
+	aliases: string[] | null;
+	notes: string | null;
+	parent?: { default_location: string | null } | { default_location: string | null }[] | null;
+};
+
+const PUBLISHER_EMBED = `
+	publishers (
+		id,
+		canonical_name,
+		default_location,
+		parent:publishers!parent_id ( default_location )
+	)
+`;
+
+function parsePublisherJoin(v: unknown): PublisherJoin | null {
+	const row = asArrayOrSingle(v as RawPublisherRow | RawPublisherRow[] | null)[0];
+	if (!row?.id) return null;
+	const parent = asArrayOrSingle(row.parent)[0];
+	return {
+		id: row.id,
+		canonical_name: row.canonical_name,
+		default_location: row.default_location ?? null,
+		parent: parent ? { default_location: parent.default_location ?? null } : null
+	};
+}
+
+function mapPublisherCitationFields(
+	bookPublisher: string | null,
+	bookLocation: string | null,
+	publisherId: string | null,
+	publisherEmbed: unknown
+): Pick<BookListRow, 'publisher_id' | 'publisher_canonical' | 'publisher_effective_location'> {
+	const pub = parsePublisherJoin(publisherEmbed);
+	return {
+		publisher_id: publisherId ?? pub?.id ?? null,
+		publisher_canonical: publisherCanonicalText(bookPublisher, pub),
+		publisher_effective_location: publisherEffectiveLocation(bookLocation, pub)
+	};
+}
+
+export async function loadPublishers(supabase: SupabaseClient): Promise<PublisherRow[]> {
+	const { data, error } = await supabase
+		.from('publishers')
+		.select(
+			`
+			id,
+			canonical_name,
+			parent_id,
+			default_location,
+			aliases,
+			notes,
+			parent:publishers!parent_id ( default_location )
+		`
+		)
+		.is('deleted_at', null)
+		.order('canonical_name', { ascending: true });
+	if (error) {
+		console.error(error);
+		return [];
+	}
+	return (data ?? []).map((raw) => {
+		const r = raw as RawPublisherRow;
+		const parent = asArrayOrSingle(r.parent)[0];
+		return {
+			id: r.id,
+			canonical_name: r.canonical_name,
+			parent_id: r.parent_id ?? null,
+			default_location: r.default_location ?? null,
+			parent_default_location: parent?.default_location ?? null,
+			aliases: Array.isArray(r.aliases) ? r.aliases : [],
+			notes: r.notes ?? null
+		} satisfies PublisherRow;
+	});
+}
+
+export async function loadPublisherBookCounts(
+	supabase: SupabaseClient
+): Promise<Map<string, number>> {
+	const out = new Map<string, number>();
+	const { data, error } = await supabase
+		.from('books')
+		.select('publisher_id, reprint_publisher_id')
+		.is('deleted_at', null);
+	if (error) {
+		console.error('[loadPublisherBookCounts]', error);
+		return out;
+	}
+	for (const row of data ?? []) {
+		const r = row as { publisher_id: string | null; reprint_publisher_id: string | null };
+		if (r.publisher_id) out.set(r.publisher_id, (out.get(r.publisher_id) ?? 0) + 1);
+		if (r.reprint_publisher_id) {
+			out.set(r.reprint_publisher_id, (out.get(r.reprint_publisher_id) ?? 0) + 1);
+		}
+	}
+	return out;
+}
+
 export async function loadPeople(supabase: SupabaseClient): Promise<PersonRow[]> {
 	const data = await paginateAll<RawPerson>(
 		([from, to]) =>
@@ -198,7 +306,11 @@ type RawBookListRow = {
 	reading_status: string;
 	needs_review: boolean;
 	volume_number: string | null;
+	publisher: string | null;
+	publisher_location: string | null;
+	publisher_id: string | null;
 	series: { name: string; abbreviation: string | null } | { name: string; abbreviation: string | null }[] | null;
+	publishers: RawPublisherRow | RawPublisherRow[] | null;
 	book_authors:
 		| { person_id: string; sort_order: number; role: string }[]
 		| null;
@@ -256,7 +368,13 @@ export async function loadBookList(
 			series_abbreviation: ser?.abbreviation ?? null,
 			series_name: ser?.name ?? null,
 			volume_number: r.volume_number ?? null,
-			authors_label
+			authors_label,
+			...mapPublisherCitationFields(
+				r.publisher ?? null,
+				r.publisher_location ?? null,
+				r.publisher_id ?? null,
+				r.publishers
+			)
 		} satisfies BookListRow;
 	});
 
@@ -300,6 +418,10 @@ const BOOK_LIST_SELECT = `
 				reading_status,
 				needs_review,
 				volume_number,
+				publisher,
+				publisher_location,
+				publisher_id,
+				${PUBLISHER_EMBED},
 				series ( name, abbreviation ),
 				book_authors (
 					person_id,
@@ -433,7 +555,13 @@ function mapBookListRows(data: unknown[], people: PersonRow[]): BookListRow[] {
 			series_abbreviation: ser?.abbreviation ?? null,
 			series_name: ser?.name ?? null,
 			volume_number: r.volume_number ?? null,
-			authors_label
+			authors_label,
+			...mapPublisherCitationFields(
+				r.publisher ?? null,
+				r.publisher_location ?? null,
+				r.publisher_id ?? null,
+				r.publishers
+			)
 		} satisfies BookListRow;
 	});
 
@@ -639,11 +767,12 @@ export async function loadBibleBookList(supabase: SupabaseClient): Promise<Bible
 /** Shared deps for `/library/books/new`, `/library/add`, etc. */
 export async function loadBookFormPageData(
 	supabase: SupabaseClient,
-	opts?: { people?: PersonRow[]; series?: SeriesRow[] }
+	opts?: { people?: PersonRow[]; series?: SeriesRow[]; publishers?: PublisherRow[] }
 ) {
-	const [people, series] = await Promise.all([
+	const [people, series, publishers] = await Promise.all([
 		opts?.people != null ? Promise.resolve(opts.people) : loadPeople(supabase),
-		opts?.series != null ? Promise.resolve(opts.series) : loadSeries(supabase)
+		opts?.series != null ? Promise.resolve(opts.series) : loadSeries(supabase),
+		opts?.publishers != null ? Promise.resolve(opts.publishers) : loadPublishers(supabase)
 	]);
 	const [personBookCounts, bibleBooks] = await Promise.all([
 		loadPersonBookCounts(supabase),
@@ -652,6 +781,7 @@ export async function loadBookFormPageData(
 	return {
 		people,
 		series,
+		publishers,
 		personBookCounts: Object.fromEntries(personBookCounts),
 		bibleBooks
 	};
@@ -663,6 +793,8 @@ type RawBookDetail = {
 	subtitle: string | null;
 	publisher: string | null;
 	publisher_location: string | null;
+	publisher_id: string | null;
+	reprint_publisher_id: string | null;
 	year: number | null;
 	edition: string | null;
 	total_volumes: number | null;
@@ -689,6 +821,7 @@ type RawBookDetail = {
 	created_at: string;
 	updated_at: string;
 	series: { id: string; name: string; abbreviation: string | null } | null;
+	publishers: RawPublisherRow | RawPublisherRow[] | null;
 	book_authors:
 		| { person_id: string; role: string; sort_order: number }[]
 		| null;
@@ -708,6 +841,8 @@ export async function loadBookDetail(
 			subtitle,
 			publisher,
 			publisher_location,
+			publisher_id,
+			reprint_publisher_id,
 			year,
 			edition,
 			total_volumes,
@@ -733,6 +868,7 @@ export async function loadBookDetail(
 			deleted_at,
 			created_at,
 			updated_at,
+			${PUBLISHER_EMBED},
 			series ( id, name, abbreviation ),
 			book_authors ( person_id, role, sort_order )
 		`
@@ -754,12 +890,23 @@ export async function loadBookDetail(
 		.sort((a, b) => a.sort_order - b.sort_order)
 		.map((a) => bookAuthorAssignmentFromJunction(a, peopleMap));
 
+	const pubFields = mapPublisherCitationFields(
+		r.publisher ?? null,
+		r.publisher_location ?? null,
+		r.publisher_id ?? null,
+		r.publishers
+	);
+
 	return {
 		id: r.id,
 		title: r.title ?? null,
 		subtitle: r.subtitle ?? null,
 		publisher: r.publisher ?? null,
 		publisher_location: r.publisher_location ?? null,
+		publisher_id: pubFields.publisher_id,
+		reprint_publisher_id: r.reprint_publisher_id ?? null,
+		publisher_canonical: pubFields.publisher_canonical,
+		publisher_effective_location: pubFields.publisher_effective_location,
 		year: r.year ?? null,
 		edition: r.edition ?? null,
 		total_volumes: r.total_volumes ?? null,
@@ -796,8 +943,6 @@ export async function loadBookDetail(
 
 type RawReviewCard = RawBookListRow & {
 	year: number | null;
-	publisher: string | null;
-	publisher_location: string | null;
 	edition: string | null;
 	total_volumes: number | null;
 	original_year: number | null;
@@ -869,6 +1014,8 @@ export async function loadReviewQueue(
 			year,
 			publisher,
 			publisher_location,
+			publisher_id,
+			${PUBLISHER_EMBED},
 			edition,
 			total_volumes,
 			original_year,
@@ -934,6 +1081,13 @@ export async function loadReviewQueue(
 		const workType = parseWorkType(r.work_type);
 		const authors_label = authorsLabelForBook(workType, r.book_authors ?? [], peopleMap);
 
+		const pubFields = mapPublisherCitationFields(
+			r.publisher ?? null,
+			r.publisher_location ?? null,
+			r.publisher_id ?? null,
+			r.publishers
+		);
+
 		return {
 			id: r.id,
 			title: r.title ?? null,
@@ -947,6 +1101,7 @@ export async function loadReviewQueue(
 			series_name: ser?.name ?? null,
 			volume_number: r.volume_number ?? null,
 			authors_label,
+			...pubFields,
 			year: r.year ?? null,
 			publisher: r.publisher ?? null,
 			publisher_location: r.publisher_location ?? null,

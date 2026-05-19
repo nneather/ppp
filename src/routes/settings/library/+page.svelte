@@ -30,6 +30,12 @@
 			description: 'Rename series and abbreviations; remove unused series.'
 		},
 		{
+			href: '/settings/library/publishers',
+			label: 'Publishers',
+			description:
+				'Canonical imprints, default cities, and aliases for Open Library and Turabian citations.'
+		},
+		{
 			href: '/settings/library/ancient-texts',
 			label: 'Ancient texts',
 			description: 'Josephus, Philo, and other tagged corpora; merge duplicates.'

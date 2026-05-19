@@ -3,7 +3,8 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	loadBookDetail,
 	loadBibleBookList,
-	loadPersonBookCounts
+	loadPersonBookCounts,
+	loadPublishers
 } from '$lib/library/server/loaders';
 import {
 	createPersonAction,
@@ -28,9 +29,10 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	const { people, series } = await parent();
 
 	const bibleBooks = await loadBibleBookList(supabase);
-	const [book, personBookCounts] = await Promise.all([
+	const [book, personBookCounts, publishers] = await Promise.all([
 		loadBookDetail(supabase, id, people),
-		loadPersonBookCounts(supabase)
+		loadPersonBookCounts(supabase),
+		loadPublishers(supabase)
 	]);
 
 	if (!book) error(404, 'Book not found.');
@@ -39,6 +41,7 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		book,
 		people,
 		series,
+		publishers,
 		bibleBooks,
 		personBookCounts: Object.fromEntries(personBookCounts)
 	};

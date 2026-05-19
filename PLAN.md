@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-19 — **Library PM review** ([033](docs/decisions/033-library-pm-review-may-2026.md)): mobile polish, citation short-form + `s.v.`, OCR Edge hardening, `ship-library` script.
+**Last updated:** 2026-05-19 — **Library list PWA nav** ([035](docs/decisions/035-library-list-pwa-navigation.md)): removed `listMounted` hydrate teardown; full-card mobile tap targets.
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -12,7 +12,7 @@
 
 **Library — PM review shipped (2026-05-19):** see **[033](docs/decisions/033-library-pm-review-may-2026.md)** — mobile save bar + list chrome; Turabian short-form / structured names / `s.v.` wedge; OCR authz + daily cap; `npm run ship-library:apply` before prod schema drift.
 
-**Owner next:** phone smoke on scripture batch save bar + list ⋯ menu ([runbook](docs/library-trip-qa-runbook.md) §A); confirm Edge secrets `SITE_URL` (and `ANTHROPIC_API_KEY`) on hosted project if OCR CORS fails.
+**Owner next:** phone smoke — **tap book on `/library` PWA** ([035](docs/decisions/035-library-list-pwa-navigation.md)), scripture batch save bar, list ⋯ menu ([runbook](docs/library-trip-qa-runbook.md) §A); confirm Edge secrets `SITE_URL` if OCR CORS fails.
 
 Nearest hard dates:
 - **2026-05-21** — move to Madison; trip-period workflow (mobile-first)
@@ -34,6 +34,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [035 — Library list PWA navigation](docs/decisions/035-library-list-pwa-navigation.md) (2026-05-19) — removed `listMounted` gate; full-card mobile list links.
 - [033 — Library PM review (May 2026)](docs/decisions/033-library-pm-review-may-2026.md) (2026-05-19) — mobile chrome, citation short-form + `s.v.`, OCR hardening, `ship-library`, process skills/hooks.
 - [032 — Edited works + citation accuracy](docs/decisions/032-edited-works-and-citation-accuracy.md) (2026-05-19) — `work_type`; Turabian dispatch fixes; 24 citation tests.
 - [031 — Library Session 8 Turabian + review queue](docs/decisions/031-library-session-8-turabian.md) (2026-05-18) — `turabian/` module; bibliography builder; Turabian-first `/library/review`.

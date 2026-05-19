@@ -6,9 +6,10 @@
  * https://openlibrary.org — public, no API key.
  */
 
-import type { Genre, Language, WorkType } from '$lib/types/library';
+import type { Genre, Language, PublisherRow, WorkType } from '$lib/types/library';
 import { normalizeIsbnDigits, parseIsbnWithChecksum } from '$lib/library/isbn';
-import { splitAuthorString } from '$lib/library/match';
+import { matchPublisher, normalizePublisherName, splitAuthorString } from '$lib/library/match';
+import { publisherDefaultLocationForRow } from '$lib/library/publisher-resolve';
 
 export { normalizeIsbnDigits } from '$lib/library/isbn';
 
@@ -23,6 +24,8 @@ export type OpenLibraryBookPrefill = {
 	title: string | null;
 	subtitle: string | null;
 	publisher: string | null;
+	/** Set when raw OL publisher matches the publishers registry. */
+	publisher_id: string | null;
 	/** First `publish_places` entries from edition, when present. */
 	publisher_location: string | null;
 	/** Combined `edition_name` / `physical_format` from edition. */
@@ -62,24 +65,11 @@ function extractYear(publishDate: unknown): number | null {
 	return m ? Number.parseInt(m[1]!, 10) : null;
 }
 
-const GENERIC_PUBLISHER_SUFFIX =
-	/\b(publishing\s+group|publishing\s+house|publishers?|publishing|group|holdings?|inc\.?|llc|co\.?|ltd\.?|company|division|imprint|books?)\b/gi;
-
-function publisherRoot(s: string): string {
-	return s
-		.toLowerCase()
-		.replace(/&/g, ' and ')
-		.replace(GENERIC_PUBLISHER_SUFFIX, ' ')
-		.replace(/[^a-z0-9\s]/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim();
-}
-
 /** Drop generic parent imprint when a more specific sibling is present (e.g. B&H Academic vs B&H Publishing Group). */
 function dedupePublisherImprints(raw: string[]): string[] {
 	if (raw.length <= 1) return raw;
 	const items = raw
-		.map((r) => ({ raw: r, root: publisherRoot(r) }))
+		.map((r) => ({ raw: r, root: normalizePublisherName(r) }))
 		.filter((x) => x.root.length > 0);
 	if (items.length <= 1) return items.map((x) => x.raw);
 
@@ -372,7 +362,10 @@ function suggestWorkTypeFromSubjects(subjects: string[]): WorkType | null {
 	return null;
 }
 
-export async function fetchOpenLibraryPrefill(isbn: string): Promise<OpenLibraryBookPrefill> {
+export async function fetchOpenLibraryPrefill(
+	isbn: string,
+	publishersList: PublisherRow[] = []
+): Promise<OpenLibraryBookPrefill> {
 	const normalized = parseIsbnWithChecksum(isbn);
 	if (!normalized) {
 		throw new Error(
@@ -403,8 +396,14 @@ export async function fetchOpenLibraryPrefill(isbn: string): Promise<OpenLibrary
 	const subtitle =
 		workSubtitle && workSubtitle.length > 0 ? workSubtitle : editionSubtitle;
 
-	const publisher = publishersFromEdition(edition);
-	const publisher_location = publisherLocationFromEdition(edition);
+	const publisherRaw = publishersFromEdition(edition);
+	const publisher_location_ol = publisherLocationFromEdition(edition);
+	const matched = publisherRaw ? matchPublisher(publisherRaw, publishersList) : null;
+	const publisher = matched?.canonical_name ?? publisherRaw;
+	const publisher_id = matched?.id ?? null;
+	const publisher_location =
+		publisher_location_ol ??
+		(matched ? publisherDefaultLocationForRow(matched) : null);
 	const editionLine = editionLineFromEdition(edition);
 	const year = extractYear(edition.publish_date);
 	const page_count = pageCountFromEdition(edition);
@@ -453,6 +452,7 @@ export async function fetchOpenLibraryPrefill(isbn: string): Promise<OpenLibrary
 		title,
 		subtitle,
 		publisher,
+		publisher_id,
 		publisher_location,
 		edition: editionLine,
 		year,

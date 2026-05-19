@@ -128,6 +128,7 @@
 		people={data.people}
 		personBookCounts={data.personBookCounts}
 		series={data.series}
+		publishers={data.publishers}
 		bibleBooks={data.bibleBooks}
 		{formMessage}
 		{onSaved}

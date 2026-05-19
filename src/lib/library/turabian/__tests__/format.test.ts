@@ -612,3 +612,39 @@ describe('formatBibliography', () => {
 		expect(fn.plain).toContain('Anchor Bible Dictionary');
 	});
 });
+
+describe('publisher resolution in citations', () => {
+	it('uses City: Publisher when location is provided', () => {
+		const fn = formatFootnote(
+			book({
+				publisher: 'IVP Academic',
+				publisher_location: 'Downers Grove, IL',
+				year: 2010
+			})
+		).plain;
+		expect(fn).toContain('(Downers Grove, IL: IVP Academic, 2010)');
+	});
+
+	it('omits city when location is absent', () => {
+		const fn = formatFootnote(
+			book({
+				publisher: 'Zondervan',
+				publisher_location: null,
+				year: 1994
+			})
+		).plain;
+		expect(fn).toContain('(Zondervan, 1994)');
+		expect(fn).not.toContain(': Zondervan');
+	});
+
+	it('per-book location overrides registry default semantics via input', () => {
+		const fn = formatFootnote(
+			book({
+				publisher: 'Eerdmans',
+				publisher_location: 'London',
+				year: 2001
+			})
+		).plain;
+		expect(fn).toContain('(London: Eerdmans, 2001)');
+	});
+});
