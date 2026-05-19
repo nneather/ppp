@@ -125,7 +125,7 @@ type RawPublisherRow = {
 };
 
 const PUBLISHER_EMBED = `
-	publishers (
+	publishers!books_publisher_id_fkey (
 		id,
 		canonical_name,
 		default_location,
