@@ -19,7 +19,9 @@
 		LANGUAGES,
 		LANGUAGE_LABELS,
 		READING_STATUSES,
-		READING_STATUS_LABELS
+		READING_STATUS_LABELS,
+		WORK_TYPES,
+		WORK_TYPE_LABELS
 	} from '$lib/types/library';
 	import type {
 		BookDetail,
@@ -28,7 +30,8 @@
 		AuthorRole,
 		Genre,
 		Language,
-		ReadingStatus
+		ReadingStatus,
+		WorkType
 	} from '$lib/types/library';
 	import type { OpenLibraryBookPrefill } from '$lib/library/open-library-prefill';
 	import {
@@ -141,6 +144,7 @@
 	let series_id = $state<string>('');
 	let volume_number = $state('');
 	let genre = $state<Genre | ''>('');
+	let work_type = $state<WorkType>('monograph');
 	let language = $state<Language>('english');
 	let isbn = $state('');
 	let barcode = $state('');
@@ -207,6 +211,7 @@
 			series_id,
 			volume_number,
 			genre,
+			work_type,
 			language,
 			isbn,
 			barcode,
@@ -260,8 +265,12 @@
 	const missingImportantPreview = $derived.by<string[]>(() => {
 		const out: string[] = [];
 		if (!title.trim()) out.push('title');
-		if (authorRows.filter((a) => a.role === 'author' && a.person_id).length === 0)
-			out.push('author');
+		if (work_type === 'monograph') {
+			if (authorRows.filter((a) => a.role === 'author' && a.person_id).length === 0)
+				out.push('author');
+		} else if (authorRows.filter((a) => a.role === 'editor' && a.person_id).length === 0) {
+			out.push('editor');
+		}
 		if (!genre) out.push('genre');
 		if (!year || String(year).trim().length === 0) out.push('year');
 		if (!publisher.trim()) out.push('publisher');
@@ -278,6 +287,10 @@
 			label: s.abbreviation ? `${s.abbreviation} — ${s.name}` : s.name
 		}))
 	]);
+	const workTypeSelectItems = $derived(
+		WORK_TYPES.map((wt) => ({ value: wt, label: WORK_TYPE_LABELS[wt] }))
+	);
+
 	const genreSelectItems = $derived([
 		{ value: '', label: '— None —' },
 		...GENRES.map((g) => ({ value: g, label: g }))
@@ -462,6 +475,7 @@
 			series_id = book.series_id ?? '';
 			volume_number = book.volume_number ?? '';
 			genre = (book.genre as Genre | null) ?? '';
+			work_type = book.work_type;
 			language = book.language;
 			isbn = book.isbn ?? '';
 			barcode = book.barcode ?? '';
@@ -520,6 +534,7 @@
 			if (p.page_count != null) page_count = String(p.page_count);
 			if (p.isbn) isbn = p.isbn;
 			if (p.genreSuggested && genre === '') genre = p.genreSuggested;
+			if (p.workTypeSuggested && work_type === 'monograph') work_type = p.workTypeSuggested;
 			if (p.languageCode) language = p.languageCode;
 
 			olImportSnapshot = p;
@@ -764,7 +779,8 @@
 		edition,
 		page_count,
 		isbn,
-		genre: genre === '' ? '' : genre
+		genre: genre === '' ? '' : genre,
+		work_type
 	});
 
 	function applyOlRefresh(keys: OlApplyKey[], data: OpenLibraryBookPrefill) {
@@ -781,6 +797,7 @@
 				page_count = String(data.page_count);
 			if (set.has('isbn') && data.isbn) isbn = data.isbn;
 			if (set.has('genre') && data.genreSuggested) genre = data.genreSuggested;
+			if (set.has('work_type') && data.workTypeSuggested) work_type = data.workTypeSuggested;
 		});
 		initialSnapshot = untrack(() => currentFormSnapshot());
 	}
@@ -825,6 +842,7 @@
 	{/if}
 	<input type="hidden" name="series_id" value={series_id} />
 	<input type="hidden" name="genre" value={genre} />
+	<input type="hidden" name="work_type" value={work_type} />
 	<input type="hidden" name="language" value={language} />
 	<input type="hidden" name="reading_status" value={reading_status} />
 	<input type="hidden" name="needs_review" value={needs_review ? 'true' : 'false'} />
@@ -863,7 +881,7 @@
 			<h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
 				Citation essentials
 			</h3>
-			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
 				<div class="space-y-2">
 					<Label for="bf-pub">Publisher</Label>
 					<Input id="bf-pub" name="publisher" bind:value={publisher} class="h-11 text-base" />
@@ -907,6 +925,27 @@
 							{#each GENRES as g (g)}
 								<Select.Item value={g} label={g} class="min-h-10 py-2">
 									{g}
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="space-y-2">
+					<Label for="bf-work-type">Work type</Label>
+					<Select.Root type="single" bind:value={work_type} items={workTypeSelectItems}>
+						<Select.Trigger
+							id="bf-work-type"
+							size="default"
+							class="h-11 w-full justify-between px-3"
+						>
+							<span data-slot="select-value" class="truncate text-left">
+								{WORK_TYPE_LABELS[work_type]}
+							</span>
+						</Select.Trigger>
+						<Select.Content class="max-h-72">
+							{#each WORK_TYPES as wt (wt)}
+								<Select.Item value={wt} label={WORK_TYPE_LABELS[wt]} class="min-h-10 py-2">
+									{WORK_TYPE_LABELS[wt]}
 								</Select.Item>
 							{/each}
 						</Select.Content>

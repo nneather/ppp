@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { GENRES, LANGUAGES, READING_STATUSES, AUTHOR_ROLES } from '$lib/types/library';
-import type { AuthorRole, Genre, Language, ReadingStatus } from '$lib/types/library';
+import { GENRES, LANGUAGES, READING_STATUSES, AUTHOR_ROLES, WORK_TYPES } from '$lib/types/library';
+import type { AuthorRole, Genre, Language, ReadingStatus, WorkType } from '$lib/types/library';
 
 /**
  * Server-side helpers for the books vertical slice. Both `/library` (list) and
@@ -52,6 +52,7 @@ export type BookFormPayload = {
 	series_id: string | null;
 	volume_number: string | null;
 	genre: Genre | null;
+	work_type: WorkType;
 	language: Language;
 	isbn: string | null;
 	barcode: string | null;
@@ -71,13 +72,14 @@ export type BookFormPayload = {
  * the form's amber preview so the user knows what will be flagged before they
  * Save. The list is the same on both sides.
  */
-export const IMPORTANT_FIELDS = ['title', 'author', 'genre', 'year', 'publisher'] as const;
+export const IMPORTANT_FIELDS = ['title', 'author', 'editor', 'genre', 'year', 'publisher'] as const;
 export type ImportantField = (typeof IMPORTANT_FIELDS)[number];
 
 const GENRE_SET: ReadonlySet<string> = new Set(GENRES);
 const LANGUAGE_SET: ReadonlySet<string> = new Set(LANGUAGES);
 const READING_STATUS_SET: ReadonlySet<string> = new Set(READING_STATUSES);
 const AUTHOR_ROLE_SET: ReadonlySet<string> = new Set(AUTHOR_ROLES);
+const WORK_TYPE_SET: ReadonlySet<string> = new Set(WORK_TYPES);
 
 function trimOrNull(raw: FormDataEntryValue | null): string | null {
 	const t = String(raw ?? '').trim();
@@ -149,13 +151,18 @@ export type ParseResult = { ok: true; payload: BookFormPayload } | { ok: false; 
 export function computeMissingImportant(p: {
 	title: string | null;
 	genre: string | null;
+	work_type: WorkType;
 	year: number | null;
 	publisher: string | null;
 	authors: AuthorAssignmentInput[];
 }): ImportantField[] {
 	const out: ImportantField[] = [];
 	if (!p.title) out.push('title');
-	if (p.authors.filter((a) => a.role === 'author').length === 0) out.push('author');
+	if (p.work_type === 'monograph') {
+		if (p.authors.filter((a) => a.role === 'author').length === 0) out.push('author');
+	} else if (p.authors.filter((a) => a.role === 'editor').length === 0) {
+		out.push('editor');
+	}
 	if (!p.genre) out.push('genre');
 	if (p.year == null) out.push('year');
 	if (!p.publisher) out.push('publisher');
@@ -221,6 +228,11 @@ export function parseBookForm(fd: FormData): ParseResult {
 	const reading_status = String(fd.get('reading_status') ?? '').trim();
 	if (!READING_STATUS_SET.has(reading_status))
 		return { ok: false, message: 'Pick a reading status from the list.' };
+
+	const work_type = String(fd.get('work_type') ?? 'monograph').trim();
+	if (!WORK_TYPE_SET.has(work_type)) {
+		return { ok: false, message: 'Pick a work type from the list.' };
+	}
 
 	const year = parseInt0(fd.get('year'));
 	const total_volumes = parseInt0(fd.get('total_volumes'));
@@ -298,7 +310,14 @@ export function parseBookForm(fd: FormData): ParseResult {
 
 	// Auto-flag for review when important identifying/citation fields are
 	// missing. The eventual review queue (Tracker_1 Session 6) consumes this.
-	const missingImportant = computeMissingImportant({ title, genre, year, publisher, authors });
+	const missingImportant = computeMissingImportant({
+		title,
+		genre,
+		work_type: work_type as WorkType,
+		year,
+		publisher,
+		authors
+	});
 	const autoLine = missingImportant.length > 0 ? `Missing: ${missingImportant.join(', ')}` : null;
 	const finalNeedsReview = userNeedsReview || missingImportant.length > 0;
 	const finalReviewNote = mergeReviewNote(userReviewNote, autoLine);
@@ -320,6 +339,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 			series_id,
 			volume_number,
 			genre: genre as Genre | null,
+			work_type: work_type as WorkType,
 			language: language as Language,
 			isbn,
 			barcode,
@@ -352,6 +372,7 @@ function bookColumnsPayload(p: BookFormPayload): Record<string, unknown> {
 		series_id: p.series_id,
 		volume_number: p.volume_number,
 		genre: p.genre,
+		work_type: p.work_type,
 		language: p.language,
 		isbn: p.isbn,
 		barcode: p.barcode,
@@ -914,7 +935,7 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 	const { data: existingRow, error: fetchErr } = await supabase
 		.from('books')
 		.select(
-			'id, title, year, publisher, genre, language, reading_status, needs_review_note, deleted_at'
+			'id, title, year, publisher, genre, work_type, language, reading_status, needs_review_note, deleted_at'
 		)
 		.eq('id', id)
 		.maybeSingle();
@@ -931,6 +952,7 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		year: number | null;
 		publisher: string | null;
 		genre: string | null;
+		work_type: string;
 		language: string;
 		reading_status: string;
 		needs_review_note: string | null;
@@ -992,19 +1014,33 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		reading_status = t;
 	}
 
-	// Author-presence is needed for the Missing: computation. Cheap targeted
-	// query — count rows on book_authors with role='author', no person fetch.
-	const { count: authorCount } = await supabase
+	const workType =
+		ex.work_type === 'edited_volume' || ex.work_type === 'reference_work'
+			? ex.work_type
+			: 'monograph';
+
+	// Contributor-presence for Missing: computation (author vs editor by work_type).
+	const contributorRole = workType === 'monograph' ? 'author' : 'editor';
+	const { count: contributorCount } = await supabase
 		.from('book_authors')
 		.select('*', { count: 'exact', head: true })
 		.eq('book_id', id)
-		.eq('role', 'author');
+		.eq('role', contributorRole);
 	const authorsForCheck: AuthorAssignmentInput[] =
-		(authorCount ?? 0) > 0 ? [{ person_id: '_synthetic_', role: 'author', sort_order: 0 }] : [];
+		(contributorCount ?? 0) > 0
+			? [{ person_id: '_synthetic_', role: contributorRole, sort_order: 0 }]
+			: [];
 
 	// Recompute, but the contract is: needs_review = false REGARDLESS of
 	// missing fields. The user just reviewed the card. Strip the auto-line.
-	void computeMissingImportant({ title, genre, year, publisher, authors: authorsForCheck });
+	void computeMissingImportant({
+		title,
+		genre,
+		work_type: workType,
+		year,
+		publisher,
+		authors: authorsForCheck
+	});
 	const needs_review_note = stripReviewAutoLine(ex.needs_review_note);
 
 	// B1/B2 strip — owner-only writes touch personal_notes/rating; the card

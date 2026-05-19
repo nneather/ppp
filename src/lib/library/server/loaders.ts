@@ -14,6 +14,7 @@ import type {
 	ReviewQueueFilters,
 	ReviewCard,
 	ImportMatchType,
+	WorkType,
 	AncientTextRow,
 	AncientCoverageRow,
 	BookTopicRow,
@@ -144,10 +145,49 @@ export async function loadPersonBookCounts(
 	return counts;
 }
 
+function parseWorkType(raw: string | null | undefined): WorkType {
+	if (raw === 'edited_volume' || raw === 'reference_work') return raw;
+	return 'monograph';
+}
+
+function authorsLabelForBook(
+	workType: WorkType,
+	bookAuthors: { person_id: string; sort_order: number; role: string }[],
+	peopleMap: Map<string, PersonRow>
+): string | null {
+	const sorted = (bookAuthors ?? []).slice().sort((a, b) => a.sort_order - b.sort_order);
+	const authorRows = sorted.filter((a) => a.role === 'author');
+	const editorRows = sorted.filter((a) => a.role === 'editor');
+
+	if (authorRows.length > 0) {
+		const labels = authorRows
+			.map((a) => {
+				const p = peopleMap.get(a.person_id);
+				return p ? personDisplayShort(p) : null;
+			})
+			.filter((s): s is string => s != null);
+		return labels.length > 0 ? labels.join(', ') : null;
+	}
+
+	if (workType !== 'monograph' && editorRows.length > 0) {
+		const labels = editorRows
+			.map((a) => {
+				const p = peopleMap.get(a.person_id);
+				return p ? personDisplayShort(p) : null;
+			})
+			.filter((s): s is string => s != null);
+		if (labels.length === 0) return null;
+		return `${labels.join(', ')}${editorRows.length === 1 ? ', ed.' : ', eds.'}`;
+	}
+
+	return null;
+}
+
 type RawBookListRow = {
 	id: string;
 	title: string | null;
 	subtitle: string | null;
+	work_type: string | null;
 	genre: string | null;
 	language: string;
 	reading_status: string;
@@ -175,6 +215,7 @@ export async function loadBookList(
 			id,
 			title,
 			subtitle,
+			work_type,
 			genre,
 			language,
 			reading_status,
@@ -195,22 +236,14 @@ export async function loadBookList(
 	const rows = (data ?? []).map((raw) => {
 		const r = raw as unknown as RawBookListRow;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
-		const authorRows = (r.book_authors ?? [])
-			.filter((a) => a.role === 'author')
-			.sort((a, b) => a.sort_order - b.sort_order);
-		const authorLabels = authorRows
-			.map((a) => {
-				const p = peopleMap.get(a.person_id);
-				if (!p) return null;
-				return personDisplayShort(p);
-			})
-			.filter((s): s is string => s != null);
-		const authors_label = authorLabels.length === 0 ? null : authorLabels.join(', ');
+		const workType = parseWorkType(r.work_type);
+		const authors_label = authorsLabelForBook(workType, r.book_authors ?? [], peopleMap);
 
 		return {
 			id: r.id,
 			title: r.title ?? null,
 			subtitle: r.subtitle ?? null,
+			work_type: workType,
 			genre: r.genre ?? null,
 			language: (r.language as Language) ?? 'english',
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
@@ -339,6 +372,7 @@ export async function loadBookListFiltered(
 				id,
 				title,
 				subtitle,
+				work_type,
 				genre,
 				language,
 				reading_status,
@@ -379,17 +413,8 @@ export async function loadBookListFiltered(
 	let rows = data.map((raw) => {
 		const r = raw as unknown as RawBookListRow;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
-		const authorRows = (r.book_authors ?? [])
-			.filter((a) => a.role === 'author')
-			.sort((a, b) => a.sort_order - b.sort_order);
-		const authorLabels = authorRows
-			.map((a) => {
-				const p = peopleMap.get(a.person_id);
-				if (!p) return null;
-				return personDisplayShort(p);
-			})
-			.filter((s): s is string => s != null);
-		const authors_label = authorLabels.length === 0 ? null : authorLabels.join(', ');
+		const workType = parseWorkType(r.work_type);
+		const authors_label = authorsLabelForBook(workType, r.book_authors ?? [], peopleMap);
 		const raw_author_ids = (r.book_authors ?? []).map((a) => a.person_id);
 
 		return {
@@ -397,6 +422,7 @@ export async function loadBookListFiltered(
 				id: r.id,
 				title: r.title ?? null,
 				subtitle: r.subtitle ?? null,
+				work_type: workType,
 				genre: r.genre ?? null,
 				language: (r.language as Language) ?? 'english',
 				reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
@@ -516,6 +542,7 @@ type RawBookDetail = {
 	series_id: string | null;
 	volume_number: string | null;
 	genre: string | null;
+	work_type: string | null;
 	language: string;
 	isbn: string | null;
 	barcode: string | null;
@@ -559,6 +586,7 @@ export async function loadBookDetail(
 			reprint_year,
 			series_id,
 			volume_number,
+			work_type,
 			genre,
 			language,
 			isbn,
@@ -621,6 +649,7 @@ export async function loadBookDetail(
 		series_abbreviation: r.series?.abbreviation ?? null,
 		volume_number: r.volume_number ?? null,
 		genre: r.genre ?? null,
+		work_type: parseWorkType(r.work_type),
 		language: (r.language as Language) ?? 'english',
 		isbn: r.isbn ?? null,
 		barcode: r.barcode ?? null,
@@ -708,6 +737,7 @@ export async function loadReviewQueue(
 			id,
 			title,
 			subtitle,
+			work_type,
 			genre,
 			reading_status,
 			needs_review,
@@ -784,15 +814,14 @@ export async function loadReviewQueue(
 				sort_order: a.sort_order
 			};
 		});
-		const authorLabels = authors
-			.filter((a) => a.role === 'author')
-			.map((a) => a.person_label);
-		const authors_label = authorLabels.length === 0 ? null : authorLabels.join(', ');
+		const workType = parseWorkType(r.work_type);
+		const authors_label = authorsLabelForBook(workType, r.book_authors ?? [], peopleMap);
 
 		return {
 			id: r.id,
 			title: r.title ?? null,
 			subtitle: r.subtitle ?? null,
+			work_type: workType,
 			genre: r.genre ?? null,
 			language: (r.language as Language) ?? 'english',
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',

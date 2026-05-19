@@ -160,6 +160,7 @@
 			id: data.book.id,
 			title: data.book.title,
 			subtitle: data.book.subtitle,
+			work_type: data.book.work_type,
 			genre: data.book.genre,
 			language: data.book.language,
 			reading_status: data.book.reading_status,
@@ -167,11 +168,18 @@
 			series_abbreviation: data.book.series_abbreviation,
 			series_name: data.book.series_name,
 			volume_number: data.book.volume_number,
-			authors_label:
-				data.book.authors
+			authors_label: (() => {
+				const authorLabels = data.book.authors
 					.filter((a) => a.role === 'author')
-					.map((a) => a.person_label)
-					.join(', ') || null
+					.map((a) => a.person_label);
+				if (authorLabels.length > 0) return authorLabels.join(', ');
+				if (data.book.work_type === 'monograph') return null;
+				const editorLabels = data.book.authors
+					.filter((a) => a.role === 'editor')
+					.map((a) => a.person_label);
+				if (editorLabels.length === 0) return null;
+				return `${editorLabels.join(', ')}${editorLabels.length === 1 ? ', ed.' : ', eds.'}`;
+			})()
 		}
 	]);
 

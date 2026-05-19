@@ -84,11 +84,11 @@ export function formatAuthorsBibliography(authors: BookAuthorAssignment[]): stri
 		return `${bibNameOrder(parsed[0]!)}, and ${noteNameOrder(parsed[1]!)}`;
 	}
 	const first = bibNameOrder(parsed[0]!);
-	const rest = parsed
-		.slice(1)
+	const rest = parsed.slice(1);
+	return `${first}, ${rest
+		.slice(0, -1)
 		.map((p) => noteNameOrder(p))
-		.join(', ');
-	return `${first}, ${rest}`;
+		.join(', ')}, and ${noteNameOrder(rest[rest.length - 1]!)}`;
 }
 
 export function formatEditorsNote(authors: BookAuthorAssignment[]): string {
@@ -118,11 +118,51 @@ export function formatEditorsBibliography(authors: BookAuthorAssignment[]): stri
 			? bibNameOrder(parsed[0]!)
 			: parsed.length === 2
 				? `${bibNameOrder(parsed[0]!)}, and ${noteNameOrder(parsed[1]!)}`
+				: parsed.length === 3
+				? `${bibNameOrder(parsed[0]!)}, ${noteNameOrder(parsed[1]!)}, and ${noteNameOrder(parsed[2]!)}`
 				: `${bibNameOrder(parsed[0]!)}, ${parsed
-						.slice(1)
+						.slice(1, -1)
 						.map(noteNameOrder)
-						.join(', ')}`;
+						.join(', ')}, and ${noteNameOrder(parsed[parsed.length - 1]!)}`;
 	return `${names}, ${parsed.length === 1 ? 'ed.' : 'eds.'}`;
+}
+
+/** Inline editor credit after title (author-present books). Note: "ed. Walter Hooper". */
+export function formatEditorsCreditNote(authors: BookAuthorAssignment[]): string {
+	const rows = authorsByRole(authors, 'editor');
+	if (rows.length === 0) return '';
+	const parsed = rows.map((a) => parsePersonLabel(a.person_label));
+	const names =
+		parsed.length >= 4
+			? `${noteNameOrder(parsed[0]!)} et al.`
+			: parsed.length === 1
+				? noteNameOrder(parsed[0]!)
+				: parsed.length === 2
+					? `${noteNameOrder(parsed[0]!)} and ${noteNameOrder(parsed[1]!)}`
+					: `${parsed
+							.slice(0, -1)
+							.map(noteNameOrder)
+							.join(', ')}, and ${noteNameOrder(parsed[parsed.length - 1]!)}`;
+	return `${parsed.length === 1 ? 'ed.' : 'eds.'} ${names}`;
+}
+
+/** Inline editor credit in bibliography (author-present books). */
+export function formatEditorsCreditBibliography(authors: BookAuthorAssignment[]): string {
+	const rows = authorsByRole(authors, 'editor');
+	if (rows.length === 0) return '';
+	const parsed = rows.map((a) => parsePersonLabel(a.person_label));
+	const names =
+		parsed.length === 1
+			? noteNameOrder(parsed[0]!)
+			: parsed.length === 2
+				? `${noteNameOrder(parsed[0]!)} and ${noteNameOrder(parsed[1]!)}`
+				: parsed.length === 3
+					? `${noteNameOrder(parsed[0]!)}, ${noteNameOrder(parsed[1]!)}, and ${noteNameOrder(parsed[2]!)}`
+					: `${noteNameOrder(parsed[0]!)}, ${parsed
+							.slice(1, -1)
+							.map(noteNameOrder)
+							.join(', ')}, and ${noteNameOrder(parsed[parsed.length - 1]!)}`;
+	return `Edited by ${names}.`;
 }
 
 export function formatTranslatorsNote(authors: BookAuthorAssignment[]): string {

@@ -60,7 +60,8 @@ export type GetPdfPageCountResult =
 
 function formatEdgeInvokeFailure(
 	detail: string,
-	status: number | null
+	status: number | null,
+	mimeType?: string
 ): string {
 	const lower = detail.toLowerCase();
 	if (
@@ -68,6 +69,9 @@ function formatEdgeInvokeFailure(
 		lower.includes('failed to send a request to the edge function') ||
 		lower.includes('gateway timeout')
 	) {
+		if (mimeType === 'image/jpeg' || mimeType === 'image/png' || mimeType === 'image/webp') {
+			return 'OCR timed out on the server (~150s limit per page). This page is very dense — retry, or photograph half the page in Genius Scan.';
+		}
 		return 'OCR timed out on the server (~150s limit per page). Multi-page PDFs are processed one page at a time — wait for each page to finish, or split the scan.';
 	}
 	const suffix = status ? ` (HTTP ${status})` : '';
@@ -84,7 +88,8 @@ async function invokeOcrFunction(
 
 async function parseInvokeFailure(
 	data: unknown,
-	err: unknown
+	err: unknown,
+	mimeType?: string
 ): Promise<{ ok: false; message: string }> {
 	if (err) {
 		const { status, message } = await readEdgeErrorBody(err);
@@ -93,7 +98,7 @@ async function parseInvokeFailure(
 			ocrInvokeDataError(data) ??
 			(err instanceof Error ? err.message : String(err)) ??
 			'OCR request failed.';
-		return { ok: false, message: formatEdgeInvokeFailure(detail, status) };
+		return { ok: false, message: formatEdgeInvokeFailure(detail, status, mimeType) };
 	}
 	const msgFromData = ocrInvokeDataError(data);
 	if (msgFromData) {
@@ -112,7 +117,7 @@ export async function getPdfPageCount(
 		op: 'pdf_page_count'
 	});
 	if (error || ocrInvokeDataError(data)) {
-		const fail = await parseInvokeFailure(data, error);
+		const fail = await parseInvokeFailure(data, error, args.mime_type);
 		return fail;
 	}
 	const payload = data as { page_count?: unknown } | null;
@@ -141,7 +146,7 @@ export async function invokeOcrScriptureRefs(
 	const { data: ocrData, error: ocrErr } = await invokeOcrFunction(supabase, body);
 
 	if (ocrErr || ocrInvokeDataError(ocrData)) {
-		return parseInvokeFailure(ocrData, ocrErr);
+		return parseInvokeFailure(ocrData, ocrErr, args.mime_type);
 	}
 
 	const payload = ocrData as Partial<OcrScriptureExtractResponse> | null;

@@ -53,9 +53,9 @@ Component name: `<CanonicalizingCombobox>` (or similar). Inputs: existing values
 
 `scripture_references` has `source_image_url`, `confidence_score`, `needs_review`, `review_note` — clearly anticipating an image-ingest pipeline. **Shipped:** browser upload to `library-scripture-images` → **`ocr_scripture_refs` Edge Function** (Anthropic vision; secrets `ANTHROPIC_API_KEY`, optional `ANTHROPIC_OCR_MODEL`) → `?/extractScriptureRefs` populates batch draft rows only; **Save** persists via `createScriptureRefsBatch`. **`/library/review`** lists `needs_review` scripture rows (deep-link `#ref-…`). OCR never INSERTs without user Save — see `docs/decisions/005` + `015` + `021`.
 
-## Genre + language enums
+## Genre + language + work type enums
 
-`books.genre` is enforced by `books_genre_check` (see migration `20260507190000`) and must match `GENRES` in `src/lib/types/library.ts`. `books.language` is constrained by a CHECK. Treat as Settings concerns or named constants in `src/lib/types/library.ts` — do not improvise free-text lists in forms.
+`books.genre` is enforced by `books_genre_check` (see migration `20260507190000`) and must match `GENRES` in `src/lib/types/library.ts`. `books.work_type` is enforced by CHECK (`monograph` | `edited_volume` | `reference_work`, migration `20260519120000`) and must match `WORK_TYPES` in `src/lib/types/library.ts` — use for Turabian dispatch (edited volume vs reference work vs monograph) and review missing-field rules (editor required when not monograph). `books.language` is constrained by a CHECK. Treat as Settings concerns or named constants in `src/lib/types/library.ts` — do not improvise free-text lists in forms.
 
 ## Patterns landed in Session 1
 

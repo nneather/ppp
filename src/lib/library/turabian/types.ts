@@ -1,9 +1,9 @@
 import type {
-	AuthorRole,
 	BookAuthorAssignment,
 	BookDetail,
 	Language,
-	ReviewSlice
+	ReviewSlice,
+	WorkType
 } from '$lib/types/library';
 
 export type { ReviewSlice };
@@ -31,7 +31,8 @@ export type CitationSourceType =
 	| 'commentary-in-series'
 	| 'standalone-commentary'
 	| 'reference-work-edited'
-	| 'reference-work-single-author';
+	| 'reference-work-single-author'
+	| 'book-with-editor';
 
 /** Hydrated book shape for pure citation formatters — no DB access inside formatters. */
 export type BookCitationInput = {
@@ -51,6 +52,7 @@ export type BookCitationInput = {
 	series_abbreviation: string | null;
 	volume_number: string | null;
 	genre: string | null;
+	work_type: WorkType;
 	language: Language;
 	authors: BookAuthorAssignment[];
 };
@@ -85,6 +87,7 @@ export function bookDetailToCitationInput(book: BookDetail): BookCitationInput {
 		series_abbreviation: book.series_abbreviation,
 		volume_number: book.volume_number,
 		genre: book.genre,
+		work_type: book.work_type,
 		language: book.language,
 		authors: book.authors
 	};

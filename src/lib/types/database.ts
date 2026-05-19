@@ -383,6 +383,7 @@ export type Database = {
           total_volumes: number | null
           updated_at: string
           volume_number: string | null
+          work_type: string
           year: number | null
         }
         Insert: {
@@ -416,6 +417,7 @@ export type Database = {
           total_volumes?: number | null
           updated_at?: string
           volume_number?: string | null
+          work_type?: string
           year?: number | null
         }
         Update: {
@@ -449,6 +451,7 @@ export type Database = {
           total_volumes?: number | null
           updated_at?: string
           volume_number?: string | null
+          work_type?: string
           year?: number | null
         }
         Relationships: [

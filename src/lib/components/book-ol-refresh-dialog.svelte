@@ -8,7 +8,8 @@
 		| 'edition'
 		| 'page_count'
 		| 'isbn'
-		| 'genre';
+		| 'genre'
+		| 'work_type';
 </script>
 
 <script lang="ts">
@@ -42,6 +43,7 @@
 		page_count: string;
 		isbn: string;
 		genre: string;
+		work_type: string;
 	};
 
 	let {
@@ -88,6 +90,7 @@
 	let pickPageCount = $state(false);
 	let pickIsbn = $state(false);
 	let pickGenre = $state(false);
+	let pickWorkType = $state(false);
 
 	function stopScan() {
 		try {
@@ -131,6 +134,7 @@
 		pickPageCount = false;
 		pickIsbn = false;
 		pickGenre = false;
+		pickWorkType = false;
 	}
 
 	function defaultPick(
@@ -163,6 +167,9 @@
 		pickGenre =
 			Boolean(p.genreSuggested) &&
 			(!current.genre.trim() || current.genre === (p.genreSuggested as string));
+		pickWorkType =
+			Boolean(p.workTypeSuggested) &&
+			(current.work_type === 'monograph' || current.work_type === p.workTypeSuggested);
 	}
 
 	$effect(() => {
@@ -265,6 +272,7 @@
 		if (pickPageCount) keys.push('page_count');
 		if (pickIsbn) keys.push('isbn');
 		if (pickGenre && prefill.genreSuggested) keys.push('genre');
+		if (pickWorkType && prefill.workTypeSuggested) keys.push('work_type');
 		if (keys.length === 0) {
 			errorMessage = 'Select at least one field to update.';
 			return;
@@ -396,6 +404,15 @@
 							<span>
 								<span class="font-medium">Genre (suggested)</span>
 								<span class="block text-muted-foreground">{prefill.genreSuggested}</span>
+							</span>
+						</label>
+					{/if}
+					{#if prefill.workTypeSuggested}
+						<label class="flex cursor-pointer items-start gap-2">
+							<input type="checkbox" bind:checked={pickWorkType} class="mt-1 size-4 shrink-0" />
+							<span>
+								<span class="font-medium">Work type (suggested)</span>
+								<span class="block text-muted-foreground">{prefill.workTypeSuggested}</span>
 							</span>
 						</label>
 					{/if}

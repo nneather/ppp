@@ -19,6 +19,7 @@ export function reviewCardToCitationInput(card: ReviewCard): BookCitationInput {
 		series_abbreviation: card.series_abbreviation,
 		volume_number: card.volume_number,
 		genre: card.genre,
+		work_type: card.work_type,
 		language: card.language,
 		authors: card.authors
 	};

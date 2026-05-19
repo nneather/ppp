@@ -6,7 +6,7 @@
  * https://openlibrary.org — public, no API key.
  */
 
-import type { Genre, Language } from '$lib/types/library';
+import type { Genre, Language, WorkType } from '$lib/types/library';
 import { normalizeIsbnDigits, parseIsbnWithChecksum } from '$lib/library/isbn';
 import { splitAuthorString } from '$lib/library/match';
 
@@ -35,6 +35,8 @@ export type OpenLibraryBookPrefill = {
 	authorTyped: string | null;
 	/** Conservative OL `subjects` → closed enum; null when no confident match. */
 	genreSuggested: Genre | null;
+	/** Dictionary / encyclopedia / lexicon subjects → reference work. */
+	workTypeSuggested: WorkType | null;
 	/** Best-effort series title from edition/work `series` or subtitle heuristic. */
 	seriesName: string | null;
 	/** Volume / number segment when parseable from the series string. */
@@ -362,6 +364,14 @@ function suggestGenreFromSubjects(subjects: string[]): Genre | null {
 	return null;
 }
 
+function suggestWorkTypeFromSubjects(subjects: string[]): WorkType | null {
+	const blob = subjects.join(' ').toLowerCase();
+	if (/\b(dictionary|encyclopedia|lexicon|concordance)\b/i.test(blob)) {
+		return 'reference_work';
+	}
+	return null;
+}
+
 export async function fetchOpenLibraryPrefill(isbn: string): Promise<OpenLibraryBookPrefill> {
 	const normalized = parseIsbnWithChecksum(isbn);
 	if (!normalized) {
@@ -417,6 +427,7 @@ export async function fetchOpenLibraryPrefill(isbn: string): Promise<OpenLibrary
 
 	const subjects = normalizeSubjectEntries(work?.subjects ?? edition.subjects);
 	const genreSuggested = suggestGenreFromSubjects(subjects);
+	const workTypeSuggested = suggestWorkTypeFromSubjects(subjects);
 
 	const { seriesName, seriesVolume } = seriesFromOl(
 		edition,
@@ -449,6 +460,7 @@ export async function fetchOpenLibraryPrefill(isbn: string): Promise<OpenLibrary
 		authors,
 		authorTyped,
 		genreSuggested,
+		workTypeSuggested,
 		seriesName,
 		seriesVolume,
 		languageCode

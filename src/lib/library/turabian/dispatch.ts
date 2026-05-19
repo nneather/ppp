@@ -11,11 +11,12 @@ const REFERENCE_GENRES = new Set([
 ]);
 
 /**
- * Choose Turabian handler from genre + author/series structure.
+ * Choose Turabian handler from work_type, genre, and author/series structure.
  * Pure function — deterministic for a given input snapshot.
  */
 export function resolveCitationSourceType(book: BookCitationInput): CitationSourceType {
 	const genre = (book.genre ?? '').trim();
+	const workType = book.work_type ?? 'monograph';
 	const authors = authorsByRole(book.authors, 'author');
 	const editors = authorsByRole(book.authors, 'editor');
 	const hasSeries = Boolean((book.series_name ?? book.series_abbreviation ?? '').trim());
@@ -23,6 +24,13 @@ export function resolveCitationSourceType(book: BookCitationInput): CitationSour
 	const hasTranslator = book.authors.some((a) => a.role === 'translator');
 
 	if (genre === 'Bibles') return 'bible';
+
+	if (workType === 'reference_work') {
+		if (authors.length === 0 && editors.length > 0) return 'reference-work-edited';
+		return 'reference-work-single-author';
+	}
+
+	if (workType === 'edited_volume') return 'edited-volume';
 
 	if (genre === 'Commentary' && hasSeries) return 'commentary-in-series';
 	if (genre === 'Commentary') return 'standalone-commentary';
@@ -36,7 +44,11 @@ export function resolveCitationSourceType(book: BookCitationInput): CitationSour
 
 	if (hasVol && genre !== 'Commentary') return 'multi-volume';
 
+	if (authors.length > 0 && editors.length > 0 && hasTranslator) return 'single-author-book';
+
 	if (hasTranslator && authors.length > 0) return 'book-with-translator';
+
+	if (authors.length > 0 && editors.length > 0) return 'book-with-editor';
 
 	return 'single-author-book';
 }

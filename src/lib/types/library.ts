@@ -100,6 +100,16 @@ export const AUTHOR_ROLE_LABELS: Record<AuthorRole, string> = {
 	translator: 'Translator'
 };
 
+/** Matches `books.work_type` CHECK (migration 20260519120000). */
+export const WORK_TYPES = ['monograph', 'edited_volume', 'reference_work'] as const;
+export type WorkType = (typeof WORK_TYPES)[number];
+
+export const WORK_TYPE_LABELS: Record<WorkType, string> = {
+	monograph: 'Monograph (single or multi-author)',
+	edited_volume: 'Edited volume (essay collection)',
+	reference_work: 'Reference work (dictionary, encyclopedia, lexicon)'
+};
+
 /**
  * Matches `books.import_match_type` CHECK (migration 20260501090000).
  * Records OL enrichment provenance at Pass 1 / Pass 2 import time. NULL =
@@ -144,6 +154,7 @@ export type BookListRow = {
 	id: string;
 	title: string | null;
 	subtitle: string | null;
+	work_type: WorkType;
 	genre: string | null;
 	language: Language;
 	reading_status: ReadingStatus;
@@ -173,6 +184,7 @@ export type BookDetail = {
 	series_abbreviation: string | null;
 	volume_number: string | null;
 	genre: string | null;
+	work_type: WorkType;
 	language: Language;
 	isbn: string | null;
 	barcode: string | null;

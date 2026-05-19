@@ -32,7 +32,6 @@
 	import type { OcrScriptureCandidate } from '$lib/library/ocr-scripture-refs';
 	import {
 		formatOcrPipelineError,
-		getPdfPageCount,
 		invokeOcrScriptureRefs
 	} from '$lib/library/ocr-invoke-client';
 
@@ -140,6 +139,12 @@
 		isPdf?: boolean;
 		/** e.g. "Page 2/5" while per-page PDF OCR runs */
 		extractLabel?: string;
+		/** Original file kept for retrying failed PDF pages */
+		sourceFile?: File;
+		/** 0-based PDF page indices that failed OCR (partial batch) */
+		failedPdfPages?: number[];
+		/** Shown after partial PDF OCR success */
+		pdfOcrWarning?: string;
 	};
 
 	type QueuedOcrFile = {
@@ -775,9 +780,12 @@
 		if (!pages.every((p) => p.status === 'done' || p.status === 'error')) return;
 
 		const merged = mergeJobsIntoRows(pages);
+		const partialWarnings = pages
+			.map((p) => p.pdfOcrWarning)
+			.filter((w): w is string => typeof w === 'string' && w.length > 0);
 		if (merged.length > 0) {
 			rows = merged;
-			extractInfo = null;
+			extractInfo = partialWarnings.length > 0 ? partialWarnings.join(' ') : null;
 			extractMessage = null;
 		} else {
 			const anyDone = pages.some((p) => p.status === 'done');
@@ -785,6 +793,122 @@
 				? 'No references detected — add manually below.'
 				: 'Could not read any page — check errors on the chips above.';
 		}
+	}
+
+	function stampSourcePageIndex(
+		candidates: OcrScriptureCandidate[],
+		pageIndex: number
+	): OcrScriptureCandidate[] {
+		return candidates.map((c) => ({
+			...c,
+			source_page_index: c.source_page_index ?? pageIndex
+		}));
+	}
+
+	function pdfOcrWarningText(failedPages: number[], pageTotal: number): string {
+		const labels = failedPages.map((i) => `page ${i + 1}/${pageTotal}`).join(', ');
+		return `OCR failed on ${labels}. Other pages were extracted — retry failed page(s) on the chip above or add rows manually.`;
+	}
+
+	function removeCandidatesForPdfPages(
+		candidates: OcrScriptureCandidate[],
+		pageIndices: number[]
+	): OcrScriptureCandidate[] {
+		const removeSet = new Set(pageIndices);
+		return candidates.filter((c) => !removeSet.has(sourcePageIndexForCandidate(c)));
+	}
+
+	async function ocrPdfPageIndices(
+		jobId: string,
+		file: File,
+		bookIdForPath: string,
+		pageIndices: number[],
+		pageTotal: number,
+		existingCandidates: OcrScriptureCandidate[]
+	): Promise<{ candidates: OcrScriptureCandidate[]; failedPages: number[] }> {
+		const supa = createClient();
+		const merged = [...existingCandidates];
+		const failedPages: number[] = [];
+
+		const { renderPdfPageToJpegBlob } = await import('$lib/library/pdf-page-render');
+
+		for (const i of pageIndices) {
+			patchPage(jobId, {
+				status: 'extracting',
+				extractLabel: pageTotal > 1 ? `Page ${i + 1}/${pageTotal}` : undefined
+			});
+			try {
+				const jpegBlob = await renderPdfPageToJpegBlob(file, i);
+				const jpgPath = scriptureImagePath({ userId, bookId: bookIdForPath, ext: 'jpg' });
+				const { error: jpgErr } = await supa.storage
+					.from(SCRIPTURE_IMAGES_BUCKET)
+					.upload(jpgPath, jpegBlob, { contentType: 'image/jpeg', upsert: false });
+				if (jpgErr) {
+					failedPages.push(i);
+					continue;
+				}
+				const pageResult = await invokeOcrScriptureRefs(supa, {
+					object_path: jpgPath,
+					mime_type: 'image/jpeg',
+					book_id: bookIdForPath
+				});
+				if (!pageResult.ok) {
+					failedPages.push(i);
+					continue;
+				}
+				merged.push(...stampSourcePageIndex(pageResult.data.candidates, i));
+			} catch {
+				failedPages.push(i);
+			}
+		}
+
+		return { candidates: merged, failedPages };
+	}
+
+	async function retryFailedPdfPages(job: PageJob) {
+		if (!job.sourceFile || !job.failedPdfPages?.length || !job.sourcePath) return;
+		const bookIdForPath = lockedBookId ?? sourceBookId;
+		if (!bookIdForPath) return;
+
+		const { getPdfPageCountFromFile } = await import('$lib/library/pdf-page-render');
+		const pageTotal = await getPdfPageCountFromFile(job.sourceFile);
+		const indices = [...job.failedPdfPages];
+		patchPage(job.id, {
+			status: 'extracting',
+			error: undefined,
+			pdfOcrWarning: undefined,
+			extractLabel: undefined
+		});
+
+		const kept = removeCandidatesForPdfPages(job.candidates ?? [], indices);
+		const { candidates, failedPages } = await ocrPdfPageIndices(
+			job.id,
+			job.sourceFile,
+			bookIdForPath,
+			indices,
+			pageTotal,
+			kept
+		);
+
+		if (candidates.length === 0) {
+			patchPage(job.id, {
+				status: 'error',
+				error: `OCR failed on all pages (${indices.map((i) => i + 1).join(', ')}).`,
+				candidates: undefined,
+				failedPdfPages: failedPages.length > 0 ? failedPages : indices,
+				extractLabel: undefined
+			});
+		} else {
+			patchPage(job.id, {
+				status: 'done',
+				candidates,
+				failedPdfPages: failedPages.length > 0 ? failedPages : undefined,
+				pdfOcrWarning:
+					failedPages.length > 0 ? pdfOcrWarningText(failedPages, pageTotal) : undefined,
+				extractLabel: undefined
+			});
+		}
+		tryFinalizeBatchMerge();
 	}
 
 	function patchPage(id: string, patch: Partial<PageJob>) {
@@ -803,7 +927,7 @@
 		}
 
 		const isPdf = isPdfFile(file);
-		patchPage(jobId, { isPdf });
+		patchPage(jobId, { isPdf, sourceFile: isPdf ? file : undefined });
 
 		let mime = 'image/jpeg';
 		let objectPath = '';
@@ -859,51 +983,54 @@
 			};
 
 			if (isPdf) {
-				const countResult = await getPdfPageCount(supa, invokeBase);
-				if (!countResult.ok) {
+				let pageTotal: number;
+				try {
+					const { getPdfPageCountFromFile } = await import('$lib/library/pdf-page-render');
+					pageTotal = await getPdfPageCountFromFile(file);
+				} catch (e) {
 					patchPage(jobId, {
 						status: 'error',
-						error: countResult.message,
+						error: e instanceof Error ? e.message : 'Could not read PDF page count.',
 						sourcePath: objectPath,
 						previewUrl
 					});
 					tryFinalizeBatchMerge();
 					return;
 				}
-				const pageTotal = countResult.page_count;
-				const mergedCandidates: OcrScriptureCandidate[] = [];
+				const pageIndices = Array.from({ length: pageTotal }, (_, i) => i);
+				const { candidates, failedPages } = await ocrPdfPageIndices(
+					jobId,
+					file,
+					bookIdForPath,
+					pageIndices,
+					pageTotal,
+					[]
+				);
 
-				for (let i = 0; i < pageTotal; i++) {
+				if (candidates.length === 0) {
 					patchPage(jobId, {
-						status: 'extracting',
-						extractLabel: pageTotal > 1 ? `Page ${i + 1}/${pageTotal}` : undefined
+						status: 'error',
+						error:
+							failedPages.length > 0
+								? `OCR failed on all pages (${failedPages.map((i) => i + 1).join(', ')}/${pageTotal}).`
+								: 'No references detected in PDF.',
+						sourcePath: objectPath,
+						previewUrl,
+						failedPdfPages: failedPages.length > 0 ? failedPages : undefined,
+						extractLabel: undefined
 					});
-					const pageArgs =
-						pageTotal > 1
-							? { ...invokeBase, pdf_page_index: i }
-							: invokeBase;
-					const pageResult = await invokeOcrScriptureRefs(supa, pageArgs);
-					if (!pageResult.ok) {
-						patchPage(jobId, {
-							status: 'error',
-							error: pageTotal > 1 ? `${pageResult.message} (page ${i + 1}/${pageTotal})` : pageResult.message,
-							sourcePath: objectPath,
-							previewUrl,
-							extractLabel: undefined
-						});
-						tryFinalizeBatchMerge();
-						return;
-					}
-					mergedCandidates.push(...pageResult.data.candidates);
+				} else {
+					patchPage(jobId, {
+						status: 'done',
+						candidates,
+						sourcePath: objectPath,
+						previewUrl,
+						failedPdfPages: failedPages.length > 0 ? failedPages : undefined,
+						pdfOcrWarning:
+							failedPages.length > 0 ? pdfOcrWarningText(failedPages, pageTotal) : undefined,
+						extractLabel: undefined
+					});
 				}
-
-				patchPage(jobId, {
-					status: 'done',
-					candidates: mergedCandidates,
-					sourcePath: objectPath,
-					previewUrl,
-					extractLabel: undefined
-				});
 			} else {
 				const ocrResult = await invokeOcrScriptureRefs(supa, invokeBase);
 				if (!ocrResult.ok) {
@@ -1221,7 +1348,9 @@
 						<div
 							class={cn(
 								'flex flex-col gap-1 rounded-md border border-border bg-muted/30 p-2 text-[10px]',
-								job.error ? 'min-w-[min(100%,20rem)] max-w-full sm:max-w-md' : 'w-[4.5rem]'
+								job.error || job.pdfOcrWarning || job.failedPdfPages?.length
+									? 'min-w-[min(100%,20rem)] max-w-full sm:max-w-md'
+									: 'w-[4.5rem]'
 							)}
 						>
 							{#if job.previewUrl}
@@ -1270,6 +1399,26 @@
 									{job.status}
 								{/if}
 							</span>
+							{#if job.pdfOcrWarning}
+								<p
+									class="max-w-full whitespace-pre-wrap break-words rounded border border-amber-500/30 bg-amber-500/10 p-2 text-[10px] leading-snug text-amber-900 dark:text-amber-200"
+									role="status"
+								>
+									{job.pdfOcrWarning}
+								</p>
+							{/if}
+							{#if job.failedPdfPages?.length && job.sourceFile}
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									class="w-full"
+									disabled={job.status === 'extracting'}
+									onclick={() => void retryFailedPdfPages(job)}
+								>
+									Retry failed pages
+								</Button>
+							{/if}
 							{#if job.error}
 								<pre
 									class="max-h-40 select-all overflow-auto whitespace-pre-wrap break-words rounded border border-destructive/20 bg-destructive/5 p-2 text-[10px] leading-snug text-destructive"

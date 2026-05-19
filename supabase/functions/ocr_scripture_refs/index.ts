@@ -464,7 +464,7 @@ Rules:
 			},
 			body: JSON.stringify({
 				model,
-				max_tokens: 64000,
+				max_tokens: visionInput.kind === 'image' ? 32768 : 64000,
 				temperature: 0,
 				system: systemPrompt,
 				messages: [

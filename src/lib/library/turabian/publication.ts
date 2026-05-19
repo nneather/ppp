@@ -23,11 +23,12 @@ export function formatEditionSegment(edition: string | null, mode: 'note' | 'bib
 	if (!e) return '';
 	// Pass through stored edition strings (e.g. "2nd ed.", "rev. ed.")
 	if (/ed\.?$/i.test(e) || /edition/i.test(e)) {
-		return mode === 'bib' && e.toLowerCase().startsWith('rev')
-			? e.charAt(0).toUpperCase() + e.slice(1)
-			: e;
+		if (mode === 'bib' && /^[a-z]/.test(e)) {
+			return e.charAt(0).toUpperCase() + e.slice(1);
+		}
+		return e;
 	}
-	return mode === 'note' ? `${e} ed.` : `${e} ed.`;
+	return mode === 'note' ? `${e} ed.` : `${e.charAt(0).toUpperCase() + e.slice(1)} ed.`;
 }
 
 export function formatPublicationFacts(
@@ -108,7 +109,7 @@ export function formatVolumePageNote(book: BookCitationInput, page?: string): st
 	const vol = (book.volume_number ?? '').trim();
 	const pagePart = (page ?? '[page]').trim();
 	if (vol && pagePart) return `${vol}:${pagePart.replace(/^p\.?\s*/i, '')}`;
-	if (pagePart) return pagePart.startsWith('p.') ? pagePart : `p. ${pagePart}`;
+	if (pagePart) return pagePart.replace(/^p\.?\s*/i, '');
 	return '';
 }
 
