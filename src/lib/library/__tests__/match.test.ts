@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { matchPublisher, normalizePublisherName } from '$lib/library/match';
+import { publisherDefaultLocationForRow } from '$lib/library/publisher-resolve';
 import type { PublisherRow } from '$lib/types/library';
 
 const rows: PublisherRow[] = [
@@ -56,5 +57,54 @@ describe('matchPublisher', () => {
 
 	it('returns null for unknown', () => {
 		expect(matchPublisher('Random House', rows)).toBeNull();
+	});
+});
+
+const bakerRows: PublisherRow[] = [
+	{
+		id: 'baker-parent',
+		canonical_name: 'Baker Publishing Group',
+		parent_id: null,
+		default_location: 'Grand Rapids, MI',
+		aliases: ['Baker Publishing', 'Baker Publishing Group'],
+		notes: null
+	},
+	{
+		id: 'baker-academic',
+		canonical_name: 'Baker Academic',
+		parent_id: 'baker-parent',
+		default_location: 'Grand Rapids, MI',
+		parent_default_location: 'Grand Rapids, MI',
+		aliases: [
+			'Baker Academic, a division of Baker Publishing Group',
+			'Baker Academic Books'
+		],
+		notes: null
+	}
+];
+
+describe('matchPublisher — Baker family', () => {
+	it('prefers Baker Academic over Baker Publishing Group', () => {
+		expect(matchPublisher('Baker Academic', bakerRows)?.canonical_name).toBe('Baker Academic');
+	});
+
+	it('matches division alias to Baker Academic', () => {
+		expect(
+			matchPublisher('Baker Academic, a division of Baker Publishing Group', bakerRows)
+				?.canonical_name
+		).toBe('Baker Academic');
+	});
+
+	it('inherits parent default location when child default_location is null', () => {
+		const child: PublisherRow = {
+			id: 'baker-academic-null-loc',
+			canonical_name: 'Baker Academic',
+			parent_id: 'baker-parent',
+			default_location: null,
+			parent_default_location: 'Grand Rapids, MI',
+			aliases: [],
+			notes: null
+		};
+		expect(publisherDefaultLocationForRow(child)).toBe('Grand Rapids, MI');
 	});
 });

@@ -28,6 +28,29 @@ export function normalizePublisherName(s: string): string {
 		.trim();
 }
 
+function publisherFuzzyMatches(n: string, p: PublisherRow): boolean {
+	const cn = normalizePublisherName(p.canonical_name);
+	if (cn.length >= 4 && (n.includes(cn) || cn.includes(n))) return true;
+	for (const alias of p.aliases ?? []) {
+		const an = normalizePublisherName(alias);
+		if (an.length >= 4 && (n.includes(an) || an.includes(n))) return true;
+	}
+	return false;
+}
+
+/** Prefer longest canonical name, then child imprint over parent group. */
+function pickBestPublisherMatch(candidates: PublisherRow[]): PublisherRow | null {
+	if (candidates.length === 0) return null;
+	const sorted = [...candidates].sort((a, b) => {
+		const len = b.canonical_name.length - a.canonical_name.length;
+		if (len !== 0) return len;
+		const aChild = a.parent_id != null ? 1 : 0;
+		const bChild = b.parent_id != null ? 1 : 0;
+		return bChild - aChild;
+	});
+	return sorted[0] ?? null;
+}
+
 export function matchPublisher(raw: string, rows: PublisherRow[]): PublisherRow | null {
 	const n = normalizePublisherName(raw);
 	if (!n || n.length < 2) return null;
@@ -39,18 +62,11 @@ export function matchPublisher(raw: string, rows: PublisherRow[]): PublisherRow 
 		}
 	}
 
-	const sorted = [...rows].sort(
-		(a, b) => b.canonical_name.length - a.canonical_name.length
-	);
-	for (const p of sorted) {
-		const cn = normalizePublisherName(p.canonical_name);
-		if (cn.length >= 4 && (n.includes(cn) || cn.includes(n))) return p;
-		for (const alias of p.aliases ?? []) {
-			const an = normalizePublisherName(alias);
-			if (an.length >= 4 && (n.includes(an) || an.includes(n))) return p;
-		}
+	const fuzzyHits: PublisherRow[] = [];
+	for (const p of rows) {
+		if (publisherFuzzyMatches(n, p)) fuzzyHits.push(p);
 	}
-	return null;
+	return pickBestPublisherMatch(fuzzyHits);
 }
 
 export function normalizeSeriesName(s: string): string {
