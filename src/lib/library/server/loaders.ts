@@ -41,6 +41,7 @@ import {
 	bookDetailToCitationInput,
 	type BookCitationInput
 } from '$lib/library/turabian';
+import { authorsLabelForBook } from '$lib/library/authors-label';
 
 /**
  * Shared load helpers for book list + detail pages.
@@ -263,39 +264,6 @@ function parseWorkType(raw: string | null | undefined): WorkType {
 	return 'monograph';
 }
 
-function authorsLabelForBook(
-	workType: WorkType,
-	bookAuthors: { person_id: string; sort_order: number; role: string }[],
-	peopleMap: Map<string, PersonRow>
-): string | null {
-	const sorted = (bookAuthors ?? []).slice().sort((a, b) => a.sort_order - b.sort_order);
-	const authorRows = sorted.filter((a) => a.role === 'author');
-	const editorRows = sorted.filter((a) => a.role === 'editor');
-
-	if (authorRows.length > 0) {
-		const labels = authorRows
-			.map((a) => {
-				const p = peopleMap.get(a.person_id);
-				return p ? personDisplayShort(p) : null;
-			})
-			.filter((s): s is string => s != null);
-		return labels.length > 0 ? labels.join(', ') : null;
-	}
-
-	if (workType !== 'monograph' && editorRows.length > 0) {
-		const labels = editorRows
-			.map((a) => {
-				const p = peopleMap.get(a.person_id);
-				return p ? personDisplayShort(p) : null;
-			})
-			.filter((s): s is string => s != null);
-		if (labels.length === 0) return null;
-		return `${labels.join(', ')}${editorRows.length === 1 ? ', ed.' : ', eds.'}`;
-	}
-
-	return null;
-}
-
 type RawBookListRow = {
 	id: string;
 	title: string | null;
@@ -354,7 +322,7 @@ export async function loadBookList(
 		const r = raw as unknown as RawBookListRow;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
 		const workType = parseWorkType(r.work_type);
-		const authors_label = authorsLabelForBook(workType, r.book_authors ?? [], peopleMap);
+		const authors_label = authorsLabelForBook(r.book_authors ?? [], peopleMap);
 
 		return {
 			id: r.id,
@@ -541,7 +509,7 @@ function mapBookListRows(data: unknown[], people: PersonRow[]): BookListRow[] {
 		const r = raw as unknown as RawBookListRow;
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
 		const workType = parseWorkType(r.work_type);
-		const authors_label = authorsLabelForBook(workType, r.book_authors ?? [], peopleMap);
+		const authors_label = authorsLabelForBook(r.book_authors ?? [], peopleMap);
 
 		return {
 			id: r.id,
@@ -1079,7 +1047,7 @@ export async function loadReviewQueue(
 			bookAuthorAssignmentFromJunction(a, peopleMap)
 		);
 		const workType = parseWorkType(r.work_type);
-		const authors_label = authorsLabelForBook(workType, r.book_authors ?? [], peopleMap);
+		const authors_label = authorsLabelForBook(r.book_authors ?? [], peopleMap);
 
 		const pubFields = mapPublisherCitationFields(
 			r.publisher ?? null,
