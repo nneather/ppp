@@ -55,6 +55,8 @@
 ## Surprises
 
 - **`npm run build`** may log Workbox warnings for empty globs (`prerendered/**/*.{html,json}`, `client/*.webmanifest`) when the app has no prerendered output and PWA manifest generation is off — **benign**; precache still populated from `client/**`.
+- **`workbox-window` direct devDependency** — required when using `injectManifest` + `virtual:pwa-register/svelte` ([vite-pwa/sveltekit#101](https://github.com/vite-pwa/sveltekit/issues/101)); transitive install alone is unreliable on Vercel/npm ci.
+- **Vite 7 + nested Kit builds** — `@vite-pwa/sveltekit` runs `injectManifest` on SSR `closeBundle` before SvelteKit’s nested client/SW build finishes, causing `service-worker.js` ENOENT. Guard in [`src/lib/vite/patch-sveltekit-pwa.ts`](../../src/lib/vite/patch-sveltekit-pwa.ts) (wired from [`vite.config.ts`](../../vite.config.ts)) skips inject until the file exists; final SSR closeBundle runs precache injection. Also use **function** `manualChunks` (not object keys) so nested SSR builds do not error on external `@supabase/*`.
 
 ## Carry-forward updates
 
