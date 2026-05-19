@@ -100,6 +100,10 @@
 		};
 	};
 
+	function handleCancel() {
+		open = false;
+	}
+
 	function handleDelete() {
 		if (!entry || !browser) return;
 		if (!confirm('Delete this time entry?')) return;
@@ -111,6 +115,7 @@
 <Sheet.Root bind:open>
 	<Sheet.Content
 		side={sheetSide}
+		interactOutsideBehavior="ignore"
 		class={cn(
 			'flex w-full flex-col gap-0 p-0',
 			sheetSide === 'bottom' && 'h-[min(92dvh,640px)] max-h-[92dvh] rounded-t-xl',
@@ -227,6 +232,7 @@
 								variant="outline"
 								class="h-12 w-full text-base"
 								disabled={pending || !clientId}
+								hotkey="e"
 								label="Save and New"
 							/>
 						{/if}
@@ -241,6 +247,15 @@
 								label="Delete"
 							/>
 						{/if}
+						<Button
+							type="button"
+							variant="outline"
+							class="h-12 w-full text-base"
+							disabled={pending}
+							onclick={handleCancel}
+							hotkey="Escape"
+							label="Cancel"
+						/>
 					</Sheet.Footer>
 				</form>
 			{/if}

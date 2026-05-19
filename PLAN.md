@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-19 — **Library list PWA nav** ([035](docs/decisions/035-library-list-pwa-navigation.md)): removed `listMounted` hydrate teardown; full-card mobile tap targets.
+**Last updated:** 2026-05-19 — **Review queue polish** ([036](docs/decisions/036-session-8-5-review-queue-polish.md)): swipe confirm/skip, haptic, checkmark on `/library/review`.
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -34,6 +34,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [036 — Review queue polish (Session 8.5)](docs/decisions/036-session-8-5-review-queue-polish.md) (2026-05-19) — swipe, haptic, checkmark on `/library/review`.
 - [035 — Library list PWA navigation](docs/decisions/035-library-list-pwa-navigation.md) (2026-05-19) — removed `listMounted` gate; full-card mobile list links.
 - [033 — Library PM review (May 2026)](docs/decisions/033-library-pm-review-may-2026.md) (2026-05-19) — mobile chrome, citation short-form + `s.v.`, OCR hardening, `ship-library`, process skills/hooks.
 - [032 — Edited works + citation accuracy](docs/decisions/032-edited-works-and-citation-accuracy.md) (2026-05-19) — `work_type`; Turabian dispatch fixes; 24 citation tests.

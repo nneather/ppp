@@ -16,6 +16,7 @@
 	import { matchPublisher } from '$lib/library/match';
 	import { publisherDefaultLocationForRow } from '$lib/library/publisher-resolve';
 	import { defaultReviewSlice } from '$lib/library/turabian/review-progress';
+	import { createReviewSwipe } from '$lib/library/review-swipe';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
@@ -84,6 +85,11 @@
 	let confirmDeletePending = $state(false);
 	let copyToast = $state<string | null>(null);
 	let todayCleared = $state(0);
+	let swipeDx = $state(0);
+	let successPulse = $state(false);
+	let reviewFormEl = $state<HTMLFormElement | null>(null);
+	let reviewCardEl = $state<HTMLElement | null>(null);
+	let pendingFromSwipe = $state(false);
 
 	onMount(() => {
 		todayCleared = readReviewToday().count;
@@ -238,6 +244,8 @@
 	function saveSubmit(): SubmitFunction {
 		return ({ formData }) => {
 			const id = String(formData.get('id') ?? '');
+			const fromSwipe = pendingFromSwipe;
+			pendingFromSwipe = false;
 			pendingSaveId = id;
 			return async ({ result, update }) => {
 				disableScrollHandling();
@@ -247,6 +255,10 @@
 					remaining = Math.max(0, remaining - 1);
 					incrementReviewProgress(activeSlice);
 					todayCleared = readReviewToday().count;
+					if (!fromSwipe) reviewHaptic();
+					successPulse = true;
+					await new Promise((r) => setTimeout(r, 200));
+					successPulse = false;
 					advance(id);
 				}
 				pendingSaveId = null;
@@ -259,6 +271,40 @@
 		skippedStack = [...skippedStack, currentCard];
 		advance(currentCard.id);
 	}
+
+	function reviewHaptic() {
+		if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+			try {
+				navigator.vibrate(15);
+			} catch {
+				/* unsupported */
+			}
+		}
+	}
+
+	const reviewSwipe = createReviewSwipe({
+		thresholdPx: 80,
+		isEnabled: () =>
+			pendingSaveId === null && !confirmDeleteOpen && currentCard !== null && !successPulse,
+		onDxChange: (dx) => {
+			swipeDx = dx;
+		},
+		onConfirm: () => {
+			pendingFromSwipe = true;
+			reviewHaptic();
+			reviewFormEl?.requestSubmit();
+		},
+		onSkip: () => skipCurrent()
+	});
+
+	$effect(() => {
+		if (reviewCardEl) reviewSwipe.bindRoot(reviewCardEl);
+	});
+
+	$effect(() => {
+		currentCard?.id;
+		swipeDx = 0;
+	});
 
 	function deleteSubmit(): SubmitFunction {
 		return ({ formData }) => {
@@ -442,8 +488,8 @@
 			<div class="font-medium text-foreground">
 				<CheckCircle2 class="inline-block size-3.5 text-emerald-600" />
 				Today: {todayCleared}
-				<span class="mx-1 text-muted-foreground">·</span>
-				{reviewedThisSession} this session
+				<span class="mx-1 hidden text-muted-foreground md:inline">·</span>
+				<span class="hidden md:inline">{reviewedThisSession} this session</span>
 			</div>
 			<div class="mt-1 tabular-nums">
 				{data.sliceCleared.toLocaleString()} / {data.sliceDenominator.toLocaleString()} in slice
@@ -499,8 +545,38 @@
 			{@const langRowOpen = editLanguage !== null || metaLangExpanded}
 			<article
 				id="review-card"
-				class="rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm"
+				bind:this={reviewCardEl}
+				class="relative rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm touch-pan-y"
+				style:transform="translateX({Math.max(-100, Math.min(100, swipeDx))}px)"
+				style:transition={swipeDx === 0 ? 'transform 150ms ease-out' : 'none'}
+				onpointerdown={reviewSwipe.onPointerDown}
+				onpointermove={reviewSwipe.onPointerMove}
+				onpointerup={reviewSwipe.onPointerUp}
+				onpointercancel={reviewSwipe.onPointerCancel}
 			>
+				{#if successPulse}
+					<div
+						class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-emerald-500/10"
+						aria-hidden="true"
+					>
+						<CheckCircle2 class="size-16 text-emerald-600 drop-shadow dark:text-emerald-400" />
+					</div>
+				{/if}
+				{#if swipeDx > 24}
+					<div
+						class="pointer-events-none absolute right-3 top-3 z-10 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:text-emerald-200"
+						aria-hidden="true"
+					>
+						Confirm
+					</div>
+				{:else if swipeDx < -24}
+					<div
+						class="pointer-events-none absolute left-3 top-3 z-10 rounded-full border border-border bg-muted/80 px-2 py-0.5 text-xs font-medium text-muted-foreground"
+						aria-hidden="true"
+					>
+						Skip
+					</div>
+				{/if}
 				<!-- Title block -->
 				<div class="flex items-start justify-between gap-3">
 					<div class="min-w-0">
@@ -587,6 +663,7 @@
 					method="POST"
 					action="?/saveReviewed"
 					use:enhance={saveSubmit()}
+					bind:this={reviewFormEl}
 					class="mt-4 flex flex-col gap-4"
 				>
 					<input type="hidden" name="id" value={card.id} />
@@ -915,6 +992,10 @@
 				</form>
 			</article>
 
+			<p class="mt-2 text-center text-[11px] text-muted-foreground md:hidden">
+				Swipe right to confirm · left to skip
+			</p>
+
 			<p class="mt-3 hidden text-center text-[11px] text-muted-foreground md:block">
 				<kbd class="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px]">⌘S</kbd> confirm
 				·
@@ -942,10 +1023,8 @@
 					{#if reviewedThisSession === 0}
 						No books left in this slice.
 					{:else}
-						You reviewed <span class="font-semibold text-foreground"
-							>{reviewedThisSession}</span
-						>
-						{reviewedThisSession === 1 ? 'book' : 'books'} this session.
+						<span class="font-semibold text-foreground">{reviewedThisSession}</span>
+						{reviewedThisSession === 1 ? 'book' : 'books'} confirmed in this session.
 					{/if}
 				</p>
 				<div class="mt-2 flex flex-wrap items-center justify-center gap-2">

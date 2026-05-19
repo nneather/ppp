@@ -19,7 +19,7 @@
 |------|------------------|---------------|
 | 1 | `/library` | **Tap a book card** (title area) on installed PWA → opens `/library/books/[id]`; reading-status dropdown on same card updates without navigating. Open filter sheet; combine genre, series (multi-combobox), author, `needs_review`; list stays responsive; "Showing N of M" correct; URL filters survive back/forward. |
 | 2 | `/library/search-passage` | Philippians, ch 2, v 5 — results include scripture hits **and** rows with **Coverage** badge where `book_bible_coverage` exists. If zero coverage rows, add one Philippians coverage row in Studio or book detail, then re-test. |
-| 3 | `/library/review` | Save+next, Skip, Delete (confirm) behave as designed; optional slice pills (`subject_blank`, `match_type`). |
+| 3 | `/library/review` | Confirm (button + **swipe right**), Skip (button + **swipe left**), Field wrong (button only), Delete (confirm); haptic on confirm where supported; slice pills. |
 | 4 | **Session 5.5 bar** | Without leaving `/library/review`, complete **50+** cards in **~5 minutes** (buttons sufficient; desktop hotkeys optional). |
 | 5 | `/library/add` → `/library/books/new` | Barcode or manual ISBN → Open Library prefill → canonical publisher + default city when imprint is in **Publishers** settings → confirm → save. |
 

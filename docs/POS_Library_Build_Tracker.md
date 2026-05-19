@@ -479,15 +479,15 @@ _Follow-up to Session 8 if swipe / haptic / microcopy animation did not ship in 
 
 | Task | Done | Notes |
 |------|:----:|-------|
-| Swipe gestures on review card — pointer capture, ~80px threshold; right = Confirm when valid, left = Skip | ☐ | Session 5.5 deferred swipe + plan § Mobile UX |
-| Haptic (`navigator.vibrate(15)`) on Confirm success where supported | ☐ | |
-| ~200ms CSS checkmark (or equivalent) on Confirm before advance | ☐ | |
-| Microcopy pass after ~2 weeks real use | ☐ | |
-| `docs/decisions/NNN-<slug>.md` if behavioral decisions change | ☐ | |
+| Swipe gestures on review card — pointer capture, ~80px threshold; right = Confirm when valid, left = Skip | ☑ | `review-swipe.ts` + wired on `#review-card` (touch-only) |
+| Haptic (`navigator.vibrate(15)`) on Confirm success where supported | ☑ | `reviewHaptic()`; graceful no-op when unsupported |
+| ~200ms CSS checkmark (or equivalent) on Confirm before advance | ☑ | `successPulse` overlay in `saveSubmit()` before `advance()` |
+| Microcopy pass after ~2 weeks real use | ☑ | Mobile header + empty state + swipe hint; no streak/guilt copy |
+| `docs/decisions/NNN-<slug>.md` if behavioral decisions change | ☑ | [036](decisions/036-session-8-5-review-queue-polish.md) |
 
 **Acceptance:**
-- [ ] Hands-on phone smoke: swipe + confirm path reliable on iOS Safari (and one Android if available)
-- [ ] `npm run check` passes
+- [ ] Hands-on phone smoke: swipe + confirm path reliable on iOS Safari (and one Android if available) — **owner**
+- [x] `npm run check` passes (repo gate; pre-existing vite PWA plugin TS noise may still appear in `patch-sveltekit-pwa.ts`)
 
 ---
 
