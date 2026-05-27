@@ -1,9 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import {
-	countLiveBooks,
-	loadBookListFiltered
-} from '$lib/library/server/loaders';
+import { loadBookListFiltered } from '$lib/library/server/loaders';
 import {
 	createPersonAction,
 	softDeleteBookAction,
@@ -24,22 +21,18 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 	const filters = parseBookListFilters(url);
 	const recentlyDeletedId = url.searchParams.get('deleted');
 
-	const { people, series, bibleBookNames } = await parent();
+	const { series, bibleBookNames, totalCount } = await parent();
 
-	const [{ books, filteredCount }, totalCount] = await Promise.all([
-		loadBookListFiltered(supabase, people, filters, {
-			limit: filters.all === true ? undefined : LIBRARY_PAGE_SIZE,
-			offset: 0
-		}),
-		countLiveBooks(supabase)
-	]);
+	const { books, filteredCount } = await loadBookListFiltered(supabase, [], filters, {
+		limit: filters.all === true ? undefined : LIBRARY_PAGE_SIZE,
+		offset: 0
+	});
 
 	return {
 		books,
 		filteredCount,
 		pageSize: LIBRARY_PAGE_SIZE,
 		series,
-		people,
 		bibleBookNames,
 		recentlyDeletedId,
 		filters,

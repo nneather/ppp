@@ -9,6 +9,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { cn } from '$lib/utils.js';
 	import { ymdInChicago } from '$lib/invoicing/chicago-date';
+	import { formatHoursForInput, parseHoursInput } from '$lib/invoicing/hours';
 	import type { ClientOption, TimeEntryRow } from '$lib/types/invoicing';
 
 	type FormMessage = { message?: string } | null | undefined;
@@ -30,6 +31,7 @@
 	let clientId = $state('');
 	let dateStr = $state('');
 	let hoursStr = $state('');
+	let hoursAdjustedNote = $state<string | null>(null);
 	let description = $state('');
 	let sheetSide = $state<'bottom' | 'right'>('bottom');
 	let pending = $state(false);
@@ -71,11 +73,32 @@
 				clientId = clients[0]?.id ?? '';
 				dateStr = ymdInChicago();
 				hoursStr = '';
+				hoursAdjustedNote = null;
 				description = '';
 			}
 		}
 		wasOpen = open;
 	});
+
+	function snapHoursOnBlur() {
+		const before = hoursStr.trim();
+		if (!before) {
+			hoursAdjustedNote = null;
+			return;
+		}
+		const n = parseHoursInput(before);
+		if (n == null) {
+			hoursAdjustedNote = null;
+			return;
+		}
+		const snapped = formatHoursForInput(n);
+		if (snapped !== before) {
+			hoursAdjustedNote = `Adjusted ${before} → ${snapped}`;
+		} else {
+			hoursAdjustedNote = null;
+		}
+		hoursStr = snapped;
+	}
 
 	const submitEnhance: SubmitFunction = () => {
 		pending = true;
@@ -90,6 +113,7 @@
 				if (d.saveAndNew === true && typeof d.savedDate === 'string' && mode === 'create') {
 					dateStr = d.savedDate;
 					hoursStr = '';
+					hoursAdjustedNote = null;
 					description = '';
 					return;
 				}
@@ -196,10 +220,15 @@
 							step="0.25"
 							min="0"
 							bind:value={hoursStr}
+							onblur={snapHoursOnBlur}
 							class="h-12 min-h-12 text-base tabular-nums"
 							placeholder="e.g. 1.5"
 							required
 						/>
+						<p class="text-xs text-muted-foreground">Hours round to the nearest quarter (0.25).</p>
+						{#if hoursAdjustedNote}
+							<p class="text-xs text-muted-foreground" role="status">{hoursAdjustedNote}</p>
+						{/if}
 					</div>
 
 					<div class="space-y-2">

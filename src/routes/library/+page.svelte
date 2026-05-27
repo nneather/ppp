@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
-	import { invalidate, goto } from '$app/navigation';
-	import { page, navigating } from '$app/state';
+	import { invalidate, goto, replaceState } from '$app/navigation';
+	import { page } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -47,23 +47,82 @@
 
 	let { data, form }: PageProps = $props();
 
-	const filters = $derived<BookListFilters>(data.filters);
+	/** Client-side filter mirror during JSON refresh; cleared when server `data` updates. */
+	let clientFilters = $state<BookListFilters | null>(null);
+	const filters = $derived<BookListFilters>(clientFilters ?? data.filters);
 
 	let loadedBooks = $state<BookListRow[]>([]);
+	let clientFilteredCount = $state<number | null>(null);
 	let loadingMore = $state(false);
 	let loadMoreError = $state<string | null>(null);
+	let listFetchPending = $state(false);
+	let listFetchError = $state<string | null>(null);
+	let listFetchSeq = 0;
 	let loadMoreSentinel = $state<HTMLDivElement | null>(null);
 
 	$effect(() => {
 		void data.books;
+		void data.filters;
+		clientFilters = null;
 		loadedBooks = [...data.books];
+		clientFilteredCount = null;
 		loadMoreError = null;
+		listFetchError = null;
 	});
 
-	const filteredCount = $derived(data.filteredCount);
+	const filteredCount = $derived(clientFilteredCount ?? data.filteredCount);
 	const showPagedMore = $derived(
-		data.filters.all !== true && loadedBooks.length < filteredCount && filteredCount > 0
+		filters.all !== true && loadedBooks.length < filteredCount && filteredCount > 0
 	);
+
+	const Q_DEBOUNCE_MS = 300;
+
+	function listTargetUrl(next: BookListFilters): string {
+		const keep = bookListFiltersToSearchParams(next, page.url);
+		const search = keep.toString();
+		return page.url.pathname + (search ? `?${search}` : '');
+	}
+
+	async function fetchBooksPage(
+		next: BookListFilters,
+		offset: number
+	): Promise<{ books: BookListRow[]; filteredCount: number }> {
+		const q = bookListFiltersToSearchParams(next, page.url);
+		if (offset > 0) q.set('offset', String(offset));
+		const res = await fetch(`/library/books.json?${q.toString()}`);
+		if (!res.ok) throw new Error('fetch failed');
+		return (await res.json()) as { books: BookListRow[]; filteredCount: number };
+	}
+
+	/** Client JSON refresh for filters/search; full `goto` only for `?all=true`. */
+	async function applyListFilters(next: BookListFilters) {
+		if (!browser) return;
+		clientFilters = next;
+
+		if (next.all === true) {
+			clientFilteredCount = null;
+			goto(listTargetUrl(next), { keepFocus: true, noScroll: true });
+			return;
+		}
+
+		replaceState(listTargetUrl(next), {});
+
+		const seq = ++listFetchSeq;
+		listFetchPending = true;
+		listFetchError = null;
+		try {
+			const { books, filteredCount: count } = await fetchBooksPage(next, 0);
+			if (seq !== listFetchSeq) return;
+			loadedBooks = books;
+			clientFilteredCount = count;
+			loadMoreError = null;
+		} catch {
+			if (seq !== listFetchSeq) return;
+			listFetchError = 'Could not update list.';
+		} finally {
+			if (seq === listFetchSeq) listFetchPending = false;
+		}
+	}
 
 	async function loadMore() {
 		if (!browser || loadingMore || filters.all === true) return;
@@ -105,13 +164,6 @@
 		obs.observe(el);
 		return () => obs.disconnect();
 	});
-
-	/** In-flight navigations that stay on the list route (filters / search). */
-	const listInFlight = $derived(
-		navigating != null &&
-			navigating.to != null &&
-			navigating.to.url.pathname === '/library'
-	);
 
 	// 10s undo toast for soft-deletes coming back from the detail-page redirect.
 	let undoToastVisible = $state(false);
@@ -202,17 +254,11 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// Filters: URL-param-driven state.
-	// `data.filters` is the parsed snapshot from +page.server.ts — render
-	// against that for SSR-safety, mutate via goto() on toggle.
+	// Filters: server snapshot in `data.filters`; client refresh via books.json.
 	// -------------------------------------------------------------------------
 
 	let mobileFilterOpen = $state(false);
 
-	/** Local mirror of the keyword input so typing feels instant — debounce
-	 * the URL update so we don't refetch on every keystroke. Initialized
-	 * empty then hydrated by the effect below so the snapshot warning
-	 * doesn't fire; the effect tracks `filters.q` for back/forward sync too. */
 	let qInput = $state('');
 	$effect(() => {
 		qInput = filters.q ?? '';
@@ -224,18 +270,8 @@
 		if (!browser) return;
 		if (qDebounce != null) clearTimeout(qDebounce);
 		qDebounce = window.setTimeout(() => {
-			pushFilters({ ...filters, q: qInput.trim() || undefined });
-		}, 120);
-	}
-
-	/** Build the next URL from a filter object and navigate. Empty arrays /
-	 * empty strings drop the param entirely so back/forward gives a clean URL. */
-	function pushFilters(next: BookListFilters) {
-		if (!browser) return;
-		const keep = bookListFiltersToSearchParams(next, page.url);
-		const search = keep.toString();
-		const target = page.url.pathname + (search ? `?${search}` : '');
-		goto(target, { replaceState: false, keepFocus: true, noScroll: true });
+			void applyListFilters({ ...filters, q: qInput.trim() || undefined });
+		}, Q_DEBOUNCE_MS);
 	}
 
 	function toggleArrayFilter<K extends keyof BookListFilters>(
@@ -245,21 +281,24 @@
 		const current = (filters[key] as string[] | undefined) ?? [];
 		const has = current.includes(value);
 		const nextArr = has ? current.filter((v) => v !== value) : [...current, value];
-		pushFilters({ ...filters, [key]: nextArr.length === 0 ? undefined : nextArr });
+		void applyListFilters({ ...filters, [key]: nextArr.length === 0 ? undefined : nextArr });
 	}
 
 	function setArrayFilter<K extends keyof BookListFilters>(key: K, next: string[]) {
-		pushFilters({ ...filters, [key]: next.length === 0 ? undefined : next });
+		void applyListFilters({ ...filters, [key]: next.length === 0 ? undefined : next });
 	}
 
 	function toggleNeedsReview() {
-		pushFilters({ ...filters, needs_review: filters.needs_review ? undefined : true });
+		void applyListFilters({
+			...filters,
+			needs_review: filters.needs_review ? undefined : true
+		});
 	}
 
 	function clearAll() {
 		qInput = '';
 		clearBulkSelection();
-		pushFilters({});
+		void applyListFilters({});
 	}
 
 	const hasAnyFilter = $derived(
@@ -302,7 +341,34 @@
 		return [first, middleInitial, p.last_name].filter((s) => s.length > 0).join(' ');
 	}
 
-	const peopleById = $derived(new Map(data.people.map((p) => [p.id, p])));
+	let facetPeople = $state<PersonRow[]>([]);
+	let facetPeopleLoading = $state(false);
+
+	async function ensureFacetPeople() {
+		if (facetPeople.length > 0 || facetPeopleLoading) return;
+		facetPeopleLoading = true;
+		try {
+			const res = await fetch('/library/people.json');
+			if (!res.ok) return;
+			const body = (await res.json()) as { people?: PersonRow[] };
+			facetPeople = body.people ?? [];
+		} finally {
+			facetPeopleLoading = false;
+		}
+	}
+
+	$effect(() => {
+		if (!browser) return;
+		if (mobileFilterOpen) void ensureFacetPeople();
+	});
+
+	$effect(() => {
+		if (!browser) return;
+		const id = requestIdleCallback(() => void ensureFacetPeople());
+		return () => cancelIdleCallback(id);
+	});
+
+	const peopleById = $derived(new Map(facetPeople.map((p) => [p.id, p])));
 
 	function authorFacetMatcher(it: MultiComboboxItem, query: string): number {
 		const p = peopleById.get(it.id);
@@ -319,7 +385,7 @@
 	);
 
 	const peopleItems = $derived<MultiComboboxItem[]>(
-		data.people.map((p) => ({
+		facetPeople.map((p) => ({
 			id: p.id,
 			label: personShort(p),
 			sublabel: p.aliases && p.aliases.length > 0 ? p.aliases.join(', ') : null,
@@ -532,7 +598,7 @@
 			<button
 				type="button"
 				class="ml-1.5 text-primary underline-offset-2 hover:underline"
-				onclick={() => pushFilters({ ...filters, all: true })}
+				onclick={() => void applyListFilters({ ...filters, all: true })}
 			>
 				View all ({filteredCount.toLocaleString()})
 			</button>
@@ -540,7 +606,7 @@
 			<button
 				type="button"
 				class="ml-1.5 text-primary underline-offset-2 hover:underline"
-				onclick={() => pushFilters({ ...filters, all: undefined })}
+				onclick={() => void applyListFilters({ ...filters, all: undefined })}
 			>
 				Switch to paged view
 			</button>
@@ -632,11 +698,20 @@
 		</p>
 	{/if}
 
+	{#if listFetchError}
+		<p
+			class="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+			role="alert"
+		>
+			{listFetchError}
+		</p>
+	{/if}
+
 	<!-- Search + mobile filter trigger row -->
 	<div class="mt-4 flex flex-wrap items-center gap-2">
 		<div class="relative flex-1 min-w-[14rem]">
 			<Search class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-			{#if listInFlight}
+			{#if listFetchPending}
 				<Loader2
 					class="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
 					aria-hidden="true"
@@ -647,9 +722,9 @@
 				placeholder="Search title, subtitle, or author last name…"
 				value={qInput}
 				oninput={onQInput}
-				class={cn('pl-9', listInFlight && 'pr-9')}
+				class={cn('pl-9', listFetchPending && 'pr-9')}
 				aria-label="Search books"
-				aria-busy={listInFlight}
+				aria-busy={listFetchPending}
 			/>
 		</div>
 		<Button
@@ -669,7 +744,13 @@
 	</div>
 
 	<!-- Desktop: full-width collapsible filters (mobile uses Sheet below) -->
-	<details class="group mt-4 hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm md:block" open>
+	<details
+		class="group mt-4 hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm md:block"
+		open
+		ontoggle={(e) => {
+			if (e.currentTarget.open) void ensureFacetPeople();
+		}}
+	>
 		<summary
 			class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden"
 		>
@@ -757,7 +838,7 @@
 					class="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-foreground transition-colors hover:bg-muted/70"
 					onclick={() => {
 						qInput = '';
-						pushFilters({ ...filters, q: undefined });
+						void applyListFilters({ ...filters, q: undefined });
 					}}
 				>
 					“{filters.q}” <X class="size-3" />
@@ -774,7 +855,7 @@
 	{/if}
 
 	<div class="mt-6 min-w-0">
-			{#if data.filteredCount === 0 && data.totalCount === 0}
+			{#if data.totalCount === 0 && loadedBooks.length === 0 && !listFetchPending}
 				<div class="rounded-xl border border-dashed border-border p-8 text-center">
 					<BookOpen class="mx-auto size-8 text-muted-foreground" />
 					<p class="mt-3 text-sm text-muted-foreground">No books yet. Add one to get started.</p>
@@ -782,7 +863,7 @@
 						<Plus class="size-4" /> Add book
 					</Button>
 				</div>
-			{:else if data.filteredCount === 0}
+			{:else if filteredCount === 0 && loadedBooks.length === 0 && !listFetchPending}
 				<div class="rounded-xl border border-dashed border-border p-8 text-center">
 					<Search class="mx-auto size-8 text-muted-foreground" />
 					<p class="mt-3 text-sm text-muted-foreground">
@@ -824,6 +905,7 @@
 						>
 							<a
 								href={`/library/books/${b.id}`}
+								data-sveltekit-preload-data="hover"
 								class="absolute inset-0 z-0 rounded-xl"
 								aria-label={`Open ${b.title ?? 'book'}`}
 							></a>
@@ -941,7 +1023,11 @@
 										/>
 									</td>
 									<td class="px-4 py-2.5">
-										<a href={`/library/books/${b.id}`} class="block">
+										<a
+											href={`/library/books/${b.id}`}
+											data-sveltekit-preload-data="hover"
+											class="block"
+										>
 											{#if b.title}
 												<span class="font-medium">{b.title}</span>
 											{:else}

@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
+import { parseHoursInput, snapHoursToQuarter } from '$lib/invoicing/hours';
 import type { Actions, PageServerLoad } from './$types';
 import type { ClientOption, PeriodView, TimeEntryRow, UnbilledCount } from '$lib/types/invoicing';
 export type { ClientOption, PeriodView, TimeEntryRow, UnbilledCount } from '$lib/types/invoicing';
@@ -253,9 +254,9 @@ async function lookupRate(
 
 function parseHours(raw: FormDataEntryValue | null): number | null {
 	if (raw == null || raw === '') return null;
-	const n = Number(String(raw).replace(',', '.'));
-	if (!Number.isFinite(n) || n <= 0 || n > 99999) return null;
-	return Math.round(n * 100) / 100;
+	const n = parseHoursInput(String(raw));
+	if (n == null) return null;
+	return snapHoursToQuarter(Math.round(n * 100) / 100);
 }
 
 export const actions: Actions = {

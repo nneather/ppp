@@ -2,7 +2,7 @@
 import type { PrecacheEntry } from 'workbox-precaching';
 import { precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { NetworkFirst } from 'workbox-strategies';
+import { StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 
 declare const self: ServiceWorkerGlobalScope & {
@@ -25,9 +25,8 @@ function isBypass(url: URL): boolean {
 registerRoute(
 	({ url, request, sameOrigin }) =>
 		sameOrigin && request.mode === 'navigate' && request.method === 'GET' && !isBypass(url),
-	new NetworkFirst({
+	new StaleWhileRevalidate({
 		cacheName: 'ppp-routes-v1',
-		networkTimeoutSeconds: 3,
 		plugins: [new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 })]
 	})
 );

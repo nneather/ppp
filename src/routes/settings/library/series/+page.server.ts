@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import type { SeriesRow } from '$lib/types/library';
 import { fetchLiveBookCountsBySeriesId } from '$lib/library/server/series-settings-book-counts';
 import {
+	createSeriesSettingsAction,
 	softDeleteSeriesSettingsAction,
 	updateSeriesSettingsAction
 } from '$lib/library/server/series-settings-actions';
@@ -57,6 +58,12 @@ export const load: PageServerLoad = async ({ locals, depends, parent }) => {
 };
 
 export const actions: Actions = {
+	createSeries: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'createSeries' as const, message: 'Unauthorized' });
+		return createSeriesSettingsAction(locals.supabase, user.id, await request.formData());
+	},
 	updateSeries: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
 		if (!user)

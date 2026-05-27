@@ -8,6 +8,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import Pencil from '@lucide/svelte/icons/pencil';
+	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import type { PageProps } from './$types';
@@ -23,10 +24,20 @@
 	};
 	const f = $derived((form ?? null) as FormShape | null);
 
+	let createOpen = $state(false);
+	let createName = $state('');
+	let createAbbrev = $state('');
+
 	let editOpen = $state(false);
 	let editRow = $state<SeriesSettingsListRow | null>(null);
 	let editName = $state('');
 	let editAbbrev = $state('');
+
+	function openCreate() {
+		createName = '';
+		createAbbrev = '';
+		createOpen = true;
+	}
 
 	function openEdit(s: SeriesSettingsListRow) {
 		editRow = s;
@@ -39,6 +50,9 @@
 		return async ({ result, update }) => {
 			await update({ reset: false });
 			if (result.type === 'success') {
+				createOpen = false;
+				createName = '';
+				createAbbrev = '';
 				editOpen = false;
 				editRow = null;
 				deleteOpen = false;
@@ -83,6 +97,9 @@
 		deleteFormEl.requestSubmit();
 	}
 
+	const createErr = $derived(
+		f?.kind === 'createSeries' && f.success !== true ? (f.message ?? null) : null
+	);
 	const updateErr = $derived(
 		f?.kind === 'updateSeries' && f.success !== true ? (f.message ?? null) : null
 	);
@@ -98,10 +115,16 @@
 {#if data.loadError}
 	<p class="text-sm text-destructive" role="alert">{data.loadError}</p>
 {:else}
-	<p class="text-sm text-muted-foreground">
-		Rename series or fix abbreviations. Series that still have books cannot be removed — reassign books
-		first.
-	</p>
+	<div class="flex flex-wrap items-center justify-between gap-3">
+		<p class="text-sm text-muted-foreground">
+			Add, rename, or fix abbreviations. Series that still have books cannot be removed — reassign
+			books first.
+		</p>
+		<Button type="button" hotkey="b" label="New series" onclick={openCreate}>
+			<Plus class="size-4" />
+			New series
+		</Button>
+	</div>
 
 	{#if data.bookCountError}
 		<p class="mt-3 flex items-start gap-2 text-sm text-destructive" role="alert">
@@ -153,9 +176,58 @@
 	</div>
 
 	{#if data.series.length === 0}
-		<p class="mt-6 text-sm text-muted-foreground">No series yet. Create one from a book form.</p>
+		<p class="mt-6 text-sm text-muted-foreground">
+			No series yet. Use <strong>New series</strong> above or create one while adding a book.
+		</p>
 	{/if}
 {/if}
+
+<Dialog.Root bind:open={createOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<form method="POST" action="?/createSeries" use:enhance={enhanceMutation}>
+			<Dialog.Header>
+				<Dialog.Title>New series</Dialog.Title>
+				<Dialog.Description>Available in the series picker on book forms.</Dialog.Description>
+			</Dialog.Header>
+			<div class="grid gap-4 py-4">
+				<div class="grid gap-2">
+					<Label for="series-create-name">Name</Label>
+					<Input
+						id="series-create-name"
+						name="name"
+						bind:value={createName}
+						maxlength={300}
+						required
+					/>
+				</div>
+				<div class="grid gap-2">
+					<Label for="series-create-abbrev">Abbreviation</Label>
+					<Input
+						id="series-create-abbrev"
+						name="abbreviation"
+						bind:value={createAbbrev}
+						maxlength={32}
+					/>
+				</div>
+			</div>
+			{#if createErr}
+				<p class="text-sm text-destructive" role="alert">{createErr}</p>
+			{/if}
+			<Dialog.Footer class="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+				<Button
+					type="button"
+					variant="outline"
+					onclick={() => {
+						createOpen = false;
+					}}
+					hotkey="Escape"
+					label="Cancel"
+				/>
+				<Button type="submit" hotkey="s" label="Save series" />
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
 
 <Dialog.Root bind:open={editOpen}>
 	<Dialog.Content class="sm:max-w-md">

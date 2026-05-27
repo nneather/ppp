@@ -199,12 +199,22 @@
 
 	// Optimistic local list — start from server state, mutate on add/edit/delete
 	// for snappy feedback. After invalidate(book) the canonical state takes over.
-	// Keep `refs` in sync with `data.scriptureRefs` via $effect; the warning
-	// "state_referenced_locally" is suppressed by initializing to [] then
-	// hydrating in the effect (which tracks data.scriptureRefs as a dep).
 	let refs = $state<ScriptureRefRow[]>([]);
+	let scriptureRefsLoading = $state(true);
+
 	$effect(() => {
-		refs = data.scriptureRefs;
+		const p = data.scriptureRefsPromise;
+		scriptureRefsLoading = true;
+		void p
+			.then((rows) => {
+				refs = rows;
+			})
+			.catch(() => {
+				refs = [];
+			})
+			.finally(() => {
+				scriptureRefsLoading = false;
+			});
 	});
 
 	let addOpen = $state(false);
@@ -224,9 +234,13 @@
 		const id = data.book.id;
 		if (scriptureRefsBookId !== id) {
 			scriptureRefsBookId = id;
-			refsOpen = data.scriptureRefs.length === 0 || addOpen;
 			recordedImagesOpen = false;
 		}
+	});
+
+	$effect(() => {
+		if (scriptureRefsLoading || scriptureRefsBookId !== data.book.id) return;
+		refsOpen = refs.length === 0 || addOpen;
 	});
 
 	$effect(() => {
@@ -271,7 +285,8 @@
 	});
 
 	$effect(() => {
-		if (data.scriptureRefs.length === 0 && !addOpen) refsOpen = true;
+		if (scriptureRefsLoading) return;
+		if (refs.length === 0 && !addOpen) refsOpen = true;
 	});
 
 	const uniqueImageRefs = $derived.by(() => {
@@ -988,7 +1003,11 @@
 				{/if}
 			</div>
 
-			{#if refs.length === 0 && !addOpen}
+			{#if scriptureRefsLoading}
+				<p class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+					Loading scripture references…
+				</p>
+			{:else if refs.length === 0 && !addOpen}
 				<p
 					class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground"
 				>
@@ -997,7 +1016,7 @@
 				</p>
 			{/if}
 
-			{#if groupedRefs.length > 0}
+			{#if !scriptureRefsLoading && groupedRefs.length > 0}
 				<div class="space-y-5">
 					{#each groupedRefs as group (group.bible_book)}
 						<div>

@@ -5,6 +5,7 @@ import {
 	loadBibleCoverageForBook,
 	loadBookDetail,
 	loadBookTopicsForBook,
+	loadPeople,
 	loadScriptureRefsForBook
 } from '$lib/library/server/loaders';
 import {
@@ -48,13 +49,14 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	depends('app:library:ancient_texts');
 
 	const supabase = locals.supabase;
-	const { people, series, bibleBookNames } = await parent();
+	const { series, bibleBookNames } = await parent();
 
-	const [book, scriptureRefs, profileRow] = await Promise.all([
-		loadBookDetail(supabase, id, people),
-		loadScriptureRefsForBook(supabase, id),
+	const [people, profileRow] = await Promise.all([
+		loadPeople(supabase),
 		supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
 	]);
+
+	const book = await loadBookDetail(supabase, id, people);
 
 	if (!book) error(404, 'Book not found.');
 
@@ -66,7 +68,7 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		people,
 		series,
 		bibleBookNames,
-		scriptureRefs,
+		scriptureRefsPromise: loadScriptureRefsForBook(supabase, id),
 		isOwner,
 		userId: user.id,
 		bookTopicsPromise: loadBookTopicsForBook(supabase, id),

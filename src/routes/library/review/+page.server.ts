@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	countReviewQueue,
 	countReviewQueueBySlice,
+	loadPeople,
 	loadPublishers,
 	loadReviewQueue,
 	loadScriptureRefsNeedingReview
@@ -33,7 +34,7 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 
 	const activeSlice: ReviewSlice = filters.slice ?? defaultReviewSlice();
 
-	const { people } = await parent();
+	const people = await loadPeople(supabase);
 	const [cards, remaining, scriptureRefsNeedingReview, criticalRemaining, backlogRemaining, publishers] =
 		await Promise.all([
 			loadReviewQueue(supabase, people, filters, {

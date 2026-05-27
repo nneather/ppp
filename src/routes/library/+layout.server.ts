@@ -1,8 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import {
+	countLiveBooks,
 	loadBibleBookNames,
-	loadPeople,
 	loadSeries
 } from '$lib/library/server/loaders';
 
@@ -13,11 +13,11 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 	depends('app:library:facets');
 
 	const supabase = locals.supabase;
-	const [people, series, bibleBookNames] = await Promise.all([
-		loadPeople(supabase),
+	const [series, bibleBookNames, totalCount] = await Promise.all([
 		loadSeries(supabase),
-		loadBibleBookNames(supabase)
+		loadBibleBookNames(supabase),
+		countLiveBooks(supabase)
 	]);
 
-	return { people, series, bibleBookNames };
+	return { series, bibleBookNames, totalCount };
 };

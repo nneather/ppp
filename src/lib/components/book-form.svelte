@@ -93,7 +93,7 @@
 		book = null,
 		people: initialPeople,
 		personBookCounts,
-		series,
+		series: initialSeries,
 		publishers,
 		bibleBooks = [],
 		formMessage = null,
@@ -133,6 +133,11 @@
 	let people = $state<PersonRow[]>([]);
 	$effect(() => {
 		people = initialPeople;
+	});
+
+	let seriesRows = $state<SeriesRow[]>([]);
+	$effect(() => {
+		seriesRows = initialSeries;
 	});
 
 	let title = $state('');
@@ -175,6 +180,12 @@
 	let personDialogPending = $state(false);
 	let personDialogConfirmedDuplicate = $state(false);
 	let pendingAuthorRowKey = $state<string | null>(null);
+
+	let seriesDialogOpen = $state(false);
+	let newSeriesName = $state('');
+	let newSeriesAbbrev = $state('');
+	let seriesDialogMessage = $state<string | null>(null);
+	let seriesDialogPending = $state(false);
 
 	let pending = $state(false);
 
@@ -290,6 +301,7 @@
 
 	const formAction = $derived(`?/${mode === 'create' ? 'createBook' : 'updateBook'}`);
 	const personActionPath = '?/createPerson';
+	const seriesActionPath = '?/createSeries';
 
 	const publisherSelectItems = $derived([
 		{ value: '', label: '— Custom / not listed —' },
@@ -323,7 +335,7 @@
 
 	const seriesSelectItems = $derived([
 		{ value: '', label: '— None —' },
-		...series.map((s) => ({
+		...seriesRows.map((s) => ({
 			value: s.id,
 			label: s.abbreviation ? `${s.abbreviation} — ${s.name}` : s.name
 		}))
@@ -348,7 +360,7 @@
 
 	const seriesLabel = $derived.by(() => {
 		if (!series_id) return '— None —';
-		const s = series.find((x) => x.id === series_id);
+		const s = seriesRows.find((x) => x.id === series_id);
 		if (!s) return '— None —';
 		return s.abbreviation ? `${s.abbreviation} — ${s.name}` : s.name;
 	});
@@ -565,7 +577,7 @@
 		if (!p || mode !== 'create') return;
 		untrack(() => {
 			const plist = people;
-			const slist = series;
+			const slist = seriesRows;
 
 			if (p.title) title = p.title;
 			if (p.subtitle != null && p.subtitle !== '') subtitle = p.subtitle;
@@ -790,6 +802,60 @@
 			personDialogMessage = 'Network error creating person.';
 		} finally {
 			personDialogPending = false;
+		}
+	}
+
+	function openSeriesDialog(prefill?: { name?: string; abbreviation?: string }) {
+		newSeriesName = prefill?.name?.trim() ?? '';
+		newSeriesAbbrev = prefill?.abbreviation?.trim() ?? '';
+		seriesDialogMessage = null;
+		seriesDialogOpen = true;
+	}
+
+	async function submitSeriesDialog() {
+		if (!browser) return;
+		if (newSeriesName.trim().length === 0) {
+			seriesDialogMessage = 'Name is required.';
+			return;
+		}
+		seriesDialogPending = true;
+		seriesDialogMessage = null;
+		try {
+			const fd = new FormData();
+			fd.append('name', newSeriesName.trim());
+			if (newSeriesAbbrev.trim()) fd.append('abbreviation', newSeriesAbbrev.trim());
+			const resp = await fetch(seriesActionPath, {
+				method: 'POST',
+				headers: { 'x-sveltekit-action': 'true' },
+				body: fd
+			});
+			const result = deserialize(await resp.text()) as ActionResult;
+			if (result.type === 'success' || result.type === 'failure') {
+				const data = (result.data ?? {}) as {
+					kind?: string;
+					seriesId?: string;
+					series?: SeriesRow;
+					message?: string;
+				};
+				if (result.type === 'failure' || !data.seriesId || !data.series) {
+					seriesDialogMessage = data.message ?? 'Could not create series.';
+					return;
+				}
+				const created = data.series;
+				seriesRows = [...seriesRows, created].sort((a, b) => a.name.localeCompare(b.name));
+				series_id = created.id;
+				olSeriesHint = null;
+				seriesDialogOpen = false;
+				await invalidate('app:library:series').catch(() => {});
+				await invalidate('app:library:facets').catch(() => {});
+			} else {
+				seriesDialogMessage = 'Network error creating series.';
+			}
+		} catch (err) {
+			console.error(err);
+			seriesDialogMessage = 'Network error creating series.';
+		} finally {
+			seriesDialogPending = false;
 		}
 	}
 
@@ -1288,16 +1354,25 @@
 								<p class="min-w-0">
 									Open Library mentions series <strong>{olSeriesHint.name}</strong>{#if olSeriesHint.volume}
 										<span class="text-muted-foreground"> (vol. </span><strong>{olSeriesHint.volume}</strong><span
-											class="text-muted-foreground">)</span>{/if}. Add it under Settings, then pick it here.
+											class="text-muted-foreground">)</span>{/if}. Create it here or in settings.
 								</p>
 								<div class="flex flex-wrap gap-2">
+									<Button
+										type="button"
+										size="sm"
+										hotkey="b"
+										label="Create series"
+										onclick={() => openSeriesDialog({ name: olSeriesHint?.name })}
+									>
+										Create series
+									</Button>
 									<a
 										href="/settings/library/series"
 										target="_blank"
 										rel="noopener noreferrer"
 										class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium hover:bg-muted/60"
 									>
-										Open series settings
+										Series settings
 									</a>
 									<Button type="button" variant="ghost" size="sm" onclick={() => (olSeriesHint = null)}>
 										Dismiss
@@ -1306,7 +1381,19 @@
 							</div>
 						{/if}
 						<div class="space-y-2">
-							<Label for="bf-series">Series</Label>
+							<div class="flex items-center justify-between gap-2">
+								<Label for="bf-series">Series</Label>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									class="h-8 shrink-0 px-2 text-xs"
+									onclick={() => openSeriesDialog()}
+								>
+									<Plus class="size-3.5" aria-hidden="true" />
+									New series
+								</Button>
+							</div>
 							<Select.Root
 								type="single"
 								bind:value={series_id}
@@ -1778,6 +1865,52 @@
 					label={personDialogPending ? 'Saving…' : 'Add person'}
 				/>
 			{/if}
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={seriesDialogOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>New series</Dialog.Title>
+			<Dialog.Description>Name is required; abbreviation is optional.</Dialog.Description>
+		</Dialog.Header>
+
+		{#if seriesDialogMessage}
+			<p class="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+				{seriesDialogMessage}
+			</p>
+		{/if}
+
+		<div class="flex flex-col gap-3">
+			<div class="space-y-2">
+				<Label for="ns-name">Name <span class="text-destructive">*</span></Label>
+				<Input id="ns-name" bind:value={newSeriesName} maxlength={300} class="h-11 text-base" required />
+			</div>
+			<div class="space-y-2">
+				<Label for="ns-abbrev">Abbreviation</Label>
+				<Input id="ns-abbrev" bind:value={newSeriesAbbrev} maxlength={32} class="h-11 text-base" />
+			</div>
+		</div>
+
+		<Dialog.Footer class="flex-col gap-2 sm:flex-row sm:justify-end">
+			<Button
+				type="button"
+				variant="outline"
+				class="h-11"
+				onclick={() => (seriesDialogOpen = false)}
+				disabled={seriesDialogPending}
+				hotkey="Escape"
+				label="Cancel"
+			/>
+			<Button
+				type="button"
+				class="h-11"
+				onclick={submitSeriesDialog}
+				disabled={seriesDialogPending}
+				hotkey="s"
+				label={seriesDialogPending ? 'Saving…' : 'Add series'}
+			/>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

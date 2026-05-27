@@ -1,10 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { loadBookFormPageData } from '$lib/library/server/loaders';
+import { loadBookFormPageData, loadPeople } from '$lib/library/server/loaders';
 import {
 	createBookAction,
 	createPersonAction
 } from '$lib/library/server/book-actions';
+import { createSeriesSettingsAction } from '$lib/library/server/series-settings-actions';
 
 export const load: PageServerLoad = async ({ locals, depends, parent }) => {
 	const { user } = await locals.safeGetSession();
@@ -14,7 +15,8 @@ export const load: PageServerLoad = async ({ locals, depends, parent }) => {
 	depends('app:library:series');
 
 	const supabase = locals.supabase;
-	const { people, series } = await parent();
+	const { series } = await parent();
+	const people = await loadPeople(supabase);
 	return loadBookFormPageData(supabase, { people, series });
 };
 
@@ -30,5 +32,11 @@ export const actions: Actions = {
 		if (!user) return fail(401, { kind: 'createPerson' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return createPersonAction(locals.supabase, user.id, fd);
+	},
+	createSeries: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'createSeries' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return createSeriesSettingsAction(locals.supabase, user.id, fd);
 	}
 };
