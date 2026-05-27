@@ -364,8 +364,13 @@
 
 	$effect(() => {
 		if (!browser) return;
-		const id = requestIdleCallback(() => void ensureFacetPeople());
-		return () => cancelIdleCallback(id);
+		const run = () => void ensureFacetPeople();
+		if (typeof requestIdleCallback === 'function') {
+			const id = requestIdleCallback(run);
+			return () => cancelIdleCallback(id);
+		}
+		const id = window.setTimeout(run, 1);
+		return () => clearTimeout(id);
 	});
 
 	const peopleById = $derived(new Map(facetPeople.map((p) => [p.id, p])));

@@ -7,7 +7,7 @@
 ## Built
 
 - **`@vite-pwa/sveltekit`** with **`injectManifest`**, `registerType: 'prompt'`, `manifest: false` (keep [static/manifest.webmanifest](../../static/manifest.webmanifest) + icons in `static/` only).
-- **[src/service-worker.ts](../../src/service-worker.ts)** — `precacheAndRoute(self.__WB_MANIFEST)` for hashed client assets (`client/**/*.{js,css,ico,svg,webp,woff,woff2}` minus manifest + PWA icons); **NetworkFirst** (3s timeout, `ppp-routes-v1`, max 30 entries / 7d) for same-origin **navigation GET** HTML; **bypass** (no SW caching): `/auth/*`, `/login` (+ prefix), and any URL whose query starts with `?/` (SvelteKit form actions); **`SKIP_WAITING`** on `postMessage`; **`clients.claim()`** on `activate`.
+- **[src/service-worker.ts](../../src/service-worker.ts)** — `precacheAndRoute(self.__WB_MANIFEST)` for hashed client assets (`client/**/*.{js,css,ico,svg,webp,woff,woff2}` minus manifest + PWA icons); **no runtime cache for navigation HTML** (SvelteKit SSR + iOS PWA broke when route documents were cached — see [038](038-library-client-perf.md)); **`activate`** deletes legacy `ppp-routes-v1` then **`clients.claim()`**; **`SKIP_WAITING`** on `postMessage`.
 - **[src/lib/components/PwaReloadToast.svelte](../../src/lib/components/PwaReloadToast.svelte)** — `virtual:pwa-register/svelte` `useRegisterSW`; toast **"New version available — refresh"** with **Update now** (`hotkey="u"`) + **Dismiss** (`hotkey="Escape"`); `bottom-tabbar` clearance.
 - **[src/routes/+layout.svelte](../../src/routes/+layout.svelte)** — client-only dynamic import of `<PwaReloadToast />` after main shell.
 - **[vite.config.ts](../../vite.config.ts)** — `SvelteKitPWA` + `define` for `process.env.NODE_ENV` (Workbox in SW); `devOptions.enabled: false` so dev is not SW-cached.
@@ -31,9 +31,9 @@
 ## Cache-bust / invalidation contract
 
 1. **`/_app/immutable/*` and other precached client files** — filenames are content-hashed; new deploy → new URLs → fetches miss old precache entries naturally. Workbox precache cleanup removes outdated revisions over time.
-2. **Route HTML (`ppp-routes-v1`)** — NetworkFirst with 3s network timeout: online navigations prefer the network; cache is fallback for offline / slow network. **Max age 7 days** + **30 entries** caps staleness if the device stays offline a long time.
+2. **Route HTML** — **not cached** by the service worker. Authenticated SvelteKit pages must always reach the network (or the client router) for documents; caching caused iOS standalone PWA tab taps on Invoicing/Library to fail (038 regression). Offline shell for app HTML is intentionally sacrificed; precached JS/CSS still load.
 3. **Always-fresh (not in precache manifest)** — `manifest.webmanifest`, `icon-*.png`, `apple-touch-icon.png` excluded via `injectManifest.globIgnores`.
-4. **Force a new SW + toast without a full app deploy** — edit any byte in [src/service-worker.ts](../../src/service-worker.ts) (e.g. the “Bump this comment” line) so the SW script URL changes.
+4. **Force a new SW + toast without a full app deploy** — edit any byte in [src/service-worker.ts](../../src/service-worker.ts) (e.g. the bump comment line) so the SW script URL changes. After deploy, owner should tap **Update now** on the PWA toast (or reinstall the home-screen icon).
 
 ## Verification
 

@@ -1,35 +1,20 @@
 /// <reference lib="webworker" />
 import type { PrecacheEntry } from 'workbox-precaching';
 import { precacheAndRoute } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
 
 declare const self: ServiceWorkerGlobalScope & {
 	__WB_MANIFEST: Array<PrecacheEntry | string>;
 };
 
-// Bump this comment (or any byte in this file) to force a new SW install + in-app refresh toast.
-// Content-hashed `/_app/immutable/*` + other client assets: precache (cache-first + Workbox precache updates).
+// Bump v2 (2026-05-26): removed HTML navigate caching — broke iOS PWA Invoicing/Library tabs.
+// Content-hashed `/_app/immutable/*` + other client assets: precache only (no route HTML cache).
 precacheAndRoute(self.__WB_MANIFEST);
 
-function isBypass(url: URL): boolean {
-	return (
-		url.pathname.startsWith('/auth/') ||
-		url.pathname === '/login' ||
-		url.pathname.startsWith('/login/') ||
-		url.search.startsWith('?/')
-	);
-}
-
-registerRoute(
-	({ url, request, sameOrigin }) =>
-		sameOrigin && request.mode === 'navigate' && request.method === 'GET' && !isBypass(url),
-	new StaleWhileRevalidate({
-		cacheName: 'ppp-routes-v1',
-		plugins: [new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 })]
-	})
-);
+/**
+ * If HTML navigate caching is reintroduced, bypass auth/login and SvelteKit form actions:
+ * `/auth/*`, `/login`, and URLs whose search starts with `?/`.
+ * SvelteKit SSR + authenticated routes should not use StaleWhileRevalidate on documents.
+ */
 
 self.addEventListener('message', (event) => {
 	if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -38,5 +23,5 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-	event.waitUntil(self.clients.claim());
+	event.waitUntil(caches.delete('ppp-routes-v1').then(() => self.clients.claim()));
 });

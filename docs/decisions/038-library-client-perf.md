@@ -9,7 +9,7 @@
 - **`/library` list** — filter/search uses `fetch('/library/books.json')` + `replaceState` (no full `load` per keystroke); 300ms search debounce; `listFetchPending` spinner; `clientFilters` / `clientFilteredCount` mirror server data until invalidation.
 - **`countLiveBooks`** moved to [`src/routes/library/+layout.server.ts`](../../src/routes/library/+layout.server.ts) so list filter refreshes skip an extra count round-trip.
 - **Book detail** — `scriptureRefsPromise` streamed in load; scripture block shows loading placeholder until refs resolve; list book links use `data-sveltekit-preload-data="hover"`.
-- **Service worker** — navigation HTML uses `StaleWhileRevalidate` instead of `NetworkFirst` (3s network wait) for faster repeat navigations while keeping offline fallback.
+- **Service worker** — ~~navigation HTML uses `StaleWhileRevalidate`~~ **reverted same day**: HTML navigate caching removed (see Surprises); precache-only remains.
 
 ## Decided
 
@@ -33,6 +33,7 @@
 ## Surprises
 
 - SvelteKit `replaceState` from `$app/navigation` updates the URL without re-running `load` — required for client-only list refresh.
+- **`StaleWhileRevalidate` on `navigate` broke iOS PWA tabs** — Dashboard worked; Invoicing + Library taps did nothing. Fixed by removing HTML route caching from [`src/service-worker.ts`](../../src/service-worker.ts) and deleting legacy `ppp-routes-v1` on activate ([024](024-service-worker.md) updated).
 
 ## Carry-forward updates
 
