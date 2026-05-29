@@ -17,6 +17,17 @@ Every migration must satisfy this list before being committed.
 - [ ] `created_by UUID REFERENCES profiles(id)` (skip only for system tables)
 - [ ] `audit_log_trigger` attached
 - [ ] Indexes for any FK or hot filter column
+- [ ] **PostgREST API grants** on the table (required for projects with auto-expose off; safe everywhere). See [039](mdc:docs/decisions/039-supabase-postgrest-api-grants.md).
+
+```sql
+-- After CREATE TABLE + RLS policies (adjust if table is service-role-only):
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.my_table TO authenticated, service_role;
+GRANT SELECT ON public.my_table TO anon;
+
+-- Service-role-only counter (e.g. library_ocr_usage): authenticated still needs
+-- no client policies if RLS has zero policies; Edge uses service_role:
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.my_table TO service_role;
+```
 
 ## RLS — use the helpers, never inline
 

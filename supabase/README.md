@@ -26,6 +26,18 @@ Prints the CLI-linked ref, the ref parsed from `PUBLIC_SUPABASE_URL`, and `SUPAB
 npm run supabase:link
 ```
 
+## PostgREST API grants (Supabase #45329)
+
+Supabase is changing the default so **new tables are not auto-granted** to API roles (`anon`, `authenticated`, `service_role`). Wrong or missing grants surface as **`42501 permission denied for table`** from the client even when RLS is correct.
+
+**Owner checklist (Studio + one migration):** [docs/decisions/039-supabase-postgrest-api-grants.md](../docs/decisions/039-supabase-postgrest-api-grants.md)
+
+**Repo:** ship explicit `GRANT`s in new migrations (`db-changes.mdc`); apply `20260528120000_postgrest_api_grants_explicit.sql` via `npm run supabase:db:push` when ready.
+
+## Security Advisor hardening
+
+Migrations `20260528140000_*` (search_path + revoke anon RPC) and `20260528140100_*` (`pg_trgm` → `extensions`). Leaked-password protection is **Dashboard-only** — see [040-security-advisor-hardening.md](../docs/decisions/040-security-advisor-hardening.md).
+
 ## Migrations
 
 All schema changes live in `supabase/migrations/` as numbered SQL files:
