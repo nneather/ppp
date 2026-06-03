@@ -34,6 +34,8 @@ If you reach for one of these capabilities, use the existing component.
 | PWA new-version toast (`virtual:pwa-register/svelte`); **Update now** + Dismiss; mounted from root layout via dynamic import | [src/lib/components/PwaReloadToast.svelte](mdc:src/lib/components/PwaReloadToast.svelte) |
 | Turabian footnote/bibliography preview block with HTML+plain Copy | [src/lib/components/turabian-citation-block.svelte](mdc:src/lib/components/turabian-citation-block.svelte) |
 | Dashboard library tile burndown second line (citation-verified / backlog cleared) | [src/lib/components/dashboard-library-tile-footer.svelte](mdc:src/lib/components/dashboard-library-tile-footer.svelte) |
+| Inline project tree + weekly 5-segment health picker (carry-forward seed uses `untrack` in `$effect`) | [src/lib/components/project-tree.svelte](mdc:src/lib/components/project-tree.svelte) |
+| Project metadata create/edit Sheet (~6 fields; cycle-safe parent picker) | [src/lib/components/project-form-sheet.svelte](mdc:src/lib/components/project-form-sheet.svelte) |
 
 shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator) live under `src/lib/components/ui/`. The `Button` accepts a `hotkey` prop (Cmd+letter from the reserved set `s u d e g b`, or the special string `Escape` for Cancel) and an optional `label` prop; together they wire the chord, an underlined-letter label, and a tooltip. **Cancel buttons use `hotkey="Escape"`** (bare Esc; bubble phase, defaults-prevented bail). Anchors (`href`) skip the dev-warn but can still take a hotkey. Full convention: [.cursor/rules/hotkeys.mdc](mdc:.cursor/rules/hotkeys.mdc).
 

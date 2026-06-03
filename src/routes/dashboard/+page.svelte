@@ -25,7 +25,7 @@
 		{
 			href: '/library',
 			title: 'Library',
-			statLabel: 'Books',
+			statLabel: 'Library',
 			icon: BookOpen
 		},
 		{
@@ -48,10 +48,6 @@
 		if (href === '/invoicing') {
 			if (data.unbilledCount == null) return '–';
 			return String(data.unbilledCount);
-		}
-		if (href === '/library') {
-			if (data.libraryBookCount == null) return '–';
-			return String(data.libraryBookCount);
 		}
 		return '–';
 	}
@@ -89,12 +85,7 @@
 								<Icon class="size-5 shrink-0" />
 								<span class="text-base font-semibold tracking-tight text-foreground">{title}</span>
 							</div>
-							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-								{statLabel}
-							</p>
-							<p class="mt-2 text-3xl font-semibold text-foreground tabular-nums" aria-live="polite">
-								{tileStat(href)}
-							</p>
+							<p class="text-sm text-muted-foreground">Open library</p>
 						</a>
 						{#if data.libraryNeedsReviewCount != null}
 							<DashboardLibraryTileFooter

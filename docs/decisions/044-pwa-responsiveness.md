@@ -22,6 +22,7 @@
 - **`getSession` over `getUser` for navigation** — removes Auth HTTP hop when JWT is in cookies; `getClaims()` when the installed supabase-js exposes it + asymmetric keys are enabled.
 - **Estimated count on keyword search** — UI shows “N filtered (T total)”; exact filtered count on search was dropped for latency.
 - **No HTML / `books.json` SW cache** — iOS PWA tab regression from 038; vocab JSON only.
+- **Dashboard library tile omits corpus book count** — `count: 'estimated'` via `countLiveBooksExact` showed ~1001 vs ~1369 on `/library`; removed stat + query; authoritative total stays on `/library` list header.
 
 ## Schema changes
 

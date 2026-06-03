@@ -735,13 +735,6 @@ export async function countBooksNeedingReview(
 	return fetchLiveBookCount(supabase, true);
 }
 
-/** Total live books for dashboard — `null` if query failed. */
-export async function countLiveBooksExact(
-	supabase: SupabaseClient
-): Promise<number | null> {
-	return fetchLiveBookCount(supabase, false);
-}
-
 export type BibleBookListRow = { name: string; testament: 'OT' | 'NT' };
 
 export async function loadBibleBookList(supabase: SupabaseClient): Promise<BibleBookListRow[]> {

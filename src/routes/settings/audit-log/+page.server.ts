@@ -13,6 +13,8 @@ export const _INVOICING_TABLES = [
 	'invoice_line_items'
 ] as const;
 
+export const _PROJECTS_TABLES = ['projects', 'project_updates', 'project_links'] as const;
+
 export const _LIBRARY_TABLES = [
 	'ancient_texts',
 	'people',
@@ -57,7 +59,10 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'ancient_texts',
 	'essays',
 	'scripture_references',
-	'book_topics'
+	'book_topics',
+	// projects
+	'projects',
+	'project_updates'
 ]);
 
 // Fields that must not be overwritten by a revert: identity, audit metadata,
@@ -186,6 +191,16 @@ function entityLabelFor(
 		}
 		case 'invoice_line_items':
 			return get('description');
+		case 'projects':
+			return get('name');
+		case 'project_updates': {
+			const week = get('week_of');
+			const health = get('health_status');
+			if (week && health) return `${week} · ${health}`;
+			return week ?? health;
+		}
+		case 'project_links':
+			return get('label') ?? get('url');
 		case 'scripture_references': {
 			const bibleBook = get('bible_book');
 			const cs = data.chapter_start;
@@ -220,13 +235,13 @@ function entityLabelFor(
 }
 
 export type AuditFilters = {
-	module: 'all' | 'invoicing' | 'library';
+	module: 'all' | 'invoicing' | 'library' | 'projects';
 	recordId: string;
 	changedBy: string;
 };
 
 function parseModule(v: string | null): AuditFilters['module'] {
-	if (v === 'invoicing' || v === 'library') return v;
+	if (v === 'invoicing' || v === 'library' || v === 'projects') return v;
 	return 'all';
 }
 
@@ -293,6 +308,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		q = q.in('table_name', _INVOICING_TABLES as unknown as string[]);
 	} else if (filters.module === 'library') {
 		q = q.in('table_name', _LIBRARY_TABLES as unknown as string[]);
+	} else if (filters.module === 'projects') {
+		q = q.in('table_name', _PROJECTS_TABLES as unknown as string[]);
 	}
 	if (filters.recordId.length > 0) q = q.eq('record_id', filters.recordId);
 	if (filters.changedBy.length > 0) q = q.eq('changed_by', filters.changedBy);

@@ -82,10 +82,11 @@
 		return qs.length > 0 ? `?${qs}` : '?';
 	}
 
-	const moduleOptions: { value: 'all' | 'invoicing' | 'library'; label: string }[] = [
+	const moduleOptions: { value: 'all' | 'invoicing' | 'library' | 'projects'; label: string }[] = [
 		{ value: 'all', label: 'All modules' },
 		{ value: 'invoicing', label: 'Invoicing' },
-		{ value: 'library', label: 'Library' }
+		{ value: 'library', label: 'Library' },
+		{ value: 'projects', label: 'Projects' }
 	];
 
 	let recordIdInput = $state('');

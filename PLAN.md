@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-06-03 — **Projects kickoff** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)); library trip QA signed off; PWA perf tracked separately.
+**Last updated:** 2026-06-03 — **Projects Session 1 shipped** ([045](docs/decisions/045-projects-session-1-tree-checkin.md)); library trip QA signed off; PWA perf tracked separately.
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,7 @@
 
 ## Current focus
 
-**Projects — Session 0 (in progress):** [POS_Projects_Session_0.md](docs/POS_Projects_Session_0.md) + [POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md). Read [MODULE_KICKOFF_PLAYBOOK.md](docs/MODULE_KICKOFF_PLAYBOOK.md) and [041 library retro](docs/decisions/041-library-module-retro.md) before locking schema.
+**Projects — Session 1 done; Session 2 next:** Inline tree + weekly check-in live on `/projects` ([045](docs/decisions/045-projects-session-1-tree-checkin.md)). Tracker: [POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md). **Owner smoke** remaining on tracker acceptance (create under Work, full check-in pass).
 
 **Library — maintenance / trip use:** Trip owner QA **signed off 2026-06-03** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)). PWA is **passable**; **performance** work continues in a separate chat. No library build sessions until Wave 2 (August) or ad-hoc fixes.
 
@@ -27,7 +27,7 @@ Nearest hard dates:
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ **Trip build complete** — QA signed off 2026-06-03. **Wave 2 (Aug):** shelf Turabian QA, megacomponent split, essays Q5. PWA perf: separate thread. |
-| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | 🟡 **Session 0** — Phase 0 + schema audit ([Session 0 doc](docs/POS_Projects_Session_0.md)). |
+| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | 🟢 **Session 1 done** — tree + weekly check-in. **Next:** Session 2 dashboard glance + filters. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -35,7 +35,8 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
-- [043 — Library trip QA sign-off + projects handoff](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md) (2026-06-03) — owner QA passable; projects Session 0 started.
+- [045 — Projects Session 1: tree + weekly check-in](docs/decisions/045-projects-session-1-tree-checkin.md) (2026-06-03) — migration, inline tree, PK upsert (NEW-D).
+- [043 — Library trip QA sign-off + projects handoff](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md) (2026-06-03) — owner QA passable; projects kickoff.
 - [042 — RLS smoke staging harness](docs/decisions/042-rls-smoke-staging-harness.md) — `npm run test:rls` on ppp-staging.
 - [041 — Library module retro](docs/decisions/041-library-module-retro.md) — kickoff playbook + footgun registry.
 
@@ -43,7 +44,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Session handoff
 
-**Projects Session 0:** [docs/POS_Projects_Session_0.md](docs/POS_Projects_Session_0.md) — resolve Q1–Q5 (domain model, invoicing/library links, deadline) before Session 1 migrations.
+**Projects Session 2:** Dashboard status strip + attention tile + URL filters — see tracker Session 2. Owner phone smoke for Session 1 on `/projects` (create under Work, batch check-in save).
 
 **Library (maintenance only):** [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) — complete; viewer §B still deferred without collaborator.
 
@@ -55,6 +56,6 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Next up
 
-1. **Projects Session 0** — domain brief, schema audit, draft tracker session arc, file `projects-session-0-audit` decision.
+1. **Projects Session 2** — dashboard glance + trends + `/projects` filters.
 2. **Library (parallel / low priority):** PWA performance (separate chat); August Wave 2 when shelf is home.
 3. **Invoicing:** first real-client send cadence (owner-driven).
