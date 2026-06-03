@@ -353,6 +353,7 @@ export type Database = {
       }
       books: {
         Row: {
+          author_display: string | null
           barcode: string | null
           borrowed_to: string | null
           created_at: string
@@ -370,14 +371,17 @@ export type Database = {
           page_count: number | null
           personal_notes: string | null
           publisher: string | null
+          publisher_canonical_display: string | null
           publisher_id: string | null
           publisher_location: string | null
+          publisher_location_display: string | null
           rating: number | null
           reading_status: string
           reprint_location: string | null
           reprint_publisher: string | null
           reprint_publisher_id: string | null
           reprint_year: number | null
+          search_vector: unknown
           series_id: string | null
           shelving_location: string | null
           subtitle: string | null
@@ -389,6 +393,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          author_display?: string | null
           barcode?: string | null
           borrowed_to?: string | null
           created_at?: string
@@ -406,14 +411,17 @@ export type Database = {
           page_count?: number | null
           personal_notes?: string | null
           publisher?: string | null
+          publisher_canonical_display?: string | null
           publisher_id?: string | null
           publisher_location?: string | null
+          publisher_location_display?: string | null
           rating?: number | null
           reading_status?: string
           reprint_location?: string | null
           reprint_publisher?: string | null
           reprint_publisher_id?: string | null
           reprint_year?: number | null
+          search_vector?: unknown
           series_id?: string | null
           shelving_location?: string | null
           subtitle?: string | null
@@ -425,6 +433,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          author_display?: string | null
           barcode?: string | null
           borrowed_to?: string | null
           created_at?: string
@@ -442,14 +451,17 @@ export type Database = {
           page_count?: number | null
           personal_notes?: string | null
           publisher?: string | null
+          publisher_canonical_display?: string | null
           publisher_id?: string | null
           publisher_location?: string | null
+          publisher_location_display?: string | null
           rating?: number | null
           reading_status?: string
           reprint_location?: string | null
           reprint_publisher?: string | null
           reprint_publisher_id?: string | null
           reprint_year?: number | null
+          search_vector?: unknown
           series_id?: string | null
           shelving_location?: string | null
           subtitle?: string | null
@@ -1264,6 +1276,18 @@ export type Database = {
       app_is_viewer_writer: { Args: { p_module: string }; Returns: boolean }
       app_module_access_level: { Args: { p_module: string }; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
+      invoicing_unbilled_counts: {
+        Args: never
+        Returns: {
+          client_id: string
+          client_name: string
+          entry_count: number
+        }[]
+      }
+      library_compute_author_display: {
+        Args: { p_book_id: string }
+        Returns: string
+      }
       library_merge_ancient_texts: {
         Args: { p_canonical: string; p_merged_away: string }
         Returns: undefined
@@ -1274,6 +1298,10 @@ export type Database = {
       }
       library_merge_publishers: {
         Args: { p_canonical: string; p_merged_away: string }
+        Returns: undefined
+      }
+      library_refresh_book_list_denorm: {
+        Args: { p_book_id: string }
         Returns: undefined
       }
       normalize_publisher_text: { Args: { raw: string }; Returns: string }
@@ -1298,8 +1326,6 @@ export type Database = {
           verse_start: number
         }[]
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never

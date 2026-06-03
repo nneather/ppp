@@ -13,6 +13,13 @@ The Cursor rules in `.cursor/rules/*.mdc` are loaded automatically by Cursor; if
 - [.cursor/rules/components.mdc](.cursor/rules/components.mdc) — component inventory
 - [.cursor/rules/hotkeys.mdc](.cursor/rules/hotkeys.mdc) — Mod+letter chord conventions
 - [.cursor/rules/library-module.mdc](.cursor/rules/library-module.mdc) — library specifics
+- [.cursor/rules/module-kickoff.mdc](.cursor/rules/module-kickoff.mdc) — **new module** Session 0 gates + footgun registry ([docs/MODULE_KICKOFF_PLAYBOOK.md](docs/MODULE_KICKOFF_PLAYBOOK.md))
+
+## New module planning
+
+Before Session 1 on any new module: read [docs/MODULE_KICKOFF_PLAYBOOK.md](docs/MODULE_KICKOFF_PLAYBOOK.md) and [docs/decisions/041-library-module-retro.md](docs/decisions/041-library-module-retro.md) (plus [000-invoicing-retro.md](docs/decisions/000-invoicing-retro.md)). Lock Phase 0 structure (taxonomy, nullability, form surfaces, RLS/viewer plan) in Session 0 — do not discover these mid-build.
+
+**Projects (active):** [docs/POS_Projects_Session_0.md](docs/POS_Projects_Session_0.md) → [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md). Library trip QA signed off [043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md).
 
 ## How to start a build session
 
@@ -104,6 +111,9 @@ End-of-session deliverables:
 - `npm run supabase:gen-types` — regenerate `src/lib/types/database.ts` (run after every migration)
 - `npm run supabase:deploy-functions` — deploy Edge Functions
 - `npm run supabase:ship` / `:ship:apply` — combined flow
+- **`npm run test:rls`** / **`test:rls:ensure-users`** — library RLS matrix on **ppp-staging** only ([scripts/rls-smoke/README.md](scripts/rls-smoke/README.md))
+- **`npm run test:perf`** — optional `Server-Timing` budgets on `/library`, `/library?q=…`, `/dashboard` ([scripts/perf-smoke/README.md](scripts/perf-smoke/README.md); needs running dev server + `PERF_SMOKE_*` or `RLS_TEST_OWNER_*`)
+- **`npm run supabase:db:push:staging`** — apply migrations to ppp-staging
 - **`npm run ship-library`** / **`ship-library:apply`** — library schema gate: `check` → `db:push:dry` (or full push + `gen-types` + `test` + `deploy-functions` on apply). Use after any library migration or OCR Edge change.
 - **`library:language-audit`** — dry-run / optional `--apply` English→German hints; uses `LIBRARY_AUDIT_DATABASE_URL` or **`LIBRARY_DST_DATABASE_URL`** / `LIBRARY_SRC_DATABASE_URL` (same migrate vars). See [`scripts/library-language-audit/README.md`](scripts/library-language-audit/README.md).
 
@@ -121,8 +131,10 @@ Two files. Both are gitignored.
 
 | File | Purpose | Examples |
 |---|---|---|
-| `.env` | Project ref / non-secret config used by CLI scripts | `SUPABASE_REF` |
-| `.env.local` | Real secrets and public client config | `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `RESEND_API_KEY`, **`ANTHROPIC_API_KEY`** (optional — mirror of Supabase Edge secret for `supabase functions serve` / local OCR dev only), **`LIBRARY_SRC_DATABASE_URL`**, **`LIBRARY_DST_DATABASE_URL`**, **`LIBRARY_MIGRATE_CONFIRM`** (Postgres URIs, typically both from Supabase Dashboard **Connect → Direct** — see [`scripts/library-migrate-local-to-prod/README.md`](scripts/library-migrate-local-to-prod/README.md)) |
+| `.env` | Prod project ref / non-secret config used by CLI scripts | `SUPABASE_REF` |
+| `.env.local` | Prod secrets and public client config | `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `RESEND_API_KEY`, **`ANTHROPIC_API_KEY`** (optional — mirror of Supabase Edge secret for `supabase functions serve` / local OCR dev only), **`LIBRARY_SRC_DATABASE_URL`**, **`LIBRARY_DST_DATABASE_URL`**, **`LIBRARY_MIGRATE_CONFIRM`** (Postgres URIs, typically both from Supabase Dashboard **Connect → Direct** — see [`scripts/library-migrate-local-to-prod/README.md`](scripts/library-migrate-local-to-prod/README.md)) |
+| `.env.staging` | **ppp-staging** ref only | `SUPABASE_REF` — copy from [`.env.staging.example`](.env.staging.example) |
+| `.env.staging.local` | Staging keys + RLS test passwords | `PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`, `RLS_TEST_*` — see [`scripts/rls-smoke/README.md`](scripts/rls-smoke/README.md) |
 
 Rules:
 

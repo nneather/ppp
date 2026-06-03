@@ -26,3 +26,10 @@ The decision log captures the *delta* between the tracker and reality. That delt
 ## Reading order at session start
 
 Read the latest 3 entries before starting a new session. They contain the schema gotchas, RLS surprises, and component patterns that the rule files have not yet absorbed.
+
+## Module retros and kickoff
+
+- [041-library-module-retro.md](041-library-module-retro.md) — consolidated library lessons (2026-06)
+- [MODULE_KICKOFF_PLAYBOOK.md](../MODULE_KICKOFF_PLAYBOOK.md) — Phase 0 gates, footgun registry, agent protocol for the **next** module
+- [042-rls-smoke-staging-harness.md](042-rls-smoke-staging-harness.md) — `npm run test:rls` on ppp-staging
+- [044-pwa-responsiveness.md](044-pwa-responsiveness.md) — PWA nav/search perf pass (2026-06)

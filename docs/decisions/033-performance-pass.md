@@ -52,8 +52,10 @@
 
 | Surface | Before (approx) | After (target) |
 |---------|-----------------|----------------|
-| `/library?q=…` | 5s+ | < 500 ms |
+| `/library?q=…` | 5s+ / ~2s phone PWA (2026-06) | < 500 ms server `total` |
 | `/library/books/[id]` | ~2 s | < 600 ms |
-| `/library/*` nav | ~1.5 s | < 400 ms |
+| `/library/*` nav | ~1.5 s / ~1s phone PWA (2026-06) | < 500 ms server `total` |
 
-Measure via Chrome DevTools → Network → response headers `Server-Timing: total;dur=…`.
+Measure via Chrome DevTools → Network → `Server-Timing` (`auth`, `db`, `total`). See [044-pwa-responsiveness.md](044-pwa-responsiveness.md) for the 2026-06 pass.
+
+Automated gate (optional): `npm run test:perf` with `PERF_SMOKE_*` — [scripts/perf-smoke/README.md](../../scripts/perf-smoke/README.md).

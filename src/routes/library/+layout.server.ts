@@ -1,10 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import {
-	countLiveBooks,
-	loadBibleBookNames,
-	loadSeries
-} from '$lib/library/server/loaders';
+import { getBibleBookNames } from '$lib/library/bible-book-names';
+import { loadSeries } from '$lib/library/server/loaders';
 
 export const load: LayoutServerLoad = async ({ locals, depends }) => {
 	const { user } = await locals.safeGetSession();
@@ -12,12 +9,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 
 	depends('app:library:facets');
 
-	const supabase = locals.supabase;
-	const [series, bibleBookNames, totalCount] = await Promise.all([
-		loadSeries(supabase),
-		loadBibleBookNames(supabase),
-		countLiveBooks(supabase)
-	]);
+	const series = await locals.perf.measure('db', () => loadSeries(locals.supabase));
 
-	return { series, bibleBookNames, totalCount };
+	return { series, bibleBookNames: getBibleBookNames() };
 };

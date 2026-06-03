@@ -120,11 +120,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			.lte('date', period_end)
 			.order('date', { ascending: false })
 			.order('created_at', { ascending: false }),
-		supabase
-			.from('time_entries')
-			.select('client_id, clients!inner(name)')
-			.is('deleted_at', null)
-			.is('invoice_id', null)
+		supabase.rpc('invoicing_unbilled_counts')
 	]);
 
 	if (clientsRes.error) {
@@ -183,28 +179,18 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		};
 	});
 
-	const unbilledMap = new Map<string, { client_name: string; count: number }>();
-	if (!unbilledRes.error && unbilledRes.data) {
-		for (const row of unbilledRes.data) {
-			const cid = row.client_id as string;
-			const rel = row.clients as { name: string } | { name: string }[] | null;
-			const cname = Array.isArray(rel) ? rel[0]?.name : rel?.name;
-			const name = cname ?? 'Unknown';
-			const prev = unbilledMap.get(cid);
-			unbilledMap.set(cid, {
-				client_name: name,
-				count: (prev?.count ?? 0) + 1
-			});
-		}
-	} else if (unbilledRes.error) {
+	if (unbilledRes.error) {
 		console.error(unbilledRes.error);
 	}
 
-	const unbilled: UnbilledCount[] = [...unbilledMap.entries()].map(([client_id, v]) => ({
-		client_id,
-		client_name: v.client_name,
-		count: v.count
-	}));
+	const unbilledRows = unbilledRes.data ?? [];
+	const unbilled: UnbilledCount[] = unbilledRows.map(
+		(row: { client_id: string; client_name: string; entry_count: number }) => ({
+			client_id: row.client_id,
+			client_name: row.client_name,
+			count: Number(row.entry_count)
+		})
+	);
 
 	return {
 		view,

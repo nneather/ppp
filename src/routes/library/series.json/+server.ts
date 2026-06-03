@@ -1,15 +1,15 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { loadPeople } from '$lib/library/server/loaders';
+import { loadSeries } from '$lib/library/server/loaders';
 
-/** Facet author picker — avoids shipping ~900 people on every `/library/*` layout load. */
+/** Facet vocabulary — cacheable by the service worker (see service-worker.ts). */
 export const GET: RequestHandler = async ({ locals }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) error(401, 'Unauthorized');
 
-	const people = await loadPeople(locals.supabase);
+	const series = await loadSeries(locals.supabase);
 	return json(
-		{ people },
+		{ series },
 		{
 			headers: {
 				'Cache-Control': 'private, max-age=300'

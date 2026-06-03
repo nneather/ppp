@@ -6,6 +6,7 @@ declare global {
 		interface Locals {
 			supabase: SupabaseClient;
 			safeGetSession: () => Promise<{ user: User | null }>;
+			perf: import('$lib/server/perf').PerfCollector;
 		}
 	}
 }

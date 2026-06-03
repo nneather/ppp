@@ -1,6 +1,9 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { loadBookListFiltered } from '$lib/library/server/loaders';
+import {
+	countLiveBooks,
+	loadBookListFiltered
+} from '$lib/library/server/loaders';
 import {
 	createPersonAction,
 	softDeleteBookAction,
@@ -8,7 +11,7 @@ import {
 	updateReadingStatusAction,
 	bulkUpdateBooksAction
 } from '$lib/library/server/book-actions';
-import { parseBookListFilters } from '$lib/library/server/url-params';
+import { bookListFiltersAreDefault, parseBookListFilters } from '$lib/library/server/url-params';
 import { LIBRARY_PAGE_SIZE } from '$lib/types/library';
 
 export const load: PageServerLoad = async ({ locals, url, parent, depends }) => {
@@ -21,12 +24,20 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 	const filters = parseBookListFilters(url);
 	const recentlyDeletedId = url.searchParams.get('deleted');
 
-	const { series, bibleBookNames, totalCount } = await parent();
+	const { series, bibleBookNames } = await parent();
 
-	const { books, filteredCount } = await loadBookListFiltered(supabase, [], filters, {
-		limit: filters.all === true ? undefined : LIBRARY_PAGE_SIZE,
-		offset: 0
-	});
+	const listPromise = locals.perf.measure('db', () =>
+		loadBookListFiltered(supabase, [], filters, {
+			limit: filters.all === true ? undefined : LIBRARY_PAGE_SIZE,
+			offset: 0
+		})
+	);
+	const corpusPromise = bookListFiltersAreDefault(filters)
+		? Promise.resolve(null)
+		: locals.perf.measure('db', () => countLiveBooks(supabase));
+
+	const [{ books, filteredCount }, corpusTotal] = await Promise.all([listPromise, corpusPromise]);
+	const totalCount = corpusTotal ?? filteredCount;
 
 	return {
 		books,

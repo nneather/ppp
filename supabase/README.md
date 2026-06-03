@@ -4,27 +4,32 @@ This folder is the **single source of truth** for the database schema and Edge F
 
 For a **go-live checklist**, hosting env vars, and why `db push` uses `link` first, see [`docs/Supabase_deployment_and_go_live.md`](../docs/Supabase_deployment_and_go_live.md).
 
-## Hosted project (prod only)
+## Hosted projects
 
-There is **one** Supabase project. The project ref lives in `.env` (gitignored):
+| Project | Purpose | Env files |
+|---------|---------|-----------|
+| **prod** (`objtrdmmqlndtfddtzan`) | App + `ship-library` | `.env` (`SUPABASE_REF`), `.env.local` (`PUBLIC_*`) |
+| **ppp-staging** | RLS smoke (`npm run test:rls`) | `.env.staging` (`SUPABASE_REF`), `.env.staging.local` (`PUBLIC_*`, service role, test passwords) |
 
-```
-SUPABASE_REF=objtrdmmqlndtfddtzan
-```
+The Svelte app reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` from **`.env.local`** (gitignored). Those **must** match prod `SUPABASE_REF` and the CLI link after prod commands, or writes will silently hit the wrong database.
 
-The Svelte app reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` from **`.env.local`** (gitignored). Those **must** match the same project as `SUPABASE_REF` and the CLI link, or writes will silently hit the wrong database.
+**RLS smoke never loads `.env.local`** — only `.env.staging` + `.env.staging.local`. See [scripts/rls-smoke/README.md](../scripts/rls-smoke/README.md).
 
 ### Sanity check (run often)
+
+**Production:**
 
 ```bash
 npm run supabase:doctor
 ```
 
-Prints the CLI-linked ref, the ref parsed from `PUBLIC_SUPABASE_URL`, and `SUPABASE_REF`. Exits with an error if they differ — then run:
+**Staging (before `test:rls`):**
 
 ```bash
-npm run supabase:link
+npm run supabase:doctor:staging
 ```
+
+Prints the CLI-linked ref, the ref parsed from `PUBLIC_SUPABASE_URL`, and `SUPABASE_REF`. Exits with an error if they differ — then run `npm run supabase:link` (prod) or `npm run supabase:link:staging`.
 
 ## PostgREST API grants (Supabase #45329)
 
@@ -36,7 +41,7 @@ Supabase is changing the default so **new tables are not auto-granted** to API r
 
 ## Security Advisor hardening
 
-Migrations `20260528140000_*` (search_path + revoke anon RPC) and `20260528140100_*` (`pg_trgm` → `extensions`). Leaked-password protection is **Dashboard-only** — see [040-security-advisor-hardening.md](../docs/decisions/040-security-advisor-hardening.md).
+Migrations `20260528140000_*` (search_path + revoke anon RPC), `20260528140100_*` (`pg_trgm` → `extensions`), and `20260528150000_*` (revoke `PUBLIC` EXECUTE on SECURITY DEFINER helpers). Leaked-password protection is **Pro-only** — waived on Free; see [040-security-advisor-hardening.md](../docs/decisions/040-security-advisor-hardening.md).
 
 ## Migrations
 
@@ -67,6 +72,8 @@ Granular commands:
 | `npm run supabase:doctor`   | Fail if CLI link / env URL / `SUPABASE_REF` disagree      |
 | `npm run supabase:db:push:dry` | Dry-run `db push` (no writes)                        |
 | `npm run supabase:db:push`  | Push pending migrations to the linked project             |
+| `npm run supabase:db:push:dry:staging` / `db:push:staging` | Same for **ppp-staging** (uses `.env.staging`) |
+| `npm run test:rls` | Library RLS matrix on staging ([scripts/rls-smoke/README.md](../scripts/rls-smoke/README.md)) |
 | `npm run supabase:deploy-functions` | Deploy `generate-invoice-pdf`, `send-invoice`, and `ocr_scripture_refs` |
 
 **No local Docker stack** — do not use `supabase start` / `supabase db reset` in this repo; `[db.seed]` is disabled in `config.toml`.
@@ -101,7 +108,7 @@ WHERE lower(trim(email)) = lower('parker.neathery@gmail.com');
 ## Dashboard (manual)
 
 - **Auth / signups:** [Auth providers](https://supabase.com/dashboard/project/objtrdmmqlndtfddtzan/auth/providers) — ensure Email is enabled; adjust email confirmation as you prefer.
-- **Delete old staging project** (after prod works for you): [Staging settings](https://supabase.com/dashboard/project/nvhqzcpscgbbetrwkhuv/settings/general) → scroll to **Delete project** (only when you no longer need that project).
+- **ppp-staging:** use the project named `ppp-staging` in your org for `npm run test:rls` — not prod. Copy its ref into `.env.staging` (see `.env.staging.example`).
 
 ## Edge Functions
 

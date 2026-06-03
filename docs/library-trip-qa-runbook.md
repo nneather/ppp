@@ -1,6 +1,8 @@
 # Library trip-period QA + Session 7 viewer closure — runbook
 
-**Purpose:** Close tracker acceptance that requires a **real phone** and a **viewer** login (not reproducible in CI). Follow in order; record **device model + OS** for owner smoke.
+**Status (2026-06-03):** **Owner trip QA signed off** — library passable for trip use ([043](decisions/043-library-trip-qa-signoff-projects-handoff.md)). PWA **performance** is tracked in a separate effort; not a blocker to projects kickoff. **Viewer §B** still deferred without a collaborator account.
+
+**Purpose:** Close tracker acceptance that requires a **real phone** and a **viewer** login (not reproducible in CI). Follow in order; record **device model + OS** for owner smoke. Re-run §A after major library mobile/OCR changes.
 
 **References:** [PLAN.md](../PLAN.md) session handoff, [014 — migrate handoff](decisions/014-library-migrate-env-handoff.md), [013 — Session 7b RLS](decisions/013-library-session-7b-settings-polish.md), [POS_Library_Session_0.md](POS_Library_Session_0.md) §4 (viewer seed).
 
@@ -27,7 +29,14 @@
 
 ## B. Viewer — Session 7 owner-only gates
 
-Sign in as **viewer** (library write).
+**DB/RPC matrix (books RLS, triggers, merge RPC):** run on **ppp-staging** first:
+
+```bash
+npm run test:rls:ensure-users   # once, after .env.staging.local is filled
+npm run test:rls
+```
+
+See [scripts/rls-smoke/README.md](../scripts/rls-smoke/README.md). The steps below are **UI-only** (SvelteKit `403` / hidden buttons) — still sign in as **viewer** (library write) in the browser.
 
 | Step | URL | Expected |
 |------|-----|----------|
@@ -53,3 +62,5 @@ Sign in as **viewer** (library write).
 3. Run **`npm run check`** before commit (repo gate).
 
 New `docs/decisions/*` only if a non-obvious behavior change or surprise surfaced during QA.
+
+**2026-06-03 closure:** Owner signed off trip QA (passable; PWA perf separate). See [043](decisions/043-library-trip-qa-signoff-projects-handoff.md). Viewer §B not run.

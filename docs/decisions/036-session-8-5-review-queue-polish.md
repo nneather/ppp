@@ -27,7 +27,7 @@
 
 ## Open questions surfaced
 
-- **iOS Safari PWA hands-on smoke** — owner to verify swipe + sticky buttons + Esc/delete dialog on device (trip QA runbook §A row 3).
+- **iOS Safari PWA hands-on smoke** — owner signed off 2026-06-03 as passable (trip QA [043](043-library-trip-qa-signoff-projects-handoff.md)); PWA performance tracked separately.
 
 ## Surprises
 
@@ -35,5 +35,5 @@
 
 ## Carry-forward updates
 
-- [ ] Tracker Session 8.5 acceptance — owner phone smoke
+- [x] Tracker Session 8.5 acceptance — owner phone smoke (2026-06-03, [043](043-library-trip-qa-signoff-projects-handoff.md))
 - [ ] AGENTS.md inventory — add `review-swipe.ts` if reused elsewhere

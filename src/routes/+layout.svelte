@@ -4,7 +4,9 @@
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, preloadData } from '$app/navigation';
+	import { navigating } from '$app/state';
+	import NavModuleSkeleton from '$lib/components/nav-module-skeleton.svelte';
 	import { cn } from '$lib/utils';
 	import { createClient } from '$lib/supabase/client';
 	import { Button } from '$lib/components/ui/button';
@@ -35,6 +37,24 @@
 
 	const pathname = $derived(page.url.pathname);
 	const isLogin = $derived(pathname === '/login');
+	const navTarget = $derived(navigating.to);
+
+	function skeletonModule(
+		path: string
+	): 'dashboard' | 'invoicing' | 'library' | 'projects' | 'settings' | 'generic' {
+		if (path.startsWith('/library')) return 'library';
+		if (path.startsWith('/invoicing')) return 'invoicing';
+		if (path.startsWith('/dashboard')) return 'dashboard';
+		if (path.startsWith('/projects')) return 'projects';
+		if (path.startsWith('/settings')) return 'settings';
+		return 'generic';
+	}
+
+	const showNavSkeleton = $derived(navTarget != null && !isLogin);
+
+	function preloadNav(href: string) {
+		void preloadData(href);
+	}
 
 	function isNavActive(href: string, path: string): boolean {
 		if (href === '/dashboard') return path === '/dashboard';
@@ -115,6 +135,9 @@
 				{#each navItems as { href, label, icon: Icon } (href)}
 					<a
 						{href}
+						data-sveltekit-preload-data="hover"
+						onpointerdown={() => preloadNav(href)}
+						ontouchstart={() => preloadNav(href)}
 						class={cn(
 							'flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors hover:bg-muted/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
 							isNavActive(href, pathname)
@@ -162,7 +185,11 @@
 			class="flex min-h-dvh min-w-0 flex-1 flex-col pb-tabbar md:pb-8"
 		>
 			<main class="flex-1">
-				{@render children()}
+				{#if showNavSkeleton && navTarget}
+					<NavModuleSkeleton module={skeletonModule(navTarget.url.pathname)} />
+				{:else}
+					{@render children()}
+				{/if}
 			</main>
 		</div>
 
@@ -174,6 +201,9 @@
 			{#each navItems as { href, label, icon: Icon } (href)}
 				<a
 					{href}
+					data-sveltekit-preload-data="hover"
+					onpointerdown={() => preloadNav(href)}
+					ontouchstart={() => preloadNav(href)}
 					class={cn(
 						'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[0.65rem] font-medium transition-colors hover:bg-muted/80',
 						isNavActive(href, pathname)

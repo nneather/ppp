@@ -42,6 +42,7 @@ import {
 	type BookCitationInput
 } from '$lib/library/turabian';
 import { authorsLabelForBook } from '$lib/library/authors-label';
+import { getBibleBookNames } from '$lib/library/bible-book-names';
 
 /**
  * Shared load helpers for book list + detail pages.
@@ -376,7 +377,26 @@ function escapeForPostgrestOrFilter(q: string): string {
  */
 const MAX_IN_LIST = 200;
 
+/** List path — denormalized columns (migration 20260603160000); no nested author/publisher embeds. */
 const BOOK_LIST_SELECT = `
+				id,
+				title,
+				subtitle,
+				work_type,
+				genre,
+				language,
+				reading_status,
+				needs_review,
+				volume_number,
+				publisher_id,
+				author_display,
+				publisher_canonical_display,
+				publisher_location_display,
+				series ( name, abbreviation )
+			`;
+
+/** Review queue / legacy paths that still hydrate authors from junction embeds. */
+const BOOK_LIST_SELECT_EMBEDDED = `
 				id,
 				title,
 				subtitle,
@@ -478,25 +498,58 @@ function applyBookListFilters(
 	) {
 		q = q.in('id', ctx.authorBookIds);
 	}
-	if (ctx.orClause) {
+	if (filters.q && filters.q.trim().length > 0) {
+		q = q.textSearch('search_vector', filters.q.trim(), {
+			type: 'websearch',
+			config: 'simple'
+		});
+	} else if (ctx.orClause) {
 		q = q.or(ctx.orClause);
 	}
 	return q;
 }
 
-async function countFilteredBooks(
-	supabase: SupabaseClient,
-	filters: BookListFilters,
-	ctx: BookListFilterContext
-): Promise<number> {
-	let query = supabase.from('books').select('id', { count: 'exact', head: true });
-	query = applyBookListFilters(query, filters, ctx);
-	const { count, error } = await query;
-	if (error) {
-		console.error('[countFilteredBooks]', error);
-		return 0;
-	}
-	return count ?? 0;
+function mapBookListRowsFromDenorm(data: unknown[]): BookListRow[] {
+	const rows = (data ?? []).map((raw) => {
+		const r = raw as {
+			id: string;
+			title: string | null;
+			subtitle: string | null;
+			work_type: string | null;
+			genre: string | null;
+			language: string | null;
+			reading_status: string | null;
+			needs_review: boolean | null;
+			volume_number: string | null;
+			publisher_id: string | null;
+			author_display: string | null;
+			publisher_canonical_display: string | null;
+			publisher_location_display: string | null;
+			series?: RawSeries | RawSeries[] | null;
+		};
+		const ser = asArrayOrSingle(r.series)[0] ?? null;
+		return {
+			id: r.id,
+			title: r.title ?? null,
+			subtitle: r.subtitle ?? null,
+			work_type: parseWorkType(r.work_type),
+			genre: r.genre ?? null,
+			language: (r.language as Language) ?? 'english',
+			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
+			needs_review: Boolean(r.needs_review),
+			series_abbreviation: ser?.abbreviation ?? null,
+			series_name: ser?.name ?? null,
+			volume_number: r.volume_number ?? null,
+			authors_label: r.author_display ?? null,
+			publisher_id: r.publisher_id ?? null,
+			publisher_canonical: r.publisher_canonical_display ?? null,
+			publisher_effective_location: r.publisher_location_display ?? null
+		} satisfies BookListRow;
+	});
+	rows.sort((a, b) =>
+		titleSortKey(a.title, a.language).localeCompare(titleSortKey(b.title, b.language))
+	);
+	return rows;
 }
 
 function mapBookListRows(data: unknown[], people: PersonRow[]): BookListRow[] {
@@ -563,28 +616,7 @@ async function resolveBookListFilterContext(
 	supabase: SupabaseClient,
 	filters: BookListFilters
 ): Promise<BookListFilterContext> {
-	let orClause: string | null = null;
-	if (filters.q && filters.q.trim().length > 0) {
-		const raw = filters.q.trim();
-		const escaped = escapeForPostgrestOrFilter(raw);
-		const orParts = [`title.ilike.*${escaped}*`, `subtitle.ilike.*${escaped}*`];
-
-		// One round-trip: book_ids for authors whose last_name matches q.
-		const { data: authorBooks, error: abErr } = await supabase
-			.from('book_authors')
-			.select('book_id, people!inner(id)')
-			.is('people.deleted_at', null)
-			.ilike('people.last_name', `%${raw}%`);
-		if (abErr) console.error('[loadBookListFiltered] author name search', abErr);
-		const bookIds = Array.from(
-			new Set((authorBooks ?? []).map((a) => (a as { book_id: string }).book_id))
-		);
-		if (bookIds.length > 0 && bookIds.length <= MAX_IN_LIST) {
-			orParts.push(`id.in.(${bookIds.join(',')})`);
-		}
-
-		orClause = orParts.join(',');
-	}
+	const orClause: string | null = null;
 
 	let authorBookIds: string[] | null = null;
 	let authorFilterClientSide = false;
@@ -646,33 +678,28 @@ export async function loadBookListFiltered(
 			);
 		}
 
-		const books = mapBookListRows(
-			rows.map((r) => r.raw),
-			people
-		);
+		const books = mapBookListRowsFromDenorm(rows.map((r) => r.raw));
 		return { books, filteredCount: books.length };
 	}
 
 	const limit = opts.limit ?? 50;
 	const offset = opts.offset ?? 0;
+	const hasKeyword = Boolean(filters.q && filters.q.trim().length > 0);
+	const countMode = hasKeyword ? ('estimated' as const) : ('exact' as const);
 
-	let pageQuery = supabase.from('books').select(BOOK_LIST_SELECT);
+	let pageQuery = supabase.from('books').select(BOOK_LIST_SELECT, { count: countMode });
 	pageQuery = applyBookListFilters(pageQuery, filters, ctx);
-	const pagePromise = pageQuery
+	const pageRes = await pageQuery
 		.order('title', { ascending: true, nullsFirst: false })
 		.range(offset, offset + limit - 1);
 
-	const [filteredCount, pageRes] = await Promise.all([
-		countFilteredBooks(supabase, filters, ctx),
-		pagePromise
-	]);
-
 	if (pageRes.error) {
 		console.error('[loadBookListFiltered] paginated page', pageRes.error);
-		return { books: [], filteredCount };
+		return { books: [], filteredCount: 0 };
 	}
 
-	const books = mapBookListRows(pageRes.data ?? [], people);
+	const books = mapBookListRowsFromDenorm(pageRes.data ?? []);
+	const filteredCount = pageRes.count ?? books.length;
 	return { books, filteredCount };
 }
 
@@ -682,7 +709,7 @@ async function fetchLiveBookCount(
 ): Promise<number | null> {
 	let q = supabase
 		.from('books')
-		.select('*', { count: 'exact', head: true })
+		.select('id', { count: 'estimated', head: true })
 		.is('deleted_at', null);
 	if (needsReviewOnly) q = q.eq('needs_review', true);
 	const { count, error } = await q;
@@ -1167,16 +1194,9 @@ type RawScriptureRefRow = {
  * `<ScriptureReferenceForm>` AND the canon-ordered grouping on the book
  * detail page (so groups render Genesis → Revelation, not alphabetical).
  */
-export async function loadBibleBookNames(supabase: SupabaseClient): Promise<string[]> {
-	const { data, error } = await supabase
-		.from('bible_books')
-		.select('name, sort_order')
-		.order('sort_order', { ascending: true });
-	if (error) {
-		console.error(error);
-		return [];
-	}
-	return (data ?? []).map((r) => (r as { name: string }).name);
+/** Static canon order — no DB round-trip on `/library/*` layout navigations. */
+export async function loadBibleBookNames(_supabase?: SupabaseClient): Promise<string[]> {
+	return getBibleBookNames();
 }
 
 /**

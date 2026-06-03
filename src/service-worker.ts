@@ -1,14 +1,40 @@
 /// <reference lib="webworker" />
 import type { PrecacheEntry } from 'workbox-precaching';
 import { precacheAndRoute } from 'workbox-precaching';
+import { registerRoute } from 'workbox-routing';
+import { StaleWhileRevalidate } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
 
 declare const self: ServiceWorkerGlobalScope & {
 	__WB_MANIFEST: Array<PrecacheEntry | string>;
 };
 
-// Bump v2 (2026-05-26): removed HTML navigate caching — broke iOS PWA Invoicing/Library tabs.
-// Content-hashed `/_app/immutable/*` + other client assets: precache only (no route HTML cache).
+// Bump v3 (2026-06-03): SWR for static library vocab JSON only (not HTML / not mutations).
 precacheAndRoute(self.__WB_MANIFEST);
+
+const vocabMatcher = ({ url, request }: { url: URL; request: Request }) => {
+	if (request.method !== 'GET') return false;
+	const p = url.pathname;
+	return (
+		p === '/library/people.json' ||
+		p === '/library/series.json' ||
+		p === '/library/topic-counts.json' ||
+		p === '/library/ancient-texts.json'
+	);
+};
+
+registerRoute(
+	vocabMatcher,
+	new StaleWhileRevalidate({
+		cacheName: 'ppp-library-vocab-v1',
+		plugins: [
+			new ExpirationPlugin({
+				maxEntries: 16,
+				maxAgeSeconds: 60 * 60
+			})
+		]
+	})
+);
 
 /**
  * If HTML navigate caching is reintroduced, bypass auth/login and SvelteKit form actions:

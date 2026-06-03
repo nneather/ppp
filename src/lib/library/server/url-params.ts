@@ -63,6 +63,20 @@ export function parseBookListFilters(url: URL): BookListFilters {
 	return filters;
 }
 
+/** True when only default list filters (no facets, no keyword). */
+export function bookListFiltersAreDefault(filters: BookListFilters): boolean {
+	return (
+		!filters.genre?.length &&
+		!filters.series_id?.length &&
+		!filters.author_id?.length &&
+		!filters.language?.length &&
+		!filters.reading_status?.length &&
+		filters.needs_review !== true &&
+		!(filters.q && filters.q.trim().length > 0) &&
+		filters.all !== true
+	);
+}
+
 /**
  * Serialize `BookListFilters` for `goto` / `fetch`. Optionally preserve `deleted`
  * from the current page URL (undo toast).

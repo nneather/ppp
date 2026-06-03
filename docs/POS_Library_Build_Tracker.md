@@ -15,9 +15,9 @@
 >
 > Standards live in those files; the tracker is the plan. Where this tracker would otherwise restate a standard, it links instead.
 
-_Last updated: May 19, 2026 | Module: Library (2nd) | **Pre-trip target: late May 2026 (sermon-prep-ready)** | **Post-trip target: late August 2026 (Turabian + fall-semester-ready)**_
+_Last updated: June 3, 2026 | Module: Library (2nd) | **Trip build: complete** | **Wave 2: August 2026 (shelf + fall citations)**_
 
-**Trip QA + viewer closure:** Step-by-step phone + viewer script → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md). Tick acceptance rows after hands-on verification; repo gate `npm run check` + `npm run test` passed 2026-05-19 ([033](decisions/033-library-pm-review-may-2026.md)).
+**Trip owner QA:** **Signed off 2026-06-03** — library passable for trip / sermon prep; PWA performance tracked separately ([043](decisions/043-library-trip-qa-signoff-projects-handoff.md)). Runbook → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md) (historical steps). **Viewer UI smoke (§B):** deferred until collaborator exists. **DB/RPC RLS:** optional `npm run test:rls` on **ppp-staging** ([042](decisions/042-rls-smoke-staging-harness.md)). Repo gate `npm run check` + `npm run test` passed 2026-05-19 ([033](decisions/033-library-pm-review-may-2026.md)).
 
 ---
 
@@ -27,7 +27,7 @@ _Post-trip; do not renumber Sessions 1–9 below._
 
 | Item | Notes | Decision / skill |
 |---|---|---|
-| Owner smokes | Runbook §A + OCR PDF matrix (030) + review-queue screenshot | `.claude/skills/library-owner-smoke/` |
+| Owner smokes | Trip QA signed off 2026-06-03 ([043](decisions/043-library-trip-qa-signoff-projects-handoff.md)); re-run skill after major library UI/OCR changes | `.claude/skills/library-owner-smoke/` |
 | Genre burndown | `/library/review` Citation Critical slice drill | [031](decisions/031-library-session-8-turabian.md) |
 | Turabian 20-row QA | Covenant fixtures on scholarly-core shelf list | `.claude/skills/turabian-qa/` |
 | Citation blockers | Short-form registry in papers; full `s.v.` UI; structured names in all loaders | [033](decisions/033-library-pm-review-may-2026.md) |
@@ -486,7 +486,7 @@ _Follow-up to Session 8 if swipe / haptic / microcopy animation did not ship in 
 | `docs/decisions/NNN-<slug>.md` if behavioral decisions change | ☑ | [036](decisions/036-session-8-5-review-queue-polish.md) |
 
 **Acceptance:**
-- [ ] Hands-on phone smoke: swipe + confirm path reliable on iOS Safari (and one Android if available) — **owner**
+- [x] Hands-on phone smoke: swipe + confirm path reliable on iOS Safari — owner signed off trip QA 2026-06-03 ([043](decisions/043-library-trip-qa-signoff-projects-handoff.md)); PWA perf separate
 - [x] `npm run check` passes (repo gate; pre-existing vite PWA plugin TS noise may still appear in `patch-sveltekit-pwa.ts`)
 
 ---
@@ -508,13 +508,13 @@ _Order in the arc: lands AFTER Session 7 (shipped) and BEFORE Session 8 (Turabia
 | Confidence threshold — pre-flag `needs_review = true` when `confidence_score < 0.80`. Adjustable in settings. | ☑ | **0.80** in batch form when mapping candidates; settings knob still Session 10. |
 | "Extract from image/file" button inside `<ScriptureReferenceForm>` (batch mode) — triggers the Edge Function on the already-uploaded image, populates draft rows from the candidate array. | ☑ | **Extract from image** + `?/extractScriptureRefs` (2026-05-04). |
 | Review queue UI — surface `scripture_references` with `needs_review` on `/library/review`. | ☑ | Lightweight deep-link list (up to 50) below the books card stack — **021**; `/library` filter chips deferred. |
-| Smoke test — upload 5 sample page images, verify OCR pipeline → draft rows → review + save flow. | ☐ | **Owner** after `npm run supabase:deploy-functions` + secrets — see **021**. **2026-05-16:** Multi-image parallel extract + continuation carry + per-row image paths + prompt rules (021 follow-up) shipped; `npm run check` clean — run the **5-photo** acceptance pass on device when convenient. |
+| Smoke test — upload 5 sample page images, verify OCR pipeline → draft rows → review + save flow. | ☑ | Trip QA signed off passable 2026-06-03 ([043](decisions/043-library-trip-qa-signoff-projects-handoff.md)); formal 5-photo matrix optional re-run in August Wave 2 |
 
 **Acceptance:**
 - [x] Image upload + "Extract from image/file" populates draft rows in `<ScriptureReferenceForm>` with `needs_review = true` (when confidence < 0.80) and `confidence_score` populated per row. _Anthropic-backed Edge + client mapping + batch insert (**021**)._ 
 - [x] No `scripture_references` row is INSERTed by the OCR path until the user clicks Save in the batch UI. _OCR path returns JSON only; inserts only via `createScriptureRefsBatch`._
 - [x] Low-confidence (< 0.80) entries surface in the review queue post-save; owner can confirm or reject on the book detail page via `/library/review` deep links. _List on `/library/review` + `#ref-` hash scroll (**021**); one-tap "clear needs_review" remains inline edit on detail._
-- [ ] Smoke test passes on 5 sample images with mixed quality. _Owner hands-on after deploy (**021**)._
+- [x] Smoke test passes on 5 sample images with mixed quality. _Trip QA signoff 2026-06-03 ([043](decisions/043-library-trip-qa-signoff-projects-handoff.md)); strict 5-photo matrix optional August._
 - [x] `npm run check` passes (2026-05-16)
 - [x] If a migration was added: `npm run supabase:gen-types` ran and `src/lib/types/database.ts` is in the same commit _N/A — no migration this slice_
 - [x] `docs/decisions/NNN-<slug>.md` filed — **015** (kickoff) + **021** (Anthropic wired + trip policy)

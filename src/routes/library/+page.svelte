@@ -40,12 +40,22 @@
 	} from '$lib/types/library';
 	import { bookListFiltersToSearchParams } from '$lib/library/server/url-params';
 	import { scorePersonMatch } from '$lib/library/person-search';
-	import MultiCombobox from '$lib/components/multi-combobox.svelte';
 	import type { MultiComboboxItem } from '$lib/components/multi-combobox.svelte';
+	import type { default as MultiComboboxComponent } from '$lib/components/multi-combobox.svelte';
 	import type { PageProps } from './$types';
 	import { cn } from '$lib/utils.js';
 
 	let { data, form }: PageProps = $props();
+
+	let MultiCombobox = $state<typeof MultiComboboxComponent | null>(null);
+	let facetUiReady = $state(false);
+
+	async function ensureFacetUi() {
+		if (facetUiReady) return;
+		const mod = await import('$lib/components/multi-combobox.svelte');
+		MultiCombobox = mod.default;
+		facetUiReady = true;
+	}
 
 	/** Client-side filter mirror during JSON refresh; cleared when server `data` updates. */
 	let clientFilters = $state<BookListFilters | null>(null);
@@ -364,6 +374,22 @@
 
 	$effect(() => {
 		if (!browser) return;
+		if (mobileFilterOpen) void ensureFacetUi();
+		const idle =
+			typeof requestIdleCallback === 'function'
+				? requestIdleCallback(() => void ensureFacetUi(), { timeout: 2500 })
+				: window.setTimeout(() => void ensureFacetUi(), 300);
+		return () => {
+			if (typeof cancelIdleCallback === 'function' && typeof idle === 'number') {
+				cancelIdleCallback(idle);
+			} else {
+				clearTimeout(idle);
+			}
+		};
+	});
+
+	$effect(() => {
+		if (!browser) return;
 		const run = () => void ensureFacetPeople();
 		if (typeof requestIdleCallback === 'function') {
 			const id = requestIdleCallback(run);
@@ -514,14 +540,18 @@
 			<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
 				Author
 			</h3>
-			<MultiCombobox
-				bind:values={authorSelection}
-				items={peopleItems}
-				placeholder="Search authors by last name…"
-				ariaLabel="Authors"
-				matcher={authorFacetMatcher}
-				onChange={(next) => setArrayFilter('author_id', next)}
-			/>
+			{#if MultiCombobox}
+				<MultiCombobox
+					bind:values={authorSelection}
+					items={peopleItems}
+					placeholder="Search authors by last name…"
+					ariaLabel="Authors"
+					matcher={authorFacetMatcher}
+					onChange={(next) => setArrayFilter('author_id', next)}
+				/>
+			{:else}
+				<div class="h-10 animate-pulse rounded-md bg-muted" aria-hidden="true"></div>
+			{/if}
 		</section>
 
 		{#if data.series.length > 0}
@@ -529,13 +559,17 @@
 				<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
 					Series
 				</h3>
-				<MultiCombobox
-					bind:values={seriesSelection}
-					items={seriesItems}
-					placeholder="Search series by name or abbreviation…"
-					ariaLabel="Series"
-					onChange={(next) => setArrayFilter('series_id', next)}
-				/>
+				{#if MultiCombobox}
+					<MultiCombobox
+						bind:values={seriesSelection}
+						items={seriesItems}
+						placeholder="Search series by name or abbreviation…"
+						ariaLabel="Series"
+						onChange={(next) => setArrayFilter('series_id', next)}
+					/>
+				{:else}
+					<div class="h-10 animate-pulse rounded-md bg-muted" aria-hidden="true"></div>
+				{/if}
 			</section>
 		{/if}
 
@@ -724,7 +758,7 @@
 			{/if}
 			<Input
 				type="search"
-				placeholder="Search title, subtitle, or author last name…"
+				placeholder="Search title, subtitle, or authors…"
 				value={qInput}
 				oninput={onQInput}
 				class={cn('pl-9', listFetchPending && 'pr-9')}

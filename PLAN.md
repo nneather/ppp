@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-05-19 — **Review queue polish** ([036](docs/decisions/036-session-8-5-review-queue-polish.md)): swipe confirm/skip, haptic, checkmark on `/library/review`.
+**Last updated:** 2026-06-03 — **Projects kickoff** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)); library trip QA signed off; PWA perf tracked separately.
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,14 +10,14 @@
 
 ## Current focus
 
-**Library — PM review shipped (2026-05-19):** see **[033](docs/decisions/033-library-pm-review-may-2026.md)** — mobile save bar + list chrome; Turabian short-form / structured names / `s.v.` wedge; OCR authz + daily cap; `npm run ship-library:apply` before prod schema drift.
+**Projects — Session 0 (in progress):** [POS_Projects_Session_0.md](docs/POS_Projects_Session_0.md) + [POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md). Read [MODULE_KICKOFF_PLAYBOOK.md](docs/MODULE_KICKOFF_PLAYBOOK.md) and [041 library retro](docs/decisions/041-library-module-retro.md) before locking schema.
 
-**Owner next:** phone smoke — **tap book on `/library` PWA** ([035](docs/decisions/035-library-list-pwa-navigation.md)), scripture batch save bar, list ⋯ menu ([runbook](docs/library-trip-qa-runbook.md) §A); confirm Edge secrets `SITE_URL` if OCR CORS fails.
+**Library — maintenance / trip use:** Trip owner QA **signed off 2026-06-03** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)). PWA is **passable**; **performance** work continues in a separate chat. No library build sessions until Wave 2 (August) or ad-hoc fixes.
 
 Nearest hard dates:
-- **2026-05-21** — move to Madison; trip-period workflow (mobile-first)
-- **2026-08** — return; shelf-bound QA + Wave 2 megacomponent split
-- **2026-09** — fall-semester-ready citations
+- **2026-05-21** — move to Madison; trip-period workflow (mobile-first) — library usable
+- **2026-08** — return; library Wave 2 (Turabian 20-row QA, megacomponent split, essays Q5)
+- **2026-09** — fall-semester-ready citations (library)
 
 ---
 
@@ -26,7 +26,8 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | 🟢 **033** mobile + citations + process. **Wave 2 (Aug):** owner smokes, Turabian 20-row QA, megacomponent split, essays Q5. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ **Trip build complete** — QA signed off 2026-06-03. **Wave 2 (Aug):** shelf Turabian QA, megacomponent split, essays Q5. PWA perf: separate thread. |
+| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | 🟡 **Session 0** — Phase 0 + schema audit ([Session 0 doc](docs/POS_Projects_Session_0.md)). |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -34,26 +35,26 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
-- [036 — Review queue polish (Session 8.5)](docs/decisions/036-session-8-5-review-queue-polish.md) (2026-05-19) — swipe, haptic, checkmark on `/library/review`.
-- [035 — Library list PWA navigation](docs/decisions/035-library-list-pwa-navigation.md) (2026-05-19) — removed `listMounted` gate; full-card mobile list links.
-- [033 — Library PM review (May 2026)](docs/decisions/033-library-pm-review-may-2026.md) (2026-05-19) — mobile chrome, citation short-form + `s.v.`, OCR hardening, `ship-library`, process skills/hooks.
-- [032 — Edited works + citation accuracy](docs/decisions/032-edited-works-and-citation-accuracy.md) (2026-05-19) — `work_type`; Turabian dispatch fixes; 24 citation tests.
-- [031 — Library Session 8 Turabian + review queue](docs/decisions/031-library-session-8-turabian.md) (2026-05-18) — `turabian/` module; bibliography builder; Turabian-first `/library/review`.
+- [043 — Library trip QA sign-off + projects handoff](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md) (2026-06-03) — owner QA passable; projects Session 0 started.
+- [042 — RLS smoke staging harness](docs/decisions/042-rls-smoke-staging-harness.md) — `npm run test:rls` on ppp-staging.
+- [041 — Library module retro](docs/decisions/041-library-module-retro.md) — kickoff playbook + footgun registry.
 
 ---
 
 ## Session handoff
 
-**Trip QA runbook:** [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md)
+**Projects Session 0:** [docs/POS_Projects_Session_0.md](docs/POS_Projects_Session_0.md) — resolve Q1–Q5 (domain model, invoicing/library links, deadline) before Session 1 migrations.
 
-**Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Prefer **`npm run ship-library:apply`** for library schema + types + tests + functions.
+**Library (maintenance only):** [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) — complete; viewer §B still deferred without collaborator.
 
-**Repo gate:** `npm run check` + `npm run test` verified **2026-05-19** (033).
+**Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
+
+**Repo gate:** `npm run check` + `npm run test` verified **2026-05-19** (033); re-run after library/projects code changes.
 
 ---
 
 ## Next up
 
-1. Owner: phone smoke + OCR PDF matrix (030) — schema/functions shipped 2026-05-19 (`work_type`, `library_ocr_usage`, `ocr_scripture_refs`).
-2. August Wave 2 (tracker): Turabian 20-row QA, megacomponent extraction, essays UI decision (Q5).
-3. Invoicing: first real-client send cadence (owner-driven).
+1. **Projects Session 0** — domain brief, schema audit, draft tracker session arc, file `projects-session-0-audit` decision.
+2. **Library (parallel / low priority):** PWA performance (separate chat); August Wave 2 when shelf is home.
+3. **Invoicing:** first real-client send cadence (owner-driven).

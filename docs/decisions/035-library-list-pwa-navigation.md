@@ -33,6 +33,6 @@
 
 ## Carry-forward updates
 
-- [ ] Owner: iOS home-screen PWA — tap book title area on `/library` → `/library/books/[id]`; change status on same card without navigating
+- [x] Owner: iOS home-screen PWA — tap book title area on `/library` → `/library/books/[id]`; change status on same card without navigating — signed off trip QA 2026-06-03 ([043](043-library-trip-qa-signoff-projects-handoff.md)); perf work separate
 - [x] Runbook §A step 1 extended
 - [x] `library-owner-smoke` skill updated

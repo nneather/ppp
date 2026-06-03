@@ -1,0 +1,26 @@
+---
+description: New-module Session 0 gates, footgun registry, and agent collaboration — read before planning or building a new module
+globs: docs/POS_*_Build_Tracker.md,docs/MODULE_KICKOFF_PLAYBOOK.md,docs/decisions/*-session-0*.md
+alwaysApply: false
+---
+
+# Module kickoff
+
+Before **Session 0** or **Session 1** on a new module, read [docs/MODULE_KICKOFF_PLAYBOOK.md](mdc:docs/MODULE_KICKOFF_PLAYBOOK.md) end to end.
+
+Also read:
+
+- [docs/decisions/000-invoicing-retro.md](mdc:docs/decisions/000-invoicing-retro.md) — RLS helpers, settings scope, form-action shape
+- [docs/decisions/041-library-module-retro.md](mdc:docs/decisions/041-library-module-retro.md) — taxonomy churn, 1.5 cascade, silent failures, verification cadence
+
+## Non-negotiables for agents
+
+1. **Phase 0 gates signed off** before CRUD code (singular taxonomy, nullable matrix, form delivery, RLS/viewer plan).
+2. **Footgun registry** at session start — especially Svelte `$effect`/`untrack`, Supabase `{ error }`, PostgREST `!fk` embeds, immutable migration filenames, service-role `auth.uid()`.
+3. **Root-cause the class** on every bug fix; append new footguns to the playbook table.
+4. **Per-session verification** — mobile + error-path + audit_log; do not defer all smoke to a deadline.
+5. **Never amend applied migrations** — new filename only ([db-changes.mdc](mdc:.cursor/rules/db-changes.mdc)).
+
+## Session start snippet
+
+When the user starts a new module session, confirm you have read MODULE_KICKOFF_PLAYBOOK.md and the latest three `docs/decisions/` entries.

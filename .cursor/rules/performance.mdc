@@ -11,6 +11,9 @@ alwaysApply: false
 - Paginated UIs **MUST** call loaders with `{ limit, offset }` and use the returned `{ books, filteredCount }` — never `paginateAll` + client `.slice()` for the primary list path.
 - Canonical example: `loadBookListFiltered` in [`src/lib/library/server/loaders.ts`](mdc:src/lib/library/server/loaders.ts).
 - `?all=true` / export paths may fetch the full filtered set; document why in the decision log if the set can exceed ~2k rows.
+- **Count + page in one PostgREST call** — `{ count: 'exact' | 'estimated' }` on the data `select`, not a parallel `head: true` count query.
+- **Keyword search** — use `books.search_vector` + `.textSearch()` (one round-trip). Do not add author-prelude + `OR` ilike chains for list search.
+- **List rows** — use denormalized `author_display` / `publisher_*_display` columns; no nested `book_authors → people` embed on the paginated list path.
 
 ## SELECT lists
 
@@ -20,22 +23,26 @@ alwaysApply: false
 
 - Any column in a hot-path `WHERE`, `ORDER BY`, or join filter **MUST** have a matching index in `supabase/migrations/`.
 - Prefer partial indexes: `WHERE deleted_at IS NULL` on library tables.
+- Full-text list search: GIN on `books.search_vector` (maintained by triggers).
 - After adding an index migration: `npm run supabase:db:push:dry` → `npm run supabase:db:push` → `npm run supabase:gen-types`.
 
 ## Page `load` budget
 
 - **≤ 4 Supabase round-trips** per page `load` unless documented in the decision log.
-- Global vocabulary (topic counts, ancient-texts list, `loadPersonBookCounts`) **MUST** load from a sibling `+server.ts` JSON endpoint on first editor open — not on every book-detail navigation.
+- **Corpus totals** — `count: 'estimated'` for display-only “N books” headers; exact count only when business logic requires it.
+- **Static vocab** — bible book names from [`bible-book-names.ts`](mdc:src/lib/library/bible-book-names.ts); do not query `bible_books` on every `/library/*` layout navigation.
+- Global vocabulary (topic counts, ancient-texts list, `loadPeople` for facets) **MUST** load from sibling `+server.ts` JSON on idle/first open — not on every layout navigation.
 - Non-critical book-detail data (topics, coverage rows) **MAY** stream as unawaited promises in `load`; render with `{#await}`.
 
 ## Invalidation
 
 - Use `invalidate('app:…')` + matching `depends('app:…')` — not `invalidateAll()` — for library mutations.
-- Keys in use: `app:library:facets` (layout people/series), `app:library:list`, `app:library:book:<uuid>`, `app:library:review`, `app:library:ancient_texts`.
+- Keys in use: `app:library:facets` (layout series), `app:library:list`, `app:library:book:<uuid>`, `app:library:review`, `app:library:ancient_texts`.
 
 ## Auth
 
-- `locals.safeGetSession` is memoized per request in [`src/hooks.server.ts`](mdc:src/hooks.server.ts). Do not call `auth.getUser()` directly from layouts.
+- `locals.safeGetSession` → [`resolveSessionUser`](mdc:src/lib/server/auth-session.ts) (`getSession` first, `getUser` fallback). Do not call `auth.getUser()` directly from layouts.
+- Do not add per-navigation Auth HTTP calls without documenting in the decision log.
 
 ## Storage signed URLs
 
@@ -44,12 +51,18 @@ alwaysApply: false
 
 ## Bundle
 
-- Heavy route components (`@zxing/*`, `pdfjs-dist`, large forms): **dynamic `import()`** from the page or a parent that gates on user action — see [025](mdc:docs/decisions/025-library-bundle-split.md).
+- Heavy route components (`@zxing/*`, `pdfjs-dist`, `MultiCombobox`, large forms): **dynamic `import()`** from the page or idle/`open` gates — see [025](mdc:docs/decisions/025-library-bundle-split.md) and [044](mdc:docs/decisions/044-pwa-responsiveness.md).
 - Do not add `bits-ui` primitives to [`src/routes/+layout.svelte`](mdc:src/routes/+layout.svelte); use plain markup for chrome dividers.
+
+## Navigation / PWA
+
+- Tab bar: `data-sveltekit-preload-data="hover"` + early `preloadData` on `pointerdown`/`touchstart`; global `preload-code=eager` in [`app.html`](mdc:src/app.html).
+- Show [`nav-module-skeleton.svelte`](mdc:src/lib/components/nav-module-skeleton.svelte) while `navigating` — do not leave the previous screen frozen.
+- Service worker: **no HTML / mutation cache**; SWR only for static library vocab JSON ([`service-worker.ts`](mdc:src/service-worker.ts)).
 
 ## Observability
 
-- Every HTML response includes `Server-Timing: total;dur=…` from `hooks.server.ts`. Use Chrome DevTools → Network → Timing when regressing.
+- HTML responses include `Server-Timing` segments (`auth`, `db`, `total`) from [`hooks.server.ts`](mdc:src/hooks.server.ts). Regress with `npm run test:perf` when credentials are configured.
 
 ## Client-heavy forms (batch OCR)
 

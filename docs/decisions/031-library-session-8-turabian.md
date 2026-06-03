@@ -49,5 +49,5 @@
 - [x] components.mdc updated
 - [x] AGENTS.md inventory updated
 - [x] PLAN.md Recent decisions + last-updated
-- [ ] Tracker Session 8 rows — owner tick after phone smoke + screenshot
-- [ ] Session 8.5 if swipe/haptic desired
+- [ ] Tracker Session 8 rows — Turabian 20-row shelf QA deferred August; trip phone signoff via [043](043-library-trip-qa-signoff-projects-handoff.md)
+- [x] Session 8.5 swipe/haptic shipped [036](036-session-8-5-review-queue-polish.md); owner smoke [043](043-library-trip-qa-signoff-projects-handoff.md)

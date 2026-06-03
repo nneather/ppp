@@ -5,6 +5,8 @@ description: Owner phone smoke for the library module after UI or OCR changes. U
 
 # Library owner smoke
 
+**Trip QA:** Owner signed off 2026-06-03 ([043](../../docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)). Re-run this skill after major library mobile/OCR changes or before August Wave 2.
+
 ## Prerequisites
 
 - Logged in as **owner** on production or preview
