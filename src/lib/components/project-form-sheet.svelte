@@ -36,7 +36,10 @@
 		allRows: ProjectRow[];
 		errorMessage?: string | null;
 		defaultParentId?: string | null;
-		onSaved?: () => void | Promise<void>;
+		onSaved?: (info?: {
+			projectId?: string;
+			parentId?: string | null;
+		}) => void | Promise<void>;
 	} = $props();
 
 	let sheetSide: 'right' | 'bottom' = $state('bottom');
@@ -114,7 +117,15 @@
 			await update();
 			if (result.type === 'success') {
 				open = false;
-				await onSaved?.();
+				if (mode === 'create' && result.data && typeof result.data === 'object') {
+					const d = result.data as { projectId?: string };
+					await onSaved?.({
+						projectId: d.projectId,
+						parentId
+					});
+				} else {
+					await onSaved?.();
+				}
 			}
 		};
 	};

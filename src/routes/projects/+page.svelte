@@ -31,6 +31,7 @@
 	let deleteTarget = $state<ProjectNode | null>(null);
 	let undoId = $state<string | null>(null);
 	let undoTimer: ReturnType<typeof setTimeout> | null = null;
+	let revealBranchFor = $state<string | null>(null);
 
 	const f = $derived(form ?? null);
 
@@ -126,8 +127,11 @@
 		};
 	};
 
-	async function onProjectSaved() {
+	async function onProjectSaved(info?: { projectId?: string; parentId?: string | null }) {
 		await invalidate('app:projects:tree');
+		if (info?.parentId) {
+			revealBranchFor = info.parentId;
+		}
 	}
 
 	$effect(() => {
@@ -144,15 +148,8 @@
 	<FolderKanban class="size-6 shrink-0 text-muted-foreground" />
 {/snippet}
 
-{#snippet projectsActions()}
-	<Button type="button" class="gap-2" hotkey="b" onclick={() => openCreate(null)}>
-		<Plus class="size-4" />
-		New project
-	</Button>
-{/snippet}
-
 <div class="mx-auto max-w-4xl px-4 py-6 pb-tabbar md:px-6 md:py-8">
-	<PageHeader title="Projects" lead={projectsLead} actions={projectsActions} />
+	<PageHeader title="Projects" lead={projectsLead} />
 
 	<p class="mb-6 text-sm text-muted-foreground">
 		Weekly health check-in across your project tree.
@@ -238,17 +235,18 @@
 			weekUpdates={data.weekUpdates}
 			carryForward={data.carryForward}
 			bind:drafts
+			bind:revealBranchFor
 			onEdit={openEdit}
 			onDelete={askDelete}
+			onAddChild={(n) => openCreate(n.id)}
 		/>
 	{/if}
 
-	<div class="mt-6 flex flex-wrap gap-2">
-		{#each data.tree as root (root.id)}
-			<Button type="button" variant="outline" size="sm" onclick={() => openCreate(root.id)}>
-				+ under {root.name}
-			</Button>
-		{/each}
+	<div class="mt-6 flex justify-center border-t border-border pt-6 pb-2">
+		<Button type="button" variant="outline" class="gap-2" hotkey="b" onclick={() => openCreate(null)}>
+			<Plus class="size-4" />
+			New project
+		</Button>
 	</div>
 </div>
 

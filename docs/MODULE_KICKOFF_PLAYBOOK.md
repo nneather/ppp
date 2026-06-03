@@ -40,7 +40,7 @@ Paid-for lessons. Append new entries at every module retro.
 
 | # | Rule | Source |
 |---|------|--------|
-| 1 | **Svelte 5 `$effect` deps.** Any state read inside an init/seed `$effect` — even `.length` — joins the dep set and re-fires, wiping input. Wrap probes in `untrack(() => ...)`. | Library 1.5c, 1.5g, 1.5h |
+| 1 | **Svelte 5 `$effect` deps.** Any state read inside an init/seed `$effect` — even `.length` — joins the dep set and re-fires, wiping input. Wrap probes in `untrack(() => ...)`. Seed **triggers** must include entity-set identity (e.g. tree node ids), not only child payloads like `weekUpdates`. | Library 1.5c, 1.5g, 1.5h; Projects tree ([045](decisions/045-projects-session-1-tree-checkin.md)) |
 | 2 | **Always check `error` on Supabase calls.** `{ data }` without `error` turns `42501` / `PGRST201` into silent empty lists. | [037](decisions/037-publishers-embed-disambiguation.md), [039](decisions/039-supabase-postgrest-api-grants.md) |
 | 3 | **PostgREST multi-FK embeds.** Two FKs to one parent breaks unqualified `parent (...)`. Use `parent!constraint_name (...)`. | [037](decisions/037-publishers-embed-disambiguation.md) |
 | 4 | **Migrations are immutable by filename.** Editing an applied migration is skipped (`schema_migrations`). Always add a NEW migration. | Library 1.5d |

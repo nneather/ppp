@@ -37,6 +37,8 @@
 
 - Tracker said “upsert on `(project_id, week_of)`” but partial unique indexes are not valid PostgREST `onConflict` targets — runtime `42P10` without PK upsert (NEW-D).
 - 2026-06-03 is Wednesday; prior Sunday is **2026-05-31**, not June 1 — test dates must use real weekdays.
+- Carry-forward `$effect` seed key omitted the project **tree** — new sub-projects had no health/notes until refresh; fixed by fingerprinting `id:lifecycle` in `dataSeed` (footgun #1 variant).
+- Post-create UX: per-row **+** for add-child; **New project** moved to page bottom (header/domain button row removed).
 
 ## Carry-forward updates
 

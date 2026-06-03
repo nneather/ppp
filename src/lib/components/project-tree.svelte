@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Pencil from '@lucide/svelte/icons/pencil';
+	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { cn } from '$lib/utils';
 	import {
@@ -25,28 +26,64 @@
 		weekUpdates,
 		carryForward,
 		drafts = $bindable({} as Record<string, WeeklyDraftRow>),
+		revealBranchFor = $bindable(null as string | null),
 		onEdit,
-		onDelete
+		onDelete,
+		onAddChild
 	}: {
 		tree: ProjectNode[];
 		weekOf: string;
 		weekUpdates: Record<string, ProjectUpdateRow>;
 		carryForward: Record<string, CarryForward>;
 		drafts?: Record<string, WeeklyDraftRow>;
+		/** When set, expands ancestors so the branch is visible (e.g. after create). */
+		revealBranchFor?: string | null;
 		onEdit: (node: ProjectNode) => void;
 		onDelete: (node: ProjectNode) => void;
+		onAddChild: (node: ProjectNode) => void;
 	} = $props();
 
 	let collapsedIds = $state(new Set<string>());
 	let expandedDetailIds = $state(new Set<string>());
 	let mobileDefaultApplied = $state(false);
 
+	function walkTreeFingerprint(nodes: ProjectNode[], parts: string[] = []): string[] {
+		for (const n of nodes) {
+			parts.push(`${n.id}:${n.lifecycle_status}`);
+			if (n.children.length) walkTreeFingerprint(n.children, parts);
+		}
+		return parts;
+	}
+
+	const treeFingerprint = $derived(walkTreeFingerprint(tree).sort().join(','));
+
 	const dataSeed = $derived(
-		`${weekOf}|${Object.entries(weekUpdates)
+		`${weekOf}|${treeFingerprint}|${Object.entries(weekUpdates)
 			.map(([k, v]) => `${k}:${v.health_status}`)
 			.sort()
 			.join(',')}`
 	);
+
+	function ancestorIdsFor(
+		nodes: ProjectNode[],
+		targetId: string,
+		acc: string[] = []
+	): string[] | null {
+		for (const n of nodes) {
+			if (n.id === targetId) return acc;
+			const inner = ancestorIdsFor(n.children, targetId, [...acc, n.id]);
+			if (inner) return inner;
+		}
+		return null;
+	}
+
+	function ensureBranchVisible(projectId: string) {
+		const ancestors = ancestorIdsFor(tree, projectId) ?? [];
+		const next = new Set(collapsedIds);
+		for (const id of ancestors) next.delete(id);
+		next.delete(projectId);
+		collapsedIds = next;
+	}
 
 	function isCheckinEligible(status: LifecycleStatus): boolean {
 		return status === 'active' || status === 'paused';
@@ -84,6 +121,13 @@
 			void seed;
 			drafts = buildInitialDrafts();
 		});
+	});
+
+	$effect(() => {
+		const reveal = revealBranchFor;
+		if (!reveal) return;
+		untrack(() => ensureBranchVisible(reveal));
+		revealBranchFor = null;
 	});
 
 	$effect(() => {
@@ -198,6 +242,15 @@
 					</div>
 
 					<div class="flex shrink-0 gap-0.5">
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							aria-label="Add sub-project under {node.name}"
+							onclick={() => onAddChild(node)}
+						>
+							<Plus class="size-4" />
+						</Button>
 						{#if node.parent_id != null}
 							<Button
 								type="button"
