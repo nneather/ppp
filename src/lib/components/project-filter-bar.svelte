@@ -12,6 +12,7 @@
 		type LifecycleStatus,
 		type HealthStatus
 	} from '$lib/types/projects';
+	import { HEALTH_DOT_CLASS } from '$lib/projects/health-appearance';
 	import { cn } from '$lib/utils';
 
 	let {
@@ -54,6 +55,13 @@
 			return HEALTH_STATUS_LABELS[healthValue as HealthStatus];
 		}
 		return 'All health';
+	});
+
+	const selectedHealthStatus = $derived.by((): HealthStatus | null => {
+		if ((HEALTH_STATUSES as readonly string[]).includes(healthValue)) {
+			return healthValue as HealthStatus;
+		}
+		return null;
 	});
 
 	function toggleLifecycle(status: LifecycleStatus) {
@@ -119,13 +127,32 @@
 					if (v) setHealth(v);
 				}}
 			>
-				<Select.Trigger id="health-filter" class="w-full">{healthLabel}</Select.Trigger>
+				<Select.Trigger id="health-filter" class="w-full">
+					<span class="inline-flex items-center gap-2">
+						{#if selectedHealthStatus}
+							<span
+								class={cn(
+									'inline-block size-2 shrink-0 rounded-full',
+									HEALTH_DOT_CLASS[selectedHealthStatus]
+								)}
+								aria-hidden="true"
+							></span>
+						{/if}
+						{healthLabel}
+					</span>
+				</Select.Trigger>
 				<Select.Content>
 					<Select.Item value="all" label="All health">All health</Select.Item>
 					<Select.Item value="attention" label="Needs attention">Needs attention</Select.Item>
 					{#each HEALTH_STATUSES as st (st)}
 						<Select.Item value={st} label={HEALTH_STATUS_LABELS[st]}>
-							{HEALTH_STATUS_LABELS[st]}
+							<span class="inline-flex items-center gap-2">
+								<span
+									class={cn('inline-block size-2 shrink-0 rounded-full', HEALTH_DOT_CLASS[st])}
+									aria-hidden="true"
+								></span>
+								{HEALTH_STATUS_LABELS[st]}
+							</span>
 						</Select.Item>
 					{/each}
 				</Select.Content>

@@ -46,11 +46,70 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Projects Session 3:** Links + tasks + audit enrichment — see tracker Session 3. Helpers: `src/lib/projects/filter.ts`, `loadLatestHealth` in loaders.
 
+**Optional polish (separate chat):** Health/lifecycle status appearance — see **Session prompts** below; attach your design doc when ready.
+
 **Library (maintenance only):** [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) — complete; viewer §B still deferred without collaborator.
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` verified **2026-05-19** (033); re-run after library/projects code changes.
+**Repo gate:** `npm run check` + `npm run test` verified **2026-06-03** (Session 2); re-run after projects code changes.
+
+---
+
+## Session prompts (copy-paste)
+
+### Start Projects Session 3 — links + tasks + audit
+
+```
+Session: projects #3 — links + tasks + audit + smoke
+Tracker: docs/POS_Projects_Build_Tracker.md, Session 3
+Read: AGENTS.md, .cursor/rules/sveltekit-routes.mdc, .cursor/rules/components.mdc,
+  src/lib/types/database.ts, src/lib/types/projects.ts,
+  src/lib/projects/server/loaders.ts, src/lib/projects/server/actions.ts,
+  docs/decisions/046-projects-session-2-dashboard-filters.md,
+  docs/decisions/045-projects-session-1-tree-checkin.md
+Supabase: hosted only — project_tasks needs a NEW migration file (footgun #4); project_links table already in v1
+Goal: Inline project_links editor, resolve T1 (task due dates?) → project_tasks migration + task UI (add/toggle/reorder), extend audit-log projects group, full owner phone smoke.
+Acceptance:
+ - [ ] project_links CRUD inline on project (or metadata sheet — pick one surface and stay consistent)
+ - [ ] project_tasks migration + types if T1 resolved; task add/toggle/reorder UI
+ - [ ] /settings/audit-log projects filter complete (verify revertible tables)
+ - [ ] Full smoke: create → check-in → dashboard glance → link/task → audit
+ - [ ] npm run check passes (ignore pre-existing patch-sveltekit-pwa.ts if unchanged)
+ - [ ] Mobile-width pass on new surfaces
+End-of-session deliverables:
+ - [ ] Tracker Session 3 marked done with notes
+ - [ ] docs/decisions/047-projects-session-3-links-tasks-audit.md filed
+ - [ ] PLAN.md + AGENTS.md inventory if new patterns
+ - [ ] components.mdc if new reusable UI
+
+Context: S1 = tree + check-in ([045]); S2 = dashboard strip, attention tile, trends, URL filters ([046]).
+Open: T1 task due dates (decide at session start); Session 1 phone smoke still unchecked on tracker if not done yet.
+```
+
+### Polish — status appearance (attach your design doc)
+
+```
+Session: projects — status appearance polish (ad-hoc, not a tracker session)
+Read: AGENTS.md, .cursor/rules/components.mdc,
+  src/lib/types/projects.ts (HEALTH_STATUS_LABELS, LIFECYCLE_STATUS_LABELS),
+  src/lib/components/health-trend-badge.svelte,
+  src/lib/components/project-tree.svelte (healthSegmentClass),
+  src/lib/components/project-status-strip.svelte,
+  src/lib/components/project-filter-bar.svelte,
+  docs/decisions/046-projects-session-2-dashboard-filters.md
+Goal: Update health + lifecycle status appearance across the projects module to match the attached design document.
+Acceptance:
+ - [ ] All five health statuses + lifecycle badges match the doc (colors, labels, sizing, dark mode)
+ - [ ] Consistent treatment in: inline 5-segment picker, HealthTrendBadge, dashboard strip, filter bar
+ - [ ] No regressions to filter URLs, trend arrows, or check-in save behavior
+ - [ ] npm run check passes; mobile-width spot-check on /dashboard and /projects
+End-of-session deliverables:
+ - [ ] Short note in docs/decisions/ or tracker Notes if the doc encodes a lasting convention
+ - [ ] components.mdc if a shared token/map pattern is extracted
+
+Attach: [paste or @-mention your status appearance document here]
+```
 
 ---
 

@@ -10,6 +10,10 @@
 	import HealthTrendBadge from '$lib/components/health-trend-badge.svelte';
 	import { computeVisibleNodeIds, trendDirection } from '$lib/projects/filter';
 	import {
+		HEALTH_SEGMENT_SELECTED_CLASS,
+		LIFECYCLE_BADGE_CLASS
+	} from '$lib/projects/health-appearance';
+	import {
 		HEALTH_STATUS_ORDER,
 		HEALTH_STATUS_LABELS,
 		LIFECYCLE_STATUS_LABELS,
@@ -221,13 +225,6 @@
 		drafts = { ...drafts, [projectId]: { ...row, ...patch } };
 	}
 
-	const healthSegmentClass: Record<HealthStatus, string> = {
-		excellent: 'bg-emerald-600/90 text-white hover:bg-emerald-600',
-		satisfactory: 'bg-green-600/80 text-white hover:bg-green-600',
-		watch: 'bg-amber-500/90 text-white hover:bg-amber-500',
-		serious: 'bg-orange-600/90 text-white hover:bg-orange-600',
-		critical: 'bg-red-600/90 text-white hover:bg-red-600'
-	};
 </script>
 
 {#snippet treeRows(nodes: ProjectNode[])}
@@ -279,7 +276,7 @@
 							>
 								{node.name}
 							</span>
-							<span class="text-xs text-muted-foreground">
+							<span class={LIFECYCLE_BADGE_CLASS}>
 								{LIFECYCLE_STATUS_LABELS[node.lifecycle_status]}
 							</span>
 						</div>
@@ -338,7 +335,7 @@
 								class={cn(
 									'min-w-0 flex-1 rounded px-1 py-1.5 text-[0.65rem] font-medium leading-tight sm:text-xs',
 									draft.health_status === status
-										? healthSegmentClass[status]
+										? HEALTH_SEGMENT_SELECTED_CLASS[status]
 										: 'bg-muted/50 text-muted-foreground hover:bg-muted'
 								)}
 								aria-pressed={draft.health_status === status}

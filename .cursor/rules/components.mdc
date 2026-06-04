@@ -40,6 +40,7 @@ If you reach for one of these capabilities, use the existing component.
 | Read-only dashboard domain status strip (expand children, deep-link domains) | [src/lib/components/project-status-strip.svelte](mdc:src/lib/components/project-status-strip.svelte) |
 | Dashboard Projects tile attention-count footer (deep link `/projects?health=attention`) | [src/lib/components/dashboard-projects-tile-footer.svelte](mdc:src/lib/components/dashboard-projects-tile-footer.svelte) |
 | URL-synced lifecycle / health / domain filter bar for `/projects` | [src/lib/components/project-filter-bar.svelte](mdc:src/lib/components/project-filter-bar.svelte) |
+| Projects health/lifecycle visual tokens (Epic palette — dots, picker segments, lifecycle badge) | [src/lib/projects/health-appearance.ts](mdc:src/lib/projects/health-appearance.ts) |
 
 shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator) live under `src/lib/components/ui/`. The `Button` accepts a `hotkey` prop (Cmd+letter from the reserved set `s u d e g b`, or the special string `Escape` for Cancel) and an optional `label` prop; together they wire the chord, an underlined-letter label, and a tooltip. **Cancel buttons use `hotkey="Escape"`** (bare Esc; bubble phase, defaults-prevented bail). Anchors (`href`) skip the dev-warn but can still take a hotkey. Full convention: [.cursor/rules/hotkeys.mdc](mdc:.cursor/rules/hotkeys.mdc).
 

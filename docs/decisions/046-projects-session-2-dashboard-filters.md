@@ -37,6 +37,7 @@
 ## Open questions surfaced
 
 - None new; D1 resolved.
+- **Status appearance** — deferred to ad-hoc polish chat; owner will provide design doc ([PLAN.md § Session prompts](../PLAN.md#session-prompts-copy-paste)).
 
 ## Surprises
 

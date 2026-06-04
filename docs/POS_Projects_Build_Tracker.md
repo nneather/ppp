@@ -177,6 +177,8 @@ _Goal: read-only at-a-glance view + week-over-week trend + filtering. No recursi
 
 ## Session 3 — Links + Tasks + Audit + Smoke (2–3h) [SLIPPABLE]
 
+_Copy-paste prompt: [PLAN.md § Session prompts](PLAN.md#session-prompts-copy-paste) — "Start Projects Session 3"._
+
 | Task | Done | Notes |
 |------|:----:|-------|
 | `project_links` inline editor on project detail | ☐ | Table already in v1 migration; UI only. |
@@ -188,7 +190,13 @@ _Goal: read-only at-a-glance view + week-over-week trend + filtering. No recursi
 
 ---
 
-## Definition of Done (per session)
+## Backlog (not a numbered session)
+
+| Item | Notes |
+|------|-------|
+| **Status appearance polish** | Separate ad-hoc chat — health/lifecycle colors, labels, sizing per owner design doc. Touch: `health-trend-badge.svelte`, `project-tree.svelte`, strip, filter bar. Prompt in [PLAN.md § Session prompts](PLAN.md#session-prompts-copy-paste). |
+
+---
 
 - [x] Session 1 tracker row marked done with notes
 - [x] `docs/decisions/045-projects-session-1-tree-checkin.md` filed; Surprises section written
