@@ -97,11 +97,11 @@
 {#if isLogin}
 	{@render children()}
 {:else}
-	<div class="min-h-dvh bg-background text-foreground md:flex">
+	<div class="flex h-dvh max-h-dvh min-h-dvh overflow-hidden bg-background text-foreground md:flex">
 		<!-- Desktop sidebar -->
 		<aside
 			class={cn(
-				'hidden shrink-0 flex-col border-r border-border bg-card text-card-foreground transition-[width] duration-200 ease-out md:flex',
+				'hidden h-full min-h-0 shrink-0 flex-col border-r border-border bg-card text-card-foreground transition-[width] duration-200 ease-out md:flex',
 				navCollapsed ? 'w-[4.5rem]' : 'w-56'
 			)}
 		>
@@ -180,43 +180,40 @@
 			</div>
 		</aside>
 
-		<!-- Main -->
-		<div
-			class="flex min-h-dvh min-w-0 flex-1 flex-col pb-tabbar md:pb-8"
-		>
-			<main class="flex-1">
+		<!-- Main column: scrollable content + mobile tab bar footer (not position:fixed — iOS PWA) -->
+		<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+			<main class="min-h-0 flex-1 overflow-y-auto pb-tabbar md:pb-8">
 				{#if showNavSkeleton && navTarget}
 					<NavModuleSkeleton module={skeletonModule(navTarget.url.pathname)} />
 				{:else}
 					{@render children()}
 				{/if}
 			</main>
-		</div>
 
-		<!-- Mobile tab bar -->
-		<nav
-			class="fixed inset-x-0 bottom-0 z-50 flex border-t border-border bg-card/95 pl-[max(0.5rem,env(safe-area-inset-left,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-0.5 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:hidden"
-			aria-label="Main"
-		>
-			{#each navItems as { href, label, icon: Icon } (href)}
-				<a
-					{href}
-					data-sveltekit-preload-data="hover"
-					onpointerdown={() => preloadNav(href)}
-					ontouchstart={() => preloadNav(href)}
-					class={cn(
-						'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[0.65rem] font-medium transition-colors hover:bg-muted/80',
-						isNavActive(href, pathname)
-							? 'text-foreground'
-							: 'text-muted-foreground hover:text-foreground'
-					)}
-					aria-current={isNavActive(href, pathname) ? 'page' : undefined}
-				>
-					<Icon class="size-5 shrink-0" />
-					<span class="max-w-full truncate px-0.5">{label}</span>
-				</a>
-			{/each}
-		</nav>
+			<nav
+				class="shrink-0 flex border-t border-border bg-card/95 pl-[max(0.5rem,env(safe-area-inset-left,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-0.5 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:hidden"
+				aria-label="Main"
+			>
+				{#each navItems as { href, label, icon: Icon } (href)}
+					<a
+						{href}
+						data-sveltekit-preload-data="hover"
+						onpointerdown={() => preloadNav(href)}
+						ontouchstart={() => preloadNav(href)}
+						class={cn(
+							'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[0.65rem] font-medium transition-colors hover:bg-muted/80',
+							isNavActive(href, pathname)
+								? 'text-foreground'
+								: 'text-muted-foreground hover:text-foreground'
+						)}
+						aria-current={isNavActive(href, pathname) ? 'page' : undefined}
+					>
+						<Icon class="size-5 shrink-0" />
+						<span class="max-w-full truncate px-0.5">{label}</span>
+					</a>
+				{/each}
+			</nav>
+		</div>
 	</div>
 {/if}
 

@@ -39,6 +39,9 @@
 - 2026-06-03 is Wednesday; prior Sunday is **2026-05-31**, not June 1 — test dates must use real weekdays.
 - Carry-forward `$effect` seed key omitted the project **tree** — new sub-projects had no health/notes until refresh; fixed by fingerprinting `id:lifecycle` in `dataSeed` (footgun #1 variant).
 - Post-create UX: per-row **+** for add-child; **New project** moved to page bottom (header/domain button row removed).
+- Second save same week: upsert rows without `id` → `null value in column "id"`; fixed with `randomUUID()` + client `update_id` on every payload row (NEW-D adjunct).
+- Draft reseed on tree-only change now **merges** (keeps in-progress edits); full reseed only when week or `weekUpdates` changes.
+- Tab bar floating mid-scroll on iOS PWA: `fixed bottom-0` + body scroll → refactored app shell to `h-dvh` + flex footer nav ([`+layout.svelte`](../../src/routes/+layout.svelte)).
 
 ## Carry-forward updates
 

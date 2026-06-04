@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
@@ -66,8 +67,11 @@ function parseCheckinPayload(raw: string): WeeklyDraftRow[] | null {
 		if (!UUID_RE.test(project_id)) return null;
 		const health_status = parseHealth(String(o.health_status ?? ''));
 		if (!health_status) return null;
+		const update_id =
+			typeof o.update_id === 'string' && UUID_RE.test(o.update_id) ? o.update_id : undefined;
 		rows.push({
 			project_id,
+			update_id,
 			health_status,
 			reason: typeof o.reason === 'string' ? o.reason : '',
 			next_steps: typeof o.next_steps === 'string' ? o.next_steps : ''
@@ -129,6 +133,7 @@ export async function saveWeeklyCheckinAction(
 	const payload = drafts.map((d) => {
 		const existing = existingByProject.get(d.project_id);
 		const row: Record<string, unknown> = {
+			id: d.update_id ?? existing?.id ?? randomUUID(),
 			project_id: d.project_id,
 			week_of,
 			health_status: d.health_status,
@@ -137,7 +142,6 @@ export async function saveWeeklyCheckinAction(
 			deleted_at: null,
 			created_by: userId
 		};
-		if (existing) row.id = existing.id;
 		return row;
 	});
 

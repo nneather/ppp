@@ -937,10 +937,10 @@
 					</div>
 				{/if}
 				<!-- Mobile cards -->
-				<ul class="flex flex-col gap-3 md:hidden">
+				<ul class="flex flex-col gap-2 md:hidden">
 					{#each loadedBooks as b (b.id)}
 						<li
-							class="relative rounded-xl border border-border bg-card p-4 text-card-foreground transition-colors hover:border-ring/50"
+							class="relative rounded-xl border border-border bg-card px-3 py-2.5 text-card-foreground transition-colors hover:border-ring/50"
 						>
 							<a
 								href={`/library/books/${b.id}`}
@@ -948,37 +948,58 @@
 								class="absolute inset-0 z-0 rounded-xl"
 								aria-label={`Open ${b.title ?? 'book'}`}
 							></a>
-							<div class="relative z-10 flex gap-3 pointer-events-none">
-								<input
-									type="checkbox"
-									class="pointer-events-auto mt-1 size-11 shrink-0 rounded border-border"
-									bind:group={selectedIds}
-									value={b.id}
-									aria-label={`Select ${b.title ?? 'book'}`}
-								/>
+							<div class="relative z-10 flex gap-2 pointer-events-none">
+								<label
+									class="pointer-events-auto flex size-11 shrink-0 items-center justify-center"
+								>
+									<input
+										type="checkbox"
+										class="size-4 rounded border-border"
+										bind:group={selectedIds}
+										value={b.id}
+										aria-label={`Select ${b.title ?? 'book'}`}
+									/>
+								</label>
 								<div class="min-w-0 flex-1">
-									<div class="flex flex-col gap-1.5">
-										<div class="flex items-start justify-between gap-3">
-											<div class="min-w-0 flex-1">
-												<p class="truncate text-base font-medium leading-snug">
-													{#if b.title}{b.title}{:else}<span class="italic text-muted-foreground">(untitled)</span>{/if}{#if b.volume_number}, vol. {b.volume_number}{/if}
-												</p>
-												{#if b.subtitle}
-													<p class="truncate text-sm text-muted-foreground">{b.subtitle}</p>
-												{/if}
-												{#if b.authors_label}
-													<p class="mt-0.5 truncate text-xs text-muted-foreground">{b.authors_label}</p>
-												{/if}
-											</div>
-											{#if b.needs_review}
-												<span
-													class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
-												>
-													<AlertCircle class="size-3" /> Review
-												</span>
+									<div class="flex flex-wrap items-start gap-2">
+										<div class="min-w-0 flex-1">
+											<p class="truncate text-sm font-medium leading-snug">
+												{#if b.title}{b.title}{:else}<span class="italic text-muted-foreground">(untitled)</span>{/if}{#if b.volume_number}, vol. {b.volume_number}{/if}
+											</p>
+											{#if b.authors_label}
+												<p class="truncate text-xs text-muted-foreground">{b.authors_label}</p>
 											{/if}
 										</div>
-										<div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+										<form
+											method="POST"
+											action="?/updateReadingStatus"
+											use:enhance={statusSubmit(b.id)}
+											class="pointer-events-auto shrink-0"
+										>
+											<input type="hidden" name="id" value={b.id} />
+											<select
+												name="reading_status"
+												value={effectiveStatus(b)}
+												onchange={(e) =>
+													(e.currentTarget.form as HTMLFormElement | null)?.requestSubmit()}
+												class={`max-w-[7.5rem] w-auto rounded-md border bg-background px-2 py-1 text-xs ${statusToneClasses(effectiveStatus(b))}`}
+												aria-label="Reading status"
+											>
+												{#each READING_STATUSES as s (s)}
+													<option value={s}>{READING_STATUS_LABELS[s]}</option>
+												{/each}
+											</select>
+										</form>
+										{#if b.needs_review}
+											<span
+												class="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
+											>
+												<AlertCircle class="size-3" /> Review
+											</span>
+										{/if}
+									</div>
+									{#if b.genre || b.series_abbreviation}
+										<div class="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
 											{#if b.genre}
 												<span
 													class="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground"
@@ -995,27 +1016,7 @@
 												</span>
 											{/if}
 										</div>
-									</div>
-									<form
-										method="POST"
-										action="?/updateReadingStatus"
-										use:enhance={statusSubmit(b.id)}
-										class="pointer-events-auto mt-3"
-									>
-										<input type="hidden" name="id" value={b.id} />
-										<select
-											name="reading_status"
-											value={effectiveStatus(b)}
-											onchange={(e) =>
-												(e.currentTarget.form as HTMLFormElement | null)?.requestSubmit()}
-											class={`w-full rounded-md border bg-background px-2 py-1.5 text-xs ${statusToneClasses(effectiveStatus(b))}`}
-											aria-label="Reading status"
-										>
-											{#each READING_STATUSES as s (s)}
-												<option value={s}>{READING_STATUS_LABELS[s]}</option>
-											{/each}
-										</select>
-									</form>
+									{/if}
 								</div>
 							</div>
 						</li>

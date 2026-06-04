@@ -32,6 +32,11 @@ Read [AGENTS.md](mdc:AGENTS.md) before starting any non-trivial task. It contain
 - Two roles: `owner` (full access) and `viewer` (per-module via `user_permissions`).
 - Generated DB types live in `src/lib/types/database.ts`. Regenerate with `npm run supabase:gen-types`. Never hand-write `Database` types.
 
+## Mobile app shell (PWA)
+
+- Authenticated layout uses **`h-dvh overflow-hidden`** with **scroll on `<main>` only** and the mobile tab bar as a **flex footer** — not `position: fixed` on a document-scrolling page (iOS standalone PWA detaches fixed chrome mid-scroll).
+- Use **`pb-tabbar`** on scrollable main content and **`bottom-tabbar`** on fixed toasts/FABs ([`src/app.css`](mdc:src/app.css)).
+
 ## Code style
 
 - No `any`. No default exports except SvelteKit's required ones (`+page.svelte`, `+layout.svelte`, `+page.server.ts` exports).

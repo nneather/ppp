@@ -57,12 +57,16 @@
 
 	const treeFingerprint = $derived(walkTreeFingerprint(tree).sort().join(','));
 
-	const dataSeed = $derived(
-		`${weekOf}|${treeFingerprint}|${Object.entries(weekUpdates)
-			.map(([k, v]) => `${k}:${v.health_status}`)
+	const updatesFingerprint = $derived(
+		Object.entries(weekUpdates)
+			.map(([k, v]) => `${k}:${v.id}:${v.health_status}`)
 			.sort()
-			.join(',')}`
+			.join(',')
 	);
+
+	let lastSeedWeek = $state('');
+	let lastSeedUpdates = $state('');
+	let lastSeedTree = $state('');
 
 	function ancestorIdsFor(
 		nodes: ProjectNode[],
@@ -97,29 +101,56 @@
 		return out;
 	}
 
+	function draftForNode(node: ProjectNode): WeeklyDraftRow {
+		const cur = weekUpdates[node.id];
+		const prev = carryForward[node.id];
+		const health_status: HealthStatus =
+			cur?.health_status ?? prev?.health_status ?? 'satisfactory';
+		return {
+			project_id: node.id,
+			update_id: cur?.id,
+			health_status,
+			reason: cur?.reason ?? prev?.reason ?? '',
+			next_steps: cur?.next_steps ?? prev?.next_steps ?? ''
+		};
+	}
+
 	function buildInitialDrafts(): Record<string, WeeklyDraftRow> {
 		const next: Record<string, WeeklyDraftRow> = {};
 		for (const node of collectEligible(tree)) {
-			const cur = weekUpdates[node.id];
-			const prev = carryForward[node.id];
-			const health_status: HealthStatus =
-				cur?.health_status ?? prev?.health_status ?? 'satisfactory';
-			next[node.id] = {
-				project_id: node.id,
-				health_status,
-				reason: cur?.reason ?? prev?.reason ?? '',
-				next_steps: cur?.next_steps ?? prev?.next_steps ?? ''
-			};
+			next[node.id] = draftForNode(node);
+		}
+		return next;
+	}
+
+	function mergeInitialDrafts(prev: Record<string, WeeklyDraftRow>): Record<string, WeeklyDraftRow> {
+		const eligible = collectEligible(tree);
+		const eligibleIds = new Set(eligible.map((n) => n.id));
+		const next: Record<string, WeeklyDraftRow> = {};
+		for (const [id, row] of Object.entries(prev)) {
+			if (eligibleIds.has(id)) next[id] = row;
+		}
+		for (const node of eligible) {
+			if (!next[node.id]) next[node.id] = draftForNode(node);
 		}
 		return next;
 	}
 
 	// Footgun #1: wrap data reads in untrack so user edits to drafts are not wiped.
 	$effect(() => {
-		const seed = dataSeed;
+		const w = weekOf;
+		const u = updatesFingerprint;
+		const t = treeFingerprint;
 		untrack(() => {
-			void seed;
-			drafts = buildInitialDrafts();
+			const weekOrUpdatesChanged = w !== lastSeedWeek || u !== lastSeedUpdates;
+			if (weekOrUpdatesChanged) {
+				drafts = buildInitialDrafts();
+			} else if (t !== lastSeedTree) {
+				drafts = mergeInitialDrafts(drafts);
+			}
+			lastSeedWeek = w;
+			lastSeedUpdates = u;
+			lastSeedTree = t;
 		});
 	});
 

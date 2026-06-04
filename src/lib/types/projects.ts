@@ -58,6 +58,8 @@ export type ProjectUpdateRow = {
 
 export type WeeklyDraftRow = {
 	project_id: string;
+	/** Existing project_updates row id when re-saving the same week. */
+	update_id?: string;
 	health_status: HealthStatus;
 	reason: string;
 	next_steps: string;
