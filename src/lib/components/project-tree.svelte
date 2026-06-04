@@ -7,6 +7,8 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { cn } from '$lib/utils';
+	import HealthTrendBadge from '$lib/components/health-trend-badge.svelte';
+	import { computeVisibleNodeIds, trendDirection } from '$lib/projects/filter';
 	import {
 		HEALTH_STATUS_ORDER,
 		HEALTH_STATUS_LABELS,
@@ -15,7 +17,9 @@
 		type LifecycleStatus,
 		type ProjectNode,
 		type ProjectUpdateRow,
-		type WeeklyDraftRow
+		type WeeklyDraftRow,
+		type LatestHealth,
+		type ProjectFilters
 	} from '$lib/types/projects';
 
 	type CarryForward = Pick<ProjectUpdateRow, 'health_status' | 'reason' | 'next_steps'>;
@@ -25,6 +29,8 @@
 		weekOf,
 		weekUpdates,
 		carryForward,
+		latestHealth = {},
+		filters,
 		drafts = $bindable({} as Record<string, WeeklyDraftRow>),
 		revealBranchFor = $bindable(null as string | null),
 		onEdit,
@@ -35,6 +41,8 @@
 		weekOf: string;
 		weekUpdates: Record<string, ProjectUpdateRow>;
 		carryForward: Record<string, CarryForward>;
+		latestHealth?: Record<string, LatestHealth>;
+		filters: ProjectFilters;
 		drafts?: Record<string, WeeklyDraftRow>;
 		/** When set, expands ancestors so the branch is visible (e.g. after create). */
 		revealBranchFor?: string | null;
@@ -42,6 +50,8 @@
 		onDelete: (node: ProjectNode) => void;
 		onAddChild: (node: ProjectNode) => void;
 	} = $props();
+
+	const visibleIds = $derived(computeVisibleNodeIds(tree, latestHealth, filters));
 
 	let collapsedIds = $state(new Set<string>());
 	let expandedDetailIds = $state(new Set<string>());
@@ -222,10 +232,13 @@
 
 {#snippet treeRows(nodes: ProjectNode[])}
 	{#each nodes as node (node.id)}
+		{#if visibleIds.has(node.id)}
 		{@const eligible = isCheckinEligible(node.lifecycle_status)}
 		{@const draft = drafts[node.id]}
 		{@const hasChildren = node.children.length > 0}
 		{@const collapsed = collapsedIds.has(node.id)}
+		{@const latest = latestHealth[node.id]}
+		{@const trend = trendDirection(latest)}
 		<div
 			class={cn(
 				'border-b border-border/60',
@@ -269,6 +282,13 @@
 							<span class="text-xs text-muted-foreground">
 								{LIFECYCLE_STATUS_LABELS[node.lifecycle_status]}
 							</span>
+						</div>
+						<div class="mt-0.5">
+							<HealthTrendBadge
+								health={latest?.health_status ?? null}
+								{trend}
+								compact
+							/>
 						</div>
 					</div>
 
@@ -384,6 +404,7 @@
 
 		{#if hasChildren && !collapsed}
 			{@render treeRows(node.children)}
+		{/if}
 		{/if}
 	{/each}
 {/snippet}

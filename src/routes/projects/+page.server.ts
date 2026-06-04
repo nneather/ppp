@@ -5,7 +5,8 @@ import {
 	loadWeekUpdates,
 	loadCarryForward,
 	flattenProjectTree,
-	loadProjectRows
+	loadProjectRows,
+	loadLatestHealth
 } from '$lib/projects/server/loaders';
 import {
 	saveWeeklyCheckinAction,
@@ -20,7 +21,7 @@ import {
 	sundayContaining,
 	previousSunday
 } from '$lib/projects/week';
-import type { ProjectUpdateRow } from '$lib/types/projects';
+import type { ProjectUpdateRow, LatestHealth } from '$lib/types/projects';
 
 function parseWeekParam(raw: string | null): string {
 	const t = (raw ?? '').trim();
@@ -40,11 +41,12 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 
 	const supabase = locals.supabase;
 
-	const [tree, weekUpdatesMap, carryForwardMap, flatRows] = await Promise.all([
+	const [tree, weekUpdatesMap, carryForwardMap, flatRows, latestHealthMap] = await Promise.all([
 		locals.perf.measure('db', () => loadProjectTree(supabase)),
 		locals.perf.measure('db', () => loadWeekUpdates(supabase, weekOf)),
 		locals.perf.measure('db', () => loadCarryForward(supabase, prevWeek)),
-		locals.perf.measure('db', () => loadProjectRows(supabase))
+		locals.perf.measure('db', () => loadProjectRows(supabase)),
+		locals.perf.measure('db', () => loadLatestHealth(supabase))
 	]);
 
 	const weekUpdates = Object.fromEntries(weekUpdatesMap) as Record<string, ProjectUpdateRow>;
@@ -52,6 +54,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		string,
 		Pick<ProjectUpdateRow, 'health_status' | 'reason' | 'next_steps'>
 	>;
+	const latestHealth = Object.fromEntries(latestHealthMap) as Record<string, LatestHealth>;
 
 	return {
 		tree,
@@ -61,6 +64,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		prevWeek,
 		weekUpdates,
 		carryForward,
+		latestHealth,
 		recentlyDeletedId
 	};
 };

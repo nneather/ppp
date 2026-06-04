@@ -1,6 +1,6 @@
 # Personal Operations System — Projects Module Build Tracker
 
-_Last updated: June 2026 | Module: Project Management (3rd) | Target: live ASAP — internship IN PROGRESS, health recording first_
+_Last updated: 2026-06-03 | Module: Project Management (3rd) | Target: live ASAP — internship IN PROGRESS, health recording first_
 
 _Session 0 is structure-lock only (no Cursor). Each feature session ships a vertical slice, ends with an Acceptance checklist + decision record, and carries an explicit viewer/RLS line and per-session test cadence._
 
@@ -106,7 +106,7 @@ Key points:
 | projects | P2 | Delete a parent with children: block vs cascade | ✓ Block — reparent first |
 | project_updates | U1 | Snapshot-all vs touch-only on save | ✓ Snapshot-all, carry-forward pre-fill |
 | project_updates | U2 | Editable past weeks | ✓ Yes |
-| dashboard | D1 | Extra lifecycle filters | ☐ Tune at Session 2 (decide-once-visible) |
+| dashboard | D1 | Extra lifecycle filters | ✓ Default active+paused+idea; chips for done/archived/not_started |
 | cross | X1 | Viewer access v1 | ✓ Owner-only; permission-gated upgrade |
 
 ---
@@ -138,37 +138,40 @@ _Goal: create projects under domains and sweep weekly health across the whole ac
 | Soft-delete + undo; **block if live children** | ✓ | 10s undo toast. |
 | RLS/viewer waiver verify | ✓ | Owner-only v1; SELECT pre-wired for `read`. |
 | **Per-session tests:** `npm run check`; mobile pass; error-path; `audit_log` | ✓ | `week.test.ts` added; vite PWA patch TS error pre-existing. |
+| Post-ship fixes (re-save, draft merge, PWA tab shell) | ✓ | `update_id` + `randomUUID()`; tree-only draft merge; `h-dvh` flex tab bar — [045](decisions/045-projects-session-1-tree-checkin.md) surprises. |
 
 **Acceptance:**
 - [x] 4 roots present; migration applied; types regenerated; zero TS errors on projects files.
 - [ ] Owner: create project under Work + sub-project (phone smoke).
 - [ ] Owner: weekly check-in sweep + batch save (phone smoke).
 - [x] Parent picker can't select self/descendant (server + filtered options).
-- [x] Re-run same week uses PK upsert (partial unique holds).
+- [x] Re-run same week uses PK upsert (partial unique holds); second save in one session (no `id` null).
 - [x] Delete-with-children blocked; audit log Projects filter wired.
 
 **Decision:** [045-projects-session-1-tree-checkin.md](decisions/045-projects-session-1-tree-checkin.md)
 
 ---
 
-## Session 2 — Dashboard Glance + Trend + Filters (2–3h)
+## Session 2 — Dashboard Glance + Trend + Filters (2–3h) ✓ done 2026-06-03
 
 _Goal: read-only at-a-glance view + week-over-week trend + filtering. No recursion — all flat queries._
 
 | Task | Done | Notes |
 |------|:----:|-------|
-| `/dashboard` status strip — grouped by domain, parents w/ current health, expand to children | ☐ | Read-only glance; link into `/projects` to edit. |
-| Module tile — count of nodes whose latest health ∈ {watch, serious, critical}, deep link `/projects?health=attention` | ☐ | Flat query (latest update per project). |
-| Trend arrows per node — compare node's last two updates | ☐ | Parents have trends too (own updates). |
-| `/projects` filters — lifecycle, health, domain (root) | ☐ | URL-synced; tune extra lifecycle filters (D1) here. |
-| Mobile pass | ☐ | |
-| **Per-session tests** | ☐ | |
+| `/dashboard` status strip — grouped by domain, parents w/ current health, expand to children | ✓ | `project-status-strip.svelte`; latest health + trend. |
+| Module tile — count of nodes whose latest health ∈ {watch, serious, critical}, deep link `/projects?health=attention` | ✓ | `dashboard-projects-tile-footer.svelte`; active count on tile. |
+| Trend arrows per node — compare node's last two updates | ✓ | `health-trend-badge.svelte` + `trendDirection()`. |
+| `/projects` filters — lifecycle, health, domain (root) | ✓ | URL-synced; default lifecycle active+paused+idea; `not_started` added. |
+| Mobile pass | ✓ | `pb-tabbar` on dashboard; filter chips wrap. |
+| **Per-session tests** | ✓ | `filter.test.ts`; `npm run check` (pre-existing PWA patch TS only). |
 
 **Acceptance:**
-- [ ] Strip groups by domain, expands to children, shows current health + trend.
-- [ ] Attention tile count + deep link correct.
-- [ ] `?health=attention&domain=Work` round-trips back/forward.
-- [ ] Nodes with no update render "—".
+- [x] Strip groups by domain, expands to children, shows current health + trend.
+- [x] Attention tile count + deep link correct.
+- [x] `?health=attention&domain=Work` round-trips back/forward.
+- [x] Nodes with no update render "—".
+
+**Decision:** [046-projects-session-2-dashboard-filters.md](decisions/046-projects-session-2-dashboard-filters.md)
 
 ---
 
@@ -187,10 +190,20 @@ _Goal: read-only at-a-glance view + week-over-week trend + filtering. No recursi
 
 ## Definition of Done (per session)
 
-- [ ] Tracker row marked done with notes
-- [ ] `docs/decisions/NNN-<slug>.md` filed; Surprises section written
-- [ ] New DB gotcha → footgun registry
-- [ ] `PLAN.md` updated before stopping
+- [x] Session 1 tracker row marked done with notes
+- [x] `docs/decisions/045-projects-session-1-tree-checkin.md` filed; Surprises section written
+- [x] New DB gotcha → footgun registry (NEW-D)
+- [x] `PLAN.md` updated
+- [ ] Session 2+ rows follow same checklist at session end
+
+## Schema reference (applied)
+
+| Artifact | Location |
+|----------|----------|
+| Migration (prod) | `supabase/migrations/20260603170000_ppp_projects_v1.sql` |
+| Generated types | `src/lib/types/database.ts` — `projects`, `project_updates`, `project_links` |
+| Human-readable DDL | [POS_Schema_v1.md](POS_Schema_v1.md#projects) |
+| App enums / view-models | `src/lib/types/projects.ts` |
 
 ---
 

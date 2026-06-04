@@ -46,7 +46,9 @@
 ## Carry-forward updates
 
 - [x] `components.mdc` updated
-- [ ] `AGENTS.md` inventory updated (projects helpers — optional next pass)
+- [x] `AGENTS.md` inventory updated (projects helpers + mobile shell)
+- [x] `docs/POS_Schema_v1.md` Projects section + RLS/trigger summary rows
+- [x] `POS_Projects_Session_0.md` + build tracker Session 1 notes
 - [ ] new env vars documented (none)
 - [x] tracker Session 1 marked done
 - [x] footgun NEW-D in playbook + tracker

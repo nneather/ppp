@@ -1,15 +1,26 @@
 /** Closed enums and view-models for the projects module. */
 
-export const LIFECYCLE_STATUSES = ['idea', 'active', 'paused', 'done', 'archived'] as const;
+export const LIFECYCLE_STATUSES = [
+	'not_started',
+	'idea',
+	'active',
+	'paused',
+	'done',
+	'archived'
+] as const;
 export type LifecycleStatus = (typeof LIFECYCLE_STATUSES)[number];
 
 export const LIFECYCLE_STATUS_LABELS: Record<LifecycleStatus, string> = {
+	not_started: 'Not Started',
 	idea: 'Idea',
 	active: 'Active',
 	paused: 'Paused',
 	done: 'Done',
 	archived: 'Archived'
 };
+
+/** Default visible lifecycles on /projects when no lifecycle filter is in the URL. */
+export const DEFAULT_VISIBLE_LIFECYCLES = new Set<LifecycleStatus>(['active', 'paused', 'idea']);
 
 export const HEALTH_STATUSES = [
 	'excellent',
@@ -70,4 +81,18 @@ export type ProjectFlatOption = {
 	name: string;
 	parent_id: string | null;
 	depth: number;
+};
+
+export type LatestHealth = {
+	health_status: HealthStatus;
+	week_of: string;
+	previous: HealthStatus | null;
+};
+
+export type TrendDirection = 'up' | 'down' | 'flat' | 'none';
+
+export type ProjectFilters = {
+	lifecycle: Set<LifecycleStatus>;
+	health: HealthStatus | 'attention' | null;
+	domain: string | null;
 };

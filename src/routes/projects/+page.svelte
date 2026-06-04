@@ -10,6 +10,7 @@
 	import PageHeader from '$lib/components/page-header.svelte';
 	import ProjectTree from '$lib/components/project-tree.svelte';
 	import ProjectFormSheet from '$lib/components/project-form-sheet.svelte';
+	import ProjectFilterBar from '$lib/components/project-filter-bar.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -17,6 +18,7 @@
 	import type { PageProps } from './$types';
 	import type { ProjectNode, WeeklyDraftRow } from '$lib/types/projects';
 	import { formatWeekLabel, sundayContaining } from '$lib/projects/week';
+	import { parseProjectFilters } from '$lib/projects/filter';
 
 	let { data, form }: PageProps = $props();
 
@@ -48,6 +50,12 @@
 	);
 
 	const saveSuccess = $derived(f && f.kind === 'saveCheckin' && f.success === true);
+
+	const filters = $derived(parseProjectFilters(page.url.searchParams));
+
+	const domainNames = $derived(
+		data.tree.filter((n) => n.parent_id == null).map((n) => n.name)
+	);
 
 	function weekHref(ymd: string): string {
 		const params = new URLSearchParams(page.url.searchParams);
@@ -226,6 +234,8 @@
 		</p>
 	{/if}
 
+	<ProjectFilterBar {domainNames} />
+
 	{#if data.tree.length === 0}
 		<p class="text-sm text-muted-foreground">No projects yet. Add one under a domain.</p>
 	{:else}
@@ -234,6 +244,8 @@
 			weekOf={data.weekOf}
 			weekUpdates={data.weekUpdates}
 			carryForward={data.carryForward}
+			latestHealth={data.latestHealth}
+			{filters}
 			bind:drafts
 			bind:revealBranchFor
 			onEdit={openEdit}

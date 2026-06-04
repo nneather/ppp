@@ -1,68 +1,59 @@
 # Personal Operations System — Projects Module: Session 0 (Prep)
 
-_Last updated: June 3, 2026 | Module: Projects (3rd) | Status: **in progress**_
+_Last updated: 2026-06-03 | Module: Projects (3rd) | Status: **complete** — Session 1 shipped_
 
-Entry point for the **first** projects build session. This is **not** the per-session tracker — draft `docs/POS_Projects_Build_Tracker.md` only after Session 0 acceptance (see [MODULE_KICKOFF_PLAYBOOK.md](MODULE_KICKOFF_PLAYBOOK.md)).
+Entry point for the projects module kickoff. **Active tracker:** [POS_Projects_Build_Tracker.md](POS_Projects_Build_Tracker.md). **Session 1 decision:** [045-projects-session-1-tree-checkin.md](decisions/045-projects-session-1-tree-checkin.md).
 
-**UI today:** `/projects` is a placeholder ([`src/routes/projects/+page.svelte`](../src/routes/projects/+page.svelte)). `projects` exists in `module_registry` and `/settings/permissions` but **no projects tables** are in the baseline schema yet.
+**Schema (applied):** [POS_Schema_v1.md — Projects](POS_Schema_v1.md#projects) · migration `supabase/migrations/20260603170000_ppp_projects_v1.sql` · types `src/lib/types/database.ts`
 
 ---
 
 ## How to read this doc
 
-Required prereads, in order:
+Required prereads for **new** sessions (Session 2+):
 
-1. [`AGENTS.md`](../AGENTS.md) — session template, carry-forward inventory, decision log.
-2. [`docs/MODULE_KICKOFF_PLAYBOOK.md`](MODULE_KICKOFF_PLAYBOOK.md) — **Phase 0 gates + footgun registry** (read before any schema or CRUD).
-3. [`docs/decisions/041-library-module-retro.md`](decisions/041-library-module-retro.md) — latest module lessons.
-4. [`docs/decisions/000-invoicing-retro.md`](decisions/000-invoicing-retro.md) — RLS helpers, form-action shape, settings scope.
-5. [`docs/POS_Schema_v1.md`](POS_Schema_v1.md) — conventions; **add a Projects section here when Session 0 locks entities**.
-6. [`.cursor/rules/module-kickoff.mdc`](../.cursor/rules/module-kickoff.mdc)
+1. [`AGENTS.md`](../AGENTS.md) — session template, carry-forward inventory (projects helpers).
+2. [`docs/POS_Projects_Build_Tracker.md`](POS_Projects_Build_Tracker.md) — current session arc.
+3. [`docs/decisions/045-projects-session-1-tree-checkin.md`](decisions/045-projects-session-1-tree-checkin.md) — latest shipped behavior + surprises.
+4. [`docs/MODULE_KICKOFF_PLAYBOOK.md`](MODULE_KICKOFF_PLAYBOOK.md) — footgun registry (NEW-A through NEW-D).
 
-Then read this doc.
+For historical Session 0 context, see Phase 0 checklist below (all signed off on the build tracker).
 
 ---
 
 ## Session 0 acceptance
 
-Session 0 is **complete** when all of the following are true:
+Session 0 is **complete**:
 
-- [ ] **Phase 0 gates signed off** (playbook table): singular taxonomy, nullable matrix, form delivery (sheet vs page), RLS/viewer plan, import/bulk path if any.
-- [ ] **Domain brief written** — what “projects” means in ppp (entities, primary workflows, what is explicitly out of scope for v1).
-- [ ] **Schema audit** — every new table specified (DDL sketch or migration plan); ≤2 open questions per major entity.
-- [ ] **Open Questions** on the projects tracker driven down; remainder deferred with target session.
-- [ ] **Viewer plan** — seed + curl/UI smoke, or explicit waiver on tracker (solo-use pattern from library is acceptable if documented).
-- [ ] **`docs/POS_Projects_Build_Tracker.md` drafted** — session arc reviewed by owner before Session 1 code.
-- [ ] **`docs/decisions/NNN-projects-session-0-audit.md` filed** per AGENTS.md template.
-
-Do **not** start Session 1 (first vertical slice) until the tracker exists and the owner has reviewed it.
+- [x] **Phase 0 gates signed off** — tracker Phase 0 table.
+- [x] **Domain brief** — weekly check-in tree; manual parent health; no roll-up.
+- [x] **Schema audit** — `projects`, `project_updates`, `project_links` in v1 migration; `project_tasks` Session 3.
+- [x] **Open Questions** — resolved on tracker (P1–P2, U1–U2, X1); D1 deferred to Session 2.
+- [x] **Viewer plan** — owner-only v1; SELECT pre-wired via `app_has_module_read('projects')`.
+- [x] **`docs/POS_Projects_Build_Tracker.md`** — session arc through Session 3.
+- [ ] **`docs/decisions/NNN-projects-session-0-audit.md`** — optional; structure captured in tracker + [045](decisions/045-projects-session-1-tree-checkin.md).
 
 ---
 
-## Phase 0 checklist (owner)
+## Phase 0 checklist (owner) — signed off
 
-Copy from [MODULE_KICKOFF_PLAYBOOK.md](MODULE_KICKOFF_PLAYBOOK.md); sign off here or on the tracker pre-session block:
-
-- [ ] Taxonomy table: one row per axis, no duplicate encodings
-- [ ] Nullable / required matrix for every column on the primary entity
-- [ ] Form surfaces listed with route vs sheet decision
-- [ ] Viewer user + `user_permissions` seed plan (or written waiver)
-- [ ] Import/bulk path: `auth.uid()` under service-role documented (if applicable)
-- [ ] Open Questions ≤2 unresolved per entity
+- [x] Taxonomy: one entity + `parent_id`; four seeded root domains
+- [x] Nullable/required matrix on tracker
+- [x] Metadata = Sheet; weekly health = inline tree
+- [x] Viewer waiver + permission-gated SELECT
+- [x] No import path
 
 ---
 
-## Open Questions (seed list — resolve in Session 0)
+## Resolved open questions (see tracker for detail)
 
-| # | Question | Owner | Target |
-|---|----------|-------|--------|
-| 1 | What is the **primary entity** — project, task, milestone, or something else? | Owner | Session 0 |
-| 2 | Relationship to **invoicing** — link time entries / clients to projects, or standalone? | Owner | Session 0 |
-| 3 | Relationship to **library** — cite books per project, or no cross-module FK in v1? | Owner | Session 0 |
-| 4 | **Mobile vs desktop** — is phone-first required for v1 (like library trip), or desktop-OK? | Owner | Session 0 |
-| 5 | **Hard deadline** — fall semester, HeLOS ship date, or open-ended? | Owner | Session 0 |
-
-_Add rows as Session 0 discovers gaps. Do not start migrations until Q1–Q2 are resolved._
+| # | Resolution |
+|---|------------|
+| Primary entity | `projects` + self-referential hierarchy |
+| Invoicing link | Standalone v1 (no FK) |
+| Library link | No cross-module FK v1; `project_links` for URLs |
+| Mobile | Phone-first for weekly check-in |
+| Parent health | Manual per node (not computed) |
 
 ---
 
@@ -70,16 +61,16 @@ _Add rows as Session 0 discovers gaps. Do not start migrations until Q1–Q2 are
 
 | Need | Use |
 |------|-----|
-| RLS | `app_is_owner()`, `app_is_viewer_writer('projects')` |
-| Soft delete + audit | `deleted_at`, `write_audit_log()` trigger on every table |
+| RLS | `app_is_owner()`, `app_has_module_read('projects')` |
+| Soft delete + audit | `deleted_at`, `write_audit_log()` on `projects` / `project_updates`; `project_links` has no soft delete |
 | Form actions | `{ kind, success?, message?, <entityId>? }` |
-| Large forms | Dedicated `/projects/.../new` + `/[id]/edit` pages, not Sheet |
-| Ship gate | Define `npm run ship-projects` when schema + Edge exist (pattern: `ship-library`) |
-| Staging RLS | `npm run test:rls` after tables exist ([042](decisions/042-rls-smoke-staging-harness.md)) |
+| Metadata form | Sheet (`project-form-sheet.svelte`) |
+| Ship gate | Define `npm run ship-projects` when schema stabilizes (pattern: `ship-library`) |
+| Staging RLS | Extend `test:rls` matrix when projects policies need automated coverage |
 
 ---
 
-## Library module state (do not block Session 0)
+## Library module state (do not block projects)
 
 - Trip owner QA signed off — [043](decisions/043-library-trip-qa-signoff-projects-handoff.md).
 - Active library work: **Wave 2 (August)** + ad-hoc fixes; PWA performance in a separate thread.

@@ -7,7 +7,8 @@ import {
 	type ProjectNode,
 	type ProjectRow,
 	type ProjectUpdateRow,
-	type ProjectFlatOption
+	type ProjectFlatOption,
+	type LatestHealth
 } from '$lib/types/projects';
 
 const MAX_TREE_DEPTH = 32;
@@ -231,4 +232,40 @@ export async function countLiveChildren(
 		return 0;
 	}
 	return count ?? 0;
+}
+
+/** Latest + previous health per project (flat query, no recursion). */
+export async function loadLatestHealth(
+	supabase: SupabaseClient
+): Promise<Map<string, LatestHealth>> {
+	const { data, error } = await supabase
+		.from('project_updates')
+		.select('project_id, week_of, health_status')
+		.is('deleted_at', null)
+		.order('project_id', { ascending: true })
+		.order('week_of', { ascending: false });
+
+	if (error) {
+		console.error('loadLatestHealth', error);
+		return new Map();
+	}
+
+	const map = new Map<string, LatestHealth>();
+	for (const raw of data ?? []) {
+		if (!isHealthStatus(raw.health_status)) continue;
+		const existing = map.get(raw.project_id);
+		if (!existing) {
+			map.set(raw.project_id, {
+				health_status: raw.health_status,
+				week_of: raw.week_of,
+				previous: null
+			});
+		} else if (existing.previous == null) {
+			map.set(raw.project_id, {
+				...existing,
+				previous: raw.health_status
+			});
+		}
+	}
+	return map;
 }

@@ -134,4 +134,4 @@ When opening a new `docs/POS_<Module>_Build_Tracker.md`:
 5. Add `npm run ship-<module>` when the module has schema + Edge (pattern: `ship-library`).
 6. File `docs/decisions/NNN-<module>-session-0-audit.md` before Session 1 code.
 
-**Active module (2026-06-03):** [POS_Projects_Session_0.md](POS_Projects_Session_0.md) + [POS_Projects_Build_Tracker.md](POS_Projects_Build_Tracker.md) (draft tracker; arc filled at Session 0 end).
+**Active module (2026-06-03):** [POS_Projects_Build_Tracker.md](POS_Projects_Build_Tracker.md) — **Session 2** (dashboard glance + filters). Session 1 done ([045](decisions/045-projects-session-1-tree-checkin.md)); schema [POS_Schema_v1.md#projects](POS_Schema_v1.md#projects).

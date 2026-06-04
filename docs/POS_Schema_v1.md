@@ -1,12 +1,12 @@
 # Personal Operations System — Finalized Schema v1
 
-_Generated: April 2026 | Feeds schema session in Cursor (Week 5–6 environment setup)_
+_Generated: April 2026 | Updated 2026-06-03 (Projects module). Feeds schema session in Cursor._
 
 ---
 
 ## Conventions
 
-- All tables have `deleted_at TIMESTAMPTZ` (soft delete) unless noted
+- All tables have `deleted_at TIMESTAMPTZ` (soft delete) unless noted (`audit_log`, `module_registry`, `bible_books`, `invoice_line_items`, `project_links`)
 - All tables have `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`
 - All tables have `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` maintained by trigger
 - All tables have `created_by UUID REFERENCES profiles(id)` unless noted as system-managed
@@ -605,6 +605,84 @@ book_topics
 
 ---
 
+## Projects
+
+_Applied 2026-06-03 — migration [`20260603170000_ppp_projects_v1.sql`](../supabase/migrations/20260603170000_ppp_projects_v1.sql). Tracker: [POS_Projects_Build_Tracker.md](POS_Projects_Build_Tracker.md). `project_tasks` deferred to Session 3._
+
+**Design:** One self-referential `projects` table. Four root domains (Education, Work, Ministry, Personal) are seeded rows with `parent_id` NULL — not an enum. Parent weekly health is **manually set per node** (no roll-up view). Weekly `week_of` is civil **Sunday** as `DATE` (Chicago-computed in app; distinct from invoicing Monday-week helpers).
+
+### `projects`
+
+```sql
+projects
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  parent_id        UUID REFERENCES projects(id)     -- NULL = root domain
+  name             TEXT NOT NULL
+  description      TEXT
+  lifecycle_status TEXT NOT NULL
+                     CHECK (lifecycle_status IN ('idea','active','paused','done','archived'))
+                     DEFAULT 'active'
+  start_date       DATE                              -- nullable
+  end_date         DATE                              -- nullable; NULL = ongoing
+  sort_order       INT NOT NULL DEFAULT 0
+  deleted_at       TIMESTAMPTZ
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_by       UUID REFERENCES profiles(id)
+```
+
+**Indexes:** `(parent_id)`, `(lifecycle_status)` — partial `WHERE deleted_at IS NULL`.
+
+**RLS:** SELECT — `app_is_owner()` OR `app_has_module_read('projects')`. INSERT/UPDATE/DELETE — owner-only v1 (`app_is_owner()`). Viewer write waived; flip seed to `read` for read-only upgrade without migration.
+
+**App rules:** Cycle guard on `parent_id` (no self/descendant). Soft-delete blocked when live children exist. Root domains not editable/deletable in UI.
+
+### `project_updates`
+
+One manually-set health snapshot per project per week (snapshot-all on save; carry-forward pre-fill in UI).
+
+```sql
+project_updates
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  project_id    UUID NOT NULL REFERENCES projects(id)
+  week_of       DATE NOT NULL                    -- civil Sunday; CHECK (extract(dow from week_of) = 0)
+  health_status TEXT NOT NULL
+                  CHECK (health_status IN ('excellent','satisfactory','watch','serious','critical'))
+  reason        TEXT                             -- plain text v1 (markdown deferred)
+  next_steps    TEXT
+  deleted_at    TIMESTAMPTZ
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_by    UUID REFERENCES profiles(id)
+```
+
+**Partial unique:** `UNIQUE (project_id, week_of) WHERE deleted_at IS NULL` — name `project_updates_one_per_week`.
+
+**PostgREST upsert:** Use `onConflict: 'id'` only (partial unique is not a valid `onConflict` target — footgun NEW-D). Pre-load week rows; assign `id` on every payload row (`update_id` from client, existing row, or `randomUUID()`).
+
+**Index:** `(project_id, week_of DESC)` for latest/trend queries (Session 2).
+
+### `project_links`
+
+```sql
+project_links
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE
+  url        TEXT NOT NULL
+  label      TEXT
+  sort_order INT NOT NULL DEFAULT 0
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_by UUID REFERENCES profiles(id)
+```
+
+**Notes:** No `deleted_at` — lifecycle tied to project (mirrors `invoice_line_items`). UI in Session 3.
+
+**GRANTs:** Explicit `SELECT, INSERT, UPDATE, DELETE` to `authenticated` on all three tables.
+
+**Deferred:** `project_tasks` — separate migration in Session 3 after due-date shape locked.
+
+---
+
 ## Post-August Items (Tracked Here for Schema Continuity)
 
 | Item                                | Notes                                                                                                     |
@@ -646,6 +724,9 @@ book_topics
 | `essay_authors`         | Full   | SELECT                   |
 | `scripture_references`  | Full   | SELECT + INSERT + UPDATE |
 | `book_topics`           | Full   | SELECT + INSERT + UPDATE |
+| `projects`              | Full   | SELECT if `app_has_module_read('projects')` |
+| `project_updates`       | Full   | SELECT if `app_has_module_read('projects')` |
+| `project_links`         | Full   | SELECT if `app_has_module_read('projects')` |
 
 ---
 
@@ -655,7 +736,7 @@ book_topics
 | ---------------------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
 | `set_updated_at`       | All tables with `updated_at` | Maintain updated_at on every UPDATE                                                         |
 | `compute_verse_abs`    | `scripture_references`       | Recompute `verse_start_abs`/`verse_end_abs` on INSERT or UPDATE of any chapter/verse field  |
-| `audit_log_trigger`    | All tables                   | Write to `audit_log` on INSERT/UPDATE/DELETE; set `revertible` based on operation and table |
+| `audit_log_trigger` / `trg_audit_*` | All tables incl. `projects`, `project_updates`, `project_links` | Write to `audit_log` on INSERT/UPDATE/DELETE; set `revertible` based on operation and table |
 | `set_revertible_false` | `invoices`                   | Set `revertible = false` when status transitions to `sent` or `paid`                        |
 
 **Deploy note:** `set_revertible_false` must **not** be attached to tables without a `status` column (e.g. `time_entries`), or Postgres will error with `record "new" has no field "status"`. The baseline migration ([`supabase/migrations/00000000000000_baseline.sql`](../supabase/migrations/00000000000000_baseline.sql)) is the canonical DDL source and already contains the correct trigger scoping. Diagnostic queries: [`sql/inspect_status_triggers.sql`](../sql/inspect_status_triggers.sql). See [`supabase/README.md`](../supabase/README.md).
