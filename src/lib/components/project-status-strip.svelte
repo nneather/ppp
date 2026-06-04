@@ -16,7 +16,21 @@
 	} = $props();
 
 	let collapsedIds = $state(new Set<string>());
-	let mobileDefaultApplied = $state(false);
+	let collapseDefaultsApplied = $state(false);
+
+	function collectCollapsibleIds(nodes: ProjectNode[]): Set<string> {
+		const ids = new Set<string>();
+		function walk(ns: ProjectNode[]) {
+			for (const n of ns) {
+				if (n.children.length > 0) {
+					ids.add(n.id);
+					walk(n.children);
+				}
+			}
+		}
+		walk(nodes);
+		return ids;
+	}
 
 	function toggleCollapsed(id: string) {
 		const next = new Set(collapsedIds);
@@ -25,24 +39,13 @@
 		collapsedIds = next;
 	}
 
+	// Apply once when tree data is available (avoids empty-tree race on first paint).
 	$effect(() => {
-		if (!browser || mobileDefaultApplied) return;
-		const mq = window.matchMedia('(max-width: 767px)');
-		const apply = () => {
-			if (!mq.matches) {
-				collapsedIds = new Set();
-				return;
-			}
-			const ids = new Set<string>();
-			for (const root of tree) {
-				if (root.children.length > 0) ids.add(root.id);
-			}
-			collapsedIds = ids;
-		};
-		untrack(apply);
-		mobileDefaultApplied = true;
-		mq.addEventListener('change', apply);
-		return () => mq.removeEventListener('change', apply);
+		if (!browser || collapseDefaultsApplied || tree.length === 0) return;
+		untrack(() => {
+			collapsedIds = collectCollapsibleIds(tree);
+			collapseDefaultsApplied = true;
+		});
 	});
 
 	function domainHref(name: string): string {

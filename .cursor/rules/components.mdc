@@ -40,7 +40,7 @@ If you reach for one of these capabilities, use the existing component.
 | Week-over-week trend triangles (green up / red down) | [src/lib/components/health-trend-arrow.svelte](mdc:src/lib/components/health-trend-arrow.svelte) |
 | Health shape + label + trend (`showStatusIcon` to hide shape on `/projects` tree) | [src/lib/components/health-trend-badge.svelte](mdc:src/lib/components/health-trend-badge.svelte) |
 | Read-only dashboard domain status strip (expand children, deep-link domains) | [src/lib/components/project-status-strip.svelte](mdc:src/lib/components/project-status-strip.svelte) |
-| URL-synced lifecycle / health / domain filter bar for `/projects` | [src/lib/components/project-filter-bar.svelte](mdc:src/lib/components/project-filter-bar.svelte) |
+| URL-synced lifecycle / health / domain filter bar for `/projects` (collapsed by default; `bind:open`; desktop summary; mobile trigger on page week row) | [src/lib/components/project-filter-bar.svelte](mdc:src/lib/components/project-filter-bar.svelte) |
 | MYN zoned task list (Critical / Opportunity / OTH, defer dialog, promote/complete) | [src/lib/components/project-task-list.svelte](mdc:src/lib/components/project-task-list.svelte) |
 | MYN task create/edit Sheet (project, zone, start date) | [src/lib/components/project-task-sheet.svelte](mdc:src/lib/components/project-task-sheet.svelte) |
 | Project links inline editor (metadata Sheet, edit mode) | [src/lib/components/project-links-editor.svelte](mdc:src/lib/components/project-links-editor.svelte) |

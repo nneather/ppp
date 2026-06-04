@@ -3,9 +3,13 @@ import {
 	ATTENTION_HEALTH,
 	trendDirection,
 	parseProjectFilters,
+	isDefaultLifecycleFilter,
+	countActiveProjectFilters,
+	hasActiveProjectFilters,
 	matchesFilter,
 	computeVisibleNodeIds
 } from '$lib/projects/filter';
+import { DEFAULT_VISIBLE_LIFECYCLES } from '$lib/types/projects';
 import type { LatestHealth, ProjectNode } from '$lib/types/projects';
 
 function node(
@@ -86,6 +90,33 @@ describe('parseProjectFilters', () => {
 	it('parses comma-separated lifecycle', () => {
 		const f = parseProjectFilters(new URLSearchParams('lifecycle=done,archived'));
 		expect(f.lifecycle).toEqual(new Set(['done', 'archived']));
+	});
+});
+
+describe('active filter helpers', () => {
+	it('isDefaultLifecycleFilter matches DEFAULT_VISIBLE_LIFECYCLES', () => {
+		expect(isDefaultLifecycleFilter(DEFAULT_VISIBLE_LIFECYCLES)).toBe(true);
+		expect(isDefaultLifecycleFilter(new Set(['done', 'archived']))).toBe(false);
+	});
+
+	it('countActiveProjectFilters returns 0 for defaults', () => {
+		expect(countActiveProjectFilters(parseProjectFilters(new URLSearchParams()))).toBe(0);
+	});
+
+	it('counts health, domain, and non-default lifecycle', () => {
+		expect(
+			countActiveProjectFilters(
+				parseProjectFilters(new URLSearchParams('health=attention&domain=Work'))
+			)
+		).toBe(2);
+		expect(
+			countActiveProjectFilters(parseProjectFilters(new URLSearchParams('lifecycle=done')))
+		).toBe(1);
+	});
+
+	it('hasActiveProjectFilters reflects count', () => {
+		expect(hasActiveProjectFilters(new URLSearchParams())).toBe(false);
+		expect(hasActiveProjectFilters(new URLSearchParams('health=watch'))).toBe(true);
 	});
 });
 

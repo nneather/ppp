@@ -23,6 +23,7 @@
 - **Trend wording:** Improved / Declined (doc); flat/none unchanged.
 - **Shapes (color-blind):** Excellent = solid circle; Satisfactory = half circle; Watch = **inverted** triangle (doc is point-up); Serious = half diamond; Critical = solid diamond.
 - **`/projects` tree:** omit status shape under name (picker already labels status); show green/red trend triangles only when `trend !== 'none'`.
+- **Filter panel:** collapsed by default (`bind:open` on `ProjectFilterBar`); desktop summary row (`md+`); mobile **Filters** toggle inline with week prev/date/next; badge shows `countActiveProjectFilters`.
 
 ## Schema changes
 

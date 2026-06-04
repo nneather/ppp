@@ -18,7 +18,8 @@
 	import type { PageProps } from './$types';
 	import type { ProjectNode, WeeklyDraftRow } from '$lib/types/projects';
 	import { formatWeekLabel, sundayContaining } from '$lib/projects/week';
-	import { parseProjectFilters } from '$lib/projects/filter';
+	import { countActiveProjectFilters, parseProjectFilters } from '$lib/projects/filter';
+	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 
 	let { data, form }: PageProps = $props();
 
@@ -52,6 +53,8 @@
 	const saveSuccess = $derived(f && f.kind === 'saveCheckin' && f.success === true);
 
 	const filters = $derived(parseProjectFilters(page.url.searchParams));
+	const activeFilterCount = $derived(countActiveProjectFilters(filters));
+	let filtersOpen = $state(false);
 
 	const domainNames = $derived(
 		data.tree.filter((n) => n.parent_id == null).map((n) => n.name)
@@ -187,37 +190,65 @@
 		</div>
 	{/if}
 
-	<section class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-		<div class="space-y-1">
-			<Label for="week-picker">Week of (Sunday)</Label>
-			<div class="flex flex-wrap items-center gap-2">
-				<Button type="button" variant="outline" size="sm" onclick={() => shiftWeek(-1)}>
-					← Prev
-				</Button>
-				<Input
-					id="week-picker"
-					type="date"
-					class="w-auto"
-					value={data.weekOf}
-					onchange={(e) => {
-						const v = (e.currentTarget as HTMLInputElement).value;
-						if (!v) return;
-						goto(weekHref(sundayContaining(v)), { keepFocus: true, noScroll: true });
-					}}
-				/>
-				<Button type="button" variant="outline" size="sm" onclick={() => shiftWeek(1)}>
-					Next →
-				</Button>
+	<section class="mb-6 space-y-3">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+			<div class="min-w-0 flex-1 space-y-1">
+				<Label for="week-picker">Week of (Sunday)</Label>
+				<div class="flex flex-wrap items-center gap-2">
+					<Button type="button" variant="outline" size="sm" onclick={() => shiftWeek(-1)}>
+						← Prev
+					</Button>
+					<Input
+						id="week-picker"
+						type="date"
+						class="w-auto min-w-0"
+						value={data.weekOf}
+						onchange={(e) => {
+							const v = (e.currentTarget as HTMLInputElement).value;
+							if (!v) return;
+							goto(weekHref(sundayContaining(v)), { keepFocus: true, noScroll: true });
+						}}
+					/>
+					<Button type="button" variant="outline" size="sm" onclick={() => shiftWeek(1)}>
+						Next →
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						class="md:hidden"
+						aria-expanded={filtersOpen}
+						aria-controls="project-filters-panel"
+						onclick={() => (filtersOpen = !filtersOpen)}
+					>
+						<SlidersHorizontal class="size-4" />
+						Filters
+						{#if activeFilterCount > 0}
+							<span
+								class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground"
+							>
+								{activeFilterCount}
+							</span>
+						{/if}
+					</Button>
+				</div>
+				<p class="text-xs text-muted-foreground">{formatWeekLabel(data.weekOf)}</p>
 			</div>
-			<p class="text-xs text-muted-foreground">{formatWeekLabel(data.weekOf)}</p>
+
+			<form
+				method="POST"
+				action="?/saveCheckin"
+				use:enhance={saveEnhance}
+				class="flex shrink-0 flex-col gap-2"
+			>
+				<input type="hidden" name="week_of" value={data.weekOf} />
+				<Button type="submit" hotkey="s" disabled={savePending || Object.keys(drafts).length === 0}>
+					{savePending ? 'Saving…' : 'Save check-in'}
+				</Button>
+			</form>
 		</div>
 
-		<form method="POST" action="?/saveCheckin" use:enhance={saveEnhance} class="flex flex-col gap-2">
-			<input type="hidden" name="week_of" value={data.weekOf} />
-			<Button type="submit" hotkey="s" disabled={savePending || Object.keys(drafts).length === 0}>
-				{savePending ? 'Saving…' : 'Save check-in'}
-			</Button>
-		</form>
+		<ProjectFilterBar bind:open={filtersOpen} {domainNames} />
 	</section>
 
 	{#if saveError}
@@ -237,8 +268,6 @@
 			Weekly check-in saved.
 		</p>
 	{/if}
-
-	<ProjectFilterBar {domainNames} />
 
 	{#if data.tree.length === 0}
 		<p class="text-sm text-muted-foreground">No projects yet. Add one under a domain.</p>

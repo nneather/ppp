@@ -55,6 +55,28 @@ export function parseProjectFilters(searchParams: URLSearchParams): ProjectFilte
 	return { lifecycle, health, domain };
 }
 
+/** True when lifecycle matches the default visible set (no `lifecycle` URL param). */
+export function isDefaultLifecycleFilter(lifecycle: Set<LifecycleStatus>): boolean {
+	if (lifecycle.size !== DEFAULT_VISIBLE_LIFECYCLES.size) return false;
+	for (const s of DEFAULT_VISIBLE_LIFECYCLES) {
+		if (!lifecycle.has(s)) return false;
+	}
+	return true;
+}
+
+/** Count of non-default filter dimensions for badge display. */
+export function countActiveProjectFilters(filters: ProjectFilters): number {
+	let count = 0;
+	if (!isDefaultLifecycleFilter(filters.lifecycle)) count++;
+	if (filters.health != null) count++;
+	if (filters.domain != null) count++;
+	return count;
+}
+
+export function hasActiveProjectFilters(searchParams: URLSearchParams): boolean {
+	return countActiveProjectFilters(parseProjectFilters(searchParams)) > 0;
+}
+
 function nodeInDomainSubtree(node: ProjectNode, domainRootId: string | null): boolean {
 	if (domainRootId == null) return true;
 	if (node.id === domainRootId) return true;

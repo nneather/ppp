@@ -13,12 +13,20 @@
 		type HealthStatus
 	} from '$lib/types/projects';
 	import HealthStatusIcon from '$lib/components/health-status-icon.svelte';
+	import { countActiveProjectFilters, parseProjectFilters } from '$lib/projects/filter';
 	import { cn } from '$lib/utils';
+	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
 	let {
-		domainNames
+		domainNames,
+		open = $bindable(false),
+		/** When false, omit summary (page provides mobile trigger). Summary still shows from md+ via CSS. */
+		showSummary = true
 	}: {
 		domainNames: string[];
+		open?: boolean;
+		showSummary?: boolean;
 	} = $props();
 
 	function buildParams(mutator: (p: URLSearchParams) => void): string {
@@ -64,6 +72,10 @@
 		return null;
 	});
 
+	const activeFilterCount = $derived(
+		countActiveProjectFilters(parseProjectFilters(page.url.searchParams))
+	);
+
 	function toggleLifecycle(status: LifecycleStatus) {
 		navigate((p) => {
 			const next = new Set(activeLifecycles);
@@ -99,76 +111,130 @@
 	const optionalLifecycles = $derived(
 		LIFECYCLE_STATUSES.filter((s) => !DEFAULT_VISIBLE_LIFECYCLES.has(s))
 	);
+
+	function toggleOpen() {
+		open = !open;
+	}
 </script>
 
-<div class="mb-4 space-y-3 rounded-lg border border-border bg-muted/20 p-3 md:p-4">
-	<div class="flex flex-wrap items-center gap-2">
-		<span class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Lifecycle</span>
-		{#each LIFECYCLE_STATUSES as status (status)}
-			<Button
-				type="button"
-				variant={activeLifecycles.has(status) ? 'default' : 'outline'}
-				size="sm"
-				class={cn('h-7 text-xs', optionalLifecycles.includes(status) && !activeLifecycles.has(status) && 'opacity-70')}
-				onclick={() => toggleLifecycle(status)}
-			>
-				{LIFECYCLE_STATUS_LABELS[status]}
-			</Button>
-		{/each}
-	</div>
-
-	<div class="flex flex-wrap gap-3">
-		<div class="min-w-[10rem] flex-1 space-y-1">
-			<label for="health-filter" class="text-xs font-medium text-muted-foreground">Health</label>
-			<Select.Root
-				type="single"
-				value={healthValue}
-				onValueChange={(v) => {
-					if (v) setHealth(v);
-				}}
-			>
-				<Select.Trigger id="health-filter" class="w-full">
-					<span class="inline-flex items-center gap-2">
-						{#if selectedHealthStatus}
-							<HealthStatusIcon health={selectedHealthStatus} size="xs" />
-						{/if}
-						{healthLabel}
+<div
+	class={cn(
+		'mb-4 rounded-lg border border-border bg-muted/20',
+		!open && 'max-md:hidden'
+	)}
+>
+	{#if showSummary}
+		<button
+			type="button"
+			class={cn(
+				'hidden w-full cursor-pointer items-center justify-between gap-2 px-3 py-3 text-sm font-medium text-foreground md:flex md:px-4',
+				open && 'border-b border-border'
+			)}
+			aria-expanded={open}
+			aria-controls="project-filters-panel"
+			onclick={toggleOpen}
+		>
+			<span class="flex items-center gap-2">
+				<SlidersHorizontal class="size-4 text-muted-foreground" />
+				Filters
+				{#if activeFilterCount > 0}
+					<span
+						class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground"
+					>
+						{activeFilterCount}
 					</span>
-				</Select.Trigger>
-				<Select.Content>
-					<Select.Item value="all" label="All health">All health</Select.Item>
-					<Select.Item value="attention" label="Needs attention">Needs attention</Select.Item>
-					{#each HEALTH_STATUSES as st (st)}
-						<Select.Item value={st} label={HEALTH_STATUS_LABELS[st]}>
-							<span class="inline-flex items-center gap-2">
-								<HealthStatusIcon health={st} size="xs" />
-								{HEALTH_STATUS_LABELS[st]}
-							</span>
-						</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-		</div>
+				{/if}
+			</span>
+			<ChevronDown
+				class={cn(
+					'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+					open && 'rotate-180'
+				)}
+			/>
+		</button>
+	{/if}
 
-		<div class="min-w-[10rem] flex-1 space-y-1">
-			<label for="domain-filter" class="text-xs font-medium text-muted-foreground">Domain</label>
-			<Select.Root
-				type="single"
-				value={domainValue}
-				onValueChange={(v) => {
-					if (v) setDomain(v);
-				}}
-			>
-				<Select.Trigger id="domain-filter" class="w-full">
-					{domainValue === 'all' ? 'All domains' : domainValue}
-				</Select.Trigger>
-				<Select.Content>
-					<Select.Item value="all" label="All domains">All domains</Select.Item>
-					{#each domainNames as name (name)}
-						<Select.Item value={name} label={name}>{name}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
+	{#if open}
+		<div
+			id="project-filters-panel"
+			class={cn('space-y-3 p-3 md:p-4', showSummary && 'md:pt-4')}
+		>
+			<div class="flex flex-wrap items-center gap-2">
+				<span class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+					>Lifecycle</span
+				>
+				{#each LIFECYCLE_STATUSES as status (status)}
+					<Button
+						type="button"
+						variant={activeLifecycles.has(status) ? 'default' : 'outline'}
+						size="sm"
+						class={cn(
+							'h-7 text-xs',
+							optionalLifecycles.includes(status) &&
+								!activeLifecycles.has(status) &&
+								'opacity-70'
+						)}
+						onclick={() => toggleLifecycle(status)}
+					>
+						{LIFECYCLE_STATUS_LABELS[status]}
+					</Button>
+				{/each}
+			</div>
+
+			<div class="flex flex-wrap gap-3">
+				<div class="min-w-[10rem] flex-1 space-y-1">
+					<label for="health-filter" class="text-xs font-medium text-muted-foreground">Health</label>
+					<Select.Root
+						type="single"
+						value={healthValue}
+						onValueChange={(v) => {
+							if (v) setHealth(v);
+						}}
+					>
+						<Select.Trigger id="health-filter" class="w-full">
+							<span class="inline-flex items-center gap-2">
+								{#if selectedHealthStatus}
+									<HealthStatusIcon health={selectedHealthStatus} size="xs" />
+								{/if}
+								{healthLabel}
+							</span>
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="all" label="All health">All health</Select.Item>
+							<Select.Item value="attention" label="Needs attention">Needs attention</Select.Item>
+							{#each HEALTH_STATUSES as st (st)}
+								<Select.Item value={st} label={HEALTH_STATUS_LABELS[st]}>
+									<span class="inline-flex items-center gap-2">
+										<HealthStatusIcon health={st} size="xs" />
+										{HEALTH_STATUS_LABELS[st]}
+									</span>
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+
+				<div class="min-w-[10rem] flex-1 space-y-1">
+					<label for="domain-filter" class="text-xs font-medium text-muted-foreground">Domain</label>
+					<Select.Root
+						type="single"
+						value={domainValue}
+						onValueChange={(v) => {
+							if (v) setDomain(v);
+						}}
+					>
+						<Select.Trigger id="domain-filter" class="w-full">
+							{domainValue === 'all' ? 'All domains' : domainValue}
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="all" label="All domains">All domains</Select.Item>
+							{#each domainNames as name (name)}
+								<Select.Item value={name} label={name}>{name}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+			</div>
 		</div>
-	</div>
+	{/if}
 </div>
