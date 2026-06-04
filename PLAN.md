@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-06-03 — **Projects Session 2 complete** ([046](docs/decisions/046-projects-session-2-dashboard-filters.md)); dashboard strip + filters shipped. Session 1: [045](docs/decisions/045-projects-session-1-tree-checkin.md).
+**Last updated:** 2026-06-04 — **Projects Session 3 complete** ([047](docs/decisions/047-projects-session-3-myn-tasks-links-audit.md)); MYN tasks page + links + audit. Session 2: [046](docs/decisions/046-projects-session-2-dashboard-filters.md).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,7 @@
 
 ## Current focus
 
-**Projects — Session 3 next:** Session 2 shipped — dashboard status strip, attention tile, trend arrows, URL filters ([046](docs/decisions/046-projects-session-2-dashboard-filters.md)). Tracker: [POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md). **Owner phone smoke** still optional (create under Work, check-in ×2 same week).
+**Projects — v1 feature-complete:** Tree + check-in ([045]), dashboard + filters ([046]), MYN tasks + links + audit ([047](docs/decisions/047-projects-session-3-myn-tasks-links-audit.md)). Design: [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md). **Owner phone smoke** still optional (full flow: tree → dashboard → `/projects/tasks` → links in Sheet → audit).
 
 **Library — maintenance / trip use:** Trip owner QA **signed off 2026-06-03** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)). PWA is **passable**; **performance** work continues in a separate chat. No library build sessions until Wave 2 (August) or ad-hoc fixes.
 
@@ -27,7 +27,7 @@ Nearest hard dates:
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ **Trip build complete** — QA signed off 2026-06-03. **Wave 2 (Aug):** shelf Turabian QA, megacomponent split, essays Q5. PWA perf: separate thread. |
-| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | 🟢 **Session 2 done** — dashboard glance + filters. **Next:** Session 3 links/tasks/audit. |
+| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **Session 3 done** — MYN `/projects/tasks`, links in Sheet, audit. **Future:** global Now view ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)). |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -35,6 +35,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [047 — Projects Session 3: MYN tasks + links + audit](docs/decisions/047-projects-session-3-myn-tasks-links-audit.md) (2026-06-04) — `/projects/tasks`, start-date MYN zones, links editor.
 - [046 — Projects Session 2: dashboard glance + filters](docs/decisions/046-projects-session-2-dashboard-filters.md) (2026-06-03) — status strip, attention tile, URL filters, `not_started` lifecycle.
 - [045 — Projects Session 1: tree + weekly check-in](docs/decisions/045-projects-session-1-tree-checkin.md) (2026-06-03) — migration, inline tree, PK upsert (NEW-D).
 - [043 — Library trip QA sign-off + projects handoff](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md) (2026-06-03) — owner QA passable; projects kickoff.
@@ -44,7 +45,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Session handoff
 
-**Projects Session 3:** Links + tasks + audit enrichment — see tracker Session 3. Helpers: `src/lib/projects/filter.ts`, `loadLatestHealth` in loaders.
+**Projects maintenance:** MYN tasks at `/projects/tasks`; optional global Now view per [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md). Helpers: `task-loaders.ts`, `task-actions.ts`, `filter.ts`.
 
 **Optional polish (separate chat):** Health/lifecycle status appearance — see **Session prompts** below; attach your design doc when ready.
 
@@ -115,6 +116,6 @@ Attach: [paste or @-mention your status appearance document here]
 
 ## Next up
 
-1. **Projects Session 3** — links, tasks, audit enrichment (slippable post-v1).
+1. **Projects — global MYN Now view** — cross-module tasks ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)).
 2. **Library (parallel / low priority):** PWA performance (separate chat); August Wave 2 when shelf is home.
 3. **Invoicing:** first real-client send cadence (owner-driven).

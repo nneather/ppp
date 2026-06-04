@@ -1,6 +1,6 @@
 # Personal Operations System — Projects Module Build Tracker
 
-_Last updated: 2026-06-03 | Module: Project Management (3rd) | Target: live ASAP — internship IN PROGRESS, health recording first_
+_Last updated: 2026-06-04 | Module: Project Management (3rd) | v1 feature-complete — owner phone smoke optional_
 
 _Session 0 is structure-lock only (no Cursor). Each feature session ships a vertical slice, ends with an Acceptance checklist + decision record, and carries an explicit viewer/RLS line and per-session test cadence._
 
@@ -175,18 +175,20 @@ _Goal: read-only at-a-glance view + week-over-week trend + filtering. No recursi
 
 ---
 
-## Session 3 — Links + Tasks + Audit + Smoke (2–3h) [SLIPPABLE]
+## Session 3 — MYN Tasks + Links + Audit + Smoke (2–3h) ✓ done 2026-06-04
 
-_Copy-paste prompt: [PLAN.md § Session prompts](PLAN.md#session-prompts-copy-paste) — "Start Projects Session 3"._
+_Reworked mid-session: tasks follow **MYN** (Master Your Now), not lean checklist. Design: [MYN_TASKS_DESIGN.md](MYN_TASKS_DESIGN.md)._
 
 | Task | Done | Notes |
 |------|:----:|-------|
-| `project_links` inline editor on project detail | ☐ | Table already in v1 migration; UI only. |
-| Resolve T1 (task due dates?) → `project_tasks` migration (new file) + types | ☐ | Footgun #4: new file. |
-| Task UI — add / toggle / reorder. No gamification (low Follow Thru). | ☐ | |
-| Extend `/settings/audit-log` filters — projects table group | ☐ | Reuse pattern. |
-| Full smoke (owner) on phone | ☐ | Create → check-in → glance → task/link → audit. |
-| Decision record + `PLAN.md` update | ☐ | |
+| `project_links` inline editor (metadata Sheet, edit mode) | ✓ | `project-links-editor.svelte`; hard delete. |
+| T1 → `project_tasks` migration + types | ✓ | `20260604030000_ppp_project_tasks_myn.sql`; start date, no due_date. |
+| MYN task UI — `/projects/tasks` (zones, FRESH, defer/promote/complete) | ✓ | Not drag-reorder; global list + `?project=` filter. |
+| Extend `/settings/audit-log` — `project_tasks` | ✓ | Soft-delete revert. |
+| Full smoke (owner) on phone | ☐ | Code complete; owner to run on device. |
+| Decision record + `PLAN.md` + `MYN_TASKS_DESIGN.md` | ✓ | [047](decisions/047-projects-session-3-myn-tasks-links-audit.md). |
+
+**Backlog (future session):** global cross-module Now view — see [MYN_TASKS_DESIGN.md § Future](MYN_TASKS_DESIGN.md#future-architectural-build-backlog).
 
 ---
 
@@ -202,14 +204,14 @@ _Copy-paste prompt: [PLAN.md § Session prompts](PLAN.md#session-prompts-copy-pa
 - [x] `docs/decisions/045-projects-session-1-tree-checkin.md` filed; Surprises section written
 - [x] New DB gotcha → footgun registry (NEW-D)
 - [x] `PLAN.md` updated
-- [ ] Session 2+ rows follow same checklist at session end
+- [x] Session 2+ rows follow same checklist at session end
 
 ## Schema reference (applied)
 
 | Artifact | Location |
 |----------|----------|
 | Migration (prod) | `supabase/migrations/20260603170000_ppp_projects_v1.sql` |
-| Generated types | `src/lib/types/database.ts` — `projects`, `project_updates`, `project_links` |
+| Generated types | `src/lib/types/database.ts` — `projects`, `project_updates`, `project_links`, `project_tasks` |
 | Human-readable DDL | [POS_Schema_v1.md](POS_Schema_v1.md#projects) |
 | App enums / view-models | `src/lib/types/projects.ts` |
 

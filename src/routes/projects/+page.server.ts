@@ -8,12 +8,17 @@ import {
 	loadProjectRows,
 	loadLatestHealth
 } from '$lib/projects/server/loaders';
+import { loadLinksByProject } from '$lib/projects/server/task-loaders';
 import {
 	saveWeeklyCheckinAction,
 	createProjectAction,
 	updateProjectAction,
 	softDeleteProjectAction,
-	undoSoftDeleteProjectAction
+	undoSoftDeleteProjectAction,
+	createProjectLinkAction,
+	updateProjectLinkAction,
+	deleteProjectLinkAction,
+	reorderProjectLinksAction
 } from '$lib/projects/server/actions';
 import {
 	currentSundayChicago,
@@ -41,13 +46,15 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 
 	const supabase = locals.supabase;
 
-	const [tree, weekUpdatesMap, carryForwardMap, flatRows, latestHealthMap] = await Promise.all([
-		locals.perf.measure('db', () => loadProjectTree(supabase)),
-		locals.perf.measure('db', () => loadWeekUpdates(supabase, weekOf)),
-		locals.perf.measure('db', () => loadCarryForward(supabase, prevWeek)),
-		locals.perf.measure('db', () => loadProjectRows(supabase)),
-		locals.perf.measure('db', () => loadLatestHealth(supabase))
-	]);
+	const [tree, weekUpdatesMap, carryForwardMap, flatRows, latestHealthMap, linksByProject] =
+		await Promise.all([
+			locals.perf.measure('db', () => loadProjectTree(supabase)),
+			locals.perf.measure('db', () => loadWeekUpdates(supabase, weekOf)),
+			locals.perf.measure('db', () => loadCarryForward(supabase, prevWeek)),
+			locals.perf.measure('db', () => loadProjectRows(supabase)),
+			locals.perf.measure('db', () => loadLatestHealth(supabase)),
+			locals.perf.measure('db', () => loadLinksByProject(supabase))
+		]);
 
 	const weekUpdates = Object.fromEntries(weekUpdatesMap) as Record<string, ProjectUpdateRow>;
 	const carryForward = Object.fromEntries(carryForwardMap) as Record<
@@ -65,7 +72,8 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		weekUpdates,
 		carryForward,
 		latestHealth,
-		recentlyDeletedId
+		recentlyDeletedId,
+		linksByProject
 	};
 };
 
@@ -100,5 +108,25 @@ export const actions: Actions = {
 			return fail(401, { kind: 'undoSoftDeleteProject' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return undoSoftDeleteProjectAction(locals.supabase, fd);
+	},
+	createProjectLink: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'createProjectLink' as const, message: 'Unauthorized' });
+		return createProjectLinkAction(locals.supabase, user.id, await request.formData());
+	},
+	updateProjectLink: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'updateProjectLink' as const, message: 'Unauthorized' });
+		return updateProjectLinkAction(locals.supabase, await request.formData());
+	},
+	deleteProjectLink: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'deleteProjectLink' as const, message: 'Unauthorized' });
+		return deleteProjectLinkAction(locals.supabase, await request.formData());
+	},
+	reorderProjectLinks: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'reorderProjectLinks' as const, message: 'Unauthorized' });
+		return reorderProjectLinksAction(locals.supabase, await request.formData());
 	}
 };

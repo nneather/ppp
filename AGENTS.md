@@ -101,14 +101,18 @@ End-of-session deliverables:
  - `src/lib/library/run-with-concurrency.ts` — `runWithConcurrency` (OCR file pipeline cap).
   - **`supabase/functions/ocr_scripture_refs`** — Library OCR: user JWT via `/auth/v1/user`, service-role storage download from `library-scripture-images`, Anthropic Messages API (vision + PDF `document` block). Secrets: `ANTHROPIC_API_KEY` (+ optional `ANTHROPIC_OCR_MODEL`); see [supabase/README.md](supabase/README.md) + [021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md). Dense index pages: `max_tokens` 64k + short `rawText` prompt; `stop_reason=max_tokens` → HTTP 422 — [026](docs/decisions/026-ocr-density-truncation.md). Post-OCR batch review: compact rows, page-boundary markers, bulk confirm, contiguous page-range prompt — [028](docs/decisions/028-ocr-review-ux-and-accuracy.md). Patristic semicolon section pointers (`VI, 7; VIII, 10`) → one row per pointer — [029](docs/decisions/029-ocr-section-pointer-split.md). Multi-page PDF input (one call per file; `source_page_index` for strip grouping) — [030](docs/decisions/030-ocr-pdf-input.md); bucket allows `application/pdf` up to 25 MiB.
 
-- **Projects helpers** at `src/lib/projects/` (schema: [docs/POS_Schema_v1.md](docs/POS_Schema_v1.md#projects), migration `supabase/migrations/20260603170000_ppp_projects_v1.sql`, types in `database.ts`):
-  - `src/lib/types/projects.ts` — `LIFECYCLE_STATUSES`, `HEALTH_STATUSES`, view-models (`ProjectNode`, `WeeklyDraftRow` with optional `update_id`, etc.).
-  - `src/lib/projects/week.ts` — civil **Chicago Sunday** week start (`currentSundayChicago`, `sundayContaining`, `previousSunday`); distinct from invoicing Monday weeks. Unit tests: `week.test.ts`.
-  - `src/lib/projects/server/loaders.ts` — `loadProjectTree`, `loadWeekUpdates`, `loadCarryForward`, `collectDescendantIds`, `buildProjectTree`. Session 2 adds dashboard/latest-health flat queries here.
-  - `src/lib/projects/server/actions.ts` — `saveWeeklyCheckinAction` (PK upsert — footgun NEW-D; every row gets `id` via `update_id` \| DB \| `randomUUID()`), `createProjectAction`, `updateProjectAction`, `softDeleteProjectAction`, `undoSoftDeleteProjectAction`.
-  - `/projects` — inline tree (`project-tree.svelte`) + metadata sheet (`project-form-sheet.svelte`); `depends('app:projects:tree')`. Draft seed: full rebuild on week/updates change; **merge** on tree-only change (footgun #1).
-  - **Partial unique upsert:** `project_updates` uses `UNIQUE (project_id, week_of) WHERE deleted_at IS NULL` — batch save must upsert on PK `id`, not `onConflict: 'project_id,week_of'` ([045](docs/decisions/045-projects-session-1-tree-checkin.md)).
-  - **Audit log:** `_PROJECTS_TABLES` in `src/routes/settings/audit-log/+page.server.ts`; revertible for `projects` / `project_updates` only.
+- **Projects helpers** at `src/lib/projects/` (schema: [docs/POS_Schema_v1.md](docs/POS_Schema_v1.md#projects), migrations `20260603170000_ppp_projects_v1.sql` + `20260604030000_ppp_project_tasks_myn.sql`, MYN design: [docs/MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)):
+  - `src/lib/types/projects.ts` — lifecycle/health enums; MYN `TASK_PRIORITIES`, `TASK_ZONE_CAPS`, `ProjectTaskView`, `TaskZoneGroup`, `ProjectLinkRow`.
+  - `src/lib/projects/week.ts` — civil **Chicago Sunday** week start; unit tests: `week.test.ts`.
+  - `src/lib/projects/filter.ts` — URL filters, attention set, trend direction.
+  - `src/lib/projects/server/loaders.ts` — tree, week updates, carry-forward, `loadLatestHealth`.
+  - `src/lib/projects/server/task-loaders.ts` — `loadTasks` (zoned MYN + FRESH), `loadLinksByProject`.
+  - `src/lib/projects/server/actions.ts` — check-in + project CRUD + `project_links` CRUD/reorder.
+  - `src/lib/projects/server/task-actions.ts` — MYN task create/update/complete/defer/promote/soft-delete.
+  - `/projects` — tree + metadata sheet (links in edit mode); `depends('app:projects:tree')`.
+  - `/projects/tasks` — MYN task page; `depends('app:projects:tasks')`; Chicago today via `ymdInChicago()`.
+  - **Partial unique upsert:** `project_updates` — PK `id` only ([045](docs/decisions/045-projects-session-1-tree-checkin.md)).
+  - **Audit log:** `_PROJECTS_TABLES` includes `project_tasks`; soft-delete revert for `projects`, `project_updates`, `project_tasks`.
 
 ### Scripts
 

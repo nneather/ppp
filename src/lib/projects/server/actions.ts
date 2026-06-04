@@ -20,7 +20,11 @@ export type ProjectsActionKind =
 	| 'createProject'
 	| 'updateProject'
 	| 'softDeleteProject'
-	| 'undoSoftDeleteProject';
+	| 'undoSoftDeleteProject'
+	| 'createProjectLink'
+	| 'updateProjectLink'
+	| 'deleteProjectLink'
+	| 'reorderProjectLinks';
 
 const LIFECYCLE_SET: ReadonlySet<string> = new Set(LIFECYCLE_STATUSES);
 const HEALTH_SET: ReadonlySet<string> = new Set(HEALTH_STATUSES);
@@ -341,4 +345,192 @@ export async function undoSoftDeleteProjectAction(supabase: SupabaseClient, fd: 
 	}
 
 	return { kind: 'undoSoftDeleteProject' as const, projectId: id, success: true as const };
+}
+
+function parseUrl(raw: FormDataEntryValue | null): string | null {
+	const t = String(raw ?? '').trim();
+	if (!t || t.length > 2000) return null;
+	try {
+		const u = new URL(t);
+		if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+		return t;
+	} catch {
+		return null;
+	}
+}
+
+export async function createProjectLinkAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const project_id = parseUuid(fd.get('project_id'));
+	if (!project_id) {
+		return fail(400, { kind: 'createProjectLink' as const, message: 'Missing project id.' });
+	}
+
+	const url = parseUrl(fd.get('url'));
+	if (!url) {
+		return fail(400, {
+			kind: 'createProjectLink' as const,
+			projectId: project_id,
+			message: 'Valid https URL is required.'
+		});
+	}
+
+	const label = trimOrNull(fd.get('label'));
+
+	const { count, error: countErr } = await supabase
+		.from('project_links')
+		.select('id', { count: 'exact', head: true })
+		.eq('project_id', project_id);
+
+	if (countErr) {
+		console.error('createProjectLinkAction count', countErr);
+		return fail(500, {
+			kind: 'createProjectLink' as const,
+			projectId: project_id,
+			message: countErr.message ?? 'Could not add link.'
+		});
+	}
+
+	const { data, error } = await supabase
+		.from('project_links')
+		.insert({
+			project_id,
+			url,
+			label,
+			sort_order: count ?? 0,
+			created_by: userId
+		} as never)
+		.select('id')
+		.single();
+
+	if (error || !data) {
+		console.error('createProjectLinkAction', error);
+		return fail(500, {
+			kind: 'createProjectLink' as const,
+			projectId: project_id,
+			message: error?.message ?? 'Could not add link.'
+		});
+	}
+
+	return {
+		kind: 'createProjectLink' as const,
+		projectId: project_id,
+		linkId: data.id,
+		success: true as const
+	};
+}
+
+export async function updateProjectLinkAction(supabase: SupabaseClient, fd: FormData) {
+	const id = parseUuid(fd.get('id'));
+	const project_id = parseUuid(fd.get('project_id'));
+	if (!id || !project_id) {
+		return fail(400, { kind: 'updateProjectLink' as const, message: 'Missing link or project id.' });
+	}
+
+	const url = parseUrl(fd.get('url'));
+	if (!url) {
+		return fail(400, {
+			kind: 'updateProjectLink' as const,
+			projectId: project_id,
+			linkId: id,
+			message: 'Valid https URL is required.'
+		});
+	}
+
+	const { error } = await supabase
+		.from('project_links')
+		.update({
+			url,
+			label: trimOrNull(fd.get('label'))
+		} as never)
+		.eq('id', id);
+
+	if (error) {
+		console.error('updateProjectLinkAction', error);
+		return fail(500, {
+			kind: 'updateProjectLink' as const,
+			projectId: project_id,
+			linkId: id,
+			message: error.message ?? 'Could not update link.'
+		});
+	}
+
+	return {
+		kind: 'updateProjectLink' as const,
+		projectId: project_id,
+		linkId: id,
+		success: true as const
+	};
+}
+
+export async function deleteProjectLinkAction(supabase: SupabaseClient, fd: FormData) {
+	const id = parseUuid(fd.get('id'));
+	const project_id = parseUuid(fd.get('project_id'));
+	if (!id || !project_id) {
+		return fail(400, { kind: 'deleteProjectLink' as const, message: 'Missing link or project id.' });
+	}
+
+	const { error } = await supabase.from('project_links').delete().eq('id', id);
+
+	if (error) {
+		console.error('deleteProjectLinkAction', error);
+		return fail(500, {
+			kind: 'deleteProjectLink' as const,
+			projectId: project_id,
+			linkId: id,
+			message: error.message ?? 'Could not delete link.'
+		});
+	}
+
+	return {
+		kind: 'deleteProjectLink' as const,
+		projectId: project_id,
+		linkId: id,
+		success: true as const
+	};
+}
+
+export async function reorderProjectLinksAction(supabase: SupabaseClient, fd: FormData) {
+	const project_id = parseUuid(fd.get('project_id'));
+	if (!project_id) {
+		return fail(400, { kind: 'reorderProjectLinks' as const, message: 'Missing project id.' });
+	}
+
+	let ids: string[] = [];
+	try {
+		const parsed = JSON.parse(String(fd.get('ordered_ids') ?? ''));
+		if (!Array.isArray(parsed)) throw new Error('not array');
+		ids = parsed.filter((x): x is string => typeof x === 'string' && UUID_RE.test(x));
+	} catch {
+		return fail(400, {
+			kind: 'reorderProjectLinks' as const,
+			projectId: project_id,
+			message: 'Invalid order payload.'
+		});
+	}
+
+	for (let i = 0; i < ids.length; i++) {
+		const { error } = await supabase
+			.from('project_links')
+			.update({ sort_order: i } as never)
+			.eq('id', ids[i])
+			.eq('project_id', project_id);
+		if (error) {
+			console.error('reorderProjectLinksAction', error);
+			return fail(500, {
+				kind: 'reorderProjectLinks' as const,
+				projectId: project_id,
+				message: error.message ?? 'Could not reorder links.'
+			});
+		}
+	}
+
+	return {
+		kind: 'reorderProjectLinks' as const,
+		projectId: project_id,
+		success: true as const
+	};
 }

@@ -13,9 +13,11 @@
 		LIFECYCLE_STATUS_LABELS,
 		type LifecycleStatus,
 		type ProjectRow,
-		type ProjectFlatOption
+		type ProjectFlatOption,
+		type ProjectLinkRow
 	} from '$lib/types/projects';
 	import { collectDescendantIds } from '$lib/projects/server/loaders';
+	import ProjectLinksEditor from '$lib/components/project-links-editor.svelte';
 
 	export type ProjectFormInitial = ProjectRow;
 
@@ -27,7 +29,9 @@
 		allRows,
 		errorMessage = null,
 		defaultParentId = null,
-		onSaved
+		projectLinks = [],
+		onSaved,
+		onLinksChanged
 	}: {
 		open?: boolean;
 		mode: 'create' | 'edit';
@@ -36,10 +40,12 @@
 		allRows: ProjectRow[];
 		errorMessage?: string | null;
 		defaultParentId?: string | null;
+		projectLinks?: ProjectLinkRow[];
 		onSaved?: (info?: {
 			projectId?: string;
 			parentId?: string | null;
 		}) => void | Promise<void>;
+		onLinksChanged?: () => void | Promise<void>;
 	} = $props();
 
 	let sheetSide: 'right' | 'bottom' = $state('bottom');
@@ -232,6 +238,14 @@
 						class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-[4rem] w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					></textarea>
 				</div>
+
+				{#if mode === 'edit' && project}
+					<ProjectLinksEditor
+						projectId={project.id}
+						links={projectLinks}
+						onChanged={onLinksChanged}
+					/>
+				{/if}
 
 				<div class="flex flex-wrap gap-2 border-t border-border pt-4">
 					<Button type="submit" hotkey={mode === 'create' ? 's' : 'u'} disabled={pending}>

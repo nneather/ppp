@@ -1,0 +1,222 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { ymdInChicago } from '$lib/invoicing/chicago-date';
+import {
+	TASK_PRIORITIES,
+	TASK_PRIORITY_LABELS,
+	TASK_ZONE_CAPS,
+	TASK_PRIORITY_ORDER,
+	type TaskPriority,
+	type ProjectTaskView,
+	type TaskZoneGroup,
+	type ProjectLinkRow
+} from '$lib/types/projects';
+
+const TASK_COLUMNS =
+	'id, project_id, title, priority, start_date, completed_at, sort_order, created_at';
+
+function isTaskPriority(v: string): v is TaskPriority {
+	return (TASK_PRIORITIES as readonly string[]).includes(v);
+}
+
+function compareTasksFresh(a: ProjectTaskView, b: ProjectTaskView): number {
+	const sd = b.start_date.localeCompare(a.start_date);
+	if (sd !== 0) return sd;
+	if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+	return a.id.localeCompare(b.id);
+}
+
+function mapTaskRow(raw: {
+	id: string;
+	project_id: string;
+	title: string;
+	priority: string;
+	start_date: string;
+	completed_at: string | null;
+	sort_order: number;
+	projects: { name: string } | { name: string }[] | null;
+}): ProjectTaskView | null {
+	if (!isTaskPriority(raw.priority)) return null;
+	const proj = raw.projects;
+	const project_name = Array.isArray(proj) ? proj[0]?.name : proj?.name;
+	if (!project_name) return null;
+	return {
+		id: raw.id,
+		project_id: raw.project_id,
+		title: raw.title,
+		priority: raw.priority,
+		start_date: raw.start_date,
+		completed_at: raw.completed_at,
+		sort_order: raw.sort_order,
+		project_name
+	};
+}
+
+export type LoadTasksOptions = {
+	projectId?: string | null;
+	includeDeferred?: boolean;
+	includeCompleted?: boolean;
+	todayYmd?: string;
+};
+
+export type LoadTasksResult = {
+	zones: TaskZoneGroup[];
+	deferred: ProjectTaskView[];
+	completed: ProjectTaskView[];
+	todayYmd: string;
+};
+
+export async function loadTasks(
+	supabase: SupabaseClient,
+	opts: LoadTasksOptions = {}
+): Promise<LoadTasksResult> {
+	const todayYmd = opts.todayYmd ?? ymdInChicago();
+	const includeDeferred = opts.includeDeferred ?? false;
+	const includeCompleted = opts.includeCompleted ?? false;
+
+	let q = supabase
+		.from('project_tasks')
+		.select(`${TASK_COLUMNS}, projects!project_tasks_project_id_fkey ( name )`)
+		.is('deleted_at', null)
+		.order('start_date', { ascending: false })
+		.order('sort_order', { ascending: true })
+		.order('created_at', { ascending: true });
+
+	if (opts.projectId) {
+		q = q.eq('project_id', opts.projectId);
+	}
+
+	const { data, error } = await q;
+	if (error) {
+		console.error('loadTasks', error);
+		return { zones: emptyZones(), deferred: [], completed: [], todayYmd };
+	}
+
+	const all: ProjectTaskView[] = [];
+	for (const raw of data ?? []) {
+		const row = mapTaskRow(
+			raw as {
+				id: string;
+				project_id: string;
+				title: string;
+				priority: string;
+				start_date: string;
+				completed_at: string | null;
+				sort_order: number;
+				projects: { name: string } | { name: string }[] | null;
+			}
+		);
+		if (row) all.push(row);
+	}
+
+	const deferred: ProjectTaskView[] = [];
+	const completed: ProjectTaskView[] = [];
+	const byZone = new Map<TaskPriority, ProjectTaskView[]>();
+	for (const p of TASK_PRIORITY_ORDER) {
+		byZone.set(p, []);
+	}
+
+	for (const task of all) {
+		if (task.completed_at != null) {
+			if (includeCompleted) completed.push(task);
+			continue;
+		}
+		if (task.start_date > todayYmd) {
+			if (includeDeferred) deferred.push(task);
+			continue;
+		}
+		const list = byZone.get(task.priority);
+		if (list) list.push(task);
+	}
+
+	deferred.sort(compareTasksFresh);
+	completed.sort((a, b) => {
+		const ca = a.completed_at ?? '';
+		const cb = b.completed_at ?? '';
+		return cb.localeCompare(ca);
+	});
+
+	const zones: TaskZoneGroup[] = TASK_PRIORITY_ORDER.map((priority) => {
+		const tasks = (byZone.get(priority) ?? []).sort(compareTasksFresh);
+		const cap = TASK_ZONE_CAPS[priority];
+		const count = tasks.length;
+		return {
+			priority,
+			label: TASK_PRIORITY_LABELS[priority],
+			cap,
+			tasks,
+			count,
+			overCap: cap != null && count > cap
+		};
+	});
+
+	return { zones, deferred, completed, todayYmd };
+}
+
+function emptyZones(): TaskZoneGroup[] {
+	return TASK_PRIORITY_ORDER.map((priority) => ({
+		priority,
+		label: TASK_PRIORITY_LABELS[priority],
+		cap: TASK_ZONE_CAPS[priority],
+		tasks: [],
+		count: 0,
+		overCap: false
+	}));
+}
+
+const LINK_COLUMNS = 'id, project_id, url, label, sort_order';
+
+export async function loadProjectLinks(
+	supabase: SupabaseClient,
+	projectId: string
+): Promise<ProjectLinkRow[]> {
+	const { data, error } = await supabase
+		.from('project_links')
+		.select(LINK_COLUMNS)
+		.eq('project_id', projectId)
+		.order('sort_order', { ascending: true })
+		.order('created_at', { ascending: true });
+
+	if (error) {
+		console.error('loadProjectLinks', error);
+		return [];
+	}
+
+	return (data ?? []).map((r) => ({
+		id: r.id,
+		project_id: r.project_id,
+		url: r.url,
+		label: r.label,
+		sort_order: r.sort_order
+	}));
+}
+
+/** All links keyed by project_id — for the metadata sheet editor. */
+export async function loadLinksByProject(
+	supabase: SupabaseClient
+): Promise<Record<string, ProjectLinkRow[]>> {
+	const { data, error } = await supabase
+		.from('project_links')
+		.select(LINK_COLUMNS)
+		.order('sort_order', { ascending: true })
+		.order('created_at', { ascending: true });
+
+	if (error) {
+		console.error('loadLinksByProject', error);
+		return {};
+	}
+
+	const map: Record<string, ProjectLinkRow[]> = {};
+	for (const r of data ?? []) {
+		const row: ProjectLinkRow = {
+			id: r.id,
+			project_id: r.project_id,
+			url: r.url,
+			label: r.label,
+			sort_order: r.sort_order
+		};
+		const list = map[row.project_id];
+		if (list) list.push(row);
+		else map[row.project_id] = [row];
+	}
+	return map;
+}

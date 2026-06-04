@@ -607,7 +607,7 @@ book_topics
 
 ## Projects
 
-_Applied 2026-06-03 — migration [`20260603170000_ppp_projects_v1.sql`](../supabase/migrations/20260603170000_ppp_projects_v1.sql). Tracker: [POS_Projects_Build_Tracker.md](POS_Projects_Build_Tracker.md). `project_tasks` deferred to Session 3._
+_Applied 2026-06-03–04 — migrations [`20260603170000_ppp_projects_v1.sql`](../supabase/migrations/20260603170000_ppp_projects_v1.sql), [`20260604030000_ppp_project_tasks_myn.sql`](../supabase/migrations/20260604030000_ppp_project_tasks_myn.sql). Tracker: [POS_Projects_Build_Tracker.md](POS_Projects_Build_Tracker.md). MYN tasks: [MYN_TASKS_DESIGN.md](MYN_TASKS_DESIGN.md)._
 
 **Design:** One self-referential `projects` table. Four root domains (Education, Work, Ministry, Personal) are seeded rows with `parent_id` NULL — not an enum. Parent weekly health is **manually set per node** (no roll-up view). Weekly `week_of` is civil **Sunday** as `DATE` (Chicago-computed in app; distinct from invoicing Monday-week helpers).
 
@@ -679,7 +679,27 @@ project_links
 
 **GRANTs:** Explicit `SELECT, INSERT, UPDATE, DELETE` to `authenticated` on all three tables.
 
-**Deferred:** `project_tasks` — separate migration in Session 3 after due-date shape locked.
+### `project_tasks` (MYN — Session 3)
+
+```sql
+project_tasks
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  project_id   UUID NOT NULL REFERENCES projects(id)
+  title        TEXT NOT NULL
+  priority     TEXT NOT NULL CHECK (priority IN ('critical_now','opportunity_now','over_horizon'))
+                 DEFAULT 'opportunity_now'
+  start_date   DATE NOT NULL          -- Chicago civil; hide if future; FRESH sort when visible
+  completed_at TIMESTAMPTZ            -- null = open
+  sort_order   INT NOT NULL DEFAULT 0
+  deleted_at   TIMESTAMPTZ
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_by   UUID REFERENCES profiles(id)
+```
+
+**Notes:** MYN methodology — see [MYN_TASKS_DESIGN.md](MYN_TASKS_DESIGN.md). No `due_date`. UI: `/projects/tasks`.
+
+**Migration:** `20260604030000_ppp_project_tasks_myn.sql`
 
 ---
 
@@ -727,6 +747,7 @@ project_links
 | `projects`              | Full   | SELECT if `app_has_module_read('projects')` |
 | `project_updates`       | Full   | SELECT if `app_has_module_read('projects')` |
 | `project_links`         | Full   | SELECT if `app_has_module_read('projects')` |
+| `project_tasks`         | Full   | SELECT if `app_has_module_read('projects')` |
 
 ---
 
@@ -736,7 +757,7 @@ project_links
 | ---------------------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
 | `set_updated_at`       | All tables with `updated_at` | Maintain updated_at on every UPDATE                                                         |
 | `compute_verse_abs`    | `scripture_references`       | Recompute `verse_start_abs`/`verse_end_abs` on INSERT or UPDATE of any chapter/verse field  |
-| `audit_log_trigger` / `trg_audit_*` | All tables incl. `projects`, `project_updates`, `project_links` | Write to `audit_log` on INSERT/UPDATE/DELETE; set `revertible` based on operation and table |
+| `audit_log_trigger` / `trg_audit_*` | All tables incl. `projects`, `project_updates`, `project_links`, `project_tasks` | Write to `audit_log` on INSERT/UPDATE/DELETE; set `revertible` based on operation and table |
 | `set_revertible_false` | `invoices`                   | Set `revertible = false` when status transitions to `sent` or `paid`                        |
 
 **Deploy note:** `set_revertible_false` must **not** be attached to tables without a `status` column (e.g. `time_entries`), or Postgres will error with `record "new" has no field "status"`. The baseline migration ([`supabase/migrations/00000000000000_baseline.sql`](../supabase/migrations/00000000000000_baseline.sql)) is the canonical DDL source and already contains the correct trigger scoping. Diagnostic queries: [`sql/inspect_status_triggers.sql`](../sql/inspect_status_triggers.sql). See [`supabase/README.md`](../supabase/README.md).

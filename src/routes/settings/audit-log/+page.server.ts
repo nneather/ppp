@@ -13,7 +13,12 @@ export const _INVOICING_TABLES = [
 	'invoice_line_items'
 ] as const;
 
-export const _PROJECTS_TABLES = ['projects', 'project_updates', 'project_links'] as const;
+export const _PROJECTS_TABLES = [
+	'projects',
+	'project_updates',
+	'project_links',
+	'project_tasks'
+] as const;
 
 export const _LIBRARY_TABLES = [
 	'ancient_texts',
@@ -62,7 +67,8 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'book_topics',
 	// projects
 	'projects',
-	'project_updates'
+	'project_updates',
+	'project_tasks'
 ]);
 
 // Fields that must not be overwritten by a revert: identity, audit metadata,
@@ -201,6 +207,12 @@ function entityLabelFor(
 		}
 		case 'project_links':
 			return get('label') ?? get('url');
+		case 'project_tasks': {
+			const title = get('title');
+			const pri = get('priority');
+			if (title && pri) return `${title} · ${pri.replaceAll('_', ' ')}`;
+			return title;
+		}
 		case 'scripture_references': {
 			const bibleBook = get('bible_book');
 			const cs = data.chapter_start;

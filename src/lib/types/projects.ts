@@ -96,3 +96,58 @@ export type ProjectFilters = {
 	health: HealthStatus | 'attention' | null;
 	domain: string | null;
 };
+
+/** MYN urgency zones (maps to Outlook High / Normal / Low). */
+export const TASK_PRIORITIES = [
+	'critical_now',
+	'opportunity_now',
+	'over_horizon'
+] as const;
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+	critical_now: 'Critical Now',
+	opportunity_now: 'Opportunity Now',
+	over_horizon: 'Over the Horizon'
+};
+
+/** MYN soft caps for visible open tasks per zone. */
+export const TASK_ZONE_CAPS: Record<TaskPriority, number | null> = {
+	critical_now: 5,
+	opportunity_now: 20,
+	over_horizon: null
+};
+
+/** Zone display order on the MYN task page. */
+export const TASK_PRIORITY_ORDER: readonly TaskPriority[] = TASK_PRIORITIES;
+
+export type ProjectTaskRow = {
+	id: string;
+	project_id: string;
+	title: string;
+	priority: TaskPriority;
+	start_date: string;
+	completed_at: string | null;
+	sort_order: number;
+};
+
+export type ProjectTaskView = ProjectTaskRow & {
+	project_name: string;
+};
+
+export type TaskZoneGroup = {
+	priority: TaskPriority;
+	label: string;
+	cap: number | null;
+	tasks: ProjectTaskView[];
+	count: number;
+	overCap: boolean;
+};
+
+export type ProjectLinkRow = {
+	id: string;
+	project_id: string;
+	url: string;
+	label: string | null;
+	sort_order: number;
+};

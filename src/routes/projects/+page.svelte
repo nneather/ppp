@@ -156,8 +156,12 @@
 	<FolderKanban class="size-6 shrink-0 text-muted-foreground" />
 {/snippet}
 
+{#snippet projectsActions()}
+	<Button type="button" variant="outline" size="sm" href="/projects/tasks">Tasks</Button>
+{/snippet}
+
 <div class="mx-auto max-w-4xl px-4 py-6 pb-tabbar md:px-6 md:py-8">
-	<PageHeader title="Projects" lead={projectsLead} />
+	<PageHeader title="Projects" lead={projectsLead} actions={projectsActions} />
 
 	<p class="mb-6 text-sm text-muted-foreground">
 		Weekly health check-in across your project tree.
@@ -270,7 +274,11 @@
 	allRows={data.allRows}
 	errorMessage={sheetError}
 	{defaultParentId}
+	projectLinks={editingProject ? (data.linksByProject[editingProject.id] ?? []) : []}
 	onSaved={onProjectSaved}
+	onLinksChanged={async () => {
+		await invalidate('app:projects:tree');
+	}}
 />
 
 <ConfirmDialog
