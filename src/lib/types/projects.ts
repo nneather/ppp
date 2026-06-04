@@ -65,6 +65,10 @@ export type ProjectUpdateRow = {
 	health_status: HealthStatus;
 	reason: string | null;
 	next_steps: string | null;
+	/** NULL = progress tracking off for this week. */
+	progress_value: number | null;
+	progress_max: number | null;
+	progress_note: string | null;
 };
 
 export type WeeklyDraftRow = {
@@ -74,6 +78,9 @@ export type WeeklyDraftRow = {
 	health_status: HealthStatus;
 	reason: string;
 	next_steps: string;
+	progress_value: number | null;
+	progress_max: number | null;
+	progress_note: string | null;
 };
 
 export type ProjectFlatOption = {

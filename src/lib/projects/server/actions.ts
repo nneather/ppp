@@ -13,6 +13,11 @@ import {
 	loadProjectRows,
 	loadWeekUpdatesForSave
 } from '$lib/projects/server/loaders';
+import {
+	DEFAULT_PROGRESS_MAX,
+	parseProgressMax,
+	parseProgressValue
+} from '$lib/projects/progress';
 import { parseYmd, sundayContaining } from '$lib/projects/week';
 
 export type ProjectsActionKind =
@@ -73,15 +78,46 @@ function parseCheckinPayload(raw: string): WeeklyDraftRow[] | null {
 		if (!health_status) return null;
 		const update_id =
 			typeof o.update_id === 'string' && UUID_RE.test(o.update_id) ? o.update_id : undefined;
+		const progress = parseDraftProgress(o);
+		if (progress === 'invalid') return null;
+
 		rows.push({
 			project_id,
 			update_id,
 			health_status,
 			reason: typeof o.reason === 'string' ? o.reason : '',
-			next_steps: typeof o.next_steps === 'string' ? o.next_steps : ''
+			next_steps: typeof o.next_steps === 'string' ? o.next_steps : '',
+			...progress
 		});
 	}
 	return rows;
+}
+
+type DraftProgressFields = Pick<
+	WeeklyDraftRow,
+	'progress_value' | 'progress_max' | 'progress_note'
+>;
+
+function parseDraftProgress(
+	o: Record<string, unknown>
+): DraftProgressFields | 'invalid' {
+	if (o.progress_value === null || o.progress_value === undefined) {
+		return {
+			progress_value: null,
+			progress_max: null,
+			progress_note: null
+		};
+	}
+	const max = parseProgressMax(o.progress_max ?? DEFAULT_PROGRESS_MAX);
+	if (max === null) return 'invalid';
+	const value = parseProgressValue(o.progress_value, max);
+	if (value === null) return 'invalid';
+	const noteRaw = typeof o.progress_note === 'string' ? o.progress_note.trim() : '';
+	return {
+		progress_value: value,
+		progress_max: max,
+		progress_note: noteRaw.length > 0 ? noteRaw : null
+	};
 }
 
 async function assertNoCycle(
@@ -143,6 +179,9 @@ export async function saveWeeklyCheckinAction(
 			health_status: d.health_status,
 			reason: trimOrNull(d.reason) ?? null,
 			next_steps: trimOrNull(d.next_steps) ?? null,
+			progress_value: d.progress_value,
+			progress_max: d.progress_value != null ? d.progress_max : null,
+			progress_note: d.progress_value != null ? d.progress_note : null,
 			deleted_at: null,
 			created_by: userId
 		};

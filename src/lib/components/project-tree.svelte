@@ -2,7 +2,11 @@
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import ChevronsDownUp from '@lucide/svelte/icons/chevrons-down-up';
+	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -10,6 +14,11 @@
 	import HealthStatusIcon from '$lib/components/health-status-icon.svelte';
 	import HealthTrendBadge from '$lib/components/health-trend-badge.svelte';
 	import { computeVisibleNodeIds, trendDirection } from '$lib/projects/filter';
+	import {
+		DEFAULT_PROGRESS_MAX,
+		formatProgressLabel,
+		isProgressEnabled
+	} from '$lib/projects/progress';
 	import {
 		HEALTH_SEGMENT_SELECTED_CLASS,
 		LIFECYCLE_BADGE_CLASS
@@ -27,7 +36,15 @@
 		type ProjectFilters
 	} from '$lib/types/projects';
 
-	type CarryForward = Pick<ProjectUpdateRow, 'health_status' | 'reason' | 'next_steps'>;
+	type CarryForward = Pick<
+		ProjectUpdateRow,
+		| 'health_status'
+		| 'reason'
+		| 'next_steps'
+		| 'progress_value'
+		| 'progress_max'
+		| 'progress_note'
+	>;
 
 	let {
 		tree,
@@ -126,7 +143,10 @@
 			update_id: cur?.id,
 			health_status,
 			reason: cur?.reason ?? prev?.reason ?? '',
-			next_steps: cur?.next_steps ?? prev?.next_steps ?? ''
+			next_steps: cur?.next_steps ?? prev?.next_steps ?? '',
+			progress_value: cur?.progress_value ?? prev?.progress_value ?? null,
+			progress_max: cur?.progress_max ?? prev?.progress_max ?? null,
+			progress_note: cur?.progress_note ?? prev?.progress_note ?? null
 		};
 	}
 
@@ -207,6 +227,36 @@
 		collapsedIds = next;
 	}
 
+	function collectVisibleCollapsibleIds(
+		nodes: ProjectNode[],
+		visible: Set<string>,
+		ids = new Set<string>()
+	): Set<string> {
+		for (const n of nodes) {
+			if (!visible.has(n.id)) continue;
+			if (n.children.length > 0) {
+				ids.add(n.id);
+				collectVisibleCollapsibleIds(n.children, visible, ids);
+			}
+		}
+		return ids;
+	}
+
+	const collapsibleIds = $derived(collectVisibleCollapsibleIds(tree, visibleIds));
+
+	const allBranchesExpanded = $derived(
+		collapsibleIds.size > 0 &&
+			[...collapsibleIds].every((id) => !collapsedIds.has(id))
+	);
+
+	function toggleExpandAllBranches() {
+		if (allBranchesExpanded) {
+			collapsedIds = new Set(collapsibleIds);
+		} else {
+			collapsedIds = new Set();
+		}
+	}
+
 	function toggleDetail(id: string) {
 		const next = new Set(expandedDetailIds);
 		if (next.has(id)) next.delete(id);
@@ -220,10 +270,43 @@
 		drafts = { ...drafts, [projectId]: { ...row, health_status } };
 	}
 
-	function patchDraft(projectId: string, patch: Partial<Pick<WeeklyDraftRow, 'reason' | 'next_steps'>>) {
+	type DraftPatch = Partial<
+		Pick<
+			WeeklyDraftRow,
+			'reason' | 'next_steps' | 'progress_value' | 'progress_max' | 'progress_note'
+		>
+	>;
+
+	function patchDraft(projectId: string, patch: DraftPatch) {
 		const row = drafts[projectId];
 		if (!row) return;
-		drafts = { ...drafts, [projectId]: { ...row, ...patch } };
+		let next: WeeklyDraftRow = { ...row, ...patch };
+		if (
+			next.progress_value != null &&
+			next.progress_max != null &&
+			next.progress_value > next.progress_max
+		) {
+			next = { ...next, progress_value: next.progress_max };
+		}
+		drafts = { ...drafts, [projectId]: next };
+	}
+
+	function setProgressEnabled(projectId: string, enabled: boolean) {
+		const row = drafts[projectId];
+		if (!row) return;
+		if (!enabled) {
+			patchDraft(projectId, {
+				progress_value: null,
+				progress_max: null,
+				progress_note: null
+			});
+			return;
+		}
+		patchDraft(projectId, {
+			progress_value: 0,
+			progress_max: row.progress_max ?? DEFAULT_PROGRESS_MAX,
+			progress_note: row.progress_note ?? ''
+		});
 	}
 
 </script>
@@ -401,6 +484,117 @@
 								></textarea>
 							</div>
 						</div>
+
+						<div class="space-y-2 border-t border-border/60 pt-3 sm:max-w-md">
+							<div class="flex items-center gap-2">
+								<input
+									id="progress-enabled-{node.id}"
+									type="checkbox"
+									class="size-4 rounded border border-input"
+									checked={isProgressEnabled(draft.progress_value)}
+									onchange={(e) =>
+										setProgressEnabled(
+											node.id,
+											(e.currentTarget as HTMLInputElement).checked
+										)}
+								/>
+								<Label
+									for="progress-enabled-{node.id}"
+									class="text-xs font-medium text-muted-foreground"
+								>
+									Track progress
+								</Label>
+							</div>
+
+							{#if draft.progress_value != null && draft.progress_max != null}
+								{@const pValue = draft.progress_value}
+								{@const pMax = draft.progress_max}
+								<div class="space-y-2">
+									<p class="text-sm font-medium tabular-nums text-foreground">
+										{formatProgressLabel(pValue, pMax)}
+									</p>
+									<progress
+										class="h-2 w-full accent-primary"
+										value={pValue}
+										max={pMax}
+										aria-label="Progress {formatProgressLabel(pValue, pMax)}"
+									></progress>
+									{#if draft.progress_note}
+										<p class="text-xs text-muted-foreground">{draft.progress_note}</p>
+									{/if}
+									<div class="flex flex-wrap items-end gap-2">
+										<div class="min-w-[4.5rem] flex-1 space-y-1">
+											<Label
+												for="progress-value-{node.id}"
+												class="text-xs text-muted-foreground">Value</Label
+											>
+											<Input
+												id="progress-value-{node.id}"
+												type="number"
+												min={0}
+												max={pMax}
+												step={1}
+												class="h-8"
+												value={pValue}
+												oninput={(e) => {
+													const v = Number(
+														(e.currentTarget as HTMLInputElement).value
+													);
+													if (Number.isNaN(v)) return;
+													patchDraft(node.id, {
+														progress_value: Math.min(
+															Math.max(0, Math.trunc(v)),
+															pMax
+														)
+													});
+												}}
+											/>
+										</div>
+										<div class="min-w-[4.5rem] flex-1 space-y-1">
+											<Label for="progress-max-{node.id}" class="text-xs text-muted-foreground"
+												>Of</Label
+											>
+											<Input
+												id="progress-max-{node.id}"
+												type="number"
+												min={1}
+												step={1}
+												class="h-8"
+												value={pMax}
+												oninput={(e) => {
+													const v = Number(
+														(e.currentTarget as HTMLInputElement).value
+													);
+													if (Number.isNaN(v) || v < 1) return;
+													const max = Math.trunc(v);
+													patchDraft(node.id, {
+														progress_max: max,
+														progress_value: Math.min(pValue, max)
+													});
+												}}
+											/>
+										</div>
+									</div>
+									<div class="space-y-1">
+										<Label for="progress-note-{node.id}" class="text-xs text-muted-foreground"
+											>Note</Label
+										>
+										<Input
+											id="progress-note-{node.id}"
+											type="text"
+											placeholder="What does the total represent?"
+											class="h-8"
+											value={draft.progress_note ?? ''}
+											oninput={(e) =>
+												patchDraft(node.id, {
+													progress_note:
+														(e.currentTarget as HTMLInputElement).value || null
+												})}
+										/>
+									</div>
+								</div>
+							{/if}
+						</div>
 					{/if}
 				{:else if !eligible}
 					<p class="text-xs text-muted-foreground italic">Not in weekly check-in sweep</p>
@@ -416,5 +610,25 @@
 {/snippet}
 
 <div class="rounded-lg border border-border bg-card">
+	{#if collapsibleIds.size > 0}
+		<div class="flex justify-end border-b border-border/60 px-2 py-1 md:px-3">
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				class="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+				aria-label={allBranchesExpanded ? 'Collapse all branches' : 'Expand all branches'}
+				onclick={toggleExpandAllBranches}
+			>
+				{#if allBranchesExpanded}
+					<ChevronsDownUp class="size-3.5 shrink-0" aria-hidden="true" />
+					<span class="hidden sm:inline">Collapse all</span>
+				{:else}
+					<ChevronsUpDown class="size-3.5 shrink-0" aria-hidden="true" />
+					<span class="hidden sm:inline">Expand all</span>
+				{/if}
+			</Button>
+		</div>
+	{/if}
 	{@render treeRows(tree)}
 </div>

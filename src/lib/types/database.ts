@@ -1071,6 +1071,9 @@ export type Database = {
           health_status: string
           id: string
           next_steps: string | null
+          progress_max: number | null
+          progress_note: string | null
+          progress_value: number | null
           project_id: string
           reason: string | null
           updated_at: string
@@ -1083,6 +1086,9 @@ export type Database = {
           health_status: string
           id?: string
           next_steps?: string | null
+          progress_max?: number | null
+          progress_note?: string | null
+          progress_value?: number | null
           project_id: string
           reason?: string | null
           updated_at?: string
@@ -1095,6 +1101,9 @@ export type Database = {
           health_status?: string
           id?: string
           next_steps?: string | null
+          progress_max?: number | null
+          progress_note?: string | null
+          progress_value?: number | null
           project_id?: string
           reason?: string | null
           updated_at?: string

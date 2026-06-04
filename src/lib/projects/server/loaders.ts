@@ -17,7 +17,7 @@ const PROJECT_COLUMNS =
 	'id, parent_id, name, description, lifecycle_status, start_date, end_date, sort_order';
 
 const UPDATE_COLUMNS =
-	'id, project_id, week_of, health_status, reason, next_steps';
+	'id, project_id, week_of, health_status, reason, next_steps, progress_value, progress_max, progress_note';
 
 function isLifecycleStatus(v: string): v is LifecycleStatus {
 	return (LIFECYCLE_STATUSES as readonly string[]).includes(v);
@@ -158,7 +158,10 @@ export async function loadWeekUpdates(
 			week_of: raw.week_of,
 			health_status: raw.health_status,
 			reason: raw.reason,
-			next_steps: raw.next_steps
+			next_steps: raw.next_steps,
+			progress_value: raw.progress_value ?? null,
+			progress_max: raw.progress_max ?? null,
+			progress_note: raw.progress_note ?? null
 		});
 	}
 	return map;
@@ -168,10 +171,25 @@ export async function loadWeekUpdates(
 export async function loadCarryForward(
 	supabase: SupabaseClient,
 	prevWeekOf: string
-): Promise<Map<string, Pick<ProjectUpdateRow, 'health_status' | 'reason' | 'next_steps'>>> {
+): Promise<
+	Map<
+		string,
+		Pick<
+			ProjectUpdateRow,
+			| 'health_status'
+			| 'reason'
+			| 'next_steps'
+			| 'progress_value'
+			| 'progress_max'
+			| 'progress_note'
+		>
+	>
+> {
 	const { data, error } = await supabase
 		.from('project_updates')
-		.select('project_id, health_status, reason, next_steps')
+		.select(
+			'project_id, health_status, reason, next_steps, progress_value, progress_max, progress_note'
+		)
 		.eq('week_of', prevWeekOf)
 		.is('deleted_at', null);
 
@@ -182,14 +200,25 @@ export async function loadCarryForward(
 
 	const map = new Map<
 		string,
-		Pick<ProjectUpdateRow, 'health_status' | 'reason' | 'next_steps'>
+		Pick<
+			ProjectUpdateRow,
+			| 'health_status'
+			| 'reason'
+			| 'next_steps'
+			| 'progress_value'
+			| 'progress_max'
+			| 'progress_note'
+		>
 	>();
 	for (const raw of data ?? []) {
 		if (!isHealthStatus(raw.health_status)) continue;
 		map.set(raw.project_id, {
 			health_status: raw.health_status,
 			reason: raw.reason,
-			next_steps: raw.next_steps
+			next_steps: raw.next_steps,
+			progress_value: raw.progress_value ?? null,
+			progress_max: raw.progress_max ?? null,
+			progress_note: raw.progress_note ?? null
 		});
 	}
 	return map;

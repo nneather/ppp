@@ -650,6 +650,9 @@ project_updates
                   CHECK (health_status IN ('excellent','satisfactory','watch','serious','critical'))
   reason        TEXT                             -- plain text v1 (markdown deferred)
   next_steps    TEXT
+  progress_value INTEGER                        -- NULL = progress off; numerator when set
+  progress_max   INTEGER                        -- denominator (e.g. 100 or custom total)
+  progress_note  TEXT                          -- label for what progress_max means
   deleted_at    TIMESTAMPTZ
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()

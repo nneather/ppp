@@ -59,7 +59,15 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const weekUpdates = Object.fromEntries(weekUpdatesMap) as Record<string, ProjectUpdateRow>;
 	const carryForward = Object.fromEntries(carryForwardMap) as Record<
 		string,
-		Pick<ProjectUpdateRow, 'health_status' | 'reason' | 'next_steps'>
+		Pick<
+			ProjectUpdateRow,
+			| 'health_status'
+			| 'reason'
+			| 'next_steps'
+			| 'progress_value'
+			| 'progress_max'
+			| 'progress_note'
+		>
 	>;
 	const latestHealth = Object.fromEntries(latestHealthMap) as Record<string, LatestHealth>;
 
