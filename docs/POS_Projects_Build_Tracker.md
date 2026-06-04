@@ -142,8 +142,8 @@ _Goal: create projects under domains and sweep weekly health across the whole ac
 
 **Acceptance:**
 - [x] 4 roots present; migration applied; types regenerated; zero TS errors on projects files.
-- [ ] Owner: create project under Work + sub-project (phone smoke).
-- [ ] Owner: weekly check-in sweep + batch save (phone smoke).
+- [x] Owner: create project under Work + sub-project (phone smoke) — signed off 2026-06-04.
+- [x] Owner: weekly check-in sweep + batch save (phone smoke) — signed off 2026-06-04.
 - [x] Parent picker can't select self/descendant (server + filtered options).
 - [x] Re-run same week uses PK upsert (partial unique holds); second save in one session (no `id` null).
 - [x] Delete-with-children blocked; audit log Projects filter wired.
