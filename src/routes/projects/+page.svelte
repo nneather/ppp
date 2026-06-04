@@ -34,6 +34,7 @@
 	let undoId = $state<string | null>(null);
 	let undoTimer: ReturnType<typeof setTimeout> | null = null;
 	let revealBranchFor = $state<string | null>(null);
+	let draftSeedKey = $state(0);
 
 	const f = $derived(form ?? null);
 
@@ -103,6 +104,7 @@
 			await update();
 			if (result.type === 'success') {
 				await invalidate('app:projects:tree');
+				draftSeedKey += 1;
 			}
 		};
 	};
@@ -273,6 +275,7 @@
 			{filters}
 			bind:drafts
 			bind:revealBranchFor
+			{draftSeedKey}
 			onEdit={openEdit}
 			onDelete={askDelete}
 			onAddChild={(n) => openCreate(n.id)}

@@ -16,7 +16,7 @@
 - **NULL `progress_value` = off** — no separate boolean column.
 - **Default denominator 100** when user enables progress (`DEFAULT_PROGRESS_MAX`).
 - **Display:** `X/100%` when max is 100; otherwise `X/max` plus optional note under the bar.
-- **Carry-forward:** progress fields copy from prior week like reason/next_steps.
+- **Carry-forward:** progress fields copy from the **most recent** `project_updates` row with `week_of` strictly before the selected week (not only the immediately previous Sunday). Implemented in [`carry-forward.ts`](../src/lib/projects/carry-forward.ts) + [`loadCarryForward`](../src/lib/projects/server/loaders.ts).
 
 ## Schema changes
 

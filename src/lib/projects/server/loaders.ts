@@ -1,5 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
+	reduceCarryForwardUpdates,
+	type CarryForwardFields,
+	type CarryForwardRow
+} from '$lib/projects/carry-forward';
+import {
 	LIFECYCLE_STATUSES,
 	HEALTH_STATUSES,
 	type LifecycleStatus,
@@ -167,61 +172,26 @@ export async function loadWeekUpdates(
 	return map;
 }
 
-/** Previous week's health per project (carry-forward defaults). */
+/** Most recent update per project with week_of strictly before the selected week (carry-forward defaults). */
 export async function loadCarryForward(
 	supabase: SupabaseClient,
-	prevWeekOf: string
-): Promise<
-	Map<
-		string,
-		Pick<
-			ProjectUpdateRow,
-			| 'health_status'
-			| 'reason'
-			| 'next_steps'
-			| 'progress_value'
-			| 'progress_max'
-			| 'progress_note'
-		>
-	>
-> {
+	weekOf: string
+): Promise<Map<string, CarryForwardFields>> {
 	const { data, error } = await supabase
 		.from('project_updates')
 		.select(
-			'project_id, health_status, reason, next_steps, progress_value, progress_max, progress_note'
+			'project_id, week_of, health_status, reason, next_steps, progress_value, progress_max, progress_note'
 		)
-		.eq('week_of', prevWeekOf)
-		.is('deleted_at', null);
+		.lt('week_of', weekOf)
+		.is('deleted_at', null)
+		.order('week_of', { ascending: false });
 
 	if (error) {
 		console.error('loadCarryForward', error);
 		return new Map();
 	}
 
-	const map = new Map<
-		string,
-		Pick<
-			ProjectUpdateRow,
-			| 'health_status'
-			| 'reason'
-			| 'next_steps'
-			| 'progress_value'
-			| 'progress_max'
-			| 'progress_note'
-		>
-	>();
-	for (const raw of data ?? []) {
-		if (!isHealthStatus(raw.health_status)) continue;
-		map.set(raw.project_id, {
-			health_status: raw.health_status,
-			reason: raw.reason,
-			next_steps: raw.next_steps,
-			progress_value: raw.progress_value ?? null,
-			progress_max: raw.progress_max ?? null,
-			progress_note: raw.progress_note ?? null
-		});
-	}
-	return map;
+	return reduceCarryForwardUpdates((data ?? []) as CarryForwardRow[]);
 }
 
 /** Includes soft-deleted rows for upsert revive (footgun NEW-D). */

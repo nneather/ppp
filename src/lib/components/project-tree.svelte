@@ -55,6 +55,7 @@
 		filters,
 		drafts = $bindable({} as Record<string, WeeklyDraftRow>),
 		revealBranchFor = $bindable(null as string | null),
+		draftSeedKey = 0,
 		onEdit,
 		onDelete,
 		onAddChild
@@ -68,6 +69,8 @@
 		drafts?: Record<string, WeeklyDraftRow>;
 		/** When set, expands ancestors so the branch is visible (e.g. after create). */
 		revealBranchFor?: string | null;
+		/** Bump after save so drafts reseed from fresh weekUpdates. */
+		draftSeedKey?: number;
 		onEdit: (node: ProjectNode) => void;
 		onDelete: (node: ProjectNode) => void;
 		onAddChild: (node: ProjectNode) => void;
@@ -77,7 +80,7 @@
 
 	let collapsedIds = $state(new Set<string>());
 	let expandedDetailIds = $state(new Set<string>());
-	let mobileDefaultApplied = $state(false);
+	let collapseDefaultApplied = $state(false);
 
 	function walkTreeFingerprint(nodes: ProjectNode[], parts: string[] = []): string[] {
 		for (const n of nodes) {
@@ -99,6 +102,7 @@
 	let lastSeedWeek = $state('');
 	let lastSeedUpdates = $state('');
 	let lastSeedTree = $state('');
+	let lastDraftSeedKey = $state(-1);
 
 	function ancestorIdsFor(
 		nodes: ProjectNode[],
@@ -176,8 +180,10 @@
 		const w = weekOf;
 		const u = updatesFingerprint;
 		const t = treeFingerprint;
+		const sk = draftSeedKey;
 		untrack(() => {
-			const weekOrUpdatesChanged = w !== lastSeedWeek || u !== lastSeedUpdates;
+			const weekOrUpdatesChanged =
+				w !== lastSeedWeek || u !== lastSeedUpdates || sk !== lastDraftSeedKey;
 			if (weekOrUpdatesChanged) {
 				drafts = buildInitialDrafts();
 			} else if (t !== lastSeedTree) {
@@ -186,6 +192,7 @@
 			lastSeedWeek = w;
 			lastSeedUpdates = u;
 			lastSeedTree = t;
+			lastDraftSeedKey = sk;
 		});
 	});
 
@@ -196,28 +203,26 @@
 		revealBranchFor = null;
 	});
 
-	$effect(() => {
-		if (!browser || mobileDefaultApplied) return;
-		const mq = window.matchMedia('(max-width: 767px)');
-		const apply = () => {
-			if (!mq.matches) {
-				collapsedIds = new Set();
-				return;
-			}
-			const ids = new Set<string>();
-			function walk(nodes: ProjectNode[]) {
-				for (const n of nodes) {
-					if (n.children.length > 0) ids.add(n.id);
+	function collectAllCollapsibleIds(nodes: ProjectNode[]): Set<string> {
+		const ids = new Set<string>();
+		function walk(ns: ProjectNode[]) {
+			for (const n of ns) {
+				if (n.children.length > 0) {
+					ids.add(n.id);
 					walk(n.children);
 				}
 			}
-			walk(tree);
-			collapsedIds = ids;
-		};
-		apply();
-		mobileDefaultApplied = true;
-		mq.addEventListener('change', apply);
-		return () => mq.removeEventListener('change', apply);
+		}
+		walk(nodes);
+		return ids;
+	}
+
+	$effect(() => {
+		if (!browser || collapseDefaultApplied || tree.length === 0) return;
+		untrack(() => {
+			collapsedIds = collectAllCollapsibleIds(tree);
+			collapseDefaultApplied = true;
+		});
 	});
 
 	function toggleCollapsed(id: string) {

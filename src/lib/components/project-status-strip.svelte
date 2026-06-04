@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { afterNavigate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { cn } from '$lib/utils';
@@ -16,7 +18,7 @@
 	} = $props();
 
 	let collapsedIds = $state(new Set<string>());
-	let collapseDefaultsApplied = $state(false);
+	let initialCollapseDone = $state(false);
 
 	function collectCollapsibleIds(nodes: ProjectNode[]): Set<string> {
 		const ids = new Set<string>();
@@ -39,13 +41,26 @@
 		collapsedIds = next;
 	}
 
-	// Apply once when tree data is available (avoids empty-tree race on first paint).
+	function collapseAllBranches() {
+		collapsedIds = collectCollapsibleIds(tree);
+	}
+
+	// First paint on dashboard when tree is ready.
 	$effect(() => {
-		if (!browser || collapseDefaultsApplied || tree.length === 0) return;
+		if (!browser || initialCollapseDone || tree.length === 0) return;
+		if (page.url.pathname !== '/dashboard') return;
 		untrack(() => {
-			collapsedIds = collectCollapsibleIds(tree);
-			collapseDefaultsApplied = true;
+			collapseAllBranches();
+			initialCollapseDone = true;
 		});
+	});
+
+	// Every navigation to dashboard — independent of /projects expand state.
+	afterNavigate((nav) => {
+		if (!browser || nav.to?.url.pathname !== '/dashboard') return;
+		if (tree.length === 0) return;
+		collapseAllBranches();
+		initialCollapseDone = true;
 	});
 
 	function domainHref(name: string): string {

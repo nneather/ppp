@@ -20,12 +20,7 @@ import {
 	deleteProjectLinkAction,
 	reorderProjectLinksAction
 } from '$lib/projects/server/actions';
-import {
-	currentSundayChicago,
-	parseYmd,
-	sundayContaining,
-	previousSunday
-} from '$lib/projects/week';
+import { currentSundayChicago, parseYmd, sundayContaining } from '$lib/projects/week';
 import type { ProjectUpdateRow, LatestHealth } from '$lib/types/projects';
 
 function parseWeekParam(raw: string | null): string {
@@ -41,7 +36,6 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	depends('app:projects:tree');
 
 	const weekOf = parseWeekParam(url.searchParams.get('week'));
-	const prevWeek = previousSunday(weekOf);
 	const recentlyDeletedId = url.searchParams.get('deleted');
 
 	const supabase = locals.supabase;
@@ -50,7 +44,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		await Promise.all([
 			locals.perf.measure('db', () => loadProjectTree(supabase)),
 			locals.perf.measure('db', () => loadWeekUpdates(supabase, weekOf)),
-			locals.perf.measure('db', () => loadCarryForward(supabase, prevWeek)),
+			locals.perf.measure('db', () => loadCarryForward(supabase, weekOf)),
 			locals.perf.measure('db', () => loadProjectRows(supabase)),
 			locals.perf.measure('db', () => loadLatestHealth(supabase)),
 			locals.perf.measure('db', () => loadLinksByProject(supabase))
@@ -76,7 +70,6 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		flatOptions: flattenProjectTree(tree),
 		allRows: flatRows,
 		weekOf,
-		prevWeek,
 		weekUpdates,
 		carryForward,
 		latestHealth,

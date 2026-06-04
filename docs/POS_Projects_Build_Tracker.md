@@ -223,4 +223,4 @@ _Reworked mid-session: tasks follow **MYN** (Master Your Now), not lean checklis
 - **The check-in ergonomic is the module.** A clunky per-sheet flow would kill the weekly habit; the inline tree + carry-forward is the whole point.
 - Hierarchy is one self-referential table — domains are parentless projects; add a fifth anytime. Cleanest application of 022 (no enum + tree duplication).
 - The earlier `research_projects` idea is absorbed: a research project is a project under Education/Ministry; its `project_links` are the dossier seed.
-- Viewer owner-only by waiver; granting read later is a one-row `user_permissions` change.
+- **Viewer access:** owner-only **by design** (not deferred debt); revisit only if a collaborator is added. SELECT is permission-gated — granting read later is a one-row `user_permissions` change, no migration.

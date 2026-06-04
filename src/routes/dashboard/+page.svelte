@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import DashboardLibraryTileFooter from '$lib/components/dashboard-library-tile-footer.svelte';
@@ -71,7 +72,9 @@
 				Edit Status
 			</a>
 		</div>
-		<ProjectStatusStrip tree={data.projectTree} latestHealth={data.latestHealth} />
+		{#key page.url.pathname}
+			<ProjectStatusStrip tree={data.projectTree} latestHealth={data.latestHealth} />
+		{/key}
 	</section>
 
 	<h2 class="sr-only text-foreground">Modules</h2>
