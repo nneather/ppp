@@ -9,16 +9,7 @@ export const HEALTH_HEX: Record<HealthStatus, string> = {
 	critical: '#DA0000'
 };
 
-/** Solid dot (HealthTrendBadge, filter-bar option dots). */
-export const HEALTH_DOT_CLASS: Record<HealthStatus, string> = {
-	excellent: 'bg-[#3494CA]',
-	satisfactory: 'bg-[#44A271]',
-	watch: 'bg-[#FEE486]',
-	serious: 'bg-[#F99C2B]',
-	critical: 'bg-[#DA0000]'
-};
-
-/** Selected segment in the inline picker (bg + text + hover). */
+/** Selected segment in the inline picker (bg + text + hover). Shapes: health-status-icon.svelte. */
 export const HEALTH_SEGMENT_SELECTED_CLASS: Record<HealthStatus, string> = {
 	excellent: 'bg-[#3494CA] text-white hover:bg-[#2d83b4]',
 	satisfactory: 'bg-[#44A271] text-white hover:bg-[#3b8d63]',

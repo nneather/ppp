@@ -6,11 +6,13 @@
 
 ## Built
 
-- Shared token map [`src/lib/projects/health-appearance.ts`](../src/lib/projects/health-appearance.ts) — `HEALTH_HEX`, `HEALTH_DOT_CLASS`, `HEALTH_SEGMENT_SELECTED_CLASS`, `LIFECYCLE_BADGE_CLASS`.
-- [`health-trend-badge.svelte`](../src/lib/components/health-trend-badge.svelte) — doc palette dots; trend arrows green `#44A271` / red `#DA0000`; labels **Improved** / **Declined**.
-- [`project-tree.svelte`](../src/lib/components/project-tree.svelte) — inline 5-segment picker uses shared selected classes; lifecycle label is neutral gray badge.
-- [`project-filter-bar.svelte`](../src/lib/components/project-filter-bar.svelte) — colored dots on health select items + trigger when a specific status is selected.
-- [`project-status-strip.svelte`](../src/lib/components/project-status-strip.svelte) — unchanged; inherits via `HealthTrendBadge`.
+- Shared token map [`src/lib/projects/health-appearance.ts`](../src/lib/projects/health-appearance.ts) — `HEALTH_HEX`, `HEALTH_SEGMENT_SELECTED_CLASS`, `LIFECYCLE_BADGE_CLASS`.
+- [`health-status-icon.svelte`](../src/lib/components/health-status-icon.svelte) — Epic PR shapes (circle, half-circle, inverted triangle, half/solid diamond) using `HEALTH_HEX`.
+- [`health-trend-arrow.svelte`](../src/lib/components/health-trend-arrow.svelte) — filled green up / red down triangles for week-over-week trend.
+- [`health-trend-badge.svelte`](../src/lib/components/health-trend-badge.svelte) — shape icon + optional label + trend; `showStatusIcon` prop.
+- [`project-tree.svelte`](../src/lib/components/project-tree.svelte) — picker segments show shapes; **no** status icon under project name (`showStatusIcon={false}`); trend-only row when week-over-week change exists.
+- [`project-filter-bar.svelte`](../src/lib/components/project-filter-bar.svelte) — shape icons on health select items + trigger.
+- [`project-status-strip.svelte`](../src/lib/components/project-status-strip.svelte) — inherits full badge (shape + label + trend).
 
 ## Decided
 
@@ -19,6 +21,8 @@
 - **Health hex map:** Excellent `#3494CA`, Satisfactory `#44A271`, Watch `#FEE486` (dark text `#454545`), Serious `#F99C2B`, Critical `#DA0000`.
 - **Lifecycle display:** neutral gray badge (`#DADADA` / `#454545`, inverted in dark mode). **Lifecycle filter chips** stay as toggle Buttons — not the gray badge — so active/inactive filter state stays clear.
 - **Trend wording:** Improved / Declined (doc); flat/none unchanged.
+- **Shapes (color-blind):** Excellent = solid circle; Satisfactory = half circle; Watch = **inverted** triangle (doc is point-up); Serious = half diamond; Critical = solid diamond.
+- **`/projects` tree:** omit status shape under name (picker already labels status); show green/red trend triangles only when `trend !== 'none'`.
 
 ## Schema changes
 
@@ -26,7 +30,8 @@
 
 ## New components / patterns added
 
-- `src/lib/projects/health-appearance.ts` — single source for health/lifecycle visual tokens. Import from components; do not duplicate Tailwind color maps.
+- `src/lib/projects/health-appearance.ts` — hex + segment/lifecycle Tailwind classes; shapes live in `health-status-icon.svelte`.
+- `health-status-icon.svelte` / `health-trend-arrow.svelte` — reuse everywhere; do not duplicate SVGs.
 
 ## Open questions surfaced
 

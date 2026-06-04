@@ -12,7 +12,7 @@
 		type LifecycleStatus,
 		type HealthStatus
 	} from '$lib/types/projects';
-	import { HEALTH_DOT_CLASS } from '$lib/projects/health-appearance';
+	import HealthStatusIcon from '$lib/components/health-status-icon.svelte';
 	import { cn } from '$lib/utils';
 
 	let {
@@ -130,13 +130,7 @@
 				<Select.Trigger id="health-filter" class="w-full">
 					<span class="inline-flex items-center gap-2">
 						{#if selectedHealthStatus}
-							<span
-								class={cn(
-									'inline-block size-2 shrink-0 rounded-full',
-									HEALTH_DOT_CLASS[selectedHealthStatus]
-								)}
-								aria-hidden="true"
-							></span>
+							<HealthStatusIcon health={selectedHealthStatus} size="xs" />
 						{/if}
 						{healthLabel}
 					</span>
@@ -147,10 +141,7 @@
 					{#each HEALTH_STATUSES as st (st)}
 						<Select.Item value={st} label={HEALTH_STATUS_LABELS[st]}>
 							<span class="inline-flex items-center gap-2">
-								<span
-									class={cn('inline-block size-2 shrink-0 rounded-full', HEALTH_DOT_CLASS[st])}
-									aria-hidden="true"
-								></span>
+								<HealthStatusIcon health={st} size="xs" />
 								{HEALTH_STATUS_LABELS[st]}
 							</span>
 						</Select.Item>

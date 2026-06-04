@@ -7,6 +7,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { cn } from '$lib/utils';
+	import HealthStatusIcon from '$lib/components/health-status-icon.svelte';
 	import HealthTrendBadge from '$lib/components/health-trend-badge.svelte';
 	import { computeVisibleNodeIds, trendDirection } from '$lib/projects/filter';
 	import {
@@ -280,13 +281,16 @@
 								{LIFECYCLE_STATUS_LABELS[node.lifecycle_status]}
 							</span>
 						</div>
-						<div class="mt-0.5">
-							<HealthTrendBadge
-								health={latest?.health_status ?? null}
-								{trend}
-								compact
-							/>
-						</div>
+						{#if trend !== 'none'}
+							<div class="mt-0.5">
+								<HealthTrendBadge
+									health={latest?.health_status ?? null}
+									{trend}
+									compact
+									showStatusIcon={false}
+								/>
+							</div>
+						{/if}
 					</div>
 
 					<div class="flex shrink-0 gap-0.5">
@@ -333,7 +337,7 @@
 							<button
 								type="button"
 								class={cn(
-									'min-w-0 flex-1 rounded px-1 py-1.5 text-[0.65rem] font-medium leading-tight sm:text-xs',
+									'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded px-1 py-1.5 text-[0.65rem] font-medium leading-tight sm:text-xs',
 									draft.health_status === status
 										? HEALTH_SEGMENT_SELECTED_CLASS[status]
 										: 'bg-muted/50 text-muted-foreground hover:bg-muted'
@@ -341,6 +345,11 @@
 								aria-pressed={draft.health_status === status}
 								onclick={() => setHealth(node.id, status)}
 							>
+								<HealthStatusIcon
+									health={status}
+									size="xs"
+									muted={draft.health_status !== status}
+								/>
 								{HEALTH_STATUS_LABELS[status]}
 							</button>
 						{/each}
