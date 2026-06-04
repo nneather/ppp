@@ -6,7 +6,6 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import ProjectTree from '$lib/components/project-tree.svelte';
 	import ProjectFormSheet from '$lib/components/project-form-sheet.svelte';
@@ -17,7 +16,7 @@
 	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import type { PageProps } from './$types';
 	import type { ProjectNode, WeeklyDraftRow } from '$lib/types/projects';
-	import { formatWeekLabel, sundayContaining } from '$lib/projects/week';
+	import { sundayContaining } from '$lib/projects/week';
 	import { countActiveProjectFilters, parseProjectFilters } from '$lib/projects/filter';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 
@@ -166,10 +165,6 @@
 <div class="mx-auto max-w-4xl px-4 py-6 pb-tabbar md:px-6 md:py-8">
 	<PageHeader title="Projects" lead={projectsLead} actions={projectsActions} />
 
-	<p class="mb-6 text-sm text-muted-foreground">
-		Weekly health check-in across your project tree.
-	</p>
-
 	{#if data.recentlyDeletedId && !undoId}
 		<p class="mb-4 text-sm text-muted-foreground">Project removed.</p>
 	{/if}
@@ -191,48 +186,45 @@
 	{/if}
 
 	<section class="mb-6 space-y-3">
-		<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-			<div class="min-w-0 flex-1 space-y-1">
-				<Label for="week-picker">Week of (Sunday)</Label>
-				<div class="flex flex-wrap items-center gap-2">
-					<Button type="button" variant="outline" size="sm" onclick={() => shiftWeek(-1)}>
-						← Prev
-					</Button>
-					<Input
-						id="week-picker"
-						type="date"
-						class="w-auto min-w-0"
-						value={data.weekOf}
-						onchange={(e) => {
-							const v = (e.currentTarget as HTMLInputElement).value;
-							if (!v) return;
-							goto(weekHref(sundayContaining(v)), { keepFocus: true, noScroll: true });
-						}}
-					/>
-					<Button type="button" variant="outline" size="sm" onclick={() => shiftWeek(1)}>
-						Next →
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						class="md:hidden"
-						aria-expanded={filtersOpen}
-						aria-controls="project-filters-panel"
-						onclick={() => (filtersOpen = !filtersOpen)}
-					>
-						<SlidersHorizontal class="size-4" />
-						Filters
-						{#if activeFilterCount > 0}
-							<span
-								class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground"
-							>
-								{activeFilterCount}
-							</span>
-						{/if}
-					</Button>
-				</div>
-				<p class="text-xs text-muted-foreground">{formatWeekLabel(data.weekOf)}</p>
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+			<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+				<Button type="button" variant="outline" size="sm" onclick={() => shiftWeek(-1)}>
+					← Prev
+				</Button>
+				<Input
+					id="week-picker"
+					type="date"
+					aria-label="Week of (Sunday)"
+					class="w-auto min-w-0"
+					value={data.weekOf}
+					onchange={(e) => {
+						const v = (e.currentTarget as HTMLInputElement).value;
+						if (!v) return;
+						goto(weekHref(sundayContaining(v)), { keepFocus: true, noScroll: true });
+					}}
+				/>
+				<Button type="button" variant="outline" size="sm" onclick={() => shiftWeek(1)}>
+					Next →
+				</Button>
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					class="md:hidden"
+					aria-expanded={filtersOpen}
+					aria-controls="project-filters-panel"
+					onclick={() => (filtersOpen = !filtersOpen)}
+				>
+					<SlidersHorizontal class="size-4" />
+					Filters
+					{#if activeFilterCount > 0}
+						<span
+							class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground"
+						>
+							{activeFilterCount}
+						</span>
+					{/if}
+				</Button>
 			</div>
 
 			<form

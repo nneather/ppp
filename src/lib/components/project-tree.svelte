@@ -358,11 +358,17 @@
 									node.depth === 0 ? 'text-base md:text-lg' : 'text-sm md:text-base'
 								)}
 							>
-								{node.name}
+								{node.name}{#if node.children.length > 0}<span
+										class="font-normal text-muted-foreground"
+									>
+										{' '}({node.children.length})</span
+									>{/if}
 							</span>
-							<span class={LIFECYCLE_BADGE_CLASS}>
-								{LIFECYCLE_STATUS_LABELS[node.lifecycle_status]}
-							</span>
+							{#if node.lifecycle_status !== 'active'}
+								<span class={LIFECYCLE_BADGE_CLASS}>
+									{LIFECYCLE_STATUS_LABELS[node.lifecycle_status]}
+								</span>
+							{/if}
 						</div>
 						{#if trend !== 'none'}
 							<div class="mt-0.5">
