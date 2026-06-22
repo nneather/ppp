@@ -206,8 +206,11 @@ export const actions: Actions = {
 		if (fetchErr || !inv) {
 			return fail(404, { message: 'Invoice not found.' });
 		}
-		if (inv.status !== 'draft') {
-			return fail(400, { message: 'Only draft invoices can be discarded.' });
+		if (inv.status === 'paid') {
+			return fail(400, { message: 'Paid invoices cannot be discarded.' });
+		}
+		if (inv.status !== 'draft' && inv.status !== 'sent') {
+			return fail(400, { message: 'Only draft or sent invoices can be discarded.' });
 		}
 
 		const { error: softOneOffErr } = await supabase
@@ -249,7 +252,7 @@ export const actions: Actions = {
 			.from('invoices')
 			.update({ deleted_at: new Date().toISOString() })
 			.eq('id', id)
-			.eq('status', 'draft');
+			.in('status', ['draft', 'sent']);
 
 		if (softErr) {
 			console.error(softErr);

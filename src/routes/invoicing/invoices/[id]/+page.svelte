@@ -435,7 +435,7 @@
 	{/if}
 
 	{#if inv.status === 'sent'}
-		<div class="mt-6">
+		<div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
 			<form
 				method="POST"
 				action="?/markPaid"
@@ -454,6 +454,39 @@
 				>
 					{markPaidPending ? 'Updating…' : 'Mark as paid'}
 				</Button>
+			</form>
+
+			{#if discardMessage}
+				<p
+					class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive sm:order-last sm:w-full"
+					role="alert"
+				>
+					{discardMessage}
+				</p>
+			{/if}
+			<form
+				method="POST"
+				action="?/discard"
+				use:enhance={discardEnhance}
+				class="w-full sm:ml-auto sm:w-auto"
+				onsubmit={(e) => {
+					if (
+						!confirm(
+							'Discard this sent invoice? Linked time entries will return to unbilled so you can bill them again on a new invoice. The sent invoice record will be archived as discarded.'
+						)
+					) {
+						e.preventDefault();
+					}
+				}}
+			>
+				<Button
+					type="submit"
+					variant="destructive"
+					class="w-full sm:w-auto"
+					disabled={discardPending}
+					hotkey="d"
+					label={discardPending ? 'Discarding…' : 'Discard sent invoice'}
+				/>
 			</form>
 		</div>
 	{/if}
