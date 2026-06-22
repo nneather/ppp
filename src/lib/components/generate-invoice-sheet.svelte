@@ -19,9 +19,6 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
-	const THIS_WEEK_HEALTH = 'This Week Health';
-	const FOUNTAIN_OF_LIFE = 'Fountain of Life Church';
-
 	type FormMessage = { message?: string } | null | undefined;
 
 	type OneOffDraft = {
@@ -62,23 +59,21 @@
 
 	function applyDefaultsForClient(cid: string) {
 		const c = clients.find((x) => x.id === cid);
-		const name = c?.name ?? '';
+		if (!c) return;
 
-		if (name === THIS_WEEK_HEALTH) {
+		if (c.billing_cadence === 'weekly') {
 			const r = previousMondaySundayWeekChicago();
 			periodStart = r.start;
 			periodEnd = r.end;
 			return;
 		}
 
-		if (name === FOUNTAIN_OF_LIFE) {
-			const b = unbilledBounds.find((x) => x.client_id === cid);
-			if (b) {
-				const r = monthSpanFromMinMaxYmd(b.min_date, b.max_date);
-				periodStart = r.start;
-				periodEnd = r.end;
-				return;
-			}
+		const b = unbilledBounds.find((x) => x.client_id === cid);
+		if (b) {
+			const r = monthSpanFromMinMaxYmd(b.min_date, b.max_date);
+			periodStart = r.start;
+			periodEnd = r.end;
+			return;
 		}
 
 		const r = firstOfMonthThroughYmd(ymdInChicago());

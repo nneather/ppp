@@ -561,7 +561,9 @@ export type Database = {
         Row: {
           address_line_1: string | null
           address_line_2: string | null
+          billing_cadence: string
           billing_contact: string | null
+          consultation_grouping: string
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -574,7 +576,9 @@ export type Database = {
         Insert: {
           address_line_1?: string | null
           address_line_2?: string | null
+          billing_cadence?: string
           billing_contact?: string | null
+          consultation_grouping?: string
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -587,7 +591,9 @@ export type Database = {
         Update: {
           address_line_1?: string | null
           address_line_2?: string | null
+          billing_cadence?: string
           billing_contact?: string | null
+          consultation_grouping?: string
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null

@@ -80,6 +80,15 @@ export function firstOfMonthThroughYmd(todayYmd: string): { start: string; end: 
 	return { start: ymdFromUtcNoon(start), end: todayYmd };
 }
 
+/** Calendar month (1st through last day) containing this civil date. */
+export function calendarMonthContainingYmd(ymd: string): { start: string; end: string } {
+	const mid = utcNoonFromYmd(ymd);
+	if (!mid) return { start: ymd, end: ymd };
+	const start = new Date(Date.UTC(mid.getUTCFullYear(), mid.getUTCMonth(), 1, 12, 0, 0));
+	const end = new Date(Date.UTC(mid.getUTCFullYear(), mid.getUTCMonth() + 1, 0, 12, 0, 0));
+	return { start: ymdFromUtcNoon(start), end: ymdFromUtcNoon(end) };
+}
+
 /** Calendar-month span covering min..max civil dates (first of min month through last of max month). */
 export function monthSpanFromMinMaxYmd(minYmd: string, maxYmd: string): { start: string; end: string } {
 	const minMid = utcNoonFromYmd(minYmd);

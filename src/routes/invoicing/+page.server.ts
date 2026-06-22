@@ -3,6 +3,7 @@ import { ymdInChicago } from '$lib/invoicing/chicago-date';
 import { parseHoursInput, snapHoursToQuarter } from '$lib/invoicing/hours';
 import type { Actions, PageServerLoad } from './$types';
 import type { ClientOption, PeriodView, TimeEntryRow, UnbilledCount } from '$lib/types/invoicing';
+import { parseBillingCadence, parseConsultationGrouping } from '$lib/types/invoicing';
 export type { ClientOption, PeriodView, TimeEntryRow, UnbilledCount } from '$lib/types/invoicing';
 
 function pad2(n: number): string {
@@ -94,7 +95,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const [clientsRes, entriesRes, unbilledRes] = await Promise.all([
 		supabase
 			.from('clients')
-			.select('id, name')
+			.select('id, name, billing_cadence, consultation_grouping')
 			.is('deleted_at', null)
 			.order('sort_rank', { ascending: true, nullsFirst: false })
 			.order('name', { ascending: true }),
@@ -141,7 +142,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	const clients: ClientOption[] = (clientsRes.data ?? []).map((c) => ({
 		id: c.id,
-		name: c.name
+		name: c.name,
+		billing_cadence: parseBillingCadence(c.billing_cadence),
+		consultation_grouping: parseConsultationGrouping(c.consultation_grouping)
 	}));
 
 	if (entriesRes.error) {

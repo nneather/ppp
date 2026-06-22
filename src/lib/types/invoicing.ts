@@ -1,9 +1,24 @@
 export type PeriodView = 'day' | 'week' | 'month';
 
+export type BillingCadence = 'weekly' | 'monthly';
+
+export type ConsultationGrouping = 'weekly' | 'monthly' | 'per_entry' | 'by_rate';
+
 export type ClientOption = {
 	id: string;
 	name: string;
+	billing_cadence: BillingCadence;
+	consultation_grouping: ConsultationGrouping;
 };
+
+export function parseBillingCadence(v: unknown): BillingCadence {
+	return v === 'weekly' ? 'weekly' : 'monthly';
+}
+
+export function parseConsultationGrouping(v: unknown): ConsultationGrouping {
+	if (v === 'weekly' || v === 'monthly' || v === 'per_entry') return v;
+	return 'by_rate';
+}
 
 export type TimeEntryRow = {
 	id: string;

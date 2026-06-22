@@ -8,6 +8,7 @@
 	import * as Sheet from '$lib/components/ui/sheet';
 	import { cn } from '$lib/utils';
 	import EmailChipsEditor from './email-chips-editor.svelte';
+	import type { BillingCadence, ConsultationGrouping } from '$lib/types/invoicing';
 
 	export type ClientFormInitial = {
 		id?: string;
@@ -17,6 +18,8 @@
 		address_line_2: string | null;
 		email: string[];
 		sort_rank: number | null;
+		billing_cadence: BillingCadence;
+		consultation_grouping: ConsultationGrouping;
 	};
 
 	let {
@@ -40,6 +43,8 @@
 	let addressLine2 = $state('');
 	let emails = $state<string[]>([]);
 	let sortRank = $state('');
+	let billingCadence = $state<BillingCadence>('monthly');
+	let consultationGrouping = $state<ConsultationGrouping>('by_rate');
 
 	$effect(() => {
 		if (!browser) return;
@@ -60,6 +65,8 @@
 		addressLine2 = initial?.address_line_2 ?? '';
 		emails = initial?.email ? [...initial.email] : [];
 		sortRank = initial?.sort_rank != null ? String(initial.sort_rank) : '';
+		billingCadence = initial?.billing_cadence ?? 'monthly';
+		consultationGrouping = initial?.consultation_grouping ?? 'by_rate';
 	});
 
 	const formAction = $derived(mode === 'create' ? '?/createClient' : '?/updateClient');
@@ -164,6 +171,40 @@
 					label="Invoice recipient email(s)"
 					placeholder="billing@client.com"
 				/>
+
+				<div class="space-y-2">
+					<Label for="cl-billing-cadence">Default billing period</Label>
+					<select
+						id="cl-billing-cadence"
+						name="billing_cadence"
+						bind:value={billingCadence}
+						class="flex h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-base ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+					>
+						<option value="weekly">Weekly</option>
+						<option value="monthly">Monthly</option>
+					</select>
+					<p class="text-xs text-muted-foreground">
+						Pre-fills the date range when you generate an invoice for this client.
+					</p>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="cl-consultation-grouping">Consultation line grouping</Label>
+					<select
+						id="cl-consultation-grouping"
+						name="consultation_grouping"
+						bind:value={consultationGrouping}
+						class="flex h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-base ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+					>
+						<option value="by_rate">By rate (whole period)</option>
+						<option value="weekly">By week</option>
+						<option value="monthly">By month</option>
+						<option value="per_entry">Per time entry</option>
+					</select>
+					<p class="text-xs text-muted-foreground">
+						How logged hours roll into invoice lines. One-off charges always stay separate.
+					</p>
+				</div>
 
 				<div class="space-y-2">
 					<Label for="cl-sort-rank">Sort priority</Label>

@@ -13,6 +13,10 @@
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import DefaultCcDialog from '$lib/components/default-cc-dialog.svelte';
 	import RateFormSheet, { type RateFormInitial } from '$lib/components/rate-form-sheet.svelte';
+	import {
+		BILLING_CADENCE_LABELS,
+		CONSULTATION_GROUPING_LABELS
+	} from '$lib/invoicing/consultation-lines';
 	import type { PageProps } from './$types';
 	import type { ClientCardData, ClientRateRow } from './+page.server';
 
@@ -66,7 +70,9 @@
 			address_line_1: null,
 			address_line_2: null,
 			email: [],
-			sort_rank: null
+			sort_rank: null,
+			billing_cadence: 'monthly',
+			consultation_grouping: 'by_rate'
 		};
 		clientSheetOpen = true;
 	}
@@ -80,7 +86,9 @@
 			address_line_1: c.address_line_1,
 			address_line_2: c.address_line_2,
 			email: [...c.email],
-			sort_rank: c.sort_rank
+			sort_rank: c.sort_rank,
+			billing_cadence: c.billing_cadence,
+			consultation_grouping: c.consultation_grouping
 		};
 		clientSheetOpen = true;
 	}
@@ -443,6 +451,14 @@
 		</div>
 
 		<div class="mt-4 space-y-2 text-sm">
+			<p>
+				<span class="text-muted-foreground">Default billing period</span> —
+				{BILLING_CADENCE_LABELS[c.billing_cadence]}
+			</p>
+			<p>
+				<span class="text-muted-foreground">Consultation lines</span> —
+				{CONSULTATION_GROUPING_LABELS[c.consultation_grouping]}
+			</p>
 			<p><span class="text-muted-foreground">Billing contact</span> — {dash(c.billing_contact)}</p>
 			<div>
 				<p class="text-muted-foreground">Address</p>

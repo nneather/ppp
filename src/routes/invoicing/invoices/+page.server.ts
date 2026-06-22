@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { buildConsultationLines } from '$lib/invoicing/consultation-lines';
 import type { Actions, PageServerLoad } from './$types';
 import type {
 	ClientOption,
@@ -8,6 +9,7 @@ import type {
 	UnbilledEntryPreview,
 	UnbilledCount
 } from '$lib/types/invoicing';
+import { parseBillingCadence, parseConsultationGrouping } from '$lib/types/invoicing';
 export type {
 	ClientOption,
 	InvoiceRow,
@@ -90,7 +92,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const [clientsRes, invoicesRes, discardedInvoicesRes, unbilledRes] = await Promise.all([
 		supabase
 			.from('clients')
-			.select('id, name')
+			.select('id, name, billing_cadence, consultation_grouping')
 			.is('deleted_at', null)
 			.order('sort_rank', { ascending: true, nullsFirst: false })
 			.order('name', { ascending: true }),
@@ -151,7 +153,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const clients: ClientOption[] = (clientsRes.data ?? []).map((c) => ({
 		id: c.id,
-		name: c.name
+		name: c.name,
+		billing_cadence: parseBillingCadence(c.billing_cadence),
+		consultation_grouping: parseConsultationGrouping(c.consultation_grouping)
 	}));
 
 	function aggregateUnbilled(): {
@@ -295,19 +299,39 @@ export const actions: Actions = {
 
 		const supabase = locals.supabase;
 
-		const { data: entries, error: entriesErr } = await supabase
-			.from('time_entries')
-			.select('id, hours, rate, date')
-			.eq('client_id', client_id)
-			.gte('date', period_start)
-			.lte('date', period_end)
-			.is('invoice_id', null)
-			.is('deleted_at', null);
+		const [entriesRes, clientRes] = await Promise.all([
+			supabase
+				.from('time_entries')
+				.select('id, hours, rate, date, description')
+				.eq('client_id', client_id)
+				.gte('date', period_start)
+				.lte('date', period_end)
+				.is('invoice_id', null)
+				.is('deleted_at', null),
+			supabase
+				.from('clients')
+				.select('consultation_grouping')
+				.eq('id', client_id)
+				.is('deleted_at', null)
+				.maybeSingle()
+		]);
+
+		const { data: entries, error: entriesErr } = entriesRes;
+		const { data: clientRow, error: clientErr } = clientRes;
 
 		if (entriesErr) {
 			console.error(entriesErr);
 			return fail(500, { message: `Could not load time entries: ${entriesErr.message}` });
 		}
+		if (clientErr) {
+			console.error(clientErr);
+			return fail(500, { message: clientErr.message ?? 'Could not load client.' });
+		}
+		if (!clientRow) {
+			return fail(404, { message: 'Client not found.' });
+		}
+
+		const consultationGrouping = parseConsultationGrouping(clientRow.consultation_grouping);
 
 		const entryRows = entries ?? [];
 		const oneOffLines = oneOffsParsed.lines.map((o) => ({
@@ -337,46 +361,18 @@ export const actions: Actions = {
 			});
 		}
 
-		/** Group unbilled hours by rate across the billing period. */
-		const byRate = new Map<string, { rate: number; hours: number }>();
-		for (const e of entryRows) {
-			const rate = Number(e.rate);
-			const hours = Number(e.hours);
-			const key = rate.toFixed(4);
-			const prev = byRate.get(key);
-			if (prev) {
-				prev.hours += hours;
-			} else {
-				byRate.set(key, { rate, hours });
-			}
-		}
-
-		const timeBasedLines: {
-			description: string;
-			quantity: number;
-			unit_price: number;
-			total: number;
-			is_one_off: boolean;
-			start_date: string;
-			end_date: string;
-		}[] = [];
-
-		const rateKeys = [...byRate.keys()].sort((a, b) => Number(a) - Number(b));
-		for (const key of rateKeys) {
-			const g = byRate.get(key)!;
-			const qty = roundMoney(g.hours);
-			const unit = roundMoney(g.rate);
-			const total = roundMoney(qty * unit);
-			timeBasedLines.push({
-				description: 'Consultation Services',
-				quantity: qty,
-				unit_price: unit,
-				total,
-				is_one_off: false,
-				start_date: period_start,
-				end_date: period_end
-			});
-		}
+		/** Roll up consultation hours per client billing preference. */
+		const timeBasedLines = buildConsultationLines({
+			entries: entryRows.map((e) => ({
+				date: e.date as string,
+				hours: Number(e.hours),
+				rate: Number(e.rate),
+				description: (e.description as string | null) ?? null
+			})),
+			grouping: consultationGrouping,
+			periodStart: period_start,
+			periodEnd: period_end
+		});
 
 		const allLines = [...timeBasedLines, ...oneOffLines];
 		const subtotal = roundMoney(allLines.reduce((s, l) => s + l.total, 0));

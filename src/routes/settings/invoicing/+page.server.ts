@@ -1,5 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
+import type { BillingCadence, ConsultationGrouping } from '$lib/types/invoicing';
+import { parseBillingCadence, parseConsultationGrouping } from '$lib/types/invoicing';
 import type { Actions, PageServerLoad } from './$types';
 
 export type ClientRateRow = {
@@ -19,6 +21,8 @@ export type ClientCardData = {
 	address_line_2: string | null;
 	email: string[];
 	sort_rank: number | null;
+	billing_cadence: BillingCadence;
+	consultation_grouping: ConsultationGrouping;
 	rates: ClientRateRow[];
 	activeRate: ClientRateRow | null;
 	invoiceCount: number;
@@ -101,7 +105,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		supabase.from('profiles').select('default_cc_emails').eq('id', user.id).maybeSingle(),
 		supabase
 			.from('clients')
-			.select('id, name, billing_contact, address_line_1, address_line_2, email, sort_rank')
+			.select(
+				'id, name, billing_contact, address_line_1, address_line_2, email, sort_rank, billing_cadence, consultation_grouping'
+			)
 			.is('deleted_at', null)
 			.order('sort_rank', { ascending: true, nullsFirst: false })
 			.order('name', { ascending: true }),
@@ -179,6 +185,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			address_line_2: (c.address_line_2 as string | null) ?? null,
 			email: normalizeEmailArray(c.email),
 			sort_rank,
+			billing_cadence: parseBillingCadence(c.billing_cadence),
+			consultation_grouping: parseConsultationGrouping(c.consultation_grouping),
 			rates,
 			activeRate,
 			invoiceCount: invoiceCounts.get(id) ?? 0,
@@ -203,7 +211,21 @@ type ClientFormFields = {
 	address_line_2: string | null;
 	email: string[];
 	sort_rank: number | null;
+	billing_cadence: BillingCadence;
+	consultation_grouping: ConsultationGrouping;
 };
+
+function readBillingCadence(fd: FormData): BillingCadence | null {
+	const raw = String(fd.get('billing_cadence') ?? '').trim();
+	if (raw === 'weekly' || raw === 'monthly') return raw;
+	return null;
+}
+
+function readConsultationGrouping(fd: FormData): ConsultationGrouping | null {
+	const raw = String(fd.get('consultation_grouping') ?? '').trim();
+	if (raw === 'weekly' || raw === 'monthly' || raw === 'per_entry' || raw === 'by_rate') return raw;
+	return null;
+}
 
 function readClientFields(fd: FormData): { ok: true; fields: ClientFormFields } | { ok: false; message: string } {
 	const name = String(fd.get('name') ?? '').trim();
@@ -232,6 +254,16 @@ function readClientFields(fd: FormData): { ok: true; fields: ClientFormFields } 
 		sort_rank = n;
 	}
 
+	const billing_cadence = readBillingCadence(fd);
+	if (!billing_cadence) {
+		return { ok: false, message: 'Default billing period must be weekly or monthly.' };
+	}
+
+	const consultation_grouping = readConsultationGrouping(fd);
+	if (!consultation_grouping) {
+		return { ok: false, message: 'Consultation line grouping is invalid.' };
+	}
+
 	return {
 		ok: true,
 		fields: {
@@ -240,7 +272,9 @@ function readClientFields(fd: FormData): { ok: true; fields: ClientFormFields } 
 			address_line_1: trimOrNull('address_line_1'),
 			address_line_2: trimOrNull('address_line_2'),
 			email,
-			sort_rank
+			sort_rank,
+			billing_cadence,
+			consultation_grouping
 		}
 	};
 }
