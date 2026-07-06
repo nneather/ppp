@@ -72,6 +72,7 @@ Set via `gh secret set <NAME>` (values never committed). See [`scripts/backup-re
 - **Verified on GitHub Actions run 28829919025:** both `pg_dump` steps green.
 - **2026-07-06 explicit pg_dump path (run 28830741867):** `pg_dump (PostgreSQL) 17.10` in dump step; both dumps green.
 - **R2 upload still blocked:** `InvalidArgument: Credential access key has length 64, should be 32` — Secret Access Key was likely set as `R2_ACCESS_KEY_ID`. Parker: 32-char Access Key ID → `R2_ACCESS_KEY_ID`, 64-char Secret → `R2_SECRET_ACCESS_KEY`, then re-run workflow.
+- **Full E2E verified 2026-07-06** (run [28830982000](https://github.com/nneather/ppp/actions/runs/28830982000)): fresh `workflow_dispatch` on `main` (not Re-run on stale jobs); `pg_dump` 17.10; invoicing + library dumps uploaded to R2 `2026/ppp-invoicing-2026-07.dump` and `2026/ppp-library-2026-07.dump`. Local `restore-smoke.sh` still optional.
 
 ## Open questions surfaced
 
@@ -82,7 +83,7 @@ Set via `gh secret set <NAME>` (values never committed). See [`scripts/backup-re
 - `npm run check` now exits 0 (was 1 error pre-session); `@ts-expect-error` will flip to an error if upstream Vite types fix the depth issue — intentional self-cleaning signal.
 - Ubuntu `postgresql-client` from apt (backup workflow) is sufficient; no PGDG pin required unless prod major version diverges from client capabilities.
 - **ppp-prod** is on pooler cluster **`aws-1-us-east-2`**, not `aws-0-us-east-2`. `derive-pooler-url.ts` probes `aws-{0,1,2,3}-<region>`.
-- GitHub runner ships `postgresql-client` 16 on PATH even after installing 17 — workflow must prepend `/usr/lib/postgresql/17/bin` via `GITHUB_PATH`.
+- GitHub runner ships `postgresql-client` 16 on PATH even after installing 17 — workflow calls `/usr/lib/postgresql/17/bin/pg_dump` explicitly. **Re-run all jobs** on an old failed run replays stale workflow YAML (still hits v16); use **Run workflow** on `main` instead.
 
 ## Carry-forward updates
 

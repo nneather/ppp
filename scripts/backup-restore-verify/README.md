@@ -22,7 +22,7 @@ gh secret set R2_ACCESS_KEY_ID
 gh secret set R2_SECRET_ACCESS_KEY
 ```
 
-After secrets are set, trigger **Monthly database backup** via Actions → `workflow_dispatch` and confirm objects appear under `s3://<bucket>/YYYY/`.
+After secrets are set, trigger **Monthly database backup** via Actions → **Run workflow** on `main` (not **Re-run** on an old failed job — that replays stale workflow YAML). Confirm objects appear under `s3://<bucket>/YYYY/`.
 
 ### Wrong URL symptoms
 
