@@ -24,6 +24,29 @@ gh secret set R2_SECRET_ACCESS_KEY
 
 After secrets are set, trigger **Monthly database backup** via Actions → `workflow_dispatch` and confirm objects appear under `s3://<bucket>/YYYY/`.
 
+### Wrong URL symptoms
+
+If `BACKUP_DATABASE_URL` is the **Direct** URI (`db.<ref>.supabase.co`), the workflow fails with:
+
+```text
+pg_dump: error: connection to server at "db.<ref>.supabase.co" (2600:...)
+Network is unreachable
+```
+
+GitHub-hosted runners are **IPv4-only**; Direct resolves to **IPv6 only**. Fix: Supabase Dashboard → **Connect** → **Session pooler** → URI, port **5432**, user `postgres.<ref>`, then:
+
+```bash
+gh secret set BACKUP_DATABASE_URL --body 'postgresql://postgres.<ref>:...@aws-0-<region>.pooler.supabase.com:5432/postgres'
+```
+
+Do **not** use Transaction pooler (port **6543**) — `pg_dump` is not supported there.
+
+Pooler host is **not always `aws-0-<region>`** — Supabase assigns `aws-0`, `aws-1`, etc. per project. Wrong cluster → `Tenant or user not found`. Copy the host from **Connect → Session pooler**, or derive from Direct password:
+
+```bash
+npx dotenv -e .env.local -e .env -- npx tsx scripts/backup-restore-verify/derive-pooler-url.ts | gh secret set BACKUP_DATABASE_URL
+```
+
 ## Local restore smoke (no R2)
 
 Requires Docker. Uses `LIBRARY_DST_DATABASE_URL` or `BACKUP_DATABASE_URL` from `.env.local`.
