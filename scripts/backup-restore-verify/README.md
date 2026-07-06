@@ -53,6 +53,8 @@ npx dotenv -e .env.local -e .env -- npx tsx scripts/backup-restore-verify/derive
 
 `Credential access key has length 34, should be 32` — `R2_ACCESS_KEY_ID` is wrong (often the Secret Access Key or Account ID was pasted). Re-copy from R2 → Overview → API Tokens: **Access Key ID** is exactly 32 characters; **Secret Access Key** goes in `R2_SECRET_ACCESS_KEY` only.
 
+`Credential access key has length 64, should be 32` — the **Secret Access Key** was pasted into `R2_ACCESS_KEY_ID` by mistake. Swap: 32-char value → `R2_ACCESS_KEY_ID`, 64-char value → `R2_SECRET_ACCESS_KEY`.
+
 `R2_ENDPOINT` must be the base URL only (`https://<accountid>.r2.cloudflarestorage.com`) — no `/bucket-name` suffix.
 
 ## Local restore smoke (no R2)

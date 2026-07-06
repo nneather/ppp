@@ -70,7 +70,8 @@ Set via `gh secret set <NAME>` (values never committed). See [`scripts/backup-re
 - Root cause of first failure: `BACKUP_DATABASE_URL` was Direct (`db.*.supabase.co`, IPv6). Updated via `derive-pooler-url.ts` → `aws-1-us-east-2.pooler.supabase.com` (ppp-prod region `us-east-2`, cluster `aws-1` not `aws-0`).
 - Second failure: `pg_dump` 16 vs server 17.6 — workflow now installs `postgresql-client-17` and prepends `/usr/lib/postgresql/17/bin` to `PATH`.
 - **Verified on GitHub Actions run 28829919025:** both `pg_dump` steps green.
-- **R2 upload still blocked:** `InvalidArgument: Credential access key has length 34, should be 32` — re-set `R2_ACCESS_KEY_ID` with the 32-char Access Key ID from Cloudflare (not Secret Key, not Account ID). Re-run workflow after fix.
+- **2026-07-06 explicit pg_dump path (run 28830741867):** `pg_dump (PostgreSQL) 17.10` in dump step; both dumps green.
+- **R2 upload still blocked:** `InvalidArgument: Credential access key has length 64, should be 32` — Secret Access Key was likely set as `R2_ACCESS_KEY_ID`. Parker: 32-char Access Key ID → `R2_ACCESS_KEY_ID`, 64-char Secret → `R2_SECRET_ACCESS_KEY`, then re-run workflow.
 
 ## Open questions surfaced
 
