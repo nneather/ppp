@@ -41,6 +41,8 @@ gh secret set BACKUP_DATABASE_URL --body 'postgresql://postgres.<ref>:...@aws-0-
 
 Do **not** use Transaction pooler (port **6543**) — `pg_dump` is not supported there.
 
+`server version: 17.6; pg_dump version: 16.14` — runner default client is v16; workflow must call `/usr/lib/postgresql/17/bin/pg_dump` explicitly (see [backup.yml](../../.github/workflows/backup.yml)).
+
 Pooler host is **not always `aws-0-<region>`** — Supabase assigns `aws-0`, `aws-1`, etc. per project. Wrong cluster → `Tenant or user not found`. Copy the host from **Connect → Session pooler**, or derive from Direct password:
 
 ```bash

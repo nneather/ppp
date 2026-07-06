@@ -36,6 +36,9 @@ jobs:
             exit 1
           fi
 
+          PG_DUMP=/usr/lib/postgresql/17/bin/pg_dump
+          "$PG_DUMP" --version
+
           MONTH=$(date +%Y-%m)
           YEAR=$(date +%Y)
 
@@ -58,8 +61,8 @@ jobs:
             library_flags+=(-t "public.${t}")
           done
 
-          pg_dump -F c -f "ppp-invoicing-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${invoicing_flags[@]}"
-          pg_dump -F c -f "ppp-library-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${library_flags[@]}"
+          "$PG_DUMP" -F c -f "ppp-invoicing-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${invoicing_flags[@]}"
+          "$PG_DUMP" -F c -f "ppp-library-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${library_flags[@]}"
 
           echo "MONTH=${MONTH}" >> "$GITHUB_ENV"
           echo "YEAR=${YEAR}" >> "$GITHUB_ENV"
