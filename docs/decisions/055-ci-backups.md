@@ -65,6 +65,13 @@ Set via `gh secret set <NAME>` (values never committed). See [`scripts/backup-re
 
 **Session note:** Agent session could not execute the live smoke (Docker daemon not running on dev machine). Script + workflow are in place; Parker should run steps 1–4 once secrets and R2 bucket exist.
 
+**2026-07-06 follow-up (wrong DB URL fix):**
+
+- Root cause of first failure: `BACKUP_DATABASE_URL` was Direct (`db.*.supabase.co`, IPv6). Updated via `derive-pooler-url.ts` → `aws-1-us-east-2.pooler.supabase.com` (ppp-prod region `us-east-2`, cluster `aws-1` not `aws-0`).
+- Second failure: `pg_dump` 16 vs server 17.6 — workflow now installs `postgresql-client-17` and prepends `/usr/lib/postgresql/17/bin` to `PATH`.
+- **Verified on GitHub Actions run 28829919025:** both `pg_dump` steps green.
+- **R2 upload still blocked:** `InvalidArgument: Credential access key has length 34, should be 32` — re-set `R2_ACCESS_KEY_ID` with the 32-char Access Key ID from Cloudflare (not Secret Key, not Account ID). Re-run workflow after fix.
+
 ## Open questions surfaced
 
 - None.
@@ -73,6 +80,8 @@ Set via `gh secret set <NAME>` (values never committed). See [`scripts/backup-re
 
 - `npm run check` now exits 0 (was 1 error pre-session); `@ts-expect-error` will flip to an error if upstream Vite types fix the depth issue — intentional self-cleaning signal.
 - Ubuntu `postgresql-client` from apt (backup workflow) is sufficient; no PGDG pin required unless prod major version diverges from client capabilities.
+- **ppp-prod** is on pooler cluster **`aws-1-us-east-2`**, not `aws-0-us-east-2`. `derive-pooler-url.ts` probes `aws-{0,1,2,3}-<region>`.
+- GitHub runner ships `postgresql-client` 16 on PATH even after installing 17 — workflow must prepend `/usr/lib/postgresql/17/bin` via `GITHUB_PATH`.
 
 ## Carry-forward updates
 

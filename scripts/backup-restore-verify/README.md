@@ -47,6 +47,12 @@ Pooler host is **not always `aws-0-<region>`** — Supabase assigns `aws-0`, `aw
 npx dotenv -e .env.local -e .env -- npx tsx scripts/backup-restore-verify/derive-pooler-url.ts | gh secret set BACKUP_DATABASE_URL
 ```
 
+### R2 upload errors
+
+`Credential access key has length 34, should be 32` — `R2_ACCESS_KEY_ID` is wrong (often the Secret Access Key or Account ID was pasted). Re-copy from R2 → Overview → API Tokens: **Access Key ID** is exactly 32 characters; **Secret Access Key** goes in `R2_SECRET_ACCESS_KEY` only.
+
+`R2_ENDPOINT` must be the base URL only (`https://<accountid>.r2.cloudflarestorage.com`) — no `/bucket-name` suffix.
+
 ## Local restore smoke (no R2)
 
 Requires Docker. Uses `LIBRARY_DST_DATABASE_URL` or `BACKUP_DATABASE_URL` from `.env.local`.
