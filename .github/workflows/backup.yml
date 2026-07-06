@@ -1,0 +1,63 @@
+name: Monthly database backup
+
+on:
+  schedule:
+    # 08:00 UTC on the 1st (~2–3am Chicago)
+    - cron: '0 8 1 * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Dump module tables
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          MONTH=$(date +%Y-%m)
+          YEAR=$(date +%Y)
+
+          INVOICING_TABLES=(
+            clients client_rates time_entries invoices invoice_line_items
+          )
+          LIBRARY_TABLES=(
+            books people series publishers bible_books ancient_texts
+            book_authors book_bible_coverage book_ancient_coverage book_topics
+            essays essay_authors scripture_references
+          )
+
+          invoicing_flags=()
+          for t in "${INVOICING_TABLES[@]}"; do
+            invoicing_flags+=(-t "public.${t}")
+          done
+
+          library_flags=()
+          for t in "${LIBRARY_TABLES[@]}"; do
+            library_flags+=(-t "public.${t}")
+          done
+
+          pg_dump -F c -f "ppp-invoicing-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${invoicing_flags[@]}"
+          pg_dump -F c -f "ppp-library-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${library_flags[@]}"
+
+          echo "MONTH=${MONTH}" >> "$GITHUB_ENV"
+          echo "YEAR=${YEAR}" >> "$GITHUB_ENV"
+
+      - name: Upload to Cloudflare R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          aws s3 cp "ppp-invoicing-${MONTH}.dump" "s3://${R2_BUCKET}/${YEAR}/ppp-invoicing-${MONTH}.dump" \
+            --endpoint-url "$R2_ENDPOINT"
+          aws s3 cp "ppp-library-${MONTH}.dump" "s3://${R2_BUCKET}/${YEAR}/ppp-library-${MONTH}.dump" \
+            --endpoint-url "$R2_ENDPOINT"

@@ -1,0 +1,82 @@
+# 055 — CI + monthly backups (review 051, Session R5)
+
+**Date:** 2026-07-06
+**Module:** cross-module (repo infra)
+**Tracker session:** Review remediation R5 — final 051 leg
+
+## Built
+
+- [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) — `npm ci`, `npm run check`, `npm run test` on `push` and `pull_request` (Node 24, npm cache).
+- [`.github/workflows/backup.yml`](../../.github/workflows/backup.yml) — monthly cron `0 8 1 * *` + `workflow_dispatch`; two `pg_dump -F c` files uploaded to private Cloudflare R2 (`YYYY/ppp-invoicing-YYYY-MM.dump`, `YYYY/ppp-library-YYYY-MM.dump`).
+- [`src/lib/vite/patch-sveltekit-pwa.ts`](../../src/lib/vite/patch-sveltekit-pwa.ts) — self-cleaning `// @ts-expect-error` on `plugins.flat(Infinity)` so CI `check` is green without hiding future regressions.
+- [`scripts/backup-restore-verify/`](../../scripts/backup-restore-verify/) — local restore smoke script + README (profiles-first ordering).
+
+## Decided
+
+- **Backup store: Cloudflare R2 private bucket** — repo is public (`nneather/ppp`); in-repo dumps, release artifacts, and Actions artifacts are world-readable. Rejected: co-located Supabase Storage (weak DR).
+- **Retention: keep all** monthly dumps for now; revisit pruning later.
+- **GitHub Actions DB URL: Session Pooler (port 5432)**, not Direct — Direct is IPv6-only; GitHub-hosted runners are IPv4-only. Session pooler supports `pg_dump`; transaction pooler (6543) does not.
+- **CI check isolation:** `@ts-expect-error` on the single known Vite type-depth error. Rejected: `continue-on-error` on the check step (masks all regressions); ignoring the whole file (masks future edits there).
+- **Library dump table set corrected** — dropped stale `categories` / `book_categories`; added `publishers`. Authoritative list matches [`database.ts`](../../src/lib/types/database.ts).
+
+### Dump table sets
+
+**Invoicing** (`ppp-invoicing-YYYY-MM.dump`):
+
+`clients`, `client_rates`, `time_entries`, `invoices`, `invoice_line_items`
+
+**Library** (`ppp-library-YYYY-MM.dump`):
+
+`books`, `people`, `series`, `publishers`, `bible_books`, `ancient_texts`, `book_authors`, `book_bible_coverage`, `book_ancient_coverage`, `book_topics`, `essays`, `essay_authors`, `scripture_references`
+
+Both reference `profiles` (and some `audit_log`) — excluded from dumps; **load `profiles` row first** on restore.
+
+## Schema changes
+
+- None.
+
+## New components / patterns added
+
+- GitHub Actions CI + backup workflows under `.github/workflows/`.
+- `scripts/backup-restore-verify/restore-smoke.sh` — Docker-based restore verification (profiles schema + data row, then full invoicing `pg_restore`).
+
+## GitHub Actions secrets (set in repo Settings → Secrets)
+
+| Secret | Purpose |
+|---|---|
+| `BACKUP_DATABASE_URL` | Prod Session Pooler URI (`postgres.<ref>` @ `aws-0-<region>.pooler.supabase.com:5432`) |
+| `R2_ENDPOINT` | `https://<accountid>.r2.cloudflarestorage.com` |
+| `R2_BUCKET` | Private bucket name |
+| `R2_ACCESS_KEY_ID` | R2 API token access key |
+| `R2_SECRET_ACCESS_KEY` | R2 API token secret |
+
+Set via `gh secret set <NAME>` (values never committed). See [`scripts/backup-restore-verify/README.md`](../../scripts/backup-restore-verify/README.md).
+
+## Restore verification
+
+**Procedure** (documented; run once before trusting backups):
+
+1. Set the five GitHub secrets above.
+2. Actions → **Monthly database backup** → **Run workflow** (`workflow_dispatch`).
+3. Confirm `YYYY/ppp-invoicing-YYYY-MM.dump` and `YYYY/ppp-library-YYYY-MM.dump` in R2.
+4. Local smoke (optional, same table sets):  
+   `npx dotenv -e .env.local -- bash scripts/backup-restore-verify/restore-smoke.sh`  
+   Requires Docker. Seeds `profiles` schema + owner row from prod, then `pg_restore` invoicing dump; asserts live `clients` count > 0.
+
+**Session note:** Agent session could not execute the live smoke (Docker daemon not running on dev machine). Script + workflow are in place; Parker should run steps 1–4 once secrets and R2 bucket exist.
+
+## Open questions surfaced
+
+- None.
+
+## Surprises (read these before the next session)
+
+- `npm run check` now exits 0 (was 1 error pre-session); `@ts-expect-error` will flip to an error if upstream Vite types fix the depth issue — intentional self-cleaning signal.
+- Ubuntu `postgresql-client` from apt (backup workflow) is sufficient; no PGDG pin required unless prod major version diverges from client capabilities.
+
+## Carry-forward updates
+
+- [x] components.mdc updated (n/a)
+- [x] AGENTS.md inventory updated (GitHub Actions secrets table)
+- [x] new env vars documented (GitHub secrets — not local `.env`)
+- [x] PLAN.md refreshed (051 remediation complete, Data safety table list fixed)

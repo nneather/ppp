@@ -19,6 +19,7 @@ async function serviceWorkerBuilt(root: string): Promise<boolean> {
  * Skip injectManifest until Kit has emitted the file; the final SSR closeBundle runs it.
  */
 export function patchSvelteKitPwaPlugins(plugins: PluginOption[]): PluginOption[] {
+	// @ts-expect-error Vite PluginOption[] flat(Infinity) — excessively deep instantiation (upstream types)
 	const flat = plugins.flat(Infinity);
 
 	for (const plugin of flat) {

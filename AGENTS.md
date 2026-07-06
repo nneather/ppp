@@ -178,6 +178,18 @@ Two files. Both are gitignored.
 | `.env.staging` | **ppp-staging** ref only | `SUPABASE_REF` — copy from [`.env.staging.example`](.env.staging.example) |
 | `.env.staging.local` | Staging keys + RLS test passwords | `PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`, `RLS_TEST_*` — see [`scripts/rls-smoke/README.md`](scripts/rls-smoke/README.md) |
 
+**GitHub Actions secrets** (repo Settings → Secrets; never in `.env` — see [055](docs/decisions/055-ci-backups.md)):
+
+| Secret | Purpose |
+|---|---|
+| `BACKUP_DATABASE_URL` | Prod **Session Pooler** URI for monthly `pg_dump` (IPv4-safe on GitHub runners) |
+| `R2_ENDPOINT` | Cloudflare R2 S3 API endpoint |
+| `R2_BUCKET` | Private R2 bucket for monthly dumps |
+| `R2_ACCESS_KEY_ID` | R2 API token access key |
+| `R2_SECRET_ACCESS_KEY` | R2 API token secret |
+
+Setup commands: [`scripts/backup-restore-verify/README.md`](scripts/backup-restore-verify/README.md).
+
 Rules:
 
 - Anything prefixed `PUBLIC_` is exposed to the client — only safe-to-publish values (URL, anon key).
