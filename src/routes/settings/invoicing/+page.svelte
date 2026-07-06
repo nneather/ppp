@@ -273,7 +273,7 @@
 				Manage clients, hourly rates, and default CC recipients.
 			</p>
 		</div>
-		<Button type="button" size="sm" onclick={openCreateClient} class="gap-1">
+		<Button type="button" size="sm" onclick={openCreateClient} class="gap-1" hotkey="b">
 			<Plus class="size-4" /> New client
 		</Button>
 	</header>

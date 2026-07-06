@@ -5,6 +5,7 @@
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { cn } from '$lib/utils.js';
@@ -36,6 +37,7 @@
 	let sheetSide = $state<'bottom' | 'right'>('bottom');
 	let pending = $state(false);
 	let wasOpen = $state(false);
+	let confirmDeleteOpen = $state(false);
 
 	const selectItems = $derived(
 		clients.map((c) => ({
@@ -124,13 +126,22 @@
 		};
 	};
 
+	const deleteEnhance: SubmitFunction = () => {
+		pending = true;
+		return async ({ result, update }) => {
+			pending = false;
+			confirmDeleteOpen = false;
+			await update();
+			if (result.type === 'success') open = false;
+		};
+	};
+
 	function handleCancel() {
 		open = false;
 	}
 
-	function handleDelete() {
+	function confirmDelete() {
 		if (!entry || !browser) return;
-		if (!confirm('Delete this time entry?')) return;
 		const f = document.getElementById('time-entry-delete-form') as HTMLFormElement | null;
 		f?.requestSubmit();
 	}
@@ -268,11 +279,10 @@
 						{#if mode === 'edit' && entry}
 							<Button
 								type="button"
-								variant="destructive"
-								class="h-12 w-full text-base"
+								variant="outline"
+								class="h-12 w-full text-base text-destructive"
 								disabled={pending}
-								onclick={handleDelete}
-								hotkey="d"
+								onclick={() => (confirmDeleteOpen = true)}
 								label="Delete"
 							/>
 						{/if}
@@ -298,9 +308,19 @@
 		class="hidden"
 		method="POST"
 		action="?/delete"
-		use:enhance={submitEnhance}
+		use:enhance={deleteEnhance}
 	>
 		<input type="hidden" name="id" value={entry.id} />
 		<button type="submit">Delete</button>
 	</form>
+
+	<ConfirmDialog
+		bind:open={confirmDeleteOpen}
+		title="Delete this time entry?"
+		description="This soft-deletes the entry and removes it from this period."
+		confirmLabel="Delete"
+		destructive
+		pending={pending}
+		onConfirm={confirmDelete}
+	/>
 {/if}

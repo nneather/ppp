@@ -21,6 +21,7 @@ Work in this repo **builds into files**, not chat history. A session that doesn'
 2. **PLAN.md refreshed** — last-updated line, Recent decisions, Next up
 3. AGENTS.md inventory + [components.mdc](mdc:.cursor/rules/components.mdc) updated if helpers/components were added
 4. `npm run check` + `npm run test` pass (note the date in PLAN.md › Repo gate)
+5. **Provide a copy-paste commit message** for the session's changes (scoped to this session's files if the working tree mixes sessions), then **explicitly confirm we're good to close out** — Parker commits/pushes himself.
 
 ## Task-to-agent routing
 

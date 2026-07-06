@@ -251,7 +251,7 @@ function parseHours(raw: FormDataEntryValue | null): number | null {
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user) return fail(401, { message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'timeEntry' as const, message: 'Unauthorized' });
 
 		const fd = await request.formData();
 		const intent = String(fd.get('intent') ?? 'save').trim();
@@ -261,15 +261,15 @@ export const actions: Actions = {
 		const description = String(fd.get('description') ?? '').trim() || null;
 
 		if (!client_id || !parseYMD(date)) {
-			return fail(400, { message: 'Client and valid date are required.' });
+			return fail(400, { kind: 'timeEntry' as const, message: 'Client and valid date are required.' });
 		}
 		if (hours == null) {
-			return fail(400, { message: 'Enter a valid number of hours.' });
+			return fail(400, { kind: 'timeEntry' as const, message: 'Enter a valid number of hours.' });
 		}
 
 		const rateResult = await lookupRate(locals.supabase, client_id, date);
 		if (!rateResult.ok) {
-			return fail(400, { message: rateResult.message });
+			return fail(400, { kind: 'timeEntry' as const, message: rateResult.message });
 		}
 
 		const { error } = await locals.supabase.from('time_entries').insert({
@@ -285,19 +285,20 @@ export const actions: Actions = {
 		if (error) {
 			console.error(error);
 			return fail(500, {
+				kind: 'timeEntry' as const,
 				message: `Could not save time entry: ${error.message ?? 'unknown error'}`
 			});
 		}
 
 		if (intent === 'save_and_new') {
-			return { success: true as const, saveAndNew: true as const, savedDate: date };
+			return { kind: 'timeEntry' as const, success: true as const, saveAndNew: true as const, savedDate: date };
 		}
-		return { success: true as const };
+		return { kind: 'timeEntry' as const, success: true as const };
 	},
 
 	update: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user) return fail(401, { message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'timeEntry' as const, message: 'Unauthorized' });
 
 		const fd = await request.formData();
 		const id = String(fd.get('id') ?? '').trim();
@@ -307,10 +308,10 @@ export const actions: Actions = {
 		const description = String(fd.get('description') ?? '').trim() || null;
 
 		if (!id || !client_id || !parseYMD(date)) {
-			return fail(400, { message: 'Invalid entry or missing fields.' });
+			return fail(400, { kind: 'timeEntry' as const, message: 'Invalid entry or missing fields.' });
 		}
 		if (hours == null) {
-			return fail(400, { message: 'Enter a valid number of hours.' });
+			return fail(400, { kind: 'timeEntry' as const, message: 'Enter a valid number of hours.' });
 		}
 
 		const { data: existing, error: fetchErr } = await locals.supabase
@@ -321,13 +322,13 @@ export const actions: Actions = {
 			.maybeSingle();
 
 		if (fetchErr || !existing) {
-			return fail(404, { message: 'Entry not found.' });
+			return fail(404, { kind: 'timeEntry' as const, message: 'Entry not found.' });
 		}
 		if (existing.invoice_id) {
-			return fail(400, { message: 'Cannot edit a billed time entry.' });
+			return fail(400, { kind: 'timeEntry' as const, message: 'Cannot edit a billed time entry.' });
 		}
 		if (existing.is_one_off) {
-			return fail(400, { message: 'Cannot edit a one-off charge entry.' });
+			return fail(400, { kind: 'timeEntry' as const, message: 'Cannot edit a one-off charge entry.' });
 		}
 
 		const storedRate = Number(existing.rate);
@@ -358,20 +359,21 @@ export const actions: Actions = {
 		if (error) {
 			console.error(error);
 			return fail(500, {
+				kind: 'timeEntry' as const,
 				message: `Could not update time entry: ${error.message ?? 'unknown error'}`
 			});
 		}
 
-		return { success: true as const };
+		return { kind: 'timeEntry' as const, success: true as const };
 	},
 
 	delete: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user) return fail(401, { message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'timeEntry' as const, message: 'Unauthorized' });
 
 		const fd = await request.formData();
 		const id = String(fd.get('id') ?? '').trim();
-		if (!id) return fail(400, { message: 'Missing entry id.' });
+		if (!id) return fail(400, { kind: 'timeEntry' as const, message: 'Missing entry id.' });
 
 		const { data: existing, error: fetchErr } = await locals.supabase
 			.from('time_entries')
@@ -381,13 +383,13 @@ export const actions: Actions = {
 			.maybeSingle();
 
 		if (fetchErr || !existing) {
-			return fail(404, { message: 'Entry not found.' });
+			return fail(404, { kind: 'timeEntry' as const, message: 'Entry not found.' });
 		}
 		if (existing.invoice_id) {
-			return fail(400, { message: 'Cannot delete a billed time entry.' });
+			return fail(400, { kind: 'timeEntry' as const, message: 'Cannot delete a billed time entry.' });
 		}
 		if (existing.is_one_off) {
-			return fail(400, { message: 'Cannot delete a one-off charge entry.' });
+			return fail(400, { kind: 'timeEntry' as const, message: 'Cannot delete a one-off charge entry.' });
 		}
 
 		const { error } = await locals.supabase
@@ -398,10 +400,11 @@ export const actions: Actions = {
 		if (error) {
 			console.error(error);
 			return fail(500, {
+				kind: 'timeEntry' as const,
 				message: `Could not delete time entry: ${error.message ?? 'unknown error'}`
 			});
 		}
 
-		return { success: true as const };
+		return { kind: 'timeEntry' as const, success: true as const };
 	}
 };

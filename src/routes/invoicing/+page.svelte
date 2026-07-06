@@ -10,6 +10,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import TimeEntrySheet from '$lib/components/time-entry-sheet.svelte';
 	import {
 		formatYmdLongChicago,
@@ -127,37 +128,43 @@
 		{ id: 'month', label: 'Month' }
 	];
 
-	const formMessage = $derived(form && 'message' in form ? (form as { message?: string }) : null);
+	const formMessage = $derived(
+		form && 'kind' in form && (form as { kind?: string }).kind === 'timeEntry'
+			? (form as { message?: string })
+			: null
+	);
 </script>
 
 <svelte:head>
 	<title>Invoicing — ppp</title>
 </svelte:head>
 
-<div class="relative mx-auto max-w-3xl px-4 pt-6 pb-28 md:px-6 md:pt-8 md:pb-10">
-	<header class="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-		<div class="flex items-center gap-2 text-muted-foreground">
-			<Receipt class="size-7 shrink-0 md:size-6" />
-			<div>
-				<h1 class="text-2xl font-semibold tracking-tight text-foreground">Invoicing</h1>
-				<p class="text-sm text-muted-foreground">Time entries</p>
-			</div>
-		</div>
-		<div class="flex w-full flex-wrap gap-2 md:w-auto md:justify-end">
-			<Button
-				variant="outline"
-				href="/invoicing/invoices"
-				class="h-10 min-h-10 flex-1 gap-2 sm:flex-none"
-			>
-				<FileText class="size-4" />
-				Invoices
-			</Button>
-			<Button type="button" class="h-10 min-h-10 flex-1 gap-2 sm:flex-none" onclick={openCreate}>
-				<Plus class="size-4" />
-				New entry
-			</Button>
-		</div>
-	</header>
+<div class="relative mx-auto max-w-3xl px-4 pt-6 pb-tabbar md:px-6 md:pt-8 md:pb-10">
+	<PageHeader title="Invoicing" subtitle="Time entries" class="mb-6" lead={headerLead} actions={headerActions} />
+
+	{#snippet headerLead()}
+		<Receipt class="size-7 shrink-0 md:size-6" />
+	{/snippet}
+
+	{#snippet headerActions()}
+		<Button
+			variant="outline"
+			href="/invoicing/invoices"
+			class="h-10 min-h-10 flex-1 gap-2 sm:flex-none"
+		>
+			<FileText class="size-4" />
+			Invoices
+		</Button>
+		<Button
+			type="button"
+			class="h-10 min-h-10 flex-1 gap-2 sm:flex-none"
+			onclick={openCreate}
+			hotkey="b"
+		>
+			<Plus class="size-4" />
+			New entry
+		</Button>
+	{/snippet}
 
 	{#if data.error}
 		<p
@@ -385,8 +392,7 @@
 	<!-- Mobile FAB -->
 	<Button
 		type="button"
-		class="fixed right-4 z-40 size-14 rounded-full shadow-lg md:hidden"
-		style="bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);"
+		class="bottom-tabbar fixed right-4 z-40 size-14 rounded-full shadow-lg md:hidden"
 		aria-label="New time entry"
 		onclick={openCreate}
 	>

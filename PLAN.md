@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-06 — R3 UX safety shipped ([053](docs/decisions/053-ux-safety.md)): design-system login, branded `+error.svelte`, graceful permissions gate, confirm-before-delete on books, dashboard Tasks tile. **Next:** R4 invoicing polish.
+**Last updated:** 2026-07-06 — R4 invoicing polish shipped ([054](docs/decisions/054-invoicing-polish.md)): retired all `window.confirm` for `<ConfirmDialog>`, `<PageHeader>` migration, `bottom-tabbar` FAB (no inline `style=`), hotkeys on create triggers, `formMessage` narrowed on `form.kind`. **Next:** R5 CI + backups.
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,7 @@
 
 ## Current focus
 
-**Product review remediation (051):** R1 docs trust + **R2 security hardening** ([052](docs/decisions/052-security-hardening.md)) + **R3 UX safety** ([053](docs/decisions/053-ux-safety.md)) shipped. Next: R4 invoicing polish, R5 CI + backups. Viewer-readiness items stay in backlog until a collaborator nears.
+**Product review remediation (051):** R1 docs trust + **R2 security hardening** ([052](docs/decisions/052-security-hardening.md)) + **R3 UX safety** ([053](docs/decisions/053-ux-safety.md)) + **R4 invoicing polish** ([054](docs/decisions/054-invoicing-polish.md)) shipped. Next: R5 CI + backups. Viewer-readiness items stay in backlog until a collaborator nears.
 
 **Projects — v1 feature-complete:** Tree + check-in ([045]), dashboard + filters ([046]), MYN tasks + links + audit ([047](docs/decisions/047-projects-session-3-myn-tasks-links-audit.md)), Epic status appearance ([047b](docs/decisions/047-projects-status-appearance.md)), weekly check-in **progress tracking** ([048](docs/decisions/048-projects-checkin-progress.md)). Design: [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md). **Session 1 phone smoke** signed off (tree + check-in). **Full end-to-end smoke** (dashboard + tasks + links + audit) still optional on tracker.
 
@@ -29,7 +29,7 @@ Nearest hard dates:
 
 | Module | Tracker | State |
 |---|---|---|
-| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]). UX standardization half-session planned (review 051). |
+| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md) — ConfirmDialog / PageHeader / bottom-tabbar / hotkeys). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 (starting this summer, fixture-first):** Turabian formatter incl. **article-level citations (essays UI now IN scope — decided 2026-06-04)**, 20-row QA across all source types, megacomponent split, `.docx` export (hanging indent + italics). PWA perf: separate thread. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** — tree/check-in, dashboard/filters, MYN `/projects/tasks`, links in Sheet, audit. **Viewer access:** owner-only by design (not deferred debt); revisit only if a collaborator is added — [POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md). **Backlog:** polish, global Now ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)), optional full phone smoke. |
 
@@ -39,9 +39,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [054 — Invoicing UX standardization (review 051 R4)](docs/decisions/054-invoicing-polish.md) (2026-07-06) — retired all `window.confirm` for `<ConfirmDialog>` (invoice detail + time-entry sheet + library batch-scripture nav guard), `<PageHeader>` migration, `bottom-tabbar` FAB, `hotkey="b"` on create triggers, `formMessage` narrowed on `form.kind`.
 - [053 — UX safety + first impressions (review 051 R3)](docs/decisions/053-ux-safety.md) (2026-07-06) — design-system login, branded `+error.svelte`, graceful `/settings/permissions` owner gate, confirm-before-delete on books, dashboard Tasks tile.
 - [052 — Security hardening (review 051 R2)](docs/decisions/052-security-hardening.md) (2026-07-05) — CSP + security headers, Edge CORS allowlist, OCR fail-closed, storage/publishers SELECT regate, `getClaims()` auth.
-- [051 — Product review: security / usability / docs](docs/decisions/051-product-review.md) (2026-07-05) — full audit, 0 critical security findings, 5-session remediation plan locked.
 
 ---
 
@@ -64,7 +64,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` re-verified **2026-07-06** (Session R3 / [053](docs/decisions/053-ux-safety.md); only the known pre-existing `patch-sveltekit-pwa.ts` type error). `npm run test` last green 2026-07-05 (95/95). **Shipped:** migration `20260705170000` applied to prod; Edge Functions redeployed; ECC JWT rotated + smoke ok **2026-07-06**. R3 is UI-only (no schema/Edge changes). Dashboard mobile screenshot deferred to owner phone smoke; login mobile screenshot captured. Staging / `test:rls` deferred.
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-06** (Session R4 / [054](docs/decisions/054-invoicing-polish.md); check carries only the known pre-existing `patch-sveltekit-pwa.ts` type error, test 95/95 green). R4 is UI-only + one server return-shape change (`kind` on `/invoicing` actions) — no schema/Edge changes. Mobile-width `/invoicing` screenshot captured + nested delete-confirm verified live (owner session was valid client-side this time). Earlier: migration `20260705170000` applied to prod; Edge Functions redeployed; ECC JWT rotated + smoke ok 2026-07-06.
 
 **Data safety (monthly export):** Off-Supabase belt-and-suspenders beyond Supabase Pro's 7-day daily backups. Monthly `pg_dump -F c`, two files pushed to a private backup store (GitHub Action / cron):
 
@@ -134,7 +134,7 @@ Acceptance:
  - [ ] npm run check passes; mobile-width screenshots of login + dashboard
 ```
 
-### Review remediation — Session R4: invoicing polish (half)
+### Review remediation — Session R4: invoicing polish (half) ✅ done ([054](docs/decisions/054-invoicing-polish.md))
 
 ```
 Session: invoicing — UX standardization (review 051, Session R4)
@@ -143,10 +143,10 @@ Read: AGENTS.md, docs/decisions/051-product-review.md, .cursor/rules/hotkeys.mdc
   src/routes/settings/invoicing/+page.svelte, src/lib/components/time-entry-sheet.svelte
 Goal: Retire window.confirm for <ConfirmDialog>; hotkey coverage on settings/invoicing; PageHeader migration; bottom-tabbar FABs.
 Acceptance:
- - [ ] No window.confirm left in src/; destructive invoicing actions use <ConfirmDialog>
- - [ ] settings/invoicing primary buttons carry hotkeys (s/u/d/e per convention)
- - [ ] Invoicing headers use <PageHeader>; FABs use bottom-tabbar class (no inline style=)
- - [ ] npm run check passes; formMessage narrowed on form.kind on /invoicing
+ - [x] No window.confirm left in src/; destructive invoicing actions use <ConfirmDialog>
+ - [x] settings/invoicing primary buttons carry hotkeys (s/u/d/e per convention)
+ - [x] Invoicing headers use <PageHeader>; FABs use bottom-tabbar class (no inline style=)
+ - [x] npm run check passes; formMessage narrowed on form.kind on /invoicing
 ```
 
 ### Review remediation — Session R5: CI + backups
@@ -165,7 +165,7 @@ Acceptance:
 
 ## Next up
 
-1. **Review remediation (051)** — ~~R2 security hardening~~ ([052](docs/decisions/052-security-hardening.md)) → ~~R3 UX safety~~ ([053](docs/decisions/053-ux-safety.md)) → **R4 invoicing polish (half)** → R5 CI + backups. Session prompts above. Viewer-readiness items (permission-aware nav, viewer onboarding, hotkey cheat sheet, shared FlashToast) stay in backlog until a collaborator nears.
+1. **Review remediation (051)** — ~~R2 security hardening~~ ([052](docs/decisions/052-security-hardening.md)) → ~~R3 UX safety~~ ([053](docs/decisions/053-ux-safety.md)) → ~~R4 invoicing polish~~ ([054](docs/decisions/054-invoicing-polish.md)) → **R5 CI + backups**. Session prompts above. Viewer-readiness items (permission-aware nav, viewer onboarding, hotkey cheat sheet, shared FlashToast) stay in backlog until a collaborator nears.
 2. **Library Wave 2** — fixture-first Turabian + essays/article-level citations (see Current focus).
 3. **Projects — use v1 weekly** (tree check-in + optional `/projects/tasks`). Retrospective / process: central Claude project (see tracker Notes).
 4. **Projects backlog (pick one when ready):** global MYN Now view · optional full phone smoke on tracker.

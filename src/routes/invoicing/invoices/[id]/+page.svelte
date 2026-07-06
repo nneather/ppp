@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
+	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -42,6 +43,15 @@
 	let downloadPending = $state(false);
 	let markPaidPending = $state(false);
 	let sendOpen = $state(false);
+
+	// Shared confirm dialog for the destructive discard flows + mark-paid.
+	let confirmOpen = $state(false);
+	let confirmTitle = $state('');
+	let confirmDescription = $state('');
+	let confirmLabel = $state('Confirm');
+	let confirmDestructive = $state(true);
+	let confirmFormId = $state<string | null>(null);
+	const confirmPending = $derived(discardPending || markPaidPending);
 	let emailBody = $state('');
 	let toEmail = $state('');
 	let ccEmails = $state('');
@@ -68,6 +78,7 @@
 		discardPending = true;
 		return async ({ update }) => {
 			discardPending = false;
+			confirmOpen = false;
 			await update();
 		};
 	};
@@ -121,9 +132,37 @@
 		markPaidPending = true;
 		return async ({ update }) => {
 			markPaidPending = false;
+			confirmOpen = false;
 			await update();
 		};
 	};
+
+	function askDiscard(kind: 'draft' | 'sent') {
+		confirmTitle = kind === 'draft' ? 'Discard this draft?' : 'Discard this sent invoice?';
+		confirmDescription =
+			kind === 'draft'
+				? 'Time entries will return to unbilled and this invoice will be removed.'
+				: 'Linked time entries will return to unbilled so you can bill them again on a new invoice. The sent invoice record will be archived as discarded.';
+		confirmLabel = kind === 'draft' ? 'Discard draft' : 'Discard invoice';
+		confirmDestructive = true;
+		confirmFormId = 'discard-invoice-form';
+		confirmOpen = true;
+	}
+
+	function askMarkPaid() {
+		confirmTitle = 'Mark this invoice as paid?';
+		confirmDescription = 'Records the payment date and moves the invoice to paid.';
+		confirmLabel = 'Mark as paid';
+		confirmDestructive = false;
+		confirmFormId = 'mark-paid-form';
+		confirmOpen = true;
+	}
+
+	function submitConfirm() {
+		if (typeof document === 'undefined' || !confirmFormId) return;
+		const formEl = document.getElementById(confirmFormId) as HTMLFormElement | null;
+		formEl?.requestSubmit();
+	}
 
 	function statusVariant(s: InvoiceStatus): 'default' | 'secondary' | 'outline' | 'destructive' {
 		if (s === 'paid') return 'secondary';
@@ -158,27 +197,23 @@
 </svelte:head>
 
 <div class="relative mx-auto max-w-3xl px-4 pt-6 pb-16 md:px-6 md:pt-8 md:pb-10">
-	<p class="mb-4">
-		<a
-			href="/invoicing/invoices"
-			class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-		>
-			<ChevronLeft class="size-4" />
-			All invoices
-		</a>
-	</p>
+	<PageHeader
+		back={{ href: '/invoicing/invoices', label: 'All invoices' }}
+		title={inv.invoice_number}
+		class="mb-8 border-b border-border pb-6"
+		meta={headerMeta}
+		actions={headerStatus}
+	/>
 
-	<header
-		class="mb-8 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between"
-	>
-		<div>
-			<h1 class="text-2xl font-semibold tracking-tight text-foreground">{inv.invoice_number}</h1>
-			<p class="mt-1 text-lg text-foreground">{inv.client_name}</p>
-			<p class="mt-2 text-sm text-muted-foreground">
-				Billing period: {formatPeriod(inv.period_start, inv.period_end)}
-			</p>
-		</div>
-		<div class="flex flex-col items-start gap-2 sm:items-end">
+	{#snippet headerMeta()}
+		<p class="text-lg text-foreground">{inv.client_name}</p>
+		<p class="mt-2 text-sm text-muted-foreground">
+			Billing period: {formatPeriod(inv.period_start, inv.period_end)}
+		</p>
+	{/snippet}
+
+	{#snippet headerStatus()}
+		<div class="flex flex-col items-start gap-2 md:items-end">
 			<Badge variant={statusVariant(inv.status)} class="capitalize">{inv.status}</Badge>
 			<p class="text-xs text-muted-foreground">
 				Created {new Date(inv.created_at).toLocaleString()}
@@ -198,7 +233,7 @@
 				</p>
 			{/if}
 		</div>
-	</header>
+	{/snippet}
 
 	<section class="mb-8">
 		<h2 class="mb-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
@@ -407,54 +442,28 @@
 					{discardMessage}
 				</p>
 			{/if}
-			<form
-				method="POST"
-				action="?/discard"
-				use:enhance={discardEnhance}
-				class="w-full sm:ml-auto sm:w-auto"
-				onsubmit={(e) => {
-					if (
-						!confirm(
-							'Discard this draft? Time entries will return to unbilled and this invoice will be removed.'
-						)
-					) {
-						e.preventDefault();
-					}
-				}}
-			>
-				<Button
-					type="submit"
-					variant="destructive"
-					class="w-full sm:w-auto"
-					disabled={discardPending}
-					hotkey="d"
-					label={discardPending ? 'Discarding…' : 'Discard draft'}
-				/>
-			</form>
+			<Button
+				type="button"
+				variant="outline"
+				class="w-full text-destructive sm:ml-auto sm:w-auto"
+				disabled={discardPending}
+				onclick={() => askDiscard('draft')}
+				label={discardPending ? 'Discarding…' : 'Discard draft'}
+			/>
 		</div>
 	{/if}
 
 	{#if inv.status === 'sent'}
 		<div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-			<form
-				method="POST"
-				action="?/markPaid"
-				use:enhance={markPaidEnhance}
-				onsubmit={(e) => {
-					if (!confirm('Mark this invoice as paid?')) {
-						e.preventDefault();
-					}
-				}}
+			<Button
+				type="button"
+				variant="secondary"
+				class="w-full sm:w-auto"
+				disabled={markPaidPending}
+				onclick={askMarkPaid}
 			>
-				<Button
-					type="submit"
-					variant="secondary"
-					class="w-full sm:w-auto"
-					disabled={markPaidPending}
-				>
-					{markPaidPending ? 'Updating…' : 'Mark as paid'}
-				</Button>
-			</form>
+				{markPaidPending ? 'Updating…' : 'Mark as paid'}
+			</Button>
 
 			{#if discardMessage}
 				<p
@@ -464,30 +473,14 @@
 					{discardMessage}
 				</p>
 			{/if}
-			<form
-				method="POST"
-				action="?/discard"
-				use:enhance={discardEnhance}
-				class="w-full sm:ml-auto sm:w-auto"
-				onsubmit={(e) => {
-					if (
-						!confirm(
-							'Discard this sent invoice? Linked time entries will return to unbilled so you can bill them again on a new invoice. The sent invoice record will be archived as discarded.'
-						)
-					) {
-						e.preventDefault();
-					}
-				}}
-			>
-				<Button
-					type="submit"
-					variant="destructive"
-					class="w-full sm:w-auto"
-					disabled={discardPending}
-					hotkey="d"
-					label={discardPending ? 'Discarding…' : 'Discard sent invoice'}
-				/>
-			</form>
+			<Button
+				type="button"
+				variant="outline"
+				class="w-full text-destructive sm:ml-auto sm:w-auto"
+				disabled={discardPending}
+				onclick={() => askDiscard('sent')}
+				label={discardPending ? 'Discarding…' : 'Discard sent invoice'}
+			/>
 		</div>
 	{/if}
 
@@ -500,3 +493,33 @@
 		</section>
 	{/if}
 </div>
+
+<!-- Hidden forms driven by the shared confirm dialog. -->
+{#if inv.status === 'draft' || inv.status === 'sent'}
+	<form
+		id="discard-invoice-form"
+		method="POST"
+		action="?/discard"
+		use:enhance={discardEnhance}
+		class="hidden"
+	></form>
+{/if}
+{#if inv.status === 'sent'}
+	<form
+		id="mark-paid-form"
+		method="POST"
+		action="?/markPaid"
+		use:enhance={markPaidEnhance}
+		class="hidden"
+	></form>
+{/if}
+
+<ConfirmDialog
+	bind:open={confirmOpen}
+	title={confirmTitle}
+	description={confirmDescription}
+	confirmLabel={confirmLabel}
+	destructive={confirmDestructive}
+	pending={confirmPending}
+	onConfirm={submitConfirm}
+/>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
-	import { beforeNavigate, invalidate } from '$app/navigation';
+	import { beforeNavigate, goto, invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -226,6 +226,8 @@
 	let addOpen = $state(false);
 	let batchFormDirty = $state(false);
 	let confirmedBatchDiscard = $state(false);
+	let batchDiscardOpen = $state(false);
+	let pendingBatchNav = $state<URL | null>(null);
 	/** Scroll batch form into view when opening (dense scripture block is long). */
 	let scriptureAddFormEl = $state<HTMLElement | null>(null);
 	let editingId = $state<string | null>(null);
@@ -270,16 +272,18 @@
 		) {
 			return;
 		}
-		if (
-			!confirm(
-				'You have unsaved scripture references in the batch form. Leave without saving?'
-			)
-		) {
-			cancel();
-		} else {
-			confirmedBatchDiscard = true;
-		}
+		cancel();
+		pendingBatchNav = to.url;
+		batchDiscardOpen = true;
 	});
+
+	function discardBatchAndGo() {
+		confirmedBatchDiscard = true;
+		batchDiscardOpen = false;
+		const next = pendingBatchNav;
+		pendingBatchNav = null;
+		if (next) goto(next);
+	}
 
 	$effect(() => {
 		if (!browser || !addOpen) return;
@@ -1439,6 +1443,16 @@
 	destructive
 	pending={deletePending}
 	onConfirm={confirmDeleteBook}
+/>
+
+<ConfirmDialog
+	bind:open={batchDiscardOpen}
+	title="Discard unsaved scripture references?"
+	description="You have unsaved scripture references in the batch form. Leaving will lose them."
+	confirmLabel="Discard"
+	cancelLabel="Keep editing"
+	destructive
+	onConfirm={discardBatchAndGo}
 />
 
 <form
