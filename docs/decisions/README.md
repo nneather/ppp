@@ -12,6 +12,20 @@ One file per build session, filed at session end. Used as input to the *next* se
 
 Numbers are global across modules (not per-module) so the log reads chronologically.
 
+**Before filing:** `ls docs/decisions/ | sort` and take the next free number. Numbers `051+` are collision-free; when referencing an entry below, include enough slug to disambiguate.
+
+## Known numbering collisions (frozen — do not renumber)
+
+Duplicates from parallel sessions; renumbering would break decision IDs baked into commit messages and cross-links. Disambiguate by slug:
+
+| Number | Files |
+|---|---|
+| 004 | `004-invoice-number-drift-hotfix.md` · `004-library-scripture-references-wiring.md` |
+| 005 | `005-app-wide-hotkeys.md` · `005-scripture-refs-bulk-and-ocr-design.md` |
+| 027 | *(unused — gap, not a missing file)* |
+| 033 | `033-library-pm-review-may-2026.md` · `033-performance-pass.md` · `033-publishers-settings.md` |
+| 047 | `047-projects-session-3-myn-tasks-links-audit.md` · `047-projects-status-appearance.md` (cited as **047b**) |
+
 ## Template
 
 See [AGENTS.md](../../AGENTS.md#template) for the canonical template. Copy it into a new file and fill in.

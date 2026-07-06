@@ -1,0 +1,43 @@
+---
+description: How Parker works — session types, end-of-session file gate, and task-to-agent routing. Always applied.
+alwaysApply: true
+---
+
+# Workflow — sessions, files, and agent routing
+
+Work in this repo **builds into files**, not chat history. A session that doesn't update the files below didn't happen (three ad-hoc sessions skipped this and PLAN.md drifted a month stale — see [051](mdc:docs/decisions/051-product-review.md)).
+
+## Session types
+
+| Type | Where | Rules |
+|---|---|---|
+| Tracked build session | **New chat**, paste the AGENTS.md session template | Full acceptance checklist + end-of-session gate |
+| Ad-hoc fix / polish (< ~1 hr) | Existing or new chat | **Still runs the end-of-session gate** — ad-hoc is not exempt |
+| Review / audit | New chat, read-only tools | Must end as decisions + session prompts, not just a report (see below) |
+
+## End-of-session gate (every session, including ad-hoc)
+
+1. `docs/decisions/NNN-<slug>.md` filed — take the **next free number** (`ls docs/decisions/ | sort`; collision index in [docs/decisions/README.md](mdc:docs/decisions/README.md))
+2. **PLAN.md refreshed** — last-updated line, Recent decisions, Next up
+3. AGENTS.md inventory + [components.mdc](mdc:.cursor/rules/components.mdc) updated if helpers/components were added
+4. `npm run check` + `npm run test` pass (note the date in PLAN.md › Repo gate)
+
+## Task-to-agent routing
+
+| Task | Route to |
+|---|---|
+| Repo-wide audit, multi-area exploration | **Parallel read-only explore subagents**, one per concern (security / UX / docs each got one in 051) |
+| Diff > 400 LOC before push (any module, not just library) | **Read-only review subagent (Bugbot)** — mobile + RLS + citation regressions |
+| Diffs touching RLS, Edge Functions, auth, storage policies | **Security-review subagent** before push |
+| Structured findings, quantitative analyses, audits | **Canvas** beside the chat; the durable outcome still goes in `docs/decisions/` |
+| Ambiguous scope, multiple valid architectures | **Plan mode** first; lock Phase-0 structure before building (module-kickoff.mdc) |
+| Independent parallel workstreams | **Background agents**, one per workstream — never interleave two workstreams in one chat |
+| "What's the current state?" questions | Answer from **PLAN.md + latest 3 decision files** before searching code |
+
+## Decision-first reviews
+
+A review or analysis is unfinished until it becomes:
+
+1. **Locked decisions** — put open calls to Parker as explicit multiple-choice questions, record the answers
+2. **Session prompts** — copy-paste-ready prompts appended to PLAN.md › Session prompts
+3. **A decision-log entry** — findings that don't change PLAN.md will go stale and be lost

@@ -1,4 +1,4 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { upsertUserPermissionAction } from '$lib/library/server/permissions-actions';
 import { MODULE_SLUGS, type ModuleSlug } from './module-slugs';
@@ -24,7 +24,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.maybeSingle();
 	if (meErr) console.error(meErr);
 	const isOwner = (profileMe?.role as string | null) === 'owner';
-	if (!isOwner) error(403, 'Only the workspace owner can manage permissions.');
+	if (!isOwner) {
+		return {
+			notOwner: true as const,
+			viewers: [] as ViewerRow[],
+			matrix: {} as PermissionMatrix,
+			loadError: null as string | null
+		};
+	}
 
 	const { data: viewers, error: vErr } = await supabase
 		.from('profiles')
@@ -36,6 +43,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (vErr) {
 		console.error(vErr);
 		return {
+			notOwner: false as const,
 			viewers: [] as ViewerRow[],
 			matrix: {} as PermissionMatrix,
 			loadError: 'Could not load viewer accounts.'
@@ -54,6 +62,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		if (pErr) {
 			console.error(pErr);
 			return {
+				notOwner: false as const,
 				viewers: viewerRows,
 				matrix: {} as PermissionMatrix,
 				loadError: 'Could not load permissions.'
@@ -80,6 +89,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	return {
+		notOwner: false as const,
 		viewers: viewerRows,
 		matrix,
 		loadError: null as string | null

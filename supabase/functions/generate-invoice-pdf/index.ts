@@ -1,10 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib';
 
-const corsHeaders: Record<string, string> = {
-	'Access-Control-Allow-Origin': '*',
-	'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-};
+function resolveCorsOrigin(req: Request): string | null {
+	const origin = req.headers.get('Origin');
+	if (!origin) return null;
+	const site = Deno.env.get('SITE_URL')?.replace(/\/$/, '');
+	if (site && origin === site) return origin;
+	const extras = Deno.env.get('CORS_ALLOWED_ORIGINS')?.split(',').map((s) => s.trim()) ?? [];
+	if (extras.includes(origin)) return origin;
+	if (origin.endsWith('.vercel.app')) return origin;
+	return null;
+}
+
+function corsHeadersFor(req: Request): Record<string, string> {
+	const origin = resolveCorsOrigin(req);
+	return {
+		...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
+		'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+		Vary: 'Origin'
+	};
+}
 
 type InvoiceRow = {
 	id: string;
@@ -39,10 +54,10 @@ type LineRow = {
 	end_date: string | null;
 };
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(req: Request, body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
 		status,
-		headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+		headers: { ...corsHeadersFor(req), 'Content-Type': 'application/json' }
 	});
 }
 
@@ -206,45 +221,45 @@ function drawTextRight(
 
 Deno.serve(async (req) => {
 	if (req.method === 'OPTIONS') {
-		return new Response('ok', { headers: corsHeaders });
+		return new Response('ok', { headers: corsHeadersFor(req) });
 	}
 
 	if (req.method !== 'POST') {
-		return jsonResponse({ error: 'Method not allowed' }, 405);
+		return jsonResponse(req, { error: 'Method not allowed' }, 405);
 	}
 
 	const supabaseUrl = Deno.env.get('SUPABASE_URL');
 	const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
 	const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 	if (!supabaseUrl || !anonKey || !serviceKey) {
-		return jsonResponse({ error: 'Server configuration error' }, 500);
+		return jsonResponse(req, { error: 'Server configuration error' }, 500);
 	}
 
 	const authHeader = req.headers.get('Authorization');
 	if (!authHeader?.startsWith('Bearer ')) {
-		return jsonResponse({ error: 'Unauthorized' }, 401);
+		return jsonResponse(req, { error: 'Unauthorized' }, 401);
 	}
 
 	const userId = await getUserIdFromAuthApi(supabaseUrl, anonKey, authHeader);
 	if (!userId) {
-		return jsonResponse({ error: 'Unauthorized' }, 401);
+		return jsonResponse(req, { error: 'Unauthorized' }, 401);
 	}
 
 	const admin = createClient(supabaseUrl, serviceKey);
 	if (!(await requireOwner(admin, userId))) {
-		return jsonResponse({ error: 'Forbidden' }, 403);
+		return jsonResponse(req, { error: 'Forbidden' }, 403);
 	}
 
 	let body: { invoice_id?: string };
 	try {
 		body = await req.json();
 	} catch {
-		return jsonResponse({ error: 'Invalid JSON body' }, 400);
+		return jsonResponse(req, { error: 'Invalid JSON body' }, 400);
 	}
 
 	const invoiceId = body.invoice_id?.trim();
 	if (!invoiceId) {
-		return jsonResponse({ error: 'invoice_id is required' }, 400);
+		return jsonResponse(req, { error: 'invoice_id is required' }, 400);
 	}
 
 	const { data: inv, error: invErr } = await admin
@@ -269,11 +284,11 @@ Deno.serve(async (req) => {
 
 	if (invErr) {
 		console.error(invErr);
-		return jsonResponse({ error: 'Could not load invoice' }, 500);
+		return jsonResponse(req, { error: 'Could not load invoice' }, 500);
 	}
 	const invoice = inv as InvoiceRow | null;
 	if (!invoice || invoice.deleted_at != null) {
-		return jsonResponse({ error: 'Invoice not found' }, 404);
+		return jsonResponse(req, { error: 'Invoice not found' }, 404);
 	}
 
 	// Allow PDF regeneration after client soft-delete (existing invoices stay accessible).
@@ -285,7 +300,7 @@ Deno.serve(async (req) => {
 
 	if (clientErr || !clientRow) {
 		console.error(clientErr);
-		return jsonResponse({ error: 'Could not load client' }, 500);
+		return jsonResponse(req, { error: 'Could not load client' }, 500);
 	}
 	const client = clientRow as ClientRow;
 
@@ -297,7 +312,7 @@ Deno.serve(async (req) => {
 
 	if (linesErr) {
 		console.error(linesErr);
-		return jsonResponse({ error: 'Could not load line items' }, 500);
+		return jsonResponse(req, { error: 'Could not load line items' }, 500);
 	}
 
 	const lineItems = (lines ?? []) as LineRow[];
@@ -575,7 +590,7 @@ Deno.serve(async (req) => {
 	const pdfBytes = await pdfDoc.save();
 	const base64 = uint8ArrayToBase64(pdfBytes);
 
-	return jsonResponse({ pdf: base64 });
+	return jsonResponse(req, { pdf: base64 });
 });
 
 function uint8ArrayToBase64(bytes: Uint8Array): string {

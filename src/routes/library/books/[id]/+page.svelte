@@ -64,6 +64,8 @@
 	const bookTitleIsPlaceholder = $derived(!data.book.title?.trim());
 
 	let deletePending = $state(false);
+	let confirmDeleteBookOpen = $state(false);
+	let bookDeleteFormEl = $state<HTMLFormElement | null>(null);
 	let statusOptimistic = $state<ReadingStatus | null>(null);
 
 	const effectiveStatus = $derived<ReadingStatus>(
@@ -97,13 +99,17 @@
 	}
 
 	const deleteEnhance: SubmitFunction = () => {
-		bookActionsSheetOpen = false;
 		deletePending = true;
 		return async ({ update }) => {
 			await update({ reset: false });
 			deletePending = false;
+			confirmDeleteBookOpen = false;
 		};
 	};
+
+	function confirmDeleteBook() {
+		bookDeleteFormEl?.requestSubmit();
+	}
 
 	function fmtYearChunk(): string {
 		const parts: string[] = [];
@@ -747,13 +753,16 @@
 		<Button variant="outline" href={`/library/books/${data.book.id}/edit?ol=1`} class="gap-2">
 			<ScanBarcode class="size-4" /> Refresh from ISBN
 		</Button>
-		<form method="POST" action="?/softDeleteBook" use:enhance={deleteEnhance} class="contents">
-			<input type="hidden" name="id" value={data.book.id} />
-			<Button type="submit" variant="destructive" disabled={deletePending} hotkey="d">
-				<Trash2 class="size-4" />
-				<HotkeyLabel label={deletePending ? 'Deleting…' : 'Delete'} mnemonic="d" />
-			</Button>
-		</form>
+		<Button
+			type="button"
+			variant="outline"
+			class="text-destructive hover:text-destructive"
+			disabled={deletePending}
+			onclick={() => (confirmDeleteBookOpen = true)}
+		>
+			<Trash2 class="size-4" />
+			{deletePending ? 'Deleting…' : 'Delete'}
+		</Button>
 	</div>
 	<div class="flex items-stretch gap-2 md:hidden">
 		<Button
@@ -836,19 +845,19 @@
 				>
 					<ScanBarcode class="size-4" /> Refresh from ISBN
 				</Button>
-				<form method="POST" action="?/softDeleteBook" use:enhance={deleteEnhance} class="contents">
-					<input type="hidden" name="id" value={data.book.id} />
-					<Button
-						type="submit"
-						variant="destructive"
-						disabled={deletePending}
-						hotkey="d"
-						class="h-11 w-full"
-					>
-						<Trash2 class="size-4" />
-						<HotkeyLabel label={deletePending ? 'Deleting…' : 'Delete'} mnemonic="d" />
-					</Button>
-				</form>
+				<Button
+					type="button"
+					variant="outline"
+					class="h-11 w-full text-destructive hover:text-destructive"
+					disabled={deletePending}
+					onclick={() => {
+						bookActionsSheetOpen = false;
+						confirmDeleteBookOpen = true;
+					}}
+				>
+					<Trash2 class="size-4" />
+					{deletePending ? 'Deleting…' : 'Delete'}
+				</Button>
 			</div>
 		</Sheet.Content>
 	</Sheet.Root>
@@ -1409,6 +1418,28 @@
 		{/if}
 	</section>
 </div>
+
+<!-- Hidden delete form: confirm dialog drives requestSubmit() against this. -->
+<form
+	method="POST"
+	action="?/softDeleteBook"
+	use:enhance={deleteEnhance}
+	bind:this={bookDeleteFormEl}
+	class="hidden"
+>
+	<input type="hidden" name="id" value={data.book.id} />
+</form>
+
+<ConfirmDialog
+	bind:open={confirmDeleteBookOpen}
+	title="Delete this book?"
+	description="This soft-deletes the book. You can restore it from the audit log if needed."
+	confirmLabel="Delete"
+	cancelLabel="Keep"
+	destructive
+	pending={deletePending}
+	onConfirm={confirmDeleteBook}
+/>
 
 <form
 	method="POST"

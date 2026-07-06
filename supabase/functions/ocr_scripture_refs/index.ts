@@ -305,7 +305,7 @@ async function bumpOcrUsage(
 		.maybeSingle();
 	if (readErr) {
 		console.error('[ocr_scripture_refs] usage read', readErr);
-		return { allowed: true };
+		return { allowed: false };
 	}
 	const current = (row as { call_count?: number } | null)?.call_count ?? 0;
 	if (current >= OCR_DAILY_CAP) return { allowed: false };

@@ -7,6 +7,7 @@ This is the single entry point for any AI assistant working on this repo. Read t
 The Cursor rules in `.cursor/rules/*.mdc` are loaded automatically by Cursor; if you are running outside Cursor, read them manually:
 
 - [.cursor/rules/always.mdc](.cursor/rules/always.mdc) — stack, conventions, non-negotiables
+- [.cursor/rules/workflow.mdc](.cursor/rules/workflow.mdc) — session types, end-of-session file gate, task-to-agent routing
 - [.cursor/rules/db-changes.mdc](.cursor/rules/db-changes.mdc) — migration checklist
 - [.cursor/rules/sveltekit-routes.mdc](.cursor/rules/sveltekit-routes.mdc) — page server / form action shape
 - [.cursor/rules/edge-functions.mdc](.cursor/rules/edge-functions.mdc) — Edge Function conventions
@@ -19,7 +20,11 @@ The Cursor rules in `.cursor/rules/*.mdc` are loaded automatically by Cursor; if
 
 Before Session 1 on any new module: read [docs/MODULE_KICKOFF_PLAYBOOK.md](docs/MODULE_KICKOFF_PLAYBOOK.md) and [docs/decisions/041-library-module-retro.md](docs/decisions/041-library-module-retro.md) (plus [000-invoicing-retro.md](docs/decisions/000-invoicing-retro.md)). Lock Phase 0 structure (taxonomy, nullability, form surfaces, RLS/viewer plan) in Session 0 — do not discover these mid-build.
 
-**Projects (active):** [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) Session 2 — schema [POS_Schema_v1.md#projects](docs/POS_Schema_v1.md#projects), Session 0 archive [POS_Projects_Session_0.md](docs/POS_Projects_Session_0.md). Library trip QA [043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md).
+**Projects (v1 complete):** [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) — schema [POS_Schema_v1.md#projects](docs/POS_Schema_v1.md#projects), Session 0 archive [POS_Projects_Session_0.md](docs/POS_Projects_Session_0.md). Library trip QA [043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md).
+
+## Module structure (intentional asymmetry)
+
+Library and projects extract loaders/actions to `src/lib/<module>/server/`; **invoicing keeps them inline in route `+page.server.ts` files by design** (small module, built first). Do not scaffold `src/lib/invoicing/server/` unless a session explicitly extracts it. New modules should follow the library/projects shape.
 
 ## How to start a build session
 
@@ -58,7 +63,11 @@ End-of-session deliverables:
 
 ### Patterns
 
-- **Invoicing timezone** — `src/lib/invoicing/chicago-date.ts`: `ymdInChicago()`, civil-date helpers (`utcNoonFromYmd`, week/month spans), and Chicago `Intl` display formatters. Use for server “today,” `/invoicing` surfaces, generate-invoice defaults, and `<TimeEntrySheet>` default date — not `toISOString().slice(0,10)` or host-local `getFullYear()` for user-facing calendar semantics.
+- **Invoicing helpers** at `src/lib/invoicing/` (loaders/actions live inline in routes — see Module structure above):
+  - `src/lib/invoicing/chicago-date.ts` — `ymdInChicago()`, civil-date helpers (`utcNoonFromYmd`, week/month spans, `calendarMonthContainingYmd()`), Chicago `Intl` display formatters. Use for server “today,” `/invoicing` surfaces, generate-invoice defaults, and `<TimeEntrySheet>` default date — not `toISOString().slice(0,10)` or host-local `getFullYear()` for user-facing calendar semantics.
+  - `src/lib/invoicing/hours.ts` — hours math; unit tests `hours.test.ts`.
+  - `src/lib/invoicing/consultation-lines.ts` — `buildConsultationLines()` pure grouping helper + label maps for per-client `consultation_grouping` ([050](docs/decisions/050-invoicing-client-billing-preferences.md)); unit tests `consultation-lines.test.ts`.
+  - `src/lib/types/invoicing.ts` — `BillingCadence`, `ConsultationGrouping` + invoicing view-models.
 - **Form action result shape**: `{ kind, success?, message?, <entityId>? }`. See `src/routes/settings/invoicing/+page.server.ts` for the canonical example.
 - **Per-row form state**: include the entity id in the result so the page can show the error/success on the right card.
 - **Multi-value text fields**: `text[]` columns + `EmailChipsEditor`-style component.
@@ -68,6 +77,10 @@ End-of-session deliverables:
 - **Hotkeys**: every primary-action button (Save, Update, Delete, Edit, Generate) needs a `hotkey` prop on `<Button>` drawn from the reserved set: `s u d e g`, plus `b` as a per-label mnemonic (e.g. "New **B**ook"). **Cancel = `hotkey="Escape"`** (bare Esc, bubble-phase, bails on `event.defaultPrevented` so open autocomplete dropdowns win). **Anchors (`href`) skip the dev-warn but can still take a hotkey.** Letters that conflict with browser/OS chords (`n t w r q l p f m h`) or with clipboard / select-all in inputs (`c x v z y a`) are explicitly NOT registered. Reserved letters live in `src/lib/hotkeys/registry.ts`. Convention + rationale: [.cursor/rules/hotkeys.mdc](.cursor/rules/hotkeys.mdc). Enforcement: dev-only `console.warn` in the Button component + `.cursor/hooks/hotkey-missing.sh` afterFileEdit hook.
 - **Mobile app shell** — [src/routes/+layout.svelte](src/routes/+layout.svelte): authenticated layout is **`h-dvh overflow-hidden`**; only `<main>` scrolls; mobile tab bar is a **flex footer** (not `position: fixed` on a document-scrolling page — iOS standalone PWA detaches fixed chrome). Tailwind from [src/app.css](src/app.css): **`pb-tabbar`** on scrollable main (clearance above footer + safe area), **`bottom-tabbar`** on **fixed** toasts/FABs stacked above the footer. See [045](docs/decisions/045-projects-session-1-tree-checkin.md) surprises + [.cursor/rules/always.mdc](.cursor/rules/always.mdc).
 - **PWA service worker** — [src/service-worker.ts](src/service-worker.ts) (Workbox `injectManifest` via `@vite-pwa/sveltekit`): precache hashed client assets only (no HTML navigate cache — see [024](docs/decisions/024-service-worker.md)); gated refresh via `<PwaReloadToast />`. Direct devDependency `workbox-window`; Vite 7 inject guard in [src/lib/vite/patch-sveltekit-pwa.ts](src/lib/vite/patch-sveltekit-pwa.ts). Cache-bust + owner verification checklist: [docs/decisions/024-service-worker.md](docs/decisions/024-service-worker.md).
+- **Error boundary** — [src/routes/+error.svelte](src/routes/+error.svelte): branded, status-aware (404/403/401/500) full-page error with a "Go to dashboard" link. First error boundary in the repo ([053](docs/decisions/053-ux-safety.md)); extend it rather than falling back to the default SvelteKit page.
+- **Graceful owner/permission gate** — return `{ notOwner: true, … }` from `load` and render an inline "Owner-only" card, **not** `error(403)`. Keeps page chrome and gives a friendly message. Canonical example: `/settings/permissions` ([053](docs/decisions/053-ux-safety.md)).
+- **Confirm-gated destructive triggers** — the trigger button is de-emphasized (`variant="outline"` + `text-destructive`, no `hotkey`); the `<ConfirmDialog>` carries `hotkey="d"`. Drive a hidden action form via `requestSubmit()`. See book delete + scripture/topic deletes on `/library/books/[id]` and the settings pattern (`/settings/library/series`).
+- **Auth** — `src/lib/server/auth-session.ts`: `resolveSessionUser()` via `auth.getClaims()` (local JWKS when asymmetric JWT keys enabled); returns narrow `SessionUser` (`id`, `email`). Memoized per request in `hooks.server.ts` as `locals.safeGetSession`. Security headers (CSP, X-Frame-Options, etc.) applied in the same handle. See [052](docs/decisions/052-security-hardening.md).
 - **Performance budgets** — [.cursor/rules/performance.mdc](.cursor/rules/performance.mdc). Server-paginated list loaders (`loadBookListFiltered` → `{ books, filteredCount }`); book-detail secondary data streamed or lazy JSON (`/library/topic-counts.json`, `/library/ancient-texts.json`); per-request `safeGetSession` memo in `hooks.server.ts`; `Server-Timing: total` on every response; scoped `invalidate('app:library:…')` keys; signed-URL TTL 24h + `signStorageUrlsLimited`. Decision log: [033](docs/decisions/033-performance-pass.md).
 - **Library helpers** at `src/lib/library/`:
   - `src/lib/types/library.ts` — closed enums (`GENRES`, `LANGUAGES`, `READING_STATUSES`, `AUTHOR_ROLES`) + view-models (`BookListRow`, `BookDetail`, `PersonRow`, `ScriptureRefRow`, etc.). Reuse before improvising.
@@ -83,6 +96,19 @@ End-of-session deliverables:
   - `src/lib/library/camera-stream.ts` — `acquireCameraStream`, `scheduleReleaseCameraStream`, `releaseCameraStreamNow`: module-scoped warm `MediaStream` for `/library/add` + `<BookOlRefreshDialog>` so iOS standalone PWA avoids re-prompting every remount; releases on idle (~15s default), visibility hidden, or explicit stop.
   - `src/lib/library/open-library-prefill.ts` — re-exports `normalizeIsbnDigits` from `isbn.ts`; `fetchOpenLibraryPrefill` (checksum-validated ISBN, edition + optional OL work + up to 5 author JSON fetches; `authors[]`, `authorTyped`, `publisher` / `publisher_id` via `matchPublisher`, `publisher_location`, `edition`, `genreSuggested`, `seriesName` / `seriesVolume`, `languageCode`); `LIBRARY_OL_PREFILL_KEY` (`library_ol_prefill_v2`) for `/library/add` → `/library/books/new` prefill.
   - `src/lib/library/match.ts` — `matchPersonExact`, `matchPersonFuzzyCandidates`, `matchSeries`, `splitAuthorString`, `normalizePersonName` / `normalizeSeriesName` for ISBN prefill consumption in `<BookForm>`.
+  - `src/lib/library/fuzzy.ts` — `similarityApprox`, `bestSimilar` (generic fuzzy scoring under `match.ts` / typo warnings).
+  - `src/lib/library/person-search.ts` — `personSearchKey/Tokens`, `scorePersonMatch`, `filterPeople` (person autocomplete ranking).
+  - `src/lib/library/authors-label.ts` — `authorsLabelForBook` display labels; unit tests in `__tests__/`.
+  - `src/lib/library/title-sort.ts` — `titleSortKey` (language-aware leading-article strip), importer match-key helper.
+  - `src/lib/library/bible-book-names.ts` — static `BIBLE_BOOK_NAMES` vocab (perf rule: do not query `bible_books` per navigation).
+  - `src/lib/library/review.ts` — `parseReviewFilters`, review-queue slice/genre filtering for `/library/review`.
+  - `src/lib/library/ocr-scripture-refs.ts` — OCR candidate/response types shared by client + batch form (distinct from `ocr-invoke-client.ts`).
+  - `src/lib/library/server/coverage-actions.ts` — bible/ancient coverage create + soft-delete actions, inline `ancient_texts` create.
+  - `src/lib/library/server/topic-actions.ts` — `book_topics` CRUD + `parseBookTopicForm` (batch-capable).
+  - `src/lib/library/server/people-actions.ts` — `findOrCreatePerson`, `parseTypedName`, B14 dedup helpers (`b14BucketKey`, `b14PairMayBeDuplicate`).
+  - `src/lib/library/server/books-csv.ts` — TSV/CSV export + import headers, row caps, delete-on-import notes (`/settings/library/export`).
+  - `src/lib/library/server/url-params.ts` — `parseBookListFilters` / `bookListFiltersToSearchParams` (URL is source of truth for `/library` filters).
+  - `src/lib/library/server/publishers-settings-book-counts.ts` — `fetchLiveBookIdsByPublisherId` for publisher settings counts.
   - `src/lib/library/book-copy-text.ts` — plain-text strings for book-detail clipboard helpers (Session 6 raw-field copy; coexists with Turabian).
   - `src/lib/library/review-swipe.ts` — touch swipe on `/library/review` card (right = Confirm via `requestSubmit`, left = Skip); pointer capture, interactive-target bail.
   - `src/lib/library/turabian/` — pure-function Turabian 9th-ed. formatters (`formatFootnote` + `shortForm` `ibid`/`short`, `formatBibliography`, `formatCompiledBibliography`, `formatEssayFootnote` / `s.v.`, `copyCitationToClipboard`, `CITATION_CRITICAL_GENRES`, `review-progress.ts` localStorage burndown). Structured names via `BookAuthorAssignment` + `parseAuthorAssignment`. `joinNoteSegments` / `joinBibSegments` per Covenant §17.1; `work_type` on `BookCitationInput`. Powers book-detail Copy Footnote/Bibliography, `/library/bibliography`, and Turabian-first `/library/review` cards. Unit tests: `npm run test`.
@@ -101,10 +127,13 @@ End-of-session deliverables:
  - `src/lib/library/run-with-concurrency.ts` — `runWithConcurrency` (OCR file pipeline cap).
   - **`supabase/functions/ocr_scripture_refs`** — Library OCR: user JWT via `/auth/v1/user`, service-role storage download from `library-scripture-images`, Anthropic Messages API (vision + PDF `document` block). Secrets: `ANTHROPIC_API_KEY` (+ optional `ANTHROPIC_OCR_MODEL`); see [supabase/README.md](supabase/README.md) + [021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md). Dense index pages: `max_tokens` 64k + short `rawText` prompt; `stop_reason=max_tokens` → HTTP 422 — [026](docs/decisions/026-ocr-density-truncation.md). Post-OCR batch review: compact rows, page-boundary markers, bulk confirm, contiguous page-range prompt — [028](docs/decisions/028-ocr-review-ux-and-accuracy.md). Patristic semicolon section pointers (`VI, 7; VIII, 10`) → one row per pointer — [029](docs/decisions/029-ocr-section-pointer-split.md). Multi-page PDF input (one call per file; `source_page_index` for strip grouping) — [030](docs/decisions/030-ocr-pdf-input.md); bucket allows `application/pdf` up to 25 MiB.
 
-- **Projects helpers** at `src/lib/projects/` (schema: [docs/POS_Schema_v1.md](docs/POS_Schema_v1.md#projects), migrations `20260603170000_ppp_projects_v1.sql` + `20260604030000_ppp_project_tasks_myn.sql`, MYN design: [docs/MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)):
+- **Projects helpers** at `src/lib/projects/` (schema: [docs/POS_Schema_v1.md](docs/POS_Schema_v1.md#projects), migrations `20260603170000_ppp_projects_v1.sql`, `20260603200000_projects_add_not_started_lifecycle.sql`, `20260604030000_ppp_project_tasks_myn.sql`, `20260604100000_project_updates_progress.sql`; MYN design: [docs/MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)):
   - `src/lib/types/projects.ts` — lifecycle/health enums; MYN `TASK_PRIORITIES`, `TASK_ZONE_CAPS`, `ProjectTaskView`, `TaskZoneGroup`, `ProjectLinkRow`.
   - `src/lib/projects/week.ts` — civil **Chicago Sunday** week start; unit tests: `week.test.ts`.
-  - `src/lib/projects/filter.ts` — URL filters, attention set, trend direction.
+  - `src/lib/projects/filter.ts` — URL filters, attention set, trend direction; unit tests: `filter.test.ts`.
+  - `src/lib/projects/progress.ts` — check-in progress `formatProgressLabel` / `progressPercent` / parsers ([048](docs/decisions/048-projects-checkin-progress.md)); unit tests: `progress.test.ts`.
+  - `src/lib/projects/carry-forward.ts` — copies check-in fields (incl. progress) from most recent prior week; unit tests: `carry-forward.test.ts`.
+  - `src/lib/projects/health-appearance.ts` — Epic palette tokens (`HEALTH_HEX`, segment/lifecycle classes) ([047b](docs/decisions/047-projects-status-appearance.md)).
   - `src/lib/projects/server/loaders.ts` — tree, week updates, carry-forward, `loadLatestHealth`.
   - `src/lib/projects/server/task-loaders.ts` — `loadTasks` (zoned MYN + FRESH), `loadLinksByProject`.
   - `src/lib/projects/server/actions.ts` — check-in + project CRUD + `project_links` CRUD/reorder.
@@ -132,11 +161,11 @@ End-of-session deliverables:
 
 ## Commit messages (library)
 
-Prefer: `library: <decision-slug> — <outcome>` (e.g. `library: 033-pm-review — sticky scripture save bar`). Makes `git log` bisectable alongside `docs/decisions/`.
+Prefer: `library: <decision-slug> — <outcome>` (e.g. `library: 038-client-perf — collapse-by-default batch rows`). Makes `git log` bisectable alongside `docs/decisions/`. Numbers 004/005/033/047 are ambiguous (collisions — see [docs/decisions/README.md](docs/decisions/README.md)); include enough slug to disambiguate.
 
-## Large diffs (library)
+## Large diffs
 
-Any commit touching **>400 LOC** under `src/lib/library/` or `src/lib/components/` should get a **read-only review subagent** pass before push (mobile + RLS + citation regressions).
+Any commit touching **>400 LOC** — any module, not just library — should get a **read-only review subagent** pass before push (mobile + RLS + citation regressions). Diffs touching RLS policies, Edge Functions, auth, or storage policies get a **security-review subagent** pass regardless of size. Full routing table: [.cursor/rules/workflow.mdc](.cursor/rules/workflow.mdc).
 
 ## Environment variables
 
@@ -144,7 +173,7 @@ Two files. Both are gitignored.
 
 | File | Purpose | Examples |
 |---|---|---|
-| `.env` | Prod project ref / non-secret config used by CLI scripts | `SUPABASE_REF` |
+| `.env` | Prod project ref / non-secret config used by CLI scripts — copy from [`.env.example`](.env.example) | `SUPABASE_REF` |
 | `.env.local` | Prod secrets and public client config | `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `RESEND_API_KEY`, **`ANTHROPIC_API_KEY`** (optional — mirror of Supabase Edge secret for `supabase functions serve` / local OCR dev only), **`LIBRARY_SRC_DATABASE_URL`**, **`LIBRARY_DST_DATABASE_URL`**, **`LIBRARY_MIGRATE_CONFIRM`** (Postgres URIs, typically both from Supabase Dashboard **Connect → Direct** — see [`scripts/library-migrate-local-to-prod/README.md`](scripts/library-migrate-local-to-prod/README.md)) |
 | `.env.staging` | **ppp-staging** ref only | `SUPABASE_REF` — copy from [`.env.staging.example`](.env.staging.example) |
 | `.env.staging.local` | Staging keys + RLS test passwords | `PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`, `RLS_TEST_*` — see [`scripts/rls-smoke/README.md`](scripts/rls-smoke/README.md) |

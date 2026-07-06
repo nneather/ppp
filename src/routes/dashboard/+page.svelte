@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import BookOpen from '@lucide/svelte/icons/book-open';
+	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import DashboardLibraryTileFooter from '$lib/components/dashboard-library-tile-footer.svelte';
 	import ProjectStatusStrip from '$lib/components/project-status-strip.svelte';
 	import { cn } from '$lib/utils';
@@ -28,6 +29,12 @@
 			title: 'Library',
 			statLabel: 'Library',
 			icon: BookOpen
+		},
+		{
+			href: '/projects/tasks',
+			title: 'Tasks',
+			statLabel: 'Open Critical Now tasks',
+			icon: ListChecks
 		}
 	];
 
@@ -43,6 +50,10 @@
 		if (href === '/invoicing') {
 			if (data.unbilledPriorCount == null) return '–';
 			return String(data.unbilledPriorCount);
+		}
+		if (href === '/projects/tasks') {
+			if (data.criticalTaskCount == null) return '–';
+			return String(data.criticalTaskCount);
 		}
 		return '–';
 	}

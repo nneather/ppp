@@ -41,7 +41,7 @@ alwaysApply: false
 
 ## Auth
 
-- `locals.safeGetSession` → [`resolveSessionUser`](mdc:src/lib/server/auth-session.ts) (`getSession` first, `getUser` fallback). Do not call `auth.getUser()` directly from layouts.
+- `locals.safeGetSession` → [`resolveSessionUser`](mdc:src/lib/server/auth-session.ts) (`auth.getClaims()` — local JWKS verify when asymmetric signing keys are enabled). Do not call `auth.getUser()` directly from layouts.
 - Do not add per-navigation Auth HTTP calls without documenting in the decision log.
 
 ## Storage signed URLs

@@ -17,7 +17,7 @@ Read [AGENTS.md](mdc:AGENTS.md) before starting any non-trivial task. It contain
 
 ## Naming
 
-- Svelte components: `PascalCase` filenames in `src/lib/components/`
+- Svelte components: `kebab-case` filenames in `src/lib/components/` (e.g. `project-task-list.svelte`), imported as `PascalCase`. Matches shadcn-svelte. (Sole legacy exception: `PwaReloadToast.svelte`.)
 - Routes: kebab-case directories
 - Postgres tables: `snake_case`
 - TypeScript types: `PascalCase`

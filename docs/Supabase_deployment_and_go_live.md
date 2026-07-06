@@ -41,7 +41,7 @@ Granular commands (from `package.json`):
 | `npm run supabase:link` | Link CLI to `SUPABASE_REF` |
 | `npm run supabase:db:push:dry` | Dry-run migrations against linked project |
 | `npm run supabase:db:push` | Push pending migrations |
-| `npm run supabase:deploy-functions` | Deploy `generate-invoice-pdf` and `send-invoice` |
+| `npm run supabase:deploy-functions` | Deploy `generate-invoice-pdf`, `send-invoice`, and `ocr_scripture_refs` |
 | `npm run supabase:ship` | `check` + dry-run push + reminder to run `ship:apply` |
 | `npm run supabase:ship:apply` | `check` + push + deploy functions |
 

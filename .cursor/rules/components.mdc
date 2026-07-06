@@ -10,6 +10,7 @@ If you reach for one of these capabilities, use the existing component.
 
 | Capability | Component |
 |---|---|
+| Branded full-page error boundary (404 / 403 / 500) — status-aware title + message + "Go to dashboard" | [src/routes/+error.svelte](mdc:src/routes/+error.svelte) |
 | Multi-value text/email input with chips | [src/lib/components/email-chips-editor.svelte](mdc:src/lib/components/email-chips-editor.svelte) |
 | Destructive confirm with typed message | [src/lib/components/confirm-dialog.svelte](mdc:src/lib/components/confirm-dialog.svelte) |
 | Entity create/edit form in a sheet | [src/lib/components/client-form-sheet.svelte](mdc:src/lib/components/client-form-sheet.svelte) |
@@ -21,7 +22,7 @@ If you reach for one of these capabilities, use the existing component.
 | Book entity form (create + edit) with author junctions — used inside dedicated `/library/books/new` + `/library/books/[id]/edit` pages (not a sheet) | [src/lib/components/book-form.svelte](mdc:src/lib/components/book-form.svelte) |
 | Scripture mobile Bible book picker sheet | [src/lib/components/scripture-bible-picker-sheet.svelte](mdc:src/lib/components/scripture-bible-picker-sheet.svelte) |
 | Open Library ISBN refresh (camera + manual fetch, field pickers) — edit-mode metadata merge; **dynamic-imported** from `<BookForm>` when the dialog opens (keeps `@zxing/*` out of new-book + edit base chunks) | [src/lib/components/book-ol-refresh-dialog.svelte](mdc:src/lib/components/book-ol-refresh-dialog.svelte) |
-| Polymorphic `(book_id OR essay_id)` source picker (essay branch stubbed pre-essays-UI) | [src/lib/components/source-picker.svelte](mdc:src/lib/components/source-picker.svelte) |
+| Polymorphic `(book_id OR essay_id)` source picker — essay branch gated behind `FEATURE_ESSAYS_UI` in `polymorphic.ts` (flag off; essays UI is Wave 2 scope, not built) | [src/lib/components/source-picker.svelte](mdc:src/lib/components/source-picker.svelte) |
 | Embedded scripture-reference sub-form — create + per-row inline edit (`existingRef` + `onCancel` props), browser-side image upload to `library-scripture-images` (downscale + signed-URL preview); host page handles soft-delete via `<ConfirmDialog>` | [src/lib/components/scripture-reference-form.svelte](mdc:src/lib/components/scripture-reference-form.svelte) |
 | Typeahead person picker with B14 dedup warnings + inline create; optional `initialQuery` + `seedKey` to seed OL author hints; `autoOpenOnSeed` to open the list only for the first unresolved row | [src/lib/components/person-autocomplete.svelte](mdc:src/lib/components/person-autocomplete.svelte) |
 | Canonical-name + abbreviations typeahead with optional inline create + optional client-side typo warning (used for `ancient_texts` + `book_topics.topic`) | [src/lib/components/canonicalizing-combobox.svelte](mdc:src/lib/components/canonicalizing-combobox.svelte) |
@@ -32,6 +33,7 @@ If you reach for one of these capabilities, use the existing component.
 | Underline-the-mnemonic-letter label helper (used inside `<Button hotkey>` and standalone) | [src/lib/components/hotkey-label.svelte](mdc:src/lib/components/hotkey-label.svelte) |
 | Page title + optional back link + `lead` / `eyebrow` / `meta` / `actions` snippets (mobile-stacked actions, `break-words` title); pair with `pb-tabbar` / `bottom-tabbar` in `app.css` for the mobile tab bar | [src/lib/components/page-header.svelte](mdc:src/lib/components/page-header.svelte) |
 | PWA new-version toast (`virtual:pwa-register/svelte`); **Update now** + Dismiss; mounted from root layout via dynamic import | [src/lib/components/PwaReloadToast.svelte](mdc:src/lib/components/PwaReloadToast.svelte) |
+| Module skeleton shown while `navigating` (tab-switch perceived speed; see performance.mdc) | [src/lib/components/nav-module-skeleton.svelte](mdc:src/lib/components/nav-module-skeleton.svelte) |
 | Turabian footnote/bibliography preview block with HTML+plain Copy | [src/lib/components/turabian-citation-block.svelte](mdc:src/lib/components/turabian-citation-block.svelte) |
 | Dashboard library tile burndown second line (citation-verified / backlog cleared) | [src/lib/components/dashboard-library-tile-footer.svelte](mdc:src/lib/components/dashboard-library-tile-footer.svelte) |
 | Inline project tree + weekly 5-segment health picker (carry-forward seed uses `untrack` in `$effect`; optional URL filters + latest-health trend badge) | [src/lib/components/project-tree.svelte](mdc:src/lib/components/project-tree.svelte) |

@@ -13,7 +13,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!user) redirect(303, '/login');
 
 	const supabase = locals.supabase;
-	const thisMonday = mondaySundayWeekContainingYmd(ymdInChicago()).start;
+	const today = ymdInChicago();
+	const thisMonday = mondaySundayWeekContainingYmd(today).start;
 
 	const [
 		unbilledRes,
@@ -21,7 +22,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		criticalRemaining,
 		backlogRemaining,
 		projectTree,
-		latestHealthMap
+		latestHealthMap,
+		criticalTasksRes
 	] = await Promise.all([
 		supabase
 			.from('time_entries')
@@ -33,8 +35,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 		countReviewQueueBySlice(supabase, 'critical'),
 		countReviewQueueBySlice(supabase, 'backlog'),
 		locals.perf.measure('db', () => loadProjectTree(supabase)),
-		locals.perf.measure('db', () => loadLatestHealth(supabase))
+		locals.perf.measure('db', () => loadLatestHealth(supabase)),
+		supabase
+			.from('project_tasks')
+			.select('id', { count: 'exact', head: true })
+			.eq('priority', 'critical_now')
+			.is('deleted_at', null)
+			.is('completed_at', null)
+			.lte('start_date', today)
 	]);
+
+	const criticalTaskCount = criticalTasksRes.error ? null : (criticalTasksRes.count ?? 0);
+	if (criticalTasksRes.error) console.error(criticalTasksRes.error);
 
 	const latestHealth = Object.fromEntries(latestHealthMap) as Record<string, LatestHealth>;
 
@@ -47,6 +59,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			libraryBacklogRemaining: backlogRemaining,
 			projectTree,
 			latestHealth,
+			criticalTaskCount,
 			dashboardError: 'Could not load unbilled count.' as string | null
 		};
 	}
@@ -58,6 +71,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		libraryBacklogRemaining: backlogRemaining,
 		projectTree,
 		latestHealth,
+		criticalTaskCount,
 		dashboardError: null as string | null
 	};
 };

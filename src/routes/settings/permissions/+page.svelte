@@ -49,7 +49,15 @@
 		Other modules store preferences for when those surfaces gain viewer RLS.
 	</p>
 
-	{#if data.loadError}
+	{#if data.notOwner}
+		<div
+			class="mt-6 rounded-xl border border-border bg-muted/30 px-4 py-6 text-sm text-muted-foreground"
+			role="alert"
+		>
+			<p class="font-medium text-foreground">Owner-only page</p>
+			<p class="mt-1">Only the workspace owner can manage viewer permissions.</p>
+		</div>
+	{:else if data.loadError}
 		<p class="mt-4 text-sm text-destructive" role="alert">{data.loadError}</p>
 	{:else if data.viewers.length === 0}
 		<p class="mt-6 text-sm text-muted-foreground">

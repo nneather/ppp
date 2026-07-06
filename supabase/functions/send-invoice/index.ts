@@ -1,14 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 
-const corsHeaders: Record<string, string> = {
-	'Access-Control-Allow-Origin': '*',
-	'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-};
+function resolveCorsOrigin(req: Request): string | null {
+	const origin = req.headers.get('Origin');
+	if (!origin) return null;
+	const site = Deno.env.get('SITE_URL')?.replace(/\/$/, '');
+	if (site && origin === site) return origin;
+	const extras = Deno.env.get('CORS_ALLOWED_ORIGINS')?.split(',').map((s) => s.trim()) ?? [];
+	if (extras.includes(origin)) return origin;
+	if (origin.endsWith('.vercel.app')) return origin;
+	return null;
+}
 
-function jsonResponse(body: unknown, status = 200): Response {
+function corsHeadersFor(req: Request): Record<string, string> {
+	const origin = resolveCorsOrigin(req);
+	return {
+		...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
+		'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+		Vary: 'Origin'
+	};
+}
+
+function jsonResponse(req: Request, body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
 		status,
-		headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+		headers: { ...corsHeadersFor(req), 'Content-Type': 'application/json' }
 	});
 }
 
@@ -159,11 +174,11 @@ function buildEmailHtml(opts: {
 
 Deno.serve(async (req) => {
 	if (req.method === 'OPTIONS') {
-		return new Response('ok', { headers: corsHeaders });
+		return new Response('ok', { headers: corsHeadersFor(req) });
 	}
 
 	if (req.method !== 'POST') {
-		return jsonResponse({ error: 'Method not allowed' }, 405);
+		return jsonResponse(req, { error: 'Method not allowed' }, 405);
 	}
 
 	const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -171,25 +186,25 @@ Deno.serve(async (req) => {
 	const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 	const resendKey = Deno.env.get('RESEND_API_KEY');
 	if (!supabaseUrl || !anonKey || !serviceKey) {
-		return jsonResponse({ error: 'Server configuration error' }, 500);
+		return jsonResponse(req, { error: 'Server configuration error' }, 500);
 	}
 	if (!resendKey?.trim()) {
-		return jsonResponse({ error: 'RESEND_API_KEY is not configured' }, 500);
+		return jsonResponse(req, { error: 'RESEND_API_KEY is not configured' }, 500);
 	}
 
 	const authHeader = req.headers.get('Authorization');
 	if (!authHeader?.startsWith('Bearer ')) {
-		return jsonResponse({ error: 'Unauthorized' }, 401);
+		return jsonResponse(req, { error: 'Unauthorized' }, 401);
 	}
 
 	const userId = await getUserIdFromAuthApi(supabaseUrl, anonKey, authHeader);
 	if (!userId) {
-		return jsonResponse({ error: 'Unauthorized' }, 401);
+		return jsonResponse(req, { error: 'Unauthorized' }, 401);
 	}
 
 	const admin = createClient(supabaseUrl, serviceKey);
 	if (!(await requireOwner(admin, userId))) {
-		return jsonResponse({ error: 'Forbidden' }, 403);
+		return jsonResponse(req, { error: 'Forbidden' }, 403);
 	}
 
 	let body: {
@@ -204,7 +219,7 @@ Deno.serve(async (req) => {
 	try {
 		body = await req.json();
 	} catch {
-		return jsonResponse({ error: 'Invalid JSON body' }, 400);
+		return jsonResponse(req, { error: 'Invalid JSON body' }, 400);
 	}
 
 	const invoiceId = body.invoice_id?.trim();
@@ -218,7 +233,7 @@ Deno.serve(async (req) => {
 	const bccListRaw = normalizeEmailList(body.bcc);
 
 	if (!invoiceId || !pdfBase64) {
-		return jsonResponse({ error: 'invoice_id and pdf_base64 are required' }, 400);
+		return jsonResponse(req, { error: 'invoice_id and pdf_base64 are required' }, 400);
 	}
 
 	const { data: inv, error: invErr } = await admin
@@ -229,10 +244,10 @@ Deno.serve(async (req) => {
 
 	if (invErr) {
 		console.error(invErr);
-		return jsonResponse({ error: 'Could not load invoice' }, 500);
+		return jsonResponse(req, { error: 'Could not load invoice' }, 500);
 	}
 	if (!inv || inv.deleted_at != null) {
-		return jsonResponse({ error: 'Invoice not found' }, 404);
+		return jsonResponse(req, { error: 'Invoice not found' }, 404);
 	}
 
 	const invoice = inv as {
@@ -254,7 +269,7 @@ Deno.serve(async (req) => {
 
 	if (clientErr || !clientRow) {
 		console.error(clientErr);
-		return jsonResponse({ error: 'Could not load client' }, 500);
+		return jsonResponse(req, { error: 'Could not load client' }, 500);
 	}
 
 	const client = clientRow as { name: string; email: unknown };
@@ -272,18 +287,18 @@ Deno.serve(async (req) => {
 		if (explicitToList.length > 0) {
 			for (const addr of explicitToList) {
 				if (!isValidEmail(addr)) {
-					return jsonResponse({ error: `Invalid To email address: ${addr}` }, 400);
+					return jsonResponse(req, { error: `Invalid To email address: ${addr}` }, 400);
 				}
 			}
 			toList = explicitToList;
 			ccList = [...ccListRaw];
 		} else {
 			if (clientEmails.length === 0) {
-				return jsonResponse({ error: 'Client has no email address' }, 400);
+				return jsonResponse(req, { error: 'Client has no email address' }, 400);
 			}
 			for (const addr of clientEmails) {
 				if (!isValidEmail(addr)) {
-					return jsonResponse({ error: 'Invalid client email address' }, 400);
+					return jsonResponse(req, { error: 'Invalid client email address' }, 400);
 				}
 			}
 			// Default behavior preserved: primary client email is To, the rest auto-CC.
@@ -292,12 +307,12 @@ Deno.serve(async (req) => {
 		}
 		for (const addr of ccList) {
 			if (!isValidEmail(addr)) {
-				return jsonResponse({ error: 'Invalid email in CC' }, 400);
+				return jsonResponse(req, { error: 'Invalid email in CC' }, 400);
 			}
 		}
 		for (const addr of bccListRaw) {
 			if (!isValidEmail(addr)) {
-				return jsonResponse({ error: 'Invalid email in BCC' }, 400);
+				return jsonResponse(req, { error: 'Invalid email in BCC' }, 400);
 			}
 		}
 		bccList = bccListRaw;
@@ -359,8 +374,8 @@ Deno.serve(async (req) => {
 		} catch {
 			if (errText.length > 0 && errText.length < 500) detail = errText;
 		}
-		return jsonResponse({ error: detail }, 502);
+		return jsonResponse(req, { error: detail }, 502);
 	}
 
-	return jsonResponse({ success: true });
+	return jsonResponse(req, { success: true });
 });

@@ -126,6 +126,7 @@ Configure in the Supabase Dashboard → **Project Settings → Edge Functions �
 
 ```bash
 supabase secrets set \
+  SITE_URL=https://your-production-domain.com \
   RESEND_API_KEY=re_xxxx \
   SENDER_NAME="Your name or business" \
   SENDER_EMAIL="you@example.com" \
@@ -143,6 +144,7 @@ supabase secrets set ANTHROPIC_API_KEY=sk-ant-api03-...
 supabase secrets set ANTHROPIC_OCR_MODEL=claude-sonnet-4-6
 ```
 
+- **`SITE_URL`** — Production app origin (no trailing slash). Used by all three Edge Functions for CORS allowlisting (`Access-Control-Allow-Origin` only when `Origin` matches). Also accepts optional **`CORS_ALLOWED_ORIGINS`** (comma-separated extra origins) and `*.vercel.app` preview deploys.
 - **`ANTHROPIC_API_KEY`** — Required for scripture OCR. Mirror in `.env.local` only if you run `supabase functions serve` locally.
 - **`ANTHROPIC_OCR_MODEL`** — Optional override for the Claude model id (vision-capable Sonnet family).
 
