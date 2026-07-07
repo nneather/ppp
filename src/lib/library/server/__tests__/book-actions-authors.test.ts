@@ -45,4 +45,18 @@ describe('computeMissingImportant with AuthorFormEntry', () => {
 		});
 		expect(missing).not.toContain('author');
 	});
+
+	it('skips author when no_attributed_author is set', () => {
+		const missing = computeMissingImportant({
+			title: 'Dictionary of Paul and His Letters',
+			genre: 'Biblical Reference',
+			work_type: 'reference_work',
+			year: 1993,
+			publisher: 'IVP',
+			authors: [],
+			no_attributed_author: true
+		});
+		expect(missing).not.toContain('author');
+		expect(missing).not.toContain('editor');
+	});
 });

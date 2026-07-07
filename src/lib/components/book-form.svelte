@@ -178,6 +178,7 @@
 	let rating = $state('');
 	let needs_review = $state<boolean>(false);
 	let needs_review_note = $state('');
+	let no_attributed_author = $state(false);
 	let authorRows = $state<BookAuthorRow[]>([]);
 
 	let seriesDialogOpen = $state(false);
@@ -229,6 +230,7 @@
 			rating,
 			needs_review,
 			needs_review_note,
+			no_attributed_author,
 			authorRows: authorRows.map((a) => ({ person_id: a.person_id, role: a.role }))
 		});
 	}
@@ -273,11 +275,13 @@
 	const missingImportantPreview = $derived.by<string[]>(() => {
 		const out: string[] = [];
 		if (!title.trim()) out.push('title');
-		if (work_type === 'monograph') {
-			if (authorRows.filter((a) => a.role === 'author' && a.person_id).length === 0)
-				out.push('author');
-		} else if (authorRows.filter((a) => a.role === 'editor' && a.person_id).length === 0) {
-			out.push('editor');
+		if (!no_attributed_author) {
+			if (work_type === 'monograph') {
+				if (authorRows.filter((a) => a.role === 'author' && a.person_id).length === 0)
+					out.push('author');
+			} else if (authorRows.filter((a) => a.role === 'editor' && a.person_id).length === 0) {
+				out.push('editor');
+			}
 		}
 		if (!genre) out.push('genre');
 		if (!pub.year || String(pub.year).trim().length === 0) out.push('year');
@@ -414,6 +418,7 @@
 			rating = book.rating != null ? String(book.rating) : '';
 			needs_review = book.needs_review;
 			needs_review_note = book.needs_review_note ?? '';
+			no_attributed_author = book.no_attributed_author;
 			authorRows = book.authors.map((a, idx) => ({
 				key: `existing-${idx}-${a.person_id}-${a.role}`,
 				person_id: a.person_id,
@@ -744,6 +749,16 @@
 			{personBookCounts}
 			personActionPath={personActionPath}
 		/>
+		<label class="mt-2 flex items-center gap-2">
+			<input
+				type="checkbox"
+				name="no_attributed_author"
+				bind:checked={no_attributed_author}
+				value="true"
+				class="size-4"
+			/>
+			<span class="text-sm text-muted-foreground">No attributed author — cite by title</span>
+		</label>
 
 		{#snippet middleFieldsGrid()}
 		<!-- 2-col split: classification/state on left, publication/reprint/identifiers on right -->

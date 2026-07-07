@@ -45,6 +45,7 @@ import {
 	type BookCitationInput
 } from '$lib/library/turabian';
 import { authorsLabelForBook } from '$lib/library/authors-label';
+import { filterProposalForBook } from '$lib/library/proposal-filter';
 import { getBibleBookNames } from '$lib/library/bible-book-names';
 
 /**
@@ -868,6 +869,7 @@ type RawBookDetail = {
 	rating: number | null;
 	needs_review: boolean;
 	needs_review_note: string | null;
+	no_attributed_author: boolean | null;
 	page_count: number | null;
 	deleted_at: string | null;
 	created_at: string;
@@ -916,6 +918,7 @@ export async function loadBookDetail(
 			rating,
 			needs_review,
 			needs_review_note,
+			no_attributed_author,
 			page_count,
 			deleted_at,
 			created_at,
@@ -982,6 +985,7 @@ export async function loadBookDetail(
 		rating: r.rating ?? null,
 		needs_review: Boolean(r.needs_review),
 		needs_review_note: r.needs_review_note ?? null,
+		no_attributed_author: Boolean(r.no_attributed_author),
 		page_count: r.page_count ?? null,
 		authors,
 		created_at: r.created_at,
@@ -1002,6 +1006,7 @@ type RawReviewCard = RawBookListRow & {
 	reprint_location: string | null;
 	reprint_year: number | null;
 	needs_review_note: string | null;
+	no_attributed_author: boolean | null;
 	import_match_type: string | null;
 };
 
@@ -1124,6 +1129,7 @@ const REVIEW_CARD_SELECT = `
 	reading_status,
 	needs_review,
 	needs_review_note,
+	no_attributed_author,
 	volume_number,
 	year,
 	publisher,
@@ -1216,6 +1222,18 @@ export async function loadReviewQueue(
 			r.publishers
 		);
 
+		const rawProposal = proposalsByBook.get(r.id) ?? null;
+		const proposal = rawProposal
+			? filterProposalForBook(rawProposal, {
+					genre: r.genre ?? null,
+					year: r.year ?? null,
+					publisher: r.publisher ?? null,
+					publisher_id: r.publisher_id ?? null,
+					publisher_location: r.publisher_location ?? null,
+					publisher_effective_location: pubFields.publisher_effective_location
+				})
+			: null;
+
 		return {
 			id: r.id,
 			title: r.title ?? null,
@@ -1240,11 +1258,12 @@ export async function loadReviewQueue(
 			reprint_location: r.reprint_location ?? null,
 			reprint_year: r.reprint_year ?? null,
 			needs_review_note: r.needs_review_note ?? null,
+			no_attributed_author: Boolean(r.no_attributed_author),
 			import_match_type: (r.import_match_type as ImportMatchType | null) ?? null,
 			authors,
 			topics_count: topicsByBook.get(r.id) ?? 0,
 			scripture_refs_count: refsByBook.get(r.id) ?? 0,
-			proposal: proposalsByBook.get(r.id) ?? null
+			proposal
 		} satisfies ReviewCard;
 	});
 }

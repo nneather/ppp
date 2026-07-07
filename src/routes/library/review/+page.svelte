@@ -37,6 +37,7 @@
 		reviewDeckSearchParams,
 		type ReviewDeckKey
 	} from '$lib/library/review-decks';
+	import { hasVisibleProposalFields } from '$lib/library/proposal-filter';
 	import { createReviewSwipe } from '$lib/library/review-swipe';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -108,6 +109,7 @@
 	let editGenre = $state<Genre | null>(null);
 	let editLanguage = $state<Language | null>(null);
 	let editReadingStatus = $state<ReadingStatus | null>(null);
+	let editNoAttributedAuthor = $state<boolean | null>(null);
 	let pendingSaveId = $state<string | null>(null);
 	let confirmDeleteOpen = $state(false);
 	let confirmDeletePending = $state(false);
@@ -181,7 +183,8 @@
 			publisher: effectivePublisher(c),
 			publisher_location: effectivePublisherLocation(c),
 			publisher_canonical: effectivePublisher(c),
-			publisher_effective_location: effectivePublisherLocation(c)
+			publisher_effective_location: effectivePublisherLocation(c),
+			no_attributed_author: effectiveNoAttributedAuthor(c)
 		});
 		return {
 			footnote: formatFootnote(input),
@@ -235,6 +238,7 @@
 		editGenre = null;
 		editLanguage = null;
 		editReadingStatus = null;
+		editNoAttributedAuthor = null;
 	}
 
 	/** When the visible card changes, clear in-progress edits and metadata row layout. */
@@ -614,11 +618,15 @@
 		return editReadingStatus ?? c.reading_status;
 	}
 
-	/** Author counts as "present" iff the card already shows authors. */
+	function effectiveNoAttributedAuthor(c: ReviewCard): boolean {
+		return editNoAttributedAuthor !== null ? editNoAttributedAuthor : c.no_attributed_author;
+	}
+
+	/** Author counts as "present" iff the card already shows authors or is marked authorless. */
 	function previewMissing(c: ReviewCard): string[] {
 		const out: string[] = [];
 		if (!effectiveTitle(c)) out.push('title');
-		if (!c.authors_label) out.push('author');
+		if (!effectiveNoAttributedAuthor(c) && !c.authors_label) out.push('author');
 		if (!effectiveGenre(c)) out.push('genre');
 		if (effectiveYear(c) == null) out.push('year');
 		if (!effectivePublisher(c)) out.push('publisher');
@@ -800,8 +808,17 @@
 						{/if}
 						{#if card.authors_label}
 							<p class="mt-1 text-xs text-muted-foreground">{card.authors_label}</p>
+						{:else if effectiveNoAttributedAuthor(card)}
+							<p class="mt-1 text-xs text-muted-foreground italic">No attributed author (by design)</p>
 						{:else}
 							<p class="mt-1 text-xs italic text-amber-700 dark:text-amber-300">No author on file</p>
+							<button
+								type="button"
+								class="mt-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] transition-colors hover:bg-muted"
+								onclick={() => (editNoAttributedAuthor = true)}
+							>
+								Mark: no attributed author
+							</button>
 						{/if}
 					</div>
 					<div class="flex flex-col items-end gap-1 text-right">
@@ -847,7 +864,7 @@
 					<p class="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">{userNote}</p>
 				{/if}
 
-				{#if card.proposal && !fastLane}
+				{#if card.proposal && hasVisibleProposalFields(card.proposal) && !fastLane}
 					<ReviewProposalPanel
 						proposal={card.proposal}
 						applied={appliedProposalFields}
@@ -1019,7 +1036,7 @@
 						{:else}
 							<input type="hidden" name="publisher" value={effectivePublisher(card) ?? ''} />
 						{/if}
-						{#if !card.publisher_location && !card.publisher_effective_location}
+						{#if !card.publisher_location && !card.publisher_effective_location && editPublisherLocation === null}
 							<label class="flex flex-col gap-1 text-xs">
 								<span class="font-medium text-muted-foreground">Publisher location</span>
 								<Input
@@ -1033,11 +1050,18 @@
 								/>
 							</label>
 						{:else if editPublisherLocation !== null}
-							<input
-								type="hidden"
-								name="publisher_location"
-								value={effectivePublisherLocation(card) ?? ''}
-							/>
+							<label class="flex flex-col gap-1 text-xs">
+								<span class="font-medium text-muted-foreground">Publisher location</span>
+								<Input
+									name="publisher_location"
+									type="text"
+									autocomplete="off"
+									placeholder="Grand Rapids, MI"
+									value={editPublisherLocation}
+									oninput={(e) =>
+										(editPublisherLocation = (e.currentTarget as HTMLInputElement).value)}
+								/>
+							</label>
 						{/if}
 						<input
 							type="hidden"
@@ -1135,6 +1159,12 @@
 						{/if}
 						<input type="hidden" name="reading_status" value={effectiveReadingStatus(card)} />
 					</div>
+
+					<input
+						type="hidden"
+						name="no_attributed_author"
+						value={effectiveNoAttributedAuthor(card) ? 'true' : 'false'}
+					/>
 
 					<!-- Language chip row -->
 					<div>

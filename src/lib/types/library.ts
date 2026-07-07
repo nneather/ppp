@@ -218,6 +218,7 @@ export type BookDetail = {
 	rating: number | null;
 	needs_review: boolean;
 	needs_review_note: string | null;
+	no_attributed_author: boolean;
 	page_count: number | null;
 	authors: BookAuthorAssignment[];
 	created_at: string;
@@ -341,6 +342,7 @@ export type ReviewCard = BookListRow & {
 	reprint_location: string | null;
 	reprint_year: number | null;
 	needs_review_note: string | null;
+	no_attributed_author: boolean;
 	import_match_type: ImportMatchType | null;
 	/** Full junction rows for Turabian (all roles, sort_order). */
 	authors: BookAuthorAssignment[];

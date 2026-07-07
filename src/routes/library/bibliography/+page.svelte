@@ -5,6 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { copyCitationToClipboard } from '$lib/library/turabian/clipboard';
+	import { parseCitationHtmlSegments } from '$lib/library/turabian/html-segments';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -80,10 +81,17 @@
 			and tap <span class="font-medium">Build bibliography</span>.
 		</p>
 	{:else}
-		<pre
-			class="whitespace-pre-wrap break-words rounded-xl border border-border bg-card p-4 font-mono text-sm leading-relaxed"
-			>{data.compiled.plain}</pre
+		<div
+			class="flex flex-col gap-4 whitespace-pre-wrap break-words rounded-xl border border-border bg-card p-4 font-mono text-sm leading-relaxed"
 		>
+			{#each data.entries as entry, i (i)}
+				<p>
+					{#each parseCitationHtmlSegments(entry.html || entry.plain) as seg, j (`${i}-${j}`)}
+						{#if seg.italic}<em class="italic">{seg.text}</em>{:else}{seg.text}{/if}
+					{/each}
+				</p>
+			{/each}
+		</div>
 	{/if}
 
 	{#if toast}

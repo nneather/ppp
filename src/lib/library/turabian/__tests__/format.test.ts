@@ -730,3 +730,20 @@ describe('Wave 2 fixtures (docs/library-turabian-fixtures.md)', () => {
 		}
 	}
 });
+
+describe('authorless reference work', () => {
+	it('formats title-first footnote and bibliography without author lead', () => {
+		const input = book({
+			title: 'Dictionary of Paul and His Letters',
+			work_type: 'reference_work',
+			genre: 'Biblical Reference',
+			authors: []
+		});
+		const fn = formatFootnote(input, { page: '42' });
+		expect(fn.plain).toMatch(/^Dictionary of Paul and His Letters/);
+		expect(fn.html).toContain('<i>Dictionary of Paul and His Letters</i>');
+		const bib = formatBibliography(input);
+		expect(bib.plain).toMatch(/^Dictionary of Paul and His Letters\./);
+		expect(bib.html).toContain('<i>Dictionary of Paul and His Letters</i>');
+	});
+});

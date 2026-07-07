@@ -75,6 +75,7 @@ export type BookFormPayload = {
 	rating: number | null;
 	needs_review: boolean;
 	needs_review_note: string | null;
+	no_attributed_author: boolean;
 	page_count: number | null;
 	authors: AuthorFormEntry[];
 };
@@ -220,13 +221,16 @@ export function computeMissingImportant(p: {
 	year: number | null;
 	publisher: string | null;
 	authors: AuthorFormEntry[];
+	no_attributed_author?: boolean;
 }): ImportantField[] {
 	const out: ImportantField[] = [];
 	if (!p.title) out.push('title');
-	if (p.work_type === 'monograph') {
-		if (!p.authors.some((a) => authorEntryPresent(a, 'author'))) out.push('author');
-	} else if (!p.authors.some((a) => authorEntryPresent(a, 'editor'))) {
-		out.push('editor');
+	if (!p.no_attributed_author) {
+		if (p.work_type === 'monograph') {
+			if (!p.authors.some((a) => authorEntryPresent(a, 'author'))) out.push('author');
+		} else if (!p.authors.some((a) => authorEntryPresent(a, 'editor'))) {
+			out.push('editor');
+		}
 	}
 	if (!p.genre) out.push('genre');
 	if (p.year == null) out.push('year');
@@ -340,6 +344,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 	const personal_notes = trimOrNull(fd.get('personal_notes'));
 	const userNeedsReview = parseBoolean(fd.get('needs_review'));
 	const userReviewNote = trimOrNull(fd.get('needs_review_note'));
+	const no_attributed_author = parseBoolean(fd.get('no_attributed_author'));
 
 	// Save bar: at least one field (any identifying scalar OR a relation).
 	// Defaults like language='english' / reading_status='unread' / needs_review=false
@@ -386,7 +391,8 @@ export function parseBookForm(fd: FormData): ParseResult {
 		work_type: work_type as WorkType,
 		year,
 		publisher,
-		authors
+		authors,
+		no_attributed_author
 	});
 	const autoLine = missingImportant.length > 0 ? `Missing: ${missingImportant.join(', ')}` : null;
 	const finalNeedsReview = userNeedsReview || missingImportant.length > 0;
@@ -422,6 +428,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 			rating,
 			needs_review: finalNeedsReview,
 			needs_review_note: finalReviewNote,
+			no_attributed_author,
 			page_count,
 			authors
 		}
@@ -457,6 +464,7 @@ function bookColumnsPayload(p: BookFormPayload): Record<string, unknown> {
 		rating: p.rating,
 		needs_review: p.needs_review,
 		needs_review_note: p.needs_review_note,
+		no_attributed_author: p.no_attributed_author,
 		page_count: p.page_count
 	};
 }
@@ -1018,7 +1026,7 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 	const { data: existingRow, error: fetchErr } = await supabase
 		.from('books')
 		.select(
-			'id, title, year, publisher, publisher_location, publisher_id, genre, work_type, language, reading_status, needs_review_note, deleted_at'
+			'id, title, year, publisher, publisher_location, publisher_id, genre, work_type, language, reading_status, needs_review_note, no_attributed_author, deleted_at'
 		)
 		.eq('id', id)
 		.maybeSingle();
@@ -1041,6 +1049,7 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		language: string;
 		reading_status: string;
 		needs_review_note: string | null;
+		no_attributed_author: boolean;
 		deleted_at: string | null;
 	};
 	if (ex.deleted_at) {
@@ -1105,6 +1114,10 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		reading_status = t;
 	}
 
+	const noAttributedRaw = fd.get('no_attributed_author');
+	const no_attributed_author =
+		noAttributedRaw !== null ? parseBoolean(noAttributedRaw) : ex.no_attributed_author;
+
 	const workType =
 		ex.work_type === 'edited_volume' || ex.work_type === 'reference_work'
 			? ex.work_type
@@ -1130,7 +1143,8 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		work_type: workType,
 		year,
 		publisher,
-		authors: authorsForCheck
+		authors: authorsForCheck,
+		no_attributed_author
 	});
 	const needs_review_note = stripReviewAutoLine(ex.needs_review_note);
 
@@ -1154,7 +1168,8 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		language,
 		reading_status,
 		needs_review: false,
-		needs_review_note
+		needs_review_note,
+		no_attributed_author
 	};
 
 	const { error: updErr } = await supabase

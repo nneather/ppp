@@ -27,6 +27,8 @@ import { fileURLToPath } from 'node:url';
 import { config as dotenvConfig } from 'dotenv';
 import postgres from 'postgres';
 import { GENRES } from '../../src/lib/types/library.ts';
+import { normalizePublisherLocationTurabian } from '../../src/lib/library/publisher-location.ts';
+import { resolveLibraryResearchDatabaseUrl } from './resolve-database-url.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../..');
@@ -46,17 +48,6 @@ const AI_BATCH_SIZE = 20;
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_RESEARCH_MODEL?.trim() || 'claude-sonnet-4-6';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY?.trim() || null;
 
-const DATABASE_URL =
-	process.env.LIBRARY_RESEARCH_DATABASE_URL?.trim() ||
-	process.env.LIBRARY_DST_DATABASE_URL?.trim() ||
-	process.env.LIBRARY_SRC_DATABASE_URL?.trim();
-if (!DATABASE_URL) {
-	console.error(
-		'Set one of LIBRARY_DST_DATABASE_URL, LIBRARY_SRC_DATABASE_URL, or LIBRARY_RESEARCH_DATABASE_URL in .env.local (hosted Direct URI). See scripts/library-review-research/README.md'
-	);
-	process.exit(2);
-}
-
 /** Matches created_by semantics: the owner's profile id when available. */
 const CREATED_BY = process.env.POS_OWNER_ID?.trim() || null;
 
@@ -70,6 +61,8 @@ type BookRow = {
 	publisher: string | null;
 	publisher_id: string | null;
 	publisher_location: string | null;
+	/** Effective location: book override → imprint → parent (from join). */
+	effective_location: string | null;
 	language: string;
 	author_display: string | null;
 };
@@ -248,20 +241,28 @@ async function main() {
 		);
 	}
 
-	// ssl required for the Session Pooler path (IPv4 networks can't reach the
-	// IPv6-only Direct host); harmless on the Direct URI.
-	const sql = postgres(DATABASE_URL!, { max: 1, ssl: 'require' });
+	const databaseUrl = await resolveLibraryResearchDatabaseUrl();
+	const sql = postgres(databaseUrl, { max: 1, ssl: 'require' });
 
 	const rows = await sql<BookRow[]>`
 		SELECT b.id, b.title, b.subtitle, b.isbn, b.genre, b.year, b.publisher,
-			b.publisher_id, b.publisher_location, b.language, b.author_display
+			b.publisher_id, b.publisher_location, b.language, b.author_display,
+			COALESCE(
+				NULLIF(TRIM(b.publisher_location), ''),
+				NULLIF(TRIM(p.default_location), ''),
+				NULLIF(TRIM(parent.default_location), '')
+			) AS effective_location
 		FROM public.books b
+		LEFT JOIN public.publishers p ON p.id = b.publisher_id AND p.deleted_at IS NULL
+		LEFT JOIN public.publishers parent ON parent.id = p.parent_id AND parent.deleted_at IS NULL
 		WHERE b.deleted_at IS NULL
 			AND b.needs_review
 			AND (b.needs_review_note IS NULL OR b.needs_review_note NOT ILIKE '%shelf%')
 			AND NOT EXISTS (
-				SELECT 1 FROM public.book_metadata_proposals p
-				WHERE p.book_id = b.id AND p.status = 'pending' AND p.deleted_at IS NULL
+				SELECT 1 FROM public.book_metadata_proposals prop
+				WHERE prop.book_id = b.id
+					AND prop.status IN ('pending', 'rejected')
+					AND prop.deleted_at IS NULL
 			)
 			${INCLUDE_NO_ISBN ? sql`` : sql`AND b.isbn IS NOT NULL`}
 		ORDER BY (b.isbn IS NOT NULL) DESC, b.id
@@ -278,7 +279,7 @@ async function main() {
 
 		const missingYear = book.year == null;
 		const missingPublisher = book.publisher == null && book.publisher_id == null;
-		const missingLocation = book.publisher_location == null;
+		const missingLocation = book.effective_location == null;
 		const missingGenre = book.genre == null;
 
 		if (book.isbn && (missingYear || missingPublisher || missingLocation || missingGenre)) {
@@ -293,11 +294,14 @@ async function main() {
 			}
 			// Location is only proposable alongside a known publisher (existing or proposed).
 			if (missingLocation && ol.location && (!missingPublisher || ol.publisher)) {
-				fields.publisher_location = {
-					current: null,
-					proposed: ol.location,
-					source: 'openlibrary'
-				};
+				const normalized = normalizePublisherLocationTurabian(ol.location);
+				if (normalized) {
+					fields.publisher_location = {
+						current: null,
+						proposed: normalized,
+						source: 'openlibrary'
+					};
+				}
 			}
 		}
 

@@ -1,5 +1,5 @@
 import type { ReviewCard } from '$lib/types/library';
-import type { BookCitationInput } from './types';
+import { citationAuthorsForBook, type BookCitationInput } from './types';
 
 export function reviewCardToCitationInput(card: ReviewCard): BookCitationInput {
 	return {
@@ -21,6 +21,6 @@ export function reviewCardToCitationInput(card: ReviewCard): BookCitationInput {
 		genre: card.genre,
 		work_type: card.work_type,
 		language: card.language,
-		authors: card.authors
+		authors: citationAuthorsForBook(card)
 	};
 }

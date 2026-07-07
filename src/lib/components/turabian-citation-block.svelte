@@ -2,6 +2,7 @@
 	import { browser } from '$app/environment';
 	import { Button } from '$lib/components/ui/button';
 	import { copyCitationToClipboard } from '$lib/library/turabian/clipboard';
+	import { parseCitationHtmlSegments } from '$lib/library/turabian/html-segments';
 	import type { CitationFormatted } from '$lib/library/turabian';
 	import Copy from '@lucide/svelte/icons/copy';
 
@@ -14,6 +15,8 @@
 	let { label, citation, onCopied }: Props = $props();
 
 	let copying = $state(false);
+
+	const segments = $derived(parseCitationHtmlSegments(citation.html || citation.plain));
 
 	async function copy() {
 		if (!browser) return;
@@ -44,8 +47,15 @@
 			{copying ? 'Copying…' : 'Copy'}
 		</Button>
 	</div>
-	<pre
+	<p
 		class="max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-foreground"
-		>{citation.plain || '—'}</pre
 	>
+		{#if segments.length === 0}
+			—
+		{:else}
+			{#each segments as seg, i (i)}
+				{#if seg.italic}<em class="italic">{seg.text}</em>{:else}{seg.text}{/if}
+			{/each}
+		{/if}
+	</p>
 </div>

@@ -69,6 +69,13 @@ export type BibliographySortKey = {
 	title: string;
 };
 
+export function citationAuthorsForBook(book: {
+	no_attributed_author: boolean;
+	authors: BookCitationInput['authors'];
+}): BookCitationInput['authors'] {
+	return book.no_attributed_author ? [] : book.authors;
+}
+
 export function bookDetailToCitationInput(book: BookDetail): BookCitationInput {
 	return {
 		id: book.id,
@@ -89,7 +96,7 @@ export function bookDetailToCitationInput(book: BookDetail): BookCitationInput {
 		genre: book.genre,
 		work_type: book.work_type,
 		language: book.language,
-		authors: book.authors
+		authors: citationAuthorsForBook(book)
 	};
 }
 

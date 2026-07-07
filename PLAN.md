@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-07 — **Review-queue gamification shipped** ([064](docs/decisions/064-usage-retrospective-review.md) Q3): sprint decks + live burndown ([067](docs/decisions/067-library-review-sprint-decks.md)) and the AI research pass ([068](docs/decisions/068-library-review-ai-research-pass.md) — `book_metadata_proposals` migration applied, first 30 proposals live). Prior same night: overnight deep-dive reviews ([064](docs/decisions/064-usage-retrospective-review.md)–[066](docs/decisions/066-operational-resilience-review.md)).
+**Last updated:** 2026-07-07 — **Review-queue follow-ups shipped** ([069](docs/decisions/069-review-queue-follow-ups.md)): Turabian location normalization, editable proposal apply, italic citation previews, `no_attributed_author`, dismissed proposals stay gone. Prior: sprint decks + AI research pass ([067](docs/decisions/067-library-review-sprint-decks.md)–[068](docs/decisions/068-library-review-ai-research-pass.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -43,9 +43,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [069 — Review queue follow-ups](docs/decisions/069-review-queue-follow-ups.md) (2026-07-07) — Turabian `publisher_location` normalization; proposal filter + dismissed-stays-gone; editable Apply on review card; italic citation previews; `books.no_attributed_author` for authorless reference works; `rejectRedundantProposals.ts` cleanup script.
 - [068 — Review queue AI research pass](docs/decisions/068-library-review-ai-research-pass.md) (2026-07-06) — `book_metadata_proposals` (one pending per book, RLS + audit, applied to prod); `library:review-research` script (OL + optional Anthropic genre); `<ReviewProposalPanel>` apply/dismiss on cards; Research deck via `!inner` embed; first run: 30 proposals from 100 ISBN books. Security-review + Bugbot clean.
 - [067 — Review queue sprint decks](docs/decisions/067-library-review-sprint-decks.md) (2026-07-06) — deck picker (6 decks, live counts) replaces slice pills; Genre Sprint one-tap fast lane (585 books); 5/10/25 sprints + ring + summary; live-ticking burndown; milestones (25/50/75/100% + per-100 lifetime); shuffle; shelf-bound books excluded by default while away. Shelf marker is the word `shelf`, not the importer prefix.
-- [066 — Operational resilience review](docs/decisions/066-operational-resilience-review.md) (2026-07-07) — backups live but restore broken (`pg_dump --where` doesn't exist) + unproven; **Free plan confirmed → weekly cron**; add projects + profiles dumps; REVOKE migration for denorm fns; nav-skeleton `__data.json` hypothesis + watchdog.
 - [065 — Writing workflow review](docs/decisions/065-writing-workflow-review.md) (2026-07-07) — formatters September-ready, writing session not: no short-form UI, `[page]` on every copy → writing-session-gaps session; `work_type` SQL sweep; fixture strings need Covenant validation in August; never build auto-Ibid.
 - [064 — Usage retrospective](docs/decisions/064-usage-retrospective-review.md) (2026-07-07) — two healthy weekly rituals (invoicing, project check-in); MYN tasks/links/progress zero rows → 2-week MYN trial; review-queue improvement + AI research pass; archive Fountain of Life.
 
@@ -70,7 +70,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-07** (review-queue gamification / [067](docs/decisions/067-library-review-sprint-decks.md)–[068](docs/decisions/068-library-review-ai-research-pass.md); check **0 errors**; test **187/187** green; prod build passes). Prior: overnight reviews closeout ([064](docs/decisions/064-usage-retrospective-review.md)–[066](docs/decisions/066-operational-resilience-review.md)) same night, 155/155.
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-07** ([069](docs/decisions/069-review-queue-follow-ups.md); check **0 errors**; test **197/197** green). Prior: review-queue gamification ([067](docs/decisions/067-library-review-sprint-decks.md)–[068](docs/decisions/068-library-review-ai-research-pass.md); 187/187).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md) — the earlier "Pro 7-day backups" wording here was wrong), so the R2 dumps are the **only** backup. **Pipeline is live** — secrets set + first successful run 2026-07-06 (run 28830982000; both dumps in R2 under `2026/`). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + cron — **bump monthly → weekly `0 8 * * 1` in the ops hardening session**):
 

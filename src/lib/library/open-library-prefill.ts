@@ -10,6 +10,7 @@ import type { Genre, Language, PublisherRow, WorkType } from '$lib/types/library
 import { normalizeIsbnDigits, parseIsbnWithChecksum } from '$lib/library/isbn';
 import { matchPublisher, normalizePublisherName, splitAuthorString } from '$lib/library/match';
 import { publisherDefaultLocationForRow } from '$lib/library/publisher-resolve';
+import { normalizePublisherLocationTurabian } from '$lib/library/publisher-location';
 
 export { normalizeIsbnDigits } from '$lib/library/isbn';
 
@@ -410,9 +411,12 @@ export async function fetchOpenLibraryPrefill(
 	const matched = publisherRaw ? matchPublisher(publisherRaw, publishersList) : null;
 	const publisher = matched?.canonical_name ?? publisherRaw;
 	const publisher_id = matched?.id ?? null;
-	const publisher_location =
+	const publisher_location_raw =
 		publisher_location_ol ??
 		(matched ? publisherDefaultLocationForRow(matched) : null);
+	const publisher_location = publisher_location_raw
+		? normalizePublisherLocationTurabian(publisher_location_raw)
+		: null;
 	const editionLine = editionLineFromEdition(edition);
 	const year = extractYear(edition.publish_date);
 	const page_count = pageCountFromEdition(edition);
