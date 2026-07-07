@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import Copy from '@lucide/svelte/icons/copy';
+	import Download from '@lucide/svelte/icons/download';
 	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { copyCitationToClipboard } from '$lib/library/turabian/clipboard';
@@ -51,6 +52,16 @@
 	>
 		<Copy class="size-4" />
 		{copying ? 'Copying…' : 'Copy bibliography'}
+	</Button>
+	<Button
+		variant="secondary"
+		class="max-md:min-h-11"
+		href={`/library/bibliography/download?ids=${data.ids.join(',')}`}
+		disabled={data.books.length === 0}
+		data-sveltekit-reload
+	>
+		<Download class="size-4" />
+		Download .docx
 	</Button>
 {/snippet}
 

@@ -23,11 +23,15 @@ export function sortBibliographyInputs(books: BookCitationInput[]): BookCitation
 	});
 }
 
-export function formatCompiledBibliography(books: BookCitationInput[]): CitationFormatted {
-	const sorted = sortBibliographyInputs(books);
-	const entries = sorted
+/** Sorted, non-empty bibliography entries — shared by clipboard compile and .docx export. */
+export function formatBibliographyEntries(books: BookCitationInput[]): CitationFormatted[] {
+	return sortBibliographyInputs(books)
 		.map((b) => formatBibliography(b))
 		.filter((e) => e.plain.length > 0);
+}
+
+export function formatCompiledBibliography(books: BookCitationInput[]): CitationFormatted {
+	const entries = formatBibliographyEntries(books);
 	const plain = entries.map((e) => e.plain).join('\n\n');
 	const html = entries.map((e) => `<p>${e.html}</p>`).join('\n');
 	return {

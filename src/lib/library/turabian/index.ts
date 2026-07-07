@@ -24,9 +24,11 @@ export {
 } from './article';
 export {
 	sortBibliographyInputs,
+	formatBibliographyEntries,
 	formatCompiledBibliography,
 	bibliographySortKey
 } from './bibliography';
+export { parseCitationHtmlSegments, type CitationHtmlSegment } from './html-segments';
 export { copyCitationToClipboard } from './clipboard';
 export {
 	REVIEW_PROGRESS_KEYS,

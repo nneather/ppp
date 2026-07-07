@@ -15,7 +15,7 @@
 >
 > Standards live in those files; the tracker is the plan. Where this tracker would otherwise restate a standard, it links instead.
 
-_Last updated: July 6, 2026 | Module: Library (2nd) | **Trip build: complete** | **Wave 2: Session 3 complete — Session 4 next**_
+_Last updated: July 6, 2026 | Module: Library (2nd) | **Trip build: complete** | **Wave 2: Sessions 1–4 complete — August shelf QA next**_
 
 **Trip owner QA:** **Signed off 2026-06-03** — library passable for trip / sermon prep; PWA performance tracked separately ([043](decisions/043-library-trip-qa-signoff-projects-handoff.md)). Runbook → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md) (historical steps). **Viewer UI smoke (§B):** deferred until collaborator exists. **DB/RPC RLS:** optional `npm run test:rls` on **ppp-staging** ([042](decisions/042-rls-smoke-staging-harness.md)). Repo gate `npm run check` + `npm run test` passed 2026-05-19 ([033](decisions/033-library-pm-review-may-2026.md)).
 
@@ -33,7 +33,7 @@ _Post-trip; do not renumber Sessions 1–9 below._
 | **1** | Article-level formatters (`EssayCitationInput` authors, signed/unsigned `s.v.`, chapter footnote + essay bib, short-footnote fixes); seed ~5 essay rows via SQL | ☑ 2026-07-06 |
 | **2** | Essays CRUD UI on book detail; per-essay copy; loaders + audit whitelist | ☑ 2026-07-06 |
 | **3** | Megacomponent split (`scripture-reference-form` → OCR queue + row editor; `book-form` → authors + publication + OL) | ☑ 2026-07-06 |
-| **4** | `.docx` export (hanging indent + italics) | ☐ |
+| **4** | `.docx` export (hanging indent + italics) — `/library/bibliography/download` endpoint + `buildBibliographyDocx` + `parseCitationHtmlSegments`; reuses `formatBibliographyEntries` ([063](decisions/063-library-wave2-session4-docx-export.md)) | ☑ 2026-07-06 |
 | **August** | Physical shelf verification of all 20 rows | ☐ |
 
 | Item | Notes | Decision / skill |
@@ -43,6 +43,7 @@ _Post-trip; do not renumber Sessions 1–9 below._
 | Turabian 20-row QA | [library-turabian-fixtures.md](library-turabian-fixtures.md) — **20 pass / 0 fail** | `.claude/skills/turabian-qa/` |
 | Citation blockers | Article-level formatters shipped Session 1; **essays UI shipped Session 2** ([060](decisions/060-library-wave2-session2-essays-ui.md)) | [058](decisions/058-library-wave2-session1-article-formatters.md) |
 | Megacomponent split | `scripture-reference-form` → OCR queue + row editor; `book-form` → authors + publication + OL hook | ☑ [062](decisions/062-library-wave2-session3-megacomponent-split.md) |
+| `.docx` export | Download from `/library/bibliography` (`?ids=`); Word-native hanging indent + italics; complements Q4 clipboard | ☑ [063](decisions/063-library-wave2-session4-docx-export.md) |
 | Essays UI (Q5) | **Promoted** — Session 2 after formatters; link from [003](decisions/003-library-books-vertical-slice.md) polymorphic pattern | [056](decisions/056-library-wave2-phase0.md) |
 | Ship discipline | `npm run ship-library:apply` every schema change | `.claude/skills/ship-library-change/` |
 
@@ -542,7 +543,7 @@ _Session-blocking. Resolve before the dependent session starts. Per-entity quest
 | 1 | `@zxing/browser` confirmed on actual phone, or does the 30-min spike reveal issues? | ☑ **Deferred to device smoke** (2026-05-01) — `/library/add` ships with manual ISBN fallback + camera-denied messaging. Record phone model / outcome when you run the Session 6 script; see `docs/decisions/011-library-session-6-mobile-and-barcode.md`. |
 | 2 | Open Library API rate limits — `enrich_library.py` full 1,330-book run hit any throttling? | ☑ Resolved 2026-04-30 — full 1,330 rows enriched at 0.6s/req with no throttling. Match-type breakdown: title+author 749 (56.3%) / title-only 294 (22.1%) / no-match 287 (21.6%). |
 | 3 | Image upload max size / client-side compression before Supabase Storage? | ☑ Resolved Session 2 (2026-04-28) — bucket `library-scripture-images` private, 10 MB cap, mimes `jpeg/png/webp/heic`. Path `${userId}/${bookId}/${ulid}.${ext}` with first-segment self-prefix RLS check. Client-side downscale to ~2048px JPEG @ q=0.85 via `createImageBitmap`+canvas (HEIC fallback uploads original). Signed URLs (1h TTL) generated server-side per load. See `docs/decisions/004-library-scripture-references-wiring.md`. |
-| 4 | Bibliography export format — plain text only, or add markdown + .docx? | ☑ **Resolved 2026-05-16** — **HTML + plain-text clipboard, no file export.** Copy buttons (book detail + bibliography builder) write `text/html` carrying `<i>` italics + em-dashes so Word paste preserves Turabian formatting; plain-text fallback for code editors. Bibliography builder = same clipboard shape at N-books scale. Implemented in Session 8. |
+| 4 | Bibliography export format — plain text only, or add markdown + .docx? | ☑ **Resolved 2026-05-16** — **HTML + plain-text clipboard, no file export.** Copy buttons (book detail + bibliography builder) write `text/html` carrying `<i>` italics + em-dashes so Word paste preserves Turabian formatting; plain-text fallback for code editors. Bibliography builder = same clipboard shape at N-books scale. Implemented in Session 8. **Amended Wave 2 Session 4 (2026-07-06):** `.docx` download added as a complement to (not replacement of) the clipboard path — [063](decisions/063-library-wave2-session4-docx-export.md). |
 | 5 | Article-level citations (essays UI) — needed for fall semester or deferrable? | ⏳ **Trip-period observational task** — evaluate during the trip with the ~200 traveling books. If essay-level citations create real friction in sermon prep or paper drafting, promote essays UI up the post-trip queue; otherwise keep deferred per PostBuild #1. |
 | 6 | Subject vs genre terminology — reconcile `Library_Migration_Notes.md` ("subject") with schema (`genre`) | ☑ **Resolved 2026-05-16** — terminology is unified on `genre` in code, schema, UI, and the v2 spreadsheet. `Library_Migration_Notes.md` retains historical "subject" wording as a Pass-1 artifact; the importer is retired per Q8 so no further reconciliation is needed. |
 | 7 | OCR provider choice (Session 9) | ☑ **Resolved 2026-05-04** — MVP default Anthropic Claude (vision / structured output); alternatives + criteria in [`docs/decisions/015-library-session-9-ocr-kickoff.md`](decisions/015-library-session-9-ocr-kickoff.md). |

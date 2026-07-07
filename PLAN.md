@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-06 — Library Wave 2 Session 3 megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md)); prior: PWA shell + ISBN authors ([061](docs/decisions/061-pwa-shell-isbn-author-fixes.md)).
+**Last updated:** 2026-07-06 — Library Wave 2 Session 4 `.docx` bibliography export ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); prior same day: megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -16,7 +16,7 @@
 
 **Invoicing — ad-hoc enhancements shipped 2026-06-22:** discard sent invoices ([049](docs/decisions/049-invoicing-discard-sent.md)); per-client billing preferences — `billing_cadence` + `consultation_grouping` on `clients`, `buildConsultationLines()` ([050](docs/decisions/050-invoicing-client-billing-preferences.md)). Migration `20260622120000_clients_billing_preferences.sql` applied.
 
-**Library — Wave 2 Session 3 complete; Session 4 next:** Trip QA **signed off 2026-06-03** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)). **Fixture-first build** locked 2026-07-06 ([056](docs/decisions/056-library-wave2-phase0.md)): [library-turabian-fixtures.md](docs/library-turabian-fixtures.md) — **20 pass / 0 fail**. **Session 1 shipped** ([058](docs/decisions/058-library-wave2-session1-article-formatters.md)): article formatters + essay seed SQL. **Session 2 shipped** ([060](docs/decisions/060-library-wave2-session2-essays-ui.md)): essays CRUD on book detail + per-essay copy. **Session 3 shipped** ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md)): megacomponent split (`scripture-reference-form`, `book-form`). **Session 4:** `.docx` export. **Owner:** apply essay seed SQL if not yet run; phone smoke after split.
+**Library — Wave 2 Sessions 1–4 complete; August shelf QA next:** Trip QA **signed off 2026-06-03** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)). **Fixture-first build** locked 2026-07-06 ([056](docs/decisions/056-library-wave2-phase0.md)): [library-turabian-fixtures.md](docs/library-turabian-fixtures.md) — **20 pass / 0 fail**. **Session 1 shipped** ([058](docs/decisions/058-library-wave2-session1-article-formatters.md)): article formatters + essay seed SQL. **Session 2 shipped** ([060](docs/decisions/060-library-wave2-session2-essays-ui.md)): essays CRUD on book detail + per-essay copy. **Session 3 shipped** ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md)): megacomponent split. **Session 4 shipped** ([063](docs/decisions/063-library-wave2-session4-docx-export.md)): `.docx` bibliography export (hanging indent + italics) from `/library/bibliography`. **Owner:** apply essay seed SQL if not yet run; phone smoke after split; `.docx` Word smoke (build bibliography → download → verify indent/italics).
 
 Nearest hard dates:
 - **2026-05-21** — move to Madison; trip-period workflow (mobile-first) — library usable
@@ -30,7 +30,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Session 3 shipped** ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md)): scripture + book form megacomponent split. **Next: Session 4** `.docx` export. **Apply essay seed** if not live; owner phone smoke after split. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 shipped** — latest: `.docx` bibliography export ([063](docs/decisions/063-library-wave2-session4-docx-export.md)). **Next: August shelf QA** (all 20 fixture rows). **Apply essay seed** if not live; owner phone smoke after split; `.docx` Word smoke. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** — tree/check-in, dashboard/filters, MYN `/projects/tasks`, links in Sheet, audit. **Viewer access:** owner-only by design (not deferred debt); revisit only if a collaborator is added — [POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md). **Backlog:** polish, global Now ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)), optional full phone smoke. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -39,12 +39,12 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [063 — Library Wave 2 Session 4 — .docx bibliography export](docs/decisions/063-library-wave2-session4-docx-export.md) (2026-07-06) — `GET /library/bibliography/download?ids=`; `buildBibliographyDocx` (server-only `docx` pkg, US Letter, 0.5" hanging indent, TNR 12pt) + `parseCitationHtmlSegments` + shared `formatBibliographyEntries`.
 - [062 — Library Wave 2 Session 3 — megacomponent split](docs/decisions/062-library-wave2-session3-megacomponent-split.md) (2026-07-06) — `<ScriptureOcrQueue>` + `<ScriptureRowEditor>` + `scripture-draft-row.ts`; `<BookFormAuthors>` + `<BookFormPublication>` + `book-form-ol.ts`; shells ~900/1,128 LOC.
 - [061 — PWA shell + ISBN author fixes](docs/decisions/061-pwa-shell-isbn-author-fixes.md) (2026-07-06) — SW NavigationRoute for offline.html; settings tabs scroll; sticky save bars; OL author auto-create at save; 8s OL fetch timeout.
 - [060 — Library Wave 2 Session 2 — essays CRUD UI](docs/decisions/060-library-wave2-session2-essays-ui.md) (2026-07-06) — `loadEssaysForBook`, essay actions, `<BookEssaysEditor>`; per-essay Turabian copy; audit `essay_title` label; seed apply pending owner.
 - [059 — Dashboard last-week invoice shortcut](docs/decisions/059-dashboard-last-week-invoice.md) (2026-07-06) — weekly clients with unbilled prior Chicago week show footer on `/dashboard`; one-click `?/generate` → draft review page.
 - [057 — PWA consistency pass](docs/decisions/057-pwa-consistency.md) (2026-07-06) — light theme chrome; offline navigate fallback; hourly + on-resume SW update checks; `__APP_BUILD__` on Settings; `vocab-cache-paths.ts` single source of truth.
-- [054 — Invoicing UX standardization (review 051 R4)](docs/decisions/054-invoicing-polish.md) (2026-07-06) — retired all `window.confirm` for `<ConfirmDialog>` (invoice detail + time-entry sheet + library batch-scripture nav guard), `<PageHeader>` migration, `bottom-tabbar` FAB, `hotkey="b"` on create triggers, `formMessage` narrowed on `form.kind`.
 
 ---
 
@@ -67,7 +67,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-06** (megacomponent split / [062](docs/decisions/062-library-wave2-session3-megacomponent-split.md); check **0 errors**; test **150/150** green). Prior same day: PWA shell + ISBN authors / [061](docs/decisions/061-pwa-shell-isbn-author-fixes.md).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-06** (`.docx` export / [063](docs/decisions/063-library-wave2-session4-docx-export.md); check **0 errors**; test **155/155** green). Prior same day: megacomponent split / [062](docs/decisions/062-library-wave2-session3-megacomponent-split.md).
 
 **Data safety (monthly export):** Off-Supabase belt-and-suspenders beyond Supabase Pro's 7-day daily backups. Monthly `pg_dump -F c`, two files pushed to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (cron 1st of month + `workflow_dispatch`):
 
@@ -82,14 +82,19 @@ Notes: both reference `profiles`/`audit_log` — a restore loads the single `pro
 
 ### Library Wave 2 — Session 2: essays CRUD UI ✅ done ([060](docs/decisions/060-library-wave2-session2-essays-ui.md))
 
-### Library Wave 2 — Session 3: megacomponent split
+### Library Wave 2 — Session 3: megacomponent split ✅ done ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md))
+
+### Library Wave 2 — Session 4: .docx export ✅ done ([063](docs/decisions/063-library-wave2-session4-docx-export.md))
+
+### Library Wave 2 — August shelf QA (owner + agent)
 
 ```
-Session: library — Wave 2 Session 3 (megacomponent split)
-Tracker: docs/POS_Library_Build_Tracker.md, Wave 2 Session 3
-Read: AGENTS.md, .cursor/rules/library-module.mdc, docs/decisions/060-library-wave2-session2-essays-ui.md
-Goal: Split scripture-reference-form + book-form megacomponents per tracker.
-End-of-session: docs/decisions/061-*.md, tracker Session 3 ticked, PLAN.md refreshed
+Session: library — Wave 2 August shelf QA
+Tracker: docs/POS_Library_Build_Tracker.md, Wave 2 "August" row
+Read: AGENTS.md, docs/library-turabian-fixtures.md, docs/decisions/063-library-wave2-session4-docx-export.md,
+  .claude/skills/turabian-qa/
+Goal: Verify all 20 fixture rows against the physical shelf; fix formatter gaps surfaced by real metadata.
+End-of-session: fixture doc statuses re-confirmed, docs/decisions/064-*.md, tracker August row ticked, PLAN.md refreshed
 ```
 
 ### Library Wave 2 — Session 1: article-level formatters ✅ done ([058](docs/decisions/058-library-wave2-session1-article-formatters.md))
@@ -197,9 +202,10 @@ Acceptance:
 ## Next up
 
 1. **Apply essay seed** — paste [`supabase/seed/library_essays_seed.sql`](supabase/seed/library_essays_seed.sql) in Supabase SQL editor; owner smoke on ABD vol 1 ([060](docs/decisions/060-library-wave2-session2-essays-ui.md)).
-2. **Library Wave 2 Session 3** — megacomponent split (`scripture-reference-form`, `book-form`).
-3. **Projects — use v1 weekly** (tree check-in + optional `/projects/tasks`). Retrospective / process: central Claude project (see tracker Notes).
-4. **Projects backlog (pick one when ready):** global MYN Now view · optional full phone smoke on tracker.
-5. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
-6. **Invoicing:** first real-client send cadence (owner-driven).
-7. **Backups:** set GitHub secrets + R2 bucket; run `workflow_dispatch` + restore smoke once ([055](docs/decisions/055-ci-backups.md)).
+2. **Owner smokes** — phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke: `/library` select books → Build bibliography → Download .docx → open in Word, confirm hanging indent + italic titles ([063](docs/decisions/063-library-wave2-session4-docx-export.md)).
+3. **Library Wave 2 — August shelf QA** — physical verification of all 20 fixture rows (see Session prompts).
+4. **Projects — use v1 weekly** (tree check-in + optional `/projects/tasks`). Retrospective / process: central Claude project (see tracker Notes).
+5. **Projects backlog (pick one when ready):** global MYN Now view · optional full phone smoke on tracker.
+6. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
+7. **Invoicing:** first real-client send cadence (owner-driven).
+8. **Backups:** set GitHub secrets + R2 bucket; run `workflow_dispatch` + restore smoke once ([055](docs/decisions/055-ci-backups.md)).

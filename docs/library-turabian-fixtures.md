@@ -139,7 +139,7 @@
 | Session | Ships |
 |---------|--------|
 | **1** | Article-level formatters; short-footnote fixes; flip rows 16–20; seed ~5 essay rows via SQL | ☑ 2026-07-06 |
-| **2** | Essays CRUD UI on book detail; per-essay copy buttons; loaders |
-| **3** | Megacomponent split (`scripture-reference-form`, `book-form`) |
-| **4** | `.docx` export (hanging indent + italics) |
-| **August** | Physical shelf verification of all 20 rows |
+| **2** | Essays CRUD UI on book detail; per-essay copy buttons; loaders | ☑ 2026-07-06 |
+| **3** | Megacomponent split (`scripture-reference-form`, `book-form`) | ☑ 2026-07-06 |
+| **4** | `.docx` export (hanging indent + italics) — [063](decisions/063-library-wave2-session4-docx-export.md) | ☑ 2026-07-06 |
+| **August** | Physical shelf verification of all 20 rows | ☐ |
