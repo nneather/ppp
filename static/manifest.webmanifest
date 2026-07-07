@@ -1,10 +1,15 @@
 {
+	"id": "/",
 	"name": "ppp",
 	"short_name": "ppp",
-	"start_url": "/",
+	"description": "Parker's personal platform — invoicing, library, and projects",
+	"start_url": "/dashboard",
 	"display": "standalone",
 	"background_color": "#ffffff",
-	"theme_color": "#09090b",
+	"theme_color": "#ffffff",
+	"launch_handler": {
+		"client_mode": "navigate-existing"
+	},
 	"icons": [
 		{
 			"src": "/icon-192.png",

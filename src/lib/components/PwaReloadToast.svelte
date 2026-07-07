@@ -3,10 +3,38 @@
 	import { Button } from '$lib/components/ui/button';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 
+	const SW_UPDATE_INTERVAL_MS = 60 * 60 * 1000;
+
+	let swRegistration = $state<ServiceWorkerRegistration | undefined>(undefined);
+
 	const { needRefresh, updateServiceWorker, offlineReady } = useRegisterSW({
 		onRegisterError(error) {
 			console.warn('[pwa] service worker registration failed', error);
+		},
+		onRegisteredSW(_swUrl, registration) {
+			swRegistration = registration ?? undefined;
 		}
+	});
+
+	$effect(() => {
+		const registration = swRegistration;
+		if (!registration) return;
+
+		const checkForUpdate = () => {
+			if (navigator.onLine) void registration.update();
+		};
+
+		const intervalId = window.setInterval(checkForUpdate, SW_UPDATE_INTERVAL_MS);
+		const onVisibilityChange = () => {
+			if (document.visibilityState === 'visible') checkForUpdate();
+		};
+
+		document.addEventListener('visibilitychange', onVisibilityChange);
+
+		return () => {
+			window.clearInterval(intervalId);
+			document.removeEventListener('visibilitychange', onVisibilityChange);
+		};
 	});
 
 	function dismiss() {

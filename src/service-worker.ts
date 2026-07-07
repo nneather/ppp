@@ -1,26 +1,21 @@
 /// <reference lib="webworker" />
 import type { PrecacheEntry } from 'workbox-precaching';
-import { precacheAndRoute } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
+import { matchPrecache, precacheAndRoute } from 'workbox-precaching';
+import { registerRoute, setCatchHandler } from 'workbox-routing';
 import { StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
+import { LIBRARY_VOCAB_CACHE_PATHS } from '$lib/library/vocab-cache-paths';
 
 declare const self: ServiceWorkerGlobalScope & {
 	__WB_MANIFEST: Array<PrecacheEntry | string>;
 };
 
-// Bump v3 (2026-06-03): SWR for static library vocab JSON only (not HTML / not mutations).
+// Bump v4 (2026-07-06): offline navigate fallback + vocab paths from shared module.
 precacheAndRoute(self.__WB_MANIFEST);
 
 const vocabMatcher = ({ url, request }: { url: URL; request: Request }) => {
 	if (request.method !== 'GET') return false;
-	const p = url.pathname;
-	return (
-		p === '/library/people.json' ||
-		p === '/library/series.json' ||
-		p === '/library/topic-counts.json' ||
-		p === '/library/ancient-texts.json'
-	);
+	return (LIBRARY_VOCAB_CACHE_PATHS as readonly string[]).includes(url.pathname);
 };
 
 registerRoute(
@@ -35,6 +30,14 @@ registerRoute(
 		]
 	})
 );
+
+setCatchHandler(async ({ request }) => {
+	if (request.mode === 'navigate') {
+		const offline = await matchPrecache('/offline.html');
+		if (offline) return offline;
+	}
+	return Response.error();
+});
 
 /**
  * If HTML navigate caching is reintroduced, bypass auth/login and SvelteKit form actions:

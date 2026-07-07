@@ -28,6 +28,10 @@
 		formatFootnote
 	} from '$lib/library/turabian';
 	import {
+		LIBRARY_ANCIENT_TEXTS_JSON,
+		LIBRARY_TOPIC_COUNTS_JSON
+	} from '$lib/library/vocab-cache-paths';
+	import {
 		AUTHOR_ROLE_LABELS,
 		LANGUAGE_LABELS,
 		READING_STATUSES,
@@ -539,7 +543,7 @@
 
 	async function ensureTopicCounts() {
 		if (topicCounts.length > 0) return;
-		const res = await fetch('/library/topic-counts.json');
+		const res = await fetch(LIBRARY_TOPIC_COUNTS_JSON);
 		if (!res.ok) return;
 		const body = (await res.json()) as { topicCounts?: TopicCount[] };
 		topicCounts = body.topicCounts ?? [];
@@ -547,7 +551,7 @@
 
 	async function ensureAncientTexts() {
 		if (ancientTexts.length > 0) return;
-		const res = await fetch('/library/ancient-texts.json');
+		const res = await fetch(LIBRARY_ANCIENT_TEXTS_JSON);
 		if (!res.ok) return;
 		const body = (await res.json()) as { ancientTexts?: AncientTextRow[] };
 		ancientTexts = body.ancientTexts ?? [];

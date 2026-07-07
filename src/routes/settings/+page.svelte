@@ -103,4 +103,6 @@
 			</li>
 		{/each}
 	</ul>
+
+	<p class="mt-10 text-center text-xs text-muted-foreground">Build {__APP_BUILD__}</p>
 </div>

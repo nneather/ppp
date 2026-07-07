@@ -3,6 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SessionUser } from '$lib/server/auth-session';
 
 declare global {
+	const __APP_BUILD__: string;
+
 	namespace App {
 		interface Locals {
 			supabase: SupabaseClient;

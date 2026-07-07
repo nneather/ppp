@@ -39,6 +39,7 @@
 		BookListRow
 	} from '$lib/types/library';
 	import { bookListFiltersToSearchParams } from '$lib/library/server/url-params';
+	import { LIBRARY_PEOPLE_JSON } from '$lib/library/vocab-cache-paths';
 	import { scorePersonMatch } from '$lib/library/person-search';
 	import type { MultiComboboxItem } from '$lib/components/multi-combobox.svelte';
 	import type { default as MultiComboboxComponent } from '$lib/components/multi-combobox.svelte';
@@ -358,7 +359,7 @@
 		if (facetPeople.length > 0 || facetPeopleLoading) return;
 		facetPeopleLoading = true;
 		try {
-			const res = await fetch('/library/people.json');
+			const res = await fetch(LIBRARY_PEOPLE_JSON);
 			if (!res.ok) return;
 			const body = (await res.json()) as { people?: PersonRow[] };
 			facetPeople = body.people ?? [];

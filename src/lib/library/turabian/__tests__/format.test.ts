@@ -3,6 +3,7 @@ import { formatEssayFootnote } from '../article';
 import { formatBibliography, formatFootnote } from '../format';
 import { resolveCitationSourceType } from '../dispatch';
 import type { BookCitationInput } from '../types';
+import { WAVE2_FIXTURES } from './fixtures';
 
 function book(overrides: Partial<BookCitationInput>): BookCitationInput {
 	return {
@@ -646,5 +647,73 @@ describe('publisher resolution in citations', () => {
 			})
 		).plain;
 		expect(fn).toContain('(London: Eerdmans, 2001)');
+	});
+});
+
+/** Wave 2 QA — 20-row fixture set; see docs/library-turabian-fixtures.md */
+describe('Wave 2 fixtures (docs/library-turabian-fixtures.md)', () => {
+	for (const row of WAVE2_FIXTURES) {
+		if (row.status === 'pass') {
+			it(`row ${row.id} ${row.slug} — footnote`, () => {
+				const fn = formatFootnote(row.book, {
+					page: row.page,
+					bibleVersion: 'English Standard Version'
+				});
+				expect(fn.plain).toBe(row.expectedFootnote);
+			});
+
+			if (row.expectedBibliography !== undefined) {
+				it(`row ${row.id} ${row.slug} — bibliography`, () => {
+					expect(formatBibliography(row.book).plain).toBe(row.expectedBibliography);
+				});
+			}
+		}
+	}
+
+	it.fails('row 16 unsigned-sv-lexicon — BDAG s.v. footnote', () => {
+		const row = WAVE2_FIXTURES.find((r) => r.id === 16)!;
+		const actual = formatEssayFootnote(row.essay!, row.book, { page: row.page }).plain;
+		expect(actual).toBe(row.expectedFootnote);
+	});
+
+	it.fails('row 17 signed-dictionary-article — ABD footnote', () => {
+		const row = WAVE2_FIXTURES.find((r) => r.id === 17)!;
+		const actual = formatEssayFootnote(row.essay!, row.book, { page: row.page }).plain;
+		expect(actual).toBe(row.expectedFootnote);
+	});
+
+	it.fails('row 17 signed-dictionary-article — bibliography', () => {
+		const row = WAVE2_FIXTURES.find((r) => r.id === 17)!;
+		// Session 1: formatEssayBibliography
+		const actual = '';
+		expect(actual).toBe(row.expectedBibliography);
+	});
+
+	it.fails('row 18 tdnt-signed-article — abbreviated footnote', () => {
+		const row = WAVE2_FIXTURES.find((r) => r.id === 18)!;
+		const actual = formatEssayFootnote(row.essay!, row.book, { page: row.page }).plain;
+		expect(actual).toBe(row.expectedFootnote);
+	});
+
+	it.fails('row 19 chapter-edited-volume — footnote', () => {
+		const row = WAVE2_FIXTURES.find((r) => r.id === 19)!;
+		// Session 1: formatChapterFootnote (not formatEssayFootnote s.v. path)
+		const actual = formatEssayFootnote(row.essay!, row.book, { page: row.page }).plain;
+		expect(actual).toBe(row.expectedFootnote);
+	});
+
+	it.fails('row 19 chapter-edited-volume — bibliography', () => {
+		const row = WAVE2_FIXTURES.find((r) => r.id === 19)!;
+		const actual = '';
+		expect(actual).toBe(row.expectedBibliography);
+	});
+
+	it.fails('row 20 short-footnote — capitalized last name + shortened title', () => {
+		const row = WAVE2_FIXTURES.find((r) => r.id === 20)!;
+		const actual = formatFootnote(row.book, {
+			shortForm: row.shortForm!.kind,
+			page: row.shortForm!.page
+		}).plain;
+		expect(actual).toBe(row.shortForm!.expected);
 	});
 });

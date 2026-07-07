@@ -58,7 +58,8 @@ alwaysApply: false
 
 - Tab bar: `data-sveltekit-preload-data="hover"` + early `preloadData` on `pointerdown`/`touchstart`; global `preload-code=eager` in [`app.html`](mdc:src/app.html).
 - Show [`nav-module-skeleton.svelte`](mdc:src/lib/components/nav-module-skeleton.svelte) while `navigating` — do not leave the previous screen frozen.
-- Service worker: **no HTML / mutation cache**; SWR only for static library vocab JSON ([`service-worker.ts`](mdc:src/service-worker.ts)).
+- Service worker: **no authenticated HTML / mutation cache**; precache hashed assets + static `offline.html`; `setCatchHandler` for failed navigations only ([057](mdc:docs/decisions/057-pwa-consistency.md)). SWR only for library vocab JSON listed in [`vocab-cache-paths.ts`](mdc:src/lib/library/vocab-cache-paths.ts).
+- PWA chrome: light `theme_color` / iOS `default` status bar; manifest `start_url: /dashboard`. Re-add home-screen icon after manifest changes.
 
 ## Observability
 

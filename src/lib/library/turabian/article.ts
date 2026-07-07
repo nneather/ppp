@@ -1,3 +1,4 @@
+import type { BookAuthorAssignment } from '$lib/types/library';
 import { formatEditorsNote } from './names';
 import { formatPublicationFacts, formatTitleWithSubtitle } from './publication';
 import type { BookCitationInput, CitationFormatted } from './types';
@@ -7,6 +8,8 @@ export type EssayCitationInput = {
 	essay_title: string;
 	page_start?: number | null;
 	page_end?: number | null;
+	/** Article-level authors — Session 1 formatters; optional in Phase 0 fixtures. */
+	authors?: BookAuthorAssignment[];
 };
 
 function escapeHtml(s: string): string {

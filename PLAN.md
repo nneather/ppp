@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-06 — R5 CI + monthly backups shipped ([055](docs/decisions/055-ci-backups.md)): GitHub Actions `ci.yml` (check + test), `backup.yml` (two-file `pg_dump` → private R2), `@ts-expect-error` isolates known PWA patch check error. **051 remediation complete.** Next: Library Wave 2.
+**Last updated:** 2026-07-06 — PWA consistency pass shipped ([057](docs/decisions/057-pwa-consistency.md)): light chrome, offline fallback, periodic SW update checks, build stamp on Settings. Prior: Library Wave 2 Phase 0 ([056](docs/decisions/056-library-wave2-phase0.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -16,7 +16,7 @@
 
 **Invoicing — ad-hoc enhancements shipped 2026-06-22:** discard sent invoices ([049](docs/decisions/049-invoicing-discard-sent.md)); per-client billing preferences — `billing_cadence` + `consultation_grouping` on `clients`, `buildConsultationLines()` ([050](docs/decisions/050-invoicing-client-billing-preferences.md)). Migration `20260622120000_clients_billing_preferences.sql` applied.
 
-**Library — Wave 2:** Trip QA **signed off 2026-06-03** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)). **Fixture-first build** this summer: Turabian formatter incl. **article-level citations (essays UI now IN scope — decided 2026-06-04)**, 20-row QA across all source types, megacomponent split, `.docx` export (hanging indent + italics). PWA perf: separate thread.
+**Library — Wave 2 Phase 0 complete; Session 1 next:** Trip QA **signed off 2026-06-03** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)). **Fixture-first build** locked 2026-07-06 ([056](docs/decisions/056-library-wave2-phase0.md)): [library-turabian-fixtures.md](docs/library-turabian-fixtures.md) — **15 pass / 5 fail** (article-level gaps rows 16–20). **Session 1:** article formatters + essay SQL seed. **Session 2:** essays UI. **Session 3:** megacomponent split. **Session 4:** `.docx` export. PWA perf: separate thread.
 
 Nearest hard dates:
 - **2026-05-21** — move to Madison; trip-period workflow (mobile-first) — library usable
@@ -30,7 +30,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md) — ConfirmDialog / PageHeader / bottom-tabbar / hotkeys). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 (starting this summer, fixture-first):** Turabian formatter incl. **article-level citations (essays UI now IN scope — decided 2026-06-04)**, 20-row QA across all source types, megacomponent split, `.docx` export (hanging indent + italics). PWA perf: separate thread. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Phase 0 locked** ([056](docs/decisions/056-library-wave2-phase0.md)): 20-row fixtures (15 pass / 5 fail). **Next: Session 1** article formatters. Sessions 2–4: essays UI, megacomponent split, `.docx`. PWA consistency shipped ([057](docs/decisions/057-pwa-consistency.md)); icons deferred. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** — tree/check-in, dashboard/filters, MYN `/projects/tasks`, links in Sheet, audit. **Viewer access:** owner-only by design (not deferred debt); revisit only if a collaborator is added — [POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md). **Backlog:** polish, global Now ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)), optional full phone smoke. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -39,9 +39,10 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [057 — PWA consistency pass](docs/decisions/057-pwa-consistency.md) (2026-07-06) — light theme chrome; offline navigate fallback; hourly + on-resume SW update checks; `__APP_BUILD__` on Settings; `vocab-cache-paths.ts` single source of truth.
+- [056 — Library Wave 2 Phase 0 — fixture-first Turabian](docs/decisions/056-library-wave2-phase0.md) (2026-07-06) — 20-row QA fixture doc + `WAVE2_FIXTURES` vitest mirror; 15 pass / 5 fail gap analysis; Session 1–4 sequence locked; `EssayCitationInput.authors` type wedge.
 - [055 — CI + monthly backups (review 051 R5)](docs/decisions/055-ci-backups.md) (2026-07-06) — `ci.yml` check+test on push/PR; `backup.yml` monthly two-file `pg_dump` → private Cloudflare R2; Session Pooler URI; `@ts-expect-error` on PWA patch; restore smoke script.
 - [054 — Invoicing UX standardization (review 051 R4)](docs/decisions/054-invoicing-polish.md) (2026-07-06) — retired all `window.confirm` for `<ConfirmDialog>` (invoice detail + time-entry sheet + library batch-scripture nav guard), `<PageHeader>` migration, `bottom-tabbar` FAB, `hotkey="b"` on create triggers, `formMessage` narrowed on `form.kind`.
-- [053 — UX safety + first impressions (review 051 R3)](docs/decisions/053-ux-safety.md) (2026-07-06) — design-system login, branded `+error.svelte`, graceful `/settings/permissions` owner gate, confirm-before-delete on books, dashboard Tasks tile.
 
 ---
 
@@ -64,7 +65,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-06** (Session R5 / [055](docs/decisions/055-ci-backups.md); check **0 errors** after `@ts-expect-error` on PWA patch; test 95/95 green). CI workflow added — green once pushed. Earlier: R4 UI-only ([054](docs/decisions/054-invoicing-polish.md)); migration `20260705170000` applied to prod; Edge Functions redeployed.
+**Repo gate:** `npm run check` + `npm run test` + `npm run build` re-verified **2026-07-06** (PWA consistency / [057](docs/decisions/057-pwa-consistency.md); check **0 errors**; test **132/132** green; build precache includes `offline.html`). Prior: Library Wave 2 Phase 0 / [056](docs/decisions/056-library-wave2-phase0.md).
 
 **Data safety (monthly export):** Off-Supabase belt-and-suspenders beyond Supabase Pro's 7-day daily backups. Monthly `pg_dump -F c`, two files pushed to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (cron 1st of month + `workflow_dispatch`):
 
@@ -76,6 +77,24 @@ Notes: both reference `profiles`/`audit_log` — a restore loads the single `pro
 ---
 
 ## Session prompts (copy-paste)
+
+### Library Wave 2 — Session 1: article-level formatters
+
+```
+Session: library — Wave 2 Session 1 (article-level formatters)
+Tracker: docs/POS_Library_Build_Tracker.md, Wave 2 Session 1
+Read: AGENTS.md, docs/decisions/056-library-wave2-phase0.md,
+  docs/library-turabian-fixtures.md, src/lib/library/turabian/__tests__/fixtures.ts,
+  src/lib/library/turabian/article.ts, .claude/skills/turabian-qa/SKILL.md
+Goal: Ship article-level citation formatters; flip rows 16–20 from it.fails to it; seed ~5 essay rows via SQL.
+Acceptance:
+ - [ ] Rows 16–20 pass in format.test.ts (flip it.fails → it)
+ - [ ] formatEssayBibliography + formatChapterFootnote (or unified essay formatter)
+ - [ ] Short footnote: capitalized last name + stripped leading article on title
+ - [ ] Essay seed SQL checked in (ABD/TDNT/BDAG sample rows)
+ - [ ] npm run check + npm run test pass
+End-of-session: docs/decisions/057-*.md, tracker Session 1 ticked, PLAN.md refreshed
+```
 
 ### Projects — optional full phone smoke (owner)
 
@@ -94,6 +113,20 @@ Read: docs/MYN_TASKS_DESIGN.md (Future architectural build), AGENTS.md projects 
   src/lib/components/project-task-list.svelte, docs/decisions/047-projects-session-3-myn-tasks-links-audit.md
 Goal: Cross-project (and eventually cross-module) unified Now list — reuse task list component.
 Phase 0: nullable project_id? nav entry? defer-to-Review automation scope?
+```
+
+### PWA — branded icon set (deferred from 057)
+
+```
+Session: cross-cutting — PWA branded icons
+Read: AGENTS.md, docs/decisions/057-pwa-consistency.md, static/manifest.webmanifest, static/icon-*.png
+Goal: Replace black-square placeholders with a monogram icon set.
+Acceptance:
+ - [ ] icon-192.png + icon-512.png with visible "ppp" mark on zinc background
+ - [ ] maskable variant with proper safe-zone padding
+ - [ ] apple-touch-icon.png 180×180
+ - [ ] Optional: apple-touch-startup-image splash screens for common iPhone sizes
+ - [ ] Owner: re-add home-screen icon after deploy; spot-check light status bar + icon on springboard
 ```
 
 ### Review remediation — Session R2: security hardening
@@ -165,9 +198,9 @@ Acceptance:
 
 ## Next up
 
-1. **Library Wave 2** — fixture-first Turabian + essays/article-level citations (see Current focus).
+1. **Library Wave 2 Session 1** — article-level formatters; flip fixture rows 16–20; seed essay SQL ([056](docs/decisions/056-library-wave2-phase0.md), [library-turabian-fixtures.md](docs/library-turabian-fixtures.md)).
 2. **Projects — use v1 weekly** (tree check-in + optional `/projects/tasks`). Retrospective / process: central Claude project (see tracker Notes).
 3. **Projects backlog (pick one when ready):** global MYN Now view · optional full phone smoke on tracker.
-4. **Library (parallel):** PWA performance (separate chat).
+4. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
 5. **Invoicing:** first real-client send cadence (owner-driven).
 6. **Backups:** set GitHub secrets + R2 bucket; run `workflow_dispatch` + restore smoke once ([055](docs/decisions/055-ci-backups.md)).

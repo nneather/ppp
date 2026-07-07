@@ -13,7 +13,7 @@ description: Turabian citation QA for the library module. Use when changing form
 
 ## Steps
 
-1. `npm run test` — all cases in `src/lib/library/turabian/__tests__/format.test.ts`
+1. `npm run test` — all cases in `src/lib/library/turabian/__tests__/format.test.ts` incl. **Wave 2 fixtures** (`WAVE2_FIXTURES` in `fixtures.ts`; see [docs/library-turabian-fixtures.md](../../../docs/library-turabian-fixtures.md))
 2. For each touched `CitationSourceType`, add **one** footnote + bibliography assertion (or extend existing fixture)
 3. Spot-check against Covenant §17.1 examples in Claude Turabian skill / `formats.md` (owner reference)
 4. On book detail: Copy Footnote + Copy Bibliography for one **edited_volume**, one **reference_work**, one **commentary-in-series**
