@@ -61,6 +61,13 @@ function hasEssayAuthors(essay: EssayCitationInput): boolean {
 	return (essay.authors?.length ?? 0) > 0;
 }
 
+/** TDNT-style `Author, "Article," ABBR vol:page.` — not full signed-dictionary `in editor, ed., … s.v.` */
+function volumeUsesAbbreviatedArticleCite(volume: BookCitationInput): boolean {
+	const abbr = (volume.series_abbreviation ?? '').trim();
+	if (!abbr) return false;
+	return volume.authors.some((a) => a.role === 'translator');
+}
+
 function volumeLabelPlain(volume: BookCitationInput): string {
 	const abbr = (volume.series_abbreviation ?? '').trim();
 	if (abbr) return abbr;
@@ -168,8 +175,7 @@ export function formatEssayFootnote(
 		return formatUnsignedSvFootnote(essay, volume, page, sourceType);
 	}
 
-	const abbr = (volume.series_abbreviation ?? '').trim();
-	if (volume.work_type === 'reference_work' && abbr) {
+	if (volume.work_type === 'reference_work' && volumeUsesAbbreviatedArticleCite(volume)) {
 		return formatAbbreviatedArticleFootnote(essay, volume, page, sourceType);
 	}
 

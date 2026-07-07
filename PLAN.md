@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-06 — Library Wave 2 Session 2 essays CRUD UI ([060](docs/decisions/060-library-wave2-session2-essays-ui.md)); prior same day: dashboard last-week invoice ([059](docs/decisions/059-dashboard-last-week-invoice.md)).
+**Last updated:** 2026-07-06 — PWA shell + ISBN author fixes ([061](docs/decisions/061-pwa-shell-isbn-author-fixes.md)); prior: Library Wave 2 Session 2 essays CRUD ([060](docs/decisions/060-library-wave2-session2-essays-ui.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -39,9 +39,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [061 — PWA shell + ISBN author fixes](docs/decisions/061-pwa-shell-isbn-author-fixes.md) (2026-07-06) — SW NavigationRoute for offline.html; settings tabs scroll; sticky save bars; OL author auto-create at save; 8s OL fetch timeout.
 - [060 — Library Wave 2 Session 2 — essays CRUD UI](docs/decisions/060-library-wave2-session2-essays-ui.md) (2026-07-06) — `loadEssaysForBook`, essay actions, `<BookEssaysEditor>`; per-essay Turabian copy; audit `essay_title` label; seed apply pending owner.
 - [059 — Dashboard last-week invoice shortcut](docs/decisions/059-dashboard-last-week-invoice.md) (2026-07-06) — weekly clients with unbilled prior Chicago week show footer on `/dashboard`; one-click `?/generate` → draft review page.
-- [058 — Library Wave 2 Session 1 — article formatters](docs/decisions/058-library-wave2-session1-article-formatters.md) (2026-07-06) — `formatEssayFootnote`/`formatEssayBibliography` dispatch; short-footnote casing + article strip; 20/20 fixtures; `library_essays_seed.sql`.
 - [057 — PWA consistency pass](docs/decisions/057-pwa-consistency.md) (2026-07-06) — light theme chrome; offline navigate fallback; hourly + on-resume SW update checks; `__APP_BUILD__` on Settings; `vocab-cache-paths.ts` single source of truth.
 - [054 — Invoicing UX standardization (review 051 R4)](docs/decisions/054-invoicing-polish.md) (2026-07-06) — retired all `window.confirm` for `<ConfirmDialog>` (invoice detail + time-entry sheet + library batch-scripture nav guard), `<PageHeader>` migration, `bottom-tabbar` FAB, `hotkey="b"` on create triggers, `formMessage` narrowed on `form.kind`.
 
@@ -66,7 +66,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-06** (Library Wave 2 Session 2 / [060](docs/decisions/060-library-wave2-session2-essays-ui.md); check **0 errors**; test **139/139** green). Prior same day: dashboard invoice / [059](docs/decisions/059-dashboard-last-week-invoice.md).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-06** (PWA shell + ISBN authors / [061](docs/decisions/061-pwa-shell-isbn-author-fixes.md); check **0 errors**; test **144/144** green). Prior same day: essays CRUD / [060](docs/decisions/060-library-wave2-session2-essays-ui.md).
 
 **Data safety (monthly export):** Off-Supabase belt-and-suspenders beyond Supabase Pro's 7-day daily backups. Monthly `pg_dump -F c`, two files pushed to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (cron 1st of month + `workflow_dispatch`):
 

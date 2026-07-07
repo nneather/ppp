@@ -15,6 +15,15 @@ export { normalizeIsbnDigits } from '$lib/library/isbn';
 
 export const LIBRARY_OL_PREFILL_KEY = 'library_ol_prefill_v2';
 
+const OL_FETCH_TIMEOUT_MS = 8_000;
+
+function olFetchSignal(): AbortSignal | undefined {
+	if (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) {
+		return AbortSignal.timeout(OL_FETCH_TIMEOUT_MS);
+	}
+	return undefined;
+}
+
 export type OpenLibraryAuthorPrefill = {
 	name: string;
 };
@@ -111,7 +120,7 @@ async function fetchOlKey(key: string): Promise<Record<string, unknown> | null> 
 	const k = key.startsWith('/') ? key : `/${key}`;
 	const url = `https://openlibrary.org${k}.json`;
 	try {
-		const res = await fetch(url);
+		const res = await fetch(url, { signal: olFetchSignal() });
 		if (!res.ok) return null;
 		return (await res.json()) as Record<string, unknown>;
 	} catch {
@@ -374,7 +383,7 @@ export async function fetchOpenLibraryPrefill(
 	}
 
 	const url = `https://openlibrary.org/isbn/${encodeURIComponent(normalized)}.json`;
-	const res = await fetch(url);
+	const res = await fetch(url, { signal: olFetchSignal() });
 	if (res.status === 404) {
 		throw new Error('ISBN not found in Open Library.');
 	}

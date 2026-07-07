@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 import type { PrecacheEntry } from 'workbox-precaching';
 import { matchPrecache, precacheAndRoute } from 'workbox-precaching';
-import { registerRoute, setCatchHandler } from 'workbox-routing';
-import { StaleWhileRevalidate } from 'workbox-strategies';
+import { NavigationRoute, registerRoute, setCatchHandler } from 'workbox-routing';
+import { NetworkOnly, StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { LIBRARY_VOCAB_CACHE_PATHS } from '$lib/library/vocab-cache-paths';
 
@@ -10,8 +10,17 @@ declare const self: ServiceWorkerGlobalScope & {
 	__WB_MANIFEST: Array<PrecacheEntry | string>;
 };
 
-// Bump v4 (2026-07-06): offline navigate fallback + vocab paths from shared module.
+// Bump v5 (2026-07-06): NavigationRoute + NetworkOnly so failed navigations hit setCatchHandler → offline.html.
 precacheAndRoute(self.__WB_MANIFEST);
+
+/** Network-only document navigations — no HTML cache; failures fall through to setCatchHandler. */
+registerRoute(
+	new NavigationRoute(
+		new NetworkOnly({
+			networkTimeoutSeconds: 10
+		})
+	)
+);
 
 const vocabMatcher = ({ url, request }: { url: URL; request: Request }) => {
 	if (request.method !== 'GET') return false;

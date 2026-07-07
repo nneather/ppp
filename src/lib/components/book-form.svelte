@@ -498,12 +498,15 @@
 	const authorsJson = $derived(
 		JSON.stringify(
 			authorRows
-				.filter((a) => a.person_id.length > 0)
-				.map((a, idx) => ({
-					person_id: a.person_id,
-					role: a.role,
-					sort_order: idx
-				}))
+				.filter(
+					(a) => a.person_id.length > 0 || (a.prefillName?.trim().length ?? 0) > 0
+				)
+				.map((a, idx) => {
+					if (a.person_id.length > 0) {
+						return { person_id: a.person_id, role: a.role, sort_order: idx };
+					}
+					return { name: a.prefillName!.trim(), role: a.role, sort_order: idx };
+				})
 		)
 	);
 
@@ -1215,6 +1218,15 @@
 							</div>
 						</div>
 					{/if}
+					{#if row.prefillName && !row.person_id}
+						<p class="text-xs text-muted-foreground">
+							{#if (row.fuzzyCandidates?.length ?? 0) > 0}
+								Link a match above or save to create &ldquo;{row.prefillName}&rdquo;.
+							{:else}
+								Will be created when you save.
+							{/if}
+						</p>
+					{/if}
 					<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 						<div class="min-w-0 flex-1">
 							{#key row.key}
@@ -1709,9 +1721,9 @@
 			></textarea>
 		</section>
 
-		<!-- Save bar (sticky; max-md bottom offset clears fixed module tab bar) -->
+		<!-- Save bar (sticky at scrollport bottom; tab bar is flex footer, not fixed) -->
 		<div
-			class="sticky z-10 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-md:bottom-tabbar max-md:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.06)] max-md:dark:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.25)] md:bottom-0 sm:-mx-6 sm:px-6"
+			class="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-md:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.06)] max-md:dark:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.25)] sm:-mx-6 sm:px-6"
 		>
 			<div
 				class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:justify-end"

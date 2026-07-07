@@ -594,6 +594,42 @@ describe('formatBibliography', () => {
 		expect(bib).toContain('Hawthorne, Gerald F., and Ralph P. Martin, eds.');
 	});
 
+	it('formats signed ABD article with series abbreviation as full dictionary cite', () => {
+		const volume = book({
+			work_type: 'reference_work',
+			genre: 'Biblical Reference',
+			title: 'Anchor Bible Dictionary',
+			series_abbreviation: 'ABD',
+			volume_number: '1',
+			total_volumes: 6,
+			authors: [
+				{ person_id: 'e1', person_label: 'David Noel Freedman', role: 'editor', sort_order: 0 }
+			],
+			publisher: 'Doubleday',
+			publisher_location: 'New York',
+			year: 1992
+		});
+		const fn = formatEssayFootnote(
+			{
+				essay_title: 'Canon',
+				page_start: 835,
+				authors: [
+					{
+						person_id: 'a1',
+						person_label: 'James A. Sanders',
+						role: 'author',
+						sort_order: 0
+					}
+				]
+			},
+			volume,
+			{ page: '835' }
+		);
+		expect(fn.plain).toBe(
+			'James A. Sanders, "Canon," in David Noel Freedman, ed., Anchor Bible Dictionary (New York: Doubleday, 1992), s.v. "Canon," 835.'
+		);
+	});
+
 	it('formats dictionary essay s.v. footnote', () => {
 		const volume = book({
 			work_type: 'reference_work',

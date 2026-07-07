@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { GENRES, LANGUAGES, READING_STATUSES, AUTHOR_ROLES, WORK_TYPES } from '$lib/types/library';
 import type { AuthorRole, Genre, Language, ReadingStatus, WorkType } from '$lib/types/library';
+import { findOrCreatePerson, parseTypedName } from '$lib/library/server/people-actions';
 
 /**
  * Server-side helpers for the books vertical slice. Both `/library` (list) and
@@ -37,6 +38,14 @@ export type AuthorAssignmentInput = {
 	sort_order: number;
 };
 
+/** Parsed from `authors_json` — either a linked person or a raw name to resolve at save. */
+export type AuthorFormEntry = {
+	person_id?: string;
+	name?: string;
+	role: AuthorRole;
+	sort_order: number;
+};
+
 export type BookFormPayload = {
 	title: string | null;
 	subtitle: string | null;
@@ -66,7 +75,7 @@ export type BookFormPayload = {
 	needs_review: boolean;
 	needs_review_note: string | null;
 	page_count: number | null;
-	authors: AuthorAssignmentInput[];
+	authors: AuthorFormEntry[];
 };
 
 /**
@@ -121,7 +130,7 @@ function parseBoolean(raw: FormDataEntryValue | null): boolean {
 /** Parse `authors_json` form/CSV cell; empty string → `[]`; invalid JSON/shape → `null`. */
 export function parseAuthorsJsonString(
 	raw: string | null | undefined
-): AuthorAssignmentInput[] | null {
+): AuthorFormEntry[] | null {
 	const s = String(raw ?? '').trim();
 	if (s.length === 0) return [];
 	let parsed: unknown;
@@ -131,23 +140,70 @@ export function parseAuthorsJsonString(
 		return null;
 	}
 	if (!Array.isArray(parsed)) return null;
-	const out: AuthorAssignmentInput[] = [];
+	const out: AuthorFormEntry[] = [];
 	for (const item of parsed) {
 		if (!item || typeof item !== 'object') return null;
 		const r = item as Record<string, unknown>;
 		const person_id = typeof r.person_id === 'string' ? r.person_id.trim() : '';
+		const name = typeof r.name === 'string' ? r.name.trim() : '';
 		const role = typeof r.role === 'string' ? r.role : '';
 		const sort_order = Number(r.sort_order);
-		if (!person_id) return null;
+		if (!person_id && !name) continue;
+		if (person_id && name) return null;
 		if (!AUTHOR_ROLE_SET.has(role)) return null;
 		if (!Number.isFinite(sort_order) || !Number.isInteger(sort_order)) return null;
-		out.push({ person_id, role: role as AuthorRole, sort_order });
+		if (person_id) {
+			out.push({ person_id, role: role as AuthorRole, sort_order });
+		} else {
+			out.push({ name, role: role as AuthorRole, sort_order });
+		}
 	}
 	return out;
 }
 
-function parseAuthorsJson(raw: FormDataEntryValue | null): AuthorAssignmentInput[] | null {
+function parseAuthorsJson(raw: FormDataEntryValue | null): AuthorFormEntry[] | null {
 	return parseAuthorsJsonString(String(raw ?? ''));
+}
+
+function authorEntryPresent(e: AuthorFormEntry, role: AuthorRole): boolean {
+	if (e.role !== role) return false;
+	if (e.person_id?.trim()) return true;
+	return (e.name?.trim().length ?? 0) > 0;
+}
+
+async function resolveAuthorFormEntries(
+	supabase: SupabaseClient,
+	userId: string,
+	entries: AuthorFormEntry[]
+): Promise<{ ok: true; authors: AuthorAssignmentInput[] } | { ok: false; message: string }> {
+	const resolved: AuthorAssignmentInput[] = [];
+	for (const e of entries) {
+		if (e.person_id?.trim()) {
+			resolved.push({
+				person_id: e.person_id.trim(),
+				role: e.role,
+				sort_order: e.sort_order
+			});
+			continue;
+		}
+		const name = e.name?.trim() ?? '';
+		if (!name) continue;
+		const parsed = parseTypedName(name);
+		if (!parsed) {
+			return { ok: false, message: `Could not parse author name "${name}".` };
+		}
+		try {
+			const { personId } = await findOrCreatePerson(supabase, parsed, userId);
+			resolved.push({ person_id: personId, role: e.role, sort_order: e.sort_order });
+		} catch (err) {
+			console.error(err);
+			return {
+				ok: false,
+				message: err instanceof Error ? err.message : 'Could not create author.'
+			};
+		}
+	}
+	return { ok: true, authors: resolved };
 }
 
 export type ParseResult = { ok: true; payload: BookFormPayload } | { ok: false; message: string };
@@ -162,13 +218,13 @@ export function computeMissingImportant(p: {
 	work_type: WorkType;
 	year: number | null;
 	publisher: string | null;
-	authors: AuthorAssignmentInput[];
+	authors: AuthorFormEntry[];
 }): ImportantField[] {
 	const out: ImportantField[] = [];
 	if (!p.title) out.push('title');
 	if (p.work_type === 'monograph') {
-		if (p.authors.filter((a) => a.role === 'author').length === 0) out.push('author');
-	} else if (p.authors.filter((a) => a.role === 'editor').length === 0) {
+		if (!p.authors.some((a) => authorEntryPresent(a, 'author'))) out.push('author');
+	} else if (!p.authors.some((a) => authorEntryPresent(a, 'editor'))) {
 		out.push('editor');
 	}
 	if (!p.genre) out.push('genre');
@@ -255,6 +311,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 	}
 	const seen = new Set<string>();
 	for (const a of authors) {
+		if (!a.person_id?.trim()) continue;
 		const key = `${a.person_id}|${a.role}`;
 		if (seen.has(key)) {
 			return {
@@ -546,7 +603,9 @@ export async function applyBookPayload(
 		}
 		const bookId = inserted.id as string;
 		if (!skipAuthorSync) {
-			const auth = await syncAuthors(supabase, bookId, opts.payload.authors);
+			const resolved = await resolveAuthorFormEntries(supabase, userId, opts.payload.authors);
+			if (!resolved.ok) return { ok: false, bookId, message: resolved.message };
+			const auth = await syncAuthors(supabase, bookId, resolved.authors);
 			if (!auth.ok) return { ok: false, bookId, message: auth.message };
 		}
 		return { ok: true, bookId };
@@ -585,7 +644,9 @@ export async function applyBookPayload(
 	}
 
 	if (!skipAuthorSync) {
-		const auth = await syncAuthors(supabase, id, opts.payload.authors);
+		const resolved = await resolveAuthorFormEntries(supabase, userId, opts.payload.authors);
+		if (!resolved.ok) return { ok: false, bookId: id, message: resolved.message };
+		const auth = await syncAuthors(supabase, id, resolved.authors);
 		if (!auth.ok) return { ok: false, bookId: id, message: auth.message };
 	}
 	return { ok: true, bookId: id };
@@ -1055,7 +1116,7 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		.select('*', { count: 'exact', head: true })
 		.eq('book_id', id)
 		.eq('role', contributorRole);
-	const authorsForCheck: AuthorAssignmentInput[] =
+	const authorsForCheck: AuthorFormEntry[] =
 		(contributorCount ?? 0) > 0
 			? [{ person_id: '_synthetic_', role: contributorRole, sort_order: 0 }]
 			: [];

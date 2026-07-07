@@ -2402,9 +2402,9 @@
 		{/if}
 	</div>
 
-	<!-- Sticky save bar (matches book-form; clears mobile tab bar) -->
+	<!-- Sticky save bar (scrollport bottom; tab bar is flex footer) -->
 	<div
-		class="sticky z-10 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-md:bottom-tabbar max-md:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.06)] max-md:dark:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.25)] md:bottom-0 sm:-mx-6 sm:px-6"
+		class="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-md:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.06)] max-md:dark:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.25)] sm:-mx-6 sm:px-6"
 	>
 		{#if ocrProgressFooterLabel || saveProgress}
 			<p class="text-center text-xs text-muted-foreground" role="status">

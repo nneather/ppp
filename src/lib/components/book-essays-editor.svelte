@@ -63,6 +63,7 @@
 		onCopied?: (message: string) => void;
 	} = $props();
 
+	let essaysOpen = $state(false);
 	let addOpen = $state(false);
 	let editingId = $state<string | null>(null);
 	let pendingDeleteId = $state<string | null>(null);
@@ -108,6 +109,7 @@
 		editingId = null;
 		resetForm();
 		addOpen = true;
+		essaysOpen = true;
 	}
 
 	function startEdit(id: string) {
@@ -116,6 +118,7 @@
 		addOpen = false;
 		editingId = id;
 		seedFromEssay(essay);
+		essaysOpen = true;
 	}
 
 	function cancelForm() {
@@ -238,6 +241,14 @@
 	const saveHotkey = $derived(isEdit ? 'u' : 's');
 	const saveLabel = $derived(pending ? 'Saving…' : isEdit ? 'Update essay' : 'Save essay');
 
+	$effect(() => {
+		essaysOpen = essays.length === 0 || addOpen || editingId != null;
+	});
+
+	$effect(() => {
+		if (addOpen || editingId != null) essaysOpen = true;
+	});
+
 	const scopedMessage = $derived.by(() => {
 		if (!formMessage) return null;
 		if (isEdit && formMessage.essayId && formMessage.essayId !== editingId) return null;
@@ -252,20 +263,39 @@
 	});
 </script>
 
-<section class="mt-10" aria-labelledby="book-essays-heading">
-	<div class="flex items-center justify-between gap-3">
-		<h2 id="book-essays-heading" class="text-lg font-semibold tracking-tight text-foreground">
+<details
+	class="mt-10 rounded-lg border border-border bg-card text-card-foreground shadow-sm"
+	bind:open={essaysOpen}
+>
+	<summary
+		class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden"
+	>
+		<span
+			id="book-essays-heading"
+			class="text-lg font-semibold tracking-tight text-foreground"
+		>
 			Essays &amp; articles
 			{#if essays.length > 0}
 				<span class="ml-1 text-sm font-normal text-muted-foreground">({essays.length})</span>
 			{/if}
-		</h2>
+		</span>
+		<ChevronDown
+			class={cn(
+				'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+				essaysOpen && 'rotate-180'
+			)}
+			aria-hidden="true"
+		/>
+	</summary>
+
+	<div class="border-t border-border px-4 pb-4 pt-3">
 		{#if isOwner && !addOpen && editingId == null}
-			<Button type="button" variant="outline" size="sm" onclick={startAdd}>
-				<Plus class="size-4" /> Add essay
-			</Button>
+			<div class="mb-3 flex justify-end">
+				<Button type="button" variant="outline" size="sm" onclick={startAdd}>
+					<Plus class="size-4" /> Add essay
+				</Button>
+			</div>
 		{/if}
-	</div>
 
 	{#if essays.length === 0 && !addOpen && editingId == null}
 		<p
@@ -480,7 +510,8 @@
 			</form>
 		</div>
 	{/if}
-</section>
+	</div>
+</details>
 
 <form
 	method="POST"

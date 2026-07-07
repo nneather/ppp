@@ -98,12 +98,13 @@
 /**
  * Clearance above the mobile tab bar — pair with scrollable `<main>` in
  * [+layout.svelte](src/routes/+layout.svelte) (`h-dvh` shell + flex footer nav, not `position:fixed`).
+ * Page-level routes may still use `pb-tabbar` when they need extra bottom padding inside `<main>`.
  */
 @utility pb-tabbar {
 	padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);
 }
 
-/** Stack fixed UI (toasts, FABs) above the flex tab-bar footer. Pair with `fixed inset-x-0`. */
+/** Stack fixed UI (toasts, FABs) above the flex tab-bar footer. Pair with `fixed inset-x-0`. Sticky in-flow save bars use `sticky bottom-0` only — not this utility. */
 @utility bottom-tabbar {
 	bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);
 }

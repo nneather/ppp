@@ -482,7 +482,7 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="mx-auto flex min-h-screen max-w-md flex-col px-4 py-4 pb-tabbar md:max-w-lg md:py-6 md:pb-6">
+<div class="mx-auto flex min-h-screen max-w-md flex-col px-4 py-4 pb-4 md:max-w-lg md:py-6 md:pb-6">
 	{#snippet reviewBurndownActions()}
 		<div class="min-w-0 flex-1 text-right text-xs text-muted-foreground md:max-w-xs">
 			<div class="font-medium text-foreground">
@@ -933,7 +933,7 @@
 					</div>
 
 					<div
-						class="bottom-tabbar fixed inset-x-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:mt-4 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+						class="sticky bottom-0 z-20 -mx-4 mt-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:mt-4 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
 					>
 						<div class="mx-auto flex max-w-md flex-col gap-2">
 							<Button

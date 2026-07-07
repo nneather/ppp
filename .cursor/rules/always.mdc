@@ -35,7 +35,7 @@ Read [AGENTS.md](mdc:AGENTS.md) before starting any non-trivial task. It contain
 ## Mobile app shell (PWA)
 
 - Authenticated layout uses **`h-dvh overflow-hidden`** with **scroll on `<main>` only** and the mobile tab bar as a **flex footer** — not `position: fixed` on a document-scrolling page (iOS standalone PWA detaches fixed chrome mid-scroll).
-- Use **`pb-tabbar`** on scrollable main content and **`bottom-tabbar`** on fixed toasts/FABs ([`src/app.css`](mdc:src/app.css)).
+- Use **`pb-tabbar`** on page content when extra clearance is needed inside `<main>`; root `<main>` uses **`pb-4`** on mobile (flex footer tab bar). **`bottom-tabbar`** on **fixed** toasts/FABs only — sticky save bars use **`sticky bottom-0`** ([`src/app.css`](mdc:src/app.css), [061](mdc:docs/decisions/061-pwa-shell-isbn-author-fixes.md)).
 
 ## Code style
 

@@ -182,7 +182,7 @@
 
 		<!-- Main column: scrollable content + mobile tab bar footer (not position:fixed — iOS PWA) -->
 		<div class="flex min-h-0 min-w-0 flex-1 flex-col">
-			<main class="min-h-0 flex-1 overflow-y-auto pb-tabbar md:pb-8">
+			<main class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 md:pb-8">
 				{#if showNavSkeleton && navTarget}
 					<NavModuleSkeleton module={skeletonModule(navTarget.url.pathname)} />
 				{:else}

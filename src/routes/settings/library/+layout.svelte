@@ -20,6 +20,7 @@
 		}
 		t.push(
 			{ href: '/settings/library/series', label: 'Series' },
+			{ href: '/settings/library/publishers', label: 'Publishers' },
 			{ href: '/settings/library/ancient-texts', label: 'Ancient texts' }
 		);
 		t.push(
@@ -43,6 +44,9 @@
 		}
 		if (hrefPath === '/settings/library/series') {
 			return path === '/settings/library/series';
+		}
+		if (hrefPath === '/settings/library/publishers') {
+			return path === '/settings/library/publishers';
 		}
 		if (hrefPath === '/settings/library/ancient-texts') {
 			return path === '/settings/library/ancient-texts';
@@ -70,22 +74,27 @@
 		</div>
 	</header>
 
-	<nav class="mt-6 flex gap-1 border-b border-border" aria-label="Library settings sections">
-		{#each tabs as { href, label } (href)}
-			{@const active = tabActive(href)}
-			<a
-				{href}
-				class={cn(
-					'-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors',
-					active
-						? 'border-foreground text-foreground'
-						: 'border-transparent text-muted-foreground hover:text-foreground'
-				)}
-				aria-current={active ? 'page' : undefined}
-			>
-				{label}
-			</a>
-		{/each}
+	<nav
+		class="-mx-4 mt-6 overflow-x-auto border-b border-border md:mx-0"
+		aria-label="Library settings sections"
+	>
+		<div class="flex w-max min-w-full gap-1 px-4 md:px-0">
+			{#each tabs as { href, label } (href)}
+				{@const active = tabActive(href)}
+				<a
+					{href}
+					class={cn(
+						'-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+						active
+							? 'border-foreground text-foreground'
+							: 'border-transparent text-muted-foreground hover:text-foreground'
+					)}
+					aria-current={active ? 'page' : undefined}
+				>
+					{label}
+				</a>
+			{/each}
+		</div>
 	</nav>
 
 	<div class="mt-6">
