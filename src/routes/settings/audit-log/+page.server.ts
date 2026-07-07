@@ -213,6 +213,8 @@ function entityLabelFor(
 			if (title && pri) return `${title} · ${pri.replaceAll('_', ' ')}`;
 			return title;
 		}
+		case 'essays':
+			return get('essay_title');
 		case 'scripture_references': {
 			const bibleBook = get('bible_book');
 			const cs = data.chapter_start;

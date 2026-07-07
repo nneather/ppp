@@ -5,6 +5,7 @@ import {
 	loadBibleCoverageForBook,
 	loadBookDetail,
 	loadBookTopicsForBook,
+	loadEssaysForBook,
 	loadPeople,
 	loadScriptureRefsForBook
 } from '$lib/library/server/loaders';
@@ -32,6 +33,11 @@ import {
 	softDeleteAncientCoverageAction,
 	softDeleteBibleCoverageAction
 } from '$lib/library/server/coverage-actions';
+import {
+	createEssayAction,
+	softDeleteEssayAction,
+	updateEssayAction
+} from '$lib/library/server/essay-actions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -63,6 +69,9 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	const isOwner =
 		((profileRow.data as { role?: string | null } | null)?.role ?? null) === 'owner';
 
+	const essaysEligible =
+		book.work_type === 'reference_work' || book.work_type === 'edited_volume';
+
 	return {
 		book,
 		people,
@@ -73,7 +82,10 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		userId: user.id,
 		bookTopicsPromise: loadBookTopicsForBook(supabase, id),
 		bibleCoveragePromise: loadBibleCoverageForBook(supabase, id),
-		ancientCoveragePromise: loadAncientCoverageForBook(supabase, id)
+		ancientCoveragePromise: loadAncientCoverageForBook(supabase, id),
+		essaysPromise: essaysEligible
+			? loadEssaysForBook(supabase, id, people)
+			: Promise.resolve([])
 	};
 };
 
@@ -261,5 +273,23 @@ export const actions: Actions = {
 		}
 		const fd = await request.formData();
 		return createAncientTextAction(locals.supabase, user.id, fd);
+	},
+	createEssay: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'createEssay' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return createEssayAction(locals.supabase, user.id, fd);
+	},
+	updateEssay: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'updateEssay' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return updateEssayAction(locals.supabase, fd);
+	},
+	softDeleteEssay: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'softDeleteEssay' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return softDeleteEssayAction(locals.supabase, fd);
 	}
 };

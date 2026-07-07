@@ -8,6 +8,8 @@ import {
 import { formatPublicationFacts, formatTitleWithSubtitle } from './publication';
 import type { BookCitationInput, CitationFormatted, CitationSourceType } from './types';
 
+import type { EssayRow } from '$lib/types/library';
+
 /** Essay / dictionary article row (parent volume is the reference work). */
 export type EssayCitationInput = {
 	essay_title: string;
@@ -16,6 +18,16 @@ export type EssayCitationInput = {
 	/** Article-level authors — Session 1 formatters; optional in Phase 0 fixtures. */
 	authors?: BookAuthorAssignment[];
 };
+
+/** Map a hydrated essay row to formatter input (unsigned when authors empty). */
+export function essayRowToCitationInput(row: EssayRow): EssayCitationInput {
+	return {
+		essay_title: row.essay_title,
+		page_start: row.page_start,
+		page_end: row.page_end,
+		authors: row.authors.length > 0 ? row.authors : undefined
+	};
+}
 
 function escapeHtml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;');

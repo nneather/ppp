@@ -16,7 +16,12 @@ export {
 	type FormatOptions,
 	type FootnoteShortForm
 } from './format';
-export { formatEssayFootnote, formatEssayBibliography, type EssayCitationInput } from './article';
+export {
+	formatEssayFootnote,
+	formatEssayBibliography,
+	essayRowToCitationInput,
+	type EssayCitationInput
+} from './article';
 export {
 	sortBibliographyInputs,
 	formatCompiledBibliography,

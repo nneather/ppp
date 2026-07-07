@@ -390,6 +390,16 @@ export type TopicCount = {
 	count: number;
 };
 
+/** Essay / article row on book detail — child of a reference work or edited volume. */
+export type EssayRow = {
+	id: string;
+	essay_title: string;
+	page_start: number | null;
+	page_end: number | null;
+	authors: BookAuthorAssignment[];
+	created_at: string;
+};
+
 /**
  * Scripture reference view-model — what `loadScriptureRefsForBook` returns.
  *

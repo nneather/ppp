@@ -24,7 +24,8 @@ import type {
 	AncientTextRow,
 	AncientCoverageRow,
 	BookTopicRow,
-	TopicCount
+	TopicCount,
+	EssayRow
 } from '$lib/types/library';
 import {
 	SCRIPTURE_IMAGES_BUCKET,
@@ -701,6 +702,67 @@ export async function loadBookListFiltered(
 	const books = mapBookListRowsFromDenorm(pageRes.data ?? []);
 	const filteredCount = pageRes.count ?? books.length;
 	return { books, filteredCount };
+}
+
+// ---------------------------------------------------------------------------
+// Essays (Wave 2 Session 2)
+// ---------------------------------------------------------------------------
+
+type RawEssayRow = {
+	id: string;
+	essay_title: string;
+	page_start: number | null;
+	page_end: number | null;
+	created_at: string;
+	essay_authors:
+		| { person_id: string; role: string; sort_order: number }[]
+		| null;
+};
+
+/** Live essays for a parent book, with hydrated article-level authors. */
+export async function loadEssaysForBook(
+	supabase: SupabaseClient,
+	bookId: string,
+	people: PersonRow[]
+): Promise<EssayRow[]> {
+	const { data, error } = await supabase
+		.from('essays')
+		.select(
+			`
+			id,
+			essay_title,
+			page_start,
+			page_end,
+			created_at,
+			essay_authors ( person_id, role, sort_order )
+		`
+		)
+		.eq('parent_book_id', bookId)
+		.is('deleted_at', null)
+		.order('page_start', { ascending: true, nullsFirst: false })
+		.order('created_at', { ascending: true });
+
+	if (error) {
+		console.error('[loadEssaysForBook]', error);
+		return [];
+	}
+
+	const peopleMap = new Map(people.map((p) => [p.id, p]));
+	return (data ?? []).map((raw) => {
+		const r = raw as unknown as RawEssayRow;
+		const authors: BookAuthorAssignment[] = (r.essay_authors ?? [])
+			.slice()
+			.sort((a, b) => a.sort_order - b.sort_order)
+			.map((a) => bookAuthorAssignmentFromJunction(a, peopleMap));
+		return {
+			id: r.id,
+			essay_title: r.essay_title,
+			page_start: r.page_start,
+			page_end: r.page_end,
+			authors,
+			created_at: r.created_at
+		} satisfies EssayRow;
+	});
 }
 
 async function fetchLiveBookCount(

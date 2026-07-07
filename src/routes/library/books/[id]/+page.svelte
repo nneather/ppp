@@ -41,11 +41,13 @@
 		AncientTextRow,
 		BookListRow,
 		BookTopicRow,
+		EssayRow,
 		ReadingStatus,
 		ScriptureRefRow,
 		TopicCount
 	} from '$lib/types/library';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
+	import BookEssaysEditor from '$lib/components/book-essays-editor.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import type { PageProps } from './$types';
@@ -154,6 +156,39 @@
 	const citationInput = $derived(bookDetailToCitationInput(data.book));
 	const citationFootnote = $derived(formatFootnote(citationInput));
 	const citationBibliography = $derived(formatBibliography(citationInput));
+
+	const showEssaysSection = $derived(
+		data.book.work_type === 'reference_work' || data.book.work_type === 'edited_volume'
+	);
+
+	let essays = $state<EssayRow[]>([]);
+	$effect(() => {
+		void data.essaysPromise.then((rows) => {
+			essays = rows;
+		});
+	});
+
+	const essayFormMessage = $derived.by(() => {
+		const f = form as {
+			kind?: string;
+			message?: string;
+			essayId?: string;
+			success?: boolean;
+		} | null;
+		if (!f) return null;
+		if (
+			f.kind === 'createEssay' ||
+			f.kind === 'updateEssay' ||
+			f.kind === 'softDeleteEssay'
+		) {
+			return f;
+		}
+		return null;
+	});
+
+	async function onEssaySaved() {
+		await invalidateBook();
+	}
 
 	async function copyTurabian(kind: 'footnote' | 'bibliography') {
 		if (!browser) return;
@@ -975,6 +1010,19 @@
 			{/if}
 		</aside>
 	</div>
+
+	{#if showEssaysSection}
+		<BookEssaysEditor
+			{essays}
+			volumeCitation={citationInput}
+			people={data.people}
+			parentBookId={data.book.id}
+			isOwner={data.isOwner}
+			formMessage={essayFormMessage}
+			onSaved={onEssaySaved}
+			onCopied={flashCopyToast}
+		/>
+	{/if}
 
 	<!-- ------------------------------------------------------------------- -->
 	<!-- Scripture references                                                  -->
