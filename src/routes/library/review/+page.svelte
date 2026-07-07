@@ -7,26 +7,54 @@
 	import { onMount, tick, untrack } from 'svelte';
 	import TurabianCitationBlock from '$lib/components/turabian-citation-block.svelte';
 	import {
+		endSprint,
 		formatBibliography,
 		formatFootnote,
 		incrementReviewProgress,
+		isSprintComplete,
+		markMilestonesShown,
+		milestoneKeysFor,
+		milestoneLabel,
+		readLifetimeClearedTotal,
 		readReviewToday,
-		reviewCardToCitationInput
+		readShownMilestones,
+		readSprint,
+		recordSprintClear,
+		recordSprintSkip,
+		reviewCardToCitationInput,
+		SPRINT_CHOICES,
+		startSprint,
+		type SprintState
 	} from '$lib/library/turabian';
 	import { matchPublisher } from '$lib/library/match';
 	import { publisherDefaultLocationForRow } from '$lib/library/publisher-resolve';
 	import { defaultReviewSlice } from '$lib/library/turabian/review-progress';
+	import {
+		hasReviewDeckParams,
+		isReviewDeckActive,
+		REVIEW_DECKS,
+		REVIEW_TOP_GENRES,
+		reviewDeckSearchParams,
+		type ReviewDeckKey
+	} from '$lib/library/review-decks';
 	import { createReviewSwipe } from '$lib/library/review-swipe';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
+	import ReviewDeckPicker from '$lib/components/review-deck-picker.svelte';
+	import ReviewSprintHud from '$lib/components/review-sprint-hud.svelte';
+	import ReviewGenreChips from '$lib/components/review-genre-chips.svelte';
+	import ReviewMilestoneCard from '$lib/components/review-milestone-card.svelte';
+	import ReviewSprintSummary from '$lib/components/review-sprint-summary.svelte';
+	import ReviewProposalPanel from '$lib/components/review-proposal-panel.svelte';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
+	import Shuffle from '@lucide/svelte/icons/shuffle';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Trophy from '@lucide/svelte/icons/trophy';
 	import {
@@ -41,9 +69,9 @@
 		Genre,
 		ImportMatchType,
 		Language,
+		ProposalField,
 		ReadingStatus,
 		ReviewCard,
-		ReviewQueueFilters,
 		ReviewSlice
 	} from '$lib/types/library';
 	import type { PageProps } from './$types';
@@ -91,17 +119,59 @@
 	let reviewCardEl = $state<HTMLElement | null>(null);
 	let pendingFromSwipe = $state(false);
 
+	// Sprint + milestone state (localStorage-backed; read on mount).
+	let sprint = $state<SprintState | null>(null);
+	let sprintSummary = $state<{ finished: SprintState; endedAt: number } | null>(null);
+	let milestone = $state<{ title: string; subtitle: string } | null>(null);
+
 	onMount(() => {
 		todayCleared = readReviewToday().count;
+		const persisted = readSprint();
+		if (persisted && isSprintComplete(persisted)) {
+			// Completed sprint left over from a previous visit — its summary
+			// already had its moment; start fresh.
+			endSprint();
+		} else {
+			sprint = persisted;
+		}
 		if (!browser) return;
 		const url = new URL(page.url);
-		if (!url.searchParams.get('slice') && !url.searchParams.get('subject') && !url.searchParams.has('match_type')) {
+		if (!hasReviewDeckParams(url)) {
 			url.searchParams.set('slice', defaultReviewSlice());
 			goto(url.pathname + url.search, { replaceState: true, keepFocus: true, noScroll: true });
 		}
 	});
 
 	const activeSlice = $derived<ReviewSlice>(data.activeSlice ?? data.filters.slice ?? 'critical');
+
+	/** Genre Sprint fast lane — one tap on a genre chip confirms the card. */
+	const fastLane = $derived(data.filters.missing === 'genre');
+
+	const activeDeckKey = $derived<ReviewDeckKey | null>(
+		REVIEW_DECKS.find((d) => isReviewDeckActive(d, data.filters))?.key ?? null
+	);
+
+	const deckViews = $derived(
+		REVIEW_DECKS.filter((d) => !(d.hideWhenEmpty && (data.deckCounts[d.key] ?? 0) === 0)).map(
+			(d) => ({
+				key: d.key,
+				label: d.label,
+				hint: d.hint,
+				count: data.deckCounts[d.key] ?? 0
+			})
+		)
+	);
+
+	const activeDeckLabel = $derived(
+		REVIEW_DECKS.find((d) => d.key === activeDeckKey)?.label ?? 'this deck'
+	);
+
+	/**
+	 * Live burndown — derived from the locally decremented `remaining` so the
+	 * bar ticks on every confirm (the server snapshot only refreshed on
+	 * reload before).
+	 */
+	const liveSliceCleared = $derived(Math.max(0, data.sliceDenominator - remaining));
 
 	const citationForCard = $derived.by(() => {
 		const c = currentCard;
@@ -118,10 +188,6 @@
 			bibliography: formatBibliography(input)
 		};
 	});
-
-	const burndownPct = $derived(
-		Math.min(100, Math.round((data.sliceCleared / (data.sliceDenominator || 1)) * 100))
-	);
 
 	/** Collapsed chip rows default closed when the server already has a value. */
 	let metaGenreExpanded = $state(false);
@@ -156,6 +222,8 @@
 		editLanguage = null;
 		editReadingStatus = null;
 		confirmDeleteOpen = false;
+		milestone = null;
+		sprintSummary = null;
 	});
 
 	function resetEditState() {
@@ -255,21 +323,73 @@
 					remaining = Math.max(0, remaining - 1);
 					incrementReviewProgress(activeSlice);
 					todayCleared = readReviewToday().count;
+					sprint = recordSprintClear();
+					checkMilestones();
 					if (!fromSwipe) reviewHaptic();
 					successPulse = true;
 					await new Promise((r) => setTimeout(r, 200));
 					successPulse = false;
 					advance(id);
+					if (isSprintComplete(sprint) && sprint) {
+						sprintSummary = { finished: sprint, endedAt: Date.now() };
+						endSprint();
+						sprint = null;
+					}
 				}
 				pendingSaveId = null;
 			};
 		};
 	}
 
+	/**
+	 * One-time celebrations: slice-percent thresholds on the live burndown +
+	 * every 100 lifetime clears. The shown-set in localStorage guarantees each
+	 * fires exactly once; the newest (largest) unseen key wins the banner.
+	 */
+	function checkMilestones() {
+		const keys = milestoneKeysFor({
+			slice: activeSlice,
+			cleared: Math.max(0, data.sliceDenominator - remaining),
+			denominator: data.sliceDenominator,
+			lifetime: readLifetimeClearedTotal()
+		});
+		const shown = readShownMilestones();
+		const fresh = keys.filter((k) => !shown.has(k));
+		if (fresh.length === 0) return;
+		markMilestonesShown(fresh);
+		milestone = milestoneLabel(fresh[fresh.length - 1]);
+	}
+
 	function skipCurrent() {
 		if (!currentCard) return;
 		skippedStack = [...skippedStack, currentCard];
+		sprint = recordSprintSkip() ?? sprint;
 		advance(currentCard.id);
+	}
+
+	// -------------------------------------------------------------------------
+	// Sprints — pick a size, watch the ring fill, get a summary. Abandoning is
+	// silent (endSprint just clears the state; no failure copy anywhere).
+	// -------------------------------------------------------------------------
+
+	function beginSprint(target: number) {
+		sprint = startSprint(target, activeDeckKey ?? 'all');
+		sprintSummary = null;
+	}
+
+	function abandonSprint() {
+		endSprint();
+		sprint = null;
+	}
+
+	function dismissSprintSummary() {
+		sprintSummary = null;
+	}
+
+	function goAgainSprint() {
+		const target = sprintSummary?.finished.target ?? null;
+		sprintSummary = null;
+		if (target) beginSprint(target);
 	}
 
 	function reviewHaptic() {
@@ -324,68 +444,129 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// Slice pills (subject + match_type) — URL is the source of truth.
+	// Deck routing — URL is the source of truth; the picker just navigates.
 	// -------------------------------------------------------------------------
 
-	type SliceSpec = {
-		key: string;
-		label: string;
-		filters: ReviewQueueFilters;
-	};
-
-	const SLICES: SliceSpec[] = [
-		{ key: 'critical', label: 'Citation Critical', filters: { slice: 'critical' } },
-		{ key: 'backlog', label: 'Backlog', filters: { slice: 'backlog' } },
-		{ key: 'all', label: 'All', filters: {} },
-		{ key: 'subject_blank', label: 'No subject', filters: { subject_blank: true } },
-		{
-			key: 'no_match',
-			label: 'No OL match',
-			filters: { import_match_type: ['no-match'] }
-		},
-		{
-			key: 'title_only',
-			label: 'Title-only OL',
-			filters: { import_match_type: ['title-only'] }
-		}
-	];
-
-	function isSliceActive(slice: SliceSpec): boolean {
-		if (slice.filters.slice) {
-			return data.filters.slice === slice.filters.slice;
-		}
-		if (slice.key === 'all') {
-			return (
-				!data.filters.slice &&
-				!data.filters.subject_blank &&
-				(!data.filters.import_match_type || data.filters.import_match_type.length === 0)
-			);
-		}
-		if (slice.filters.subject_blank) return data.filters.subject_blank === true;
-		if (slice.filters.import_match_type) {
-			const wanted = slice.filters.import_match_type;
-			const have = data.filters.import_match_type ?? [];
-			return wanted.length === have.length && wanted.every((m) => have.includes(m));
-		}
-		return false;
-	}
-
-	function gotoSlice(slice: SliceSpec) {
+	function gotoDeck(key: ReviewDeckKey) {
 		if (!browser) return;
-		const url = new URL(page.url);
-		// Strip subject + match_type but keep other filter params (genre, language, …).
-		url.searchParams.delete('subject');
-		url.searchParams.delete('match_type');
-		url.searchParams.delete('slice');
-		if (slice.filters.slice) url.searchParams.set('slice', slice.filters.slice);
-		if (slice.filters.subject_blank) url.searchParams.set('subject', 'blank');
-		if (slice.filters.import_match_type) {
-			for (const m of slice.filters.import_match_type) url.searchParams.append('match_type', m);
-		}
-		goto(url.pathname + (url.search ? url.search : ''), {
+		const deck = REVIEW_DECKS.find((d) => d.key === key);
+		if (!deck) return;
+		const params = reviewDeckSearchParams(deck, page.url.searchParams);
+		const search = params.toString();
+		goto(page.url.pathname + (search ? `?${search}` : ''), {
 			keepFocus: true,
 			noScroll: true
 		});
+	}
+
+	const shuffleOn = $derived(data.filters.shuffle === true);
+
+	function toggleShuffle() {
+		if (!browser) return;
+		const url = new URL(page.url);
+		if (shuffleOn) url.searchParams.delete('shuffle');
+		else url.searchParams.set('shuffle', '1');
+		goto(url.pathname + (url.search ? url.search : ''), { keepFocus: true, noScroll: true });
+	}
+
+	/** Genre Sprint: one tap sets the genre and confirms the card. */
+	async function pickGenreAndConfirm(genre: Genre) {
+		if (pendingSaveId !== null) return;
+		editGenre = genre;
+		await tick();
+		reviewFormEl?.requestSubmit();
+	}
+
+	// -------------------------------------------------------------------------
+	// AI research proposals — apply fills the quick-edit state; the normal
+	// Confirm submits it. Dismiss rejects the proposal without touching the
+	// book (and advances the card when browsing the Research deck itself).
+	// -------------------------------------------------------------------------
+
+	const GENRE_SET = new Set<string>(GENRES);
+
+	function proposalGenreFor(card: ReviewCard): Genre | null {
+		const proposed = card.proposal?.fields.genre?.proposed;
+		return typeof proposed === 'string' && GENRE_SET.has(proposed) ? (proposed as Genre) : null;
+	}
+
+	function applyProposalField(field: ProposalField) {
+		const c = currentCard;
+		const diff = c?.proposal?.fields[field];
+		if (!c || !diff) return;
+		if (field === 'genre') {
+			const g = proposalGenreFor(c);
+			if (g) {
+				metaGenreExpanded = true;
+				editGenre = g;
+			}
+		} else if (field === 'year') {
+			editYear = String(diff.proposed);
+		} else if (field === 'publisher') {
+			editPublisher = String(diff.proposed);
+			const match = matchPublisher(String(diff.proposed), data.publishers);
+			editPublisherId = match?.id ?? null;
+		} else if (field === 'publisher_location') {
+			editPublisherLocation = String(diff.proposed);
+		}
+	}
+
+	function applyProposalAll() {
+		const c = currentCard;
+		if (!c?.proposal) return;
+		for (const field of Object.keys(c.proposal.fields) as ProposalField[]) {
+			applyProposalField(field);
+		}
+	}
+
+	/** Fields whose proposed value is currently reflected in the edit state. */
+	const appliedProposalFields = $derived.by(() => {
+		const out = new Set<ProposalField>();
+		const c = currentCard;
+		const fields = c?.proposal?.fields;
+		if (!c || !fields) return out;
+		if (fields.genre && editGenre !== null && editGenre === fields.genre.proposed)
+			out.add('genre');
+		if (fields.year && editYear !== null && editYear.trim() === String(fields.year.proposed))
+			out.add('year');
+		if (fields.publisher && editPublisher !== null && editPublisher === fields.publisher.proposed)
+			out.add('publisher');
+		if (
+			fields.publisher_location &&
+			editPublisherLocation !== null &&
+			editPublisherLocation === fields.publisher_location.proposed
+		)
+			out.add('publisher_location');
+		return out;
+	});
+
+	let dismissProposalPending = $state(false);
+
+	function dismissProposalSubmit(): SubmitFunction {
+		return () => {
+			dismissProposalPending = true;
+			return async ({ result, update }) => {
+				disableScrollHandling();
+				await update({ reset: false, invalidateAll: false });
+				dismissProposalPending = false;
+				if (result.type === 'success' && currentCard) {
+					const id = currentCard.id;
+					if (data.filters.proposal === 'pending') {
+						// Research deck: the book just left the deck's filter set.
+						remaining = Math.max(0, remaining - 1);
+						advance(id);
+					} else {
+						cards = cards.map((c) => (c.id === id ? { ...c, proposal: null } : c));
+					}
+				}
+			};
+		};
+	}
+
+	function dismissProposal() {
+		(
+			document.getElementById('review-dismiss-proposal-form') as HTMLFormElement | null
+		)?.requestSubmit();
 	}
 
 	// -------------------------------------------------------------------------
@@ -467,6 +648,7 @@
 		if (e.key !== 'Escape') return;
 		if (e.defaultPrevented) return;
 		if (confirmDeleteOpen) return; // ConfirmDialog owns its own Esc
+		if (sprintSummary) return; // summary's Done button owns Esc
 		if (!currentCard) return;
 		// Ignore when typing in an input — let the field own Esc.
 		const target = e.target as HTMLElement | null;
@@ -484,32 +666,13 @@
 
 <div class="mx-auto flex min-h-screen max-w-md flex-col px-4 py-4 pb-4 md:max-w-lg md:py-6 md:pb-6">
 	{#snippet reviewBurndownActions()}
-		<div class="min-w-0 flex-1 text-right text-xs text-muted-foreground md:max-w-xs">
-			<div class="font-medium text-foreground">
-				<CheckCircle2 class="inline-block size-3.5 text-emerald-600" />
-				Today: {todayCleared}
-				<span class="mx-1 hidden text-muted-foreground md:inline">·</span>
-				<span class="hidden md:inline">{reviewedThisSession} this session</span>
-			</div>
-			<div class="mt-1 tabular-nums">
-				{data.sliceCleared.toLocaleString()} / {data.sliceDenominator.toLocaleString()} in slice
-			</div>
-			<div
-				class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"
-				role="progressbar"
-				aria-valuenow={burndownPct}
-				aria-valuemin={0}
-				aria-valuemax={100}
-			>
-				<div
-					class="h-full bg-emerald-600 transition-all {burndownPct >= 100
-						? 'w-full'
-						: burndownPct <= 0
-							? 'w-0'
-							: `w-[${burndownPct}%]`}"
-				></div>
-			</div>
-		</div>
+		<ReviewSprintHud
+			{todayCleared}
+			sessionCleared={reviewedThisSession}
+			sliceCleared={liveSliceCleared}
+			sliceDenominator={data.sliceDenominator}
+			{sprint}
+		/>
 	{/snippet}
 
 	<PageHeader
@@ -519,23 +682,63 @@
 		class="mb-3"
 	/>
 
-	<!-- Slice pill rail -->
-	<div class="mt-3 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-		{#each SLICES as s (s.key)}
-			{@const active = isSliceActive(s)}
+	<!-- Deck picker rail -->
+	<div class="mt-3">
+		<ReviewDeckPicker decks={deckViews} activeKey={activeDeckKey} onSelect={gotoDeck} />
+	</div>
+
+	<!-- Sprint row: pick a size (or just flow) + shuffle toggle -->
+	<div class="mt-2 flex items-center gap-2 text-xs">
+		{#if !sprint}
+			<span class="text-muted-foreground">Sprint:</span>
+			{#each SPRINT_CHOICES as n (n)}
+				<button
+					type="button"
+					class="rounded-full border border-border bg-background px-2.5 py-1 tabular-nums transition-colors hover:bg-muted"
+					onclick={() => beginSprint(n)}
+				>
+					{n}
+				</button>
+			{/each}
+			<span class="hidden text-muted-foreground/70 sm:inline">or just flow</span>
+		{:else}
+			<span class="text-muted-foreground">
+				{sprint.target ? `Sprint to ${sprint.target}` : 'Sprinting'} — no pressure, quit anytime
+			</span>
 			<button
 				type="button"
-				class={`whitespace-nowrap rounded-full border px-2.5 py-1 text-xs transition-colors ${chipClasses(active)}`}
-				onclick={() => gotoSlice(s)}
-				aria-pressed={active}
+				class="rounded-full border border-border px-2.5 py-1 text-muted-foreground transition-colors hover:bg-muted"
+				onclick={abandonSprint}
 			>
-				{s.label}
+				End
 			</button>
-		{/each}
+		{/if}
+		<button
+			type="button"
+			class={`ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-1 transition-colors ${
+				shuffleOn
+					? 'border-primary bg-primary text-primary-foreground'
+					: 'border-border bg-background text-muted-foreground hover:bg-muted'
+			}`}
+			onclick={toggleShuffle}
+			aria-pressed={shuffleOn}
+			title="Draw cards from random spots in the deck"
+		>
+			<Shuffle class="size-3" /> Shuffle
+		</button>
 	</div>
 
 	<div class="mt-4 flex-1">
-		{#if currentCard}
+		{#if sprintSummary}
+			<ReviewSprintSummary
+				finished={sprintSummary.finished}
+				endedAt={sprintSummary.endedAt}
+				{remaining}
+				deckLabel={activeDeckLabel}
+				onGoAgain={goAgainSprint}
+				onDone={dismissSprintSummary}
+			/>
+		{:else if currentCard}
 			{@const card = currentCard}
 			{@const missing = previewMissing(card)}
 			{@const auto = autoLinePart(card.needs_review_note)}
@@ -543,6 +746,13 @@
 			{@const genreRowOpen = !card.genre || editGenre !== null || metaGenreExpanded}
 			{@const statusRowOpen = editReadingStatus !== null || metaStatusExpanded}
 			{@const langRowOpen = editLanguage !== null || metaLangExpanded}
+			{#if milestone}
+				<ReviewMilestoneCard
+					title={milestone.title}
+					subtitle={milestone.subtitle}
+					onDismiss={() => (milestone = null)}
+				/>
+			{/if}
 			<article
 				id="review-card"
 				bind:this={reviewCardEl}
@@ -614,6 +824,16 @@
 					</div>
 				</div>
 
+				{#if fastLane}
+					<!-- Fast-lane context line: everything but genre is already on file. -->
+					<p class="mt-2 text-xs text-muted-foreground">
+						{#if card.year}{card.year}{/if}
+						{#if card.year && effectivePublisher(card)}<span class="mx-1">·</span>{/if}
+						{#if effectivePublisher(card)}{effectivePublisher(card)}{/if}
+						<span class="mx-1">·</span>{LANGUAGE_LABELS[card.language]}
+					</p>
+				{/if}
+
 				<!-- Auto-line + user note -->
 				{#if auto}
 					<div
@@ -627,7 +847,18 @@
 					<p class="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">{userNote}</p>
 				{/if}
 
-				{#if citationForCard}
+				{#if card.proposal && !fastLane}
+					<ReviewProposalPanel
+						proposal={card.proposal}
+						applied={appliedProposalFields}
+						disabled={pendingSaveId !== null || dismissProposalPending}
+						onApplyField={applyProposalField}
+						onApplyAll={applyProposalAll}
+						onDismiss={dismissProposal}
+					/>
+				{/if}
+
+				{#if citationForCard && !fastLane}
 					<div class="mt-4 flex flex-col gap-3">
 						<TurabianCitationBlock
 							label="Footnote"
@@ -667,7 +898,52 @@
 					class="mt-4 flex flex-col gap-4"
 				>
 					<input type="hidden" name="id" value={card.id} />
+					{#if card.proposal}
+						<input type="hidden" name="proposal_id" value={card.proposal.id} />
+						<input
+							type="hidden"
+							name="proposal_resolution"
+							value={appliedProposalFields.size > 0 ? 'accepted' : 'rejected'}
+						/>
+					{/if}
 
+					{#if fastLane}
+						<!-- Genre Sprint: one tap on a chip fills + submits. -->
+						<ReviewGenreChips
+							topGenres={REVIEW_TOP_GENRES}
+							value={effectiveGenre(card)}
+							suggested={proposalGenreFor(card)}
+							disabled={pendingSaveId !== null}
+							onPick={pickGenreAndConfirm}
+						/>
+						{#if effectiveGenre(card)}
+							<input type="hidden" name="genre" value={effectiveGenre(card)} />
+						{/if}
+
+						<div
+							class="sticky bottom-0 z-20 -mx-4 mt-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:mt-2 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+						>
+							<div class="mx-auto grid max-w-md grid-cols-2 gap-2">
+								<Button
+									type="submit"
+									variant="outline"
+									hotkey="s"
+									class="min-h-11"
+									label={pendingSaveId === card.id ? 'Saving…' : 'Confirm as-is'}
+									disabled={pendingSaveId !== null}
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									hotkey="Escape"
+									class="min-h-11"
+									label="Skip"
+									onclick={skipCurrent}
+									disabled={pendingSaveId !== null}
+								/>
+							</div>
+						</div>
+					{:else}
 					<!-- Citation-critical text fields -->
 					<div class="flex flex-col gap-3">
 						{#if !card.title}
@@ -989,6 +1265,7 @@
 							</div>
 						</div>
 					</div>
+					{/if}
 				</form>
 			</article>
 
@@ -1101,6 +1378,19 @@
 	>
 		<input type="hidden" name="id" value={card.id} />
 	</form>
+	{#if card.proposal}
+		<!-- Hidden dismiss form posts to ?/resolveProposal (status=rejected) -->
+		<form
+			method="POST"
+			action="?/resolveProposal"
+			use:enhance={dismissProposalSubmit()}
+			id="review-dismiss-proposal-form"
+			class="hidden"
+		>
+			<input type="hidden" name="proposal_id" value={card.proposal.id} />
+			<input type="hidden" name="status" value="rejected" />
+		</form>
+	{/if}
 	<ConfirmDialog
 		bind:open={confirmDeleteOpen}
 		title="Delete this book?"

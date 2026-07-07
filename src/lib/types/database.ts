@@ -278,6 +278,60 @@ export type Database = {
           },
         ]
       }
+      book_metadata_proposals: {
+        Row: {
+          book_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          fields: Json
+          id: string
+          reviewed_at: string | null
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          fields?: Json
+          id?: string
+          reviewed_at?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          fields?: Json
+          id?: string
+          reviewed_at?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_metadata_proposals_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_metadata_proposals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_topics: {
         Row: {
           book_id: string | null

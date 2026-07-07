@@ -1,8 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
+	countReviewDecks,
 	countReviewQueue,
-	countReviewQueueBySlice,
 	loadPeople,
 	loadPublishers,
 	loadReviewQueue,
@@ -15,7 +15,9 @@ import {
 	reviewSaveAction,
 	softDeleteBookAction
 } from '$lib/library/server/book-actions';
-import { parseReviewFilters } from '$lib/library/review';
+import { resolveProposalAction } from '$lib/library/server/proposal-actions';
+import { parseReviewFilters, withReviewShelfDefault } from '$lib/library/review';
+import { hasReviewDeckParams, sliceForReviewFilters } from '$lib/library/review-decks';
 
 const QUEUE_PAGE_SIZE = 10;
 
@@ -27,29 +29,29 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 
 	const supabase = locals.supabase;
 	let filters = parseReviewFilters(url);
-	if (!filters.slice && !url.searchParams.has('subject') && !url.searchParams.has('match_type')) {
+	if (!hasReviewDeckParams(url)) {
 		const defaultSlice = defaultReviewSlice();
 		filters = { ...filters, slice: defaultSlice };
 	}
+	filters = withReviewShelfDefault(filters);
 
-	const activeSlice: ReviewSlice = filters.slice ?? defaultReviewSlice();
+	const activeSlice: ReviewSlice = sliceForReviewFilters(filters);
 
 	const people = await loadPeople(supabase);
-	const [cards, remaining, scriptureRefsNeedingReview, criticalRemaining, backlogRemaining, publishers] =
+	const [cards, remaining, scriptureRefsNeedingReview, deckCounts, publishers] =
 		await Promise.all([
 			loadReviewQueue(supabase, people, filters, {
 				limit: QUEUE_PAGE_SIZE,
-				excludeIds: []
+				excludeIds: [],
+				shufflePivot: filters.shuffle ? crypto.randomUUID() : null
 			}),
 			countReviewQueue(supabase, filters),
 			loadScriptureRefsNeedingReview(supabase, { limit: 50 }),
-			countReviewQueueBySlice(supabase, 'critical'),
-			countReviewQueueBySlice(supabase, 'backlog'),
+			countReviewDecks(supabase),
 			loadPublishers(supabase)
 		]);
 
 	const sliceDenominator = SLICE_DENOMINATORS[activeSlice];
-	const sliceCleared = Math.max(0, sliceDenominator - remaining);
 
 	return {
 		cards,
@@ -57,9 +59,7 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 		filters,
 		activeSlice,
 		sliceDenominator,
-		sliceCleared,
-		criticalRemaining,
-		backlogRemaining,
+		deckCounts,
 		queuePageSize: QUEUE_PAGE_SIZE,
 		scriptureRefsNeedingReview,
 		publishers
@@ -80,5 +80,12 @@ export const actions: Actions = {
 			return fail(401, { kind: 'softDeleteBook' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return softDeleteBookAction(locals.supabase, fd);
+	},
+	resolveProposal: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'proposalResolved' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return resolveProposalAction(locals.supabase, fd);
 	}
 };

@@ -29,6 +29,7 @@ export const _LIBRARY_TABLES = [
 	'book_authors',
 	'book_bible_coverage',
 	'book_ancient_coverage',
+	'book_metadata_proposals',
 	'essays',
 	'essay_authors',
 	'scripture_references',

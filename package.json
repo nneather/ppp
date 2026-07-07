@@ -32,7 +32,8 @@
 		"ship-library:apply": "npm run check && npm run supabase:db:push && npm run supabase:gen-types && npm run test && npm run supabase:deploy-functions",
 		"library:migrate:dry": "dotenv -e .env -e .env.local -- tsx scripts/library-migrate-local-to-prod/migrateLibraryData.ts",
 		"library:migrate:apply": "dotenv -e .env -e .env.local -- tsx scripts/library-migrate-local-to-prod/migrateLibraryData.ts --apply",
-		"library:language-audit": "dotenv -e .env -e .env.local -- tsx scripts/library-language-audit/auditLanguage.ts"
+		"library:language-audit": "dotenv -e .env -e .env.local -- tsx scripts/library-language-audit/auditLanguage.ts",
+		"library:review-research": "dotenv -e .env -e .env.local -- tsx scripts/library-review-research/proposeMetadata.ts"
 	},
 	"devDependencies": {
 		"@fontsource-variable/geist": "^5.2.8",

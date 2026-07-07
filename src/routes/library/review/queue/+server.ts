@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { countReviewQueue, loadPeople, loadReviewQueue } from '$lib/library/server/loaders';
-import { parseReviewFilters } from '$lib/library/review';
+import { parseReviewFilters, withReviewShelfDefault } from '$lib/library/review';
 
 /**
  * Incremental refetch endpoint for `/library/review`. Returns the next batch
@@ -12,16 +12,21 @@ import { parseReviewFilters } from '$lib/library/review';
  * never blocks on a network round-trip. Auth-gated (same as the page load).
  *
  * Query params:
- *   - All `/library/review` filter params (?subject=, ?match_type=, …)
+ *   - All `/library/review` filter params (?subject=, ?match_type=, ?missing=,
+ *     ?shelf=, ?proposal=, ?isbn=, ?shuffle=, …)
  *   - ?exclude=<csv of UUIDs>  — skipped + already-saved this session
  *   - ?limit=<int>             — defaults to 10
+ *
+ * `shelf` gets the same away-from-shelf default as the page load so refill
+ * batches never resurface `Deferred shelf-check:` books mid-session. When
+ * `?shuffle=1`, each refill draws from a fresh random window.
  */
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) error(401, 'Unauthorized');
 
 	const supabase = locals.supabase;
-	const filters = parseReviewFilters(url);
+	const filters = withReviewShelfDefault(parseReviewFilters(url));
 
 	const excludeRaw = url.searchParams.get('exclude') ?? '';
 	const excludeIds = excludeRaw
@@ -34,7 +39,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const people = await loadPeople(supabase);
 	const [cards, remaining] = await Promise.all([
-		loadReviewQueue(supabase, people, filters, { limit, excludeIds }),
+		loadReviewQueue(supabase, people, filters, {
+			limit,
+			excludeIds,
+			shufflePivot: filters.shuffle ? crypto.randomUUID() : null
+		}),
 		countReviewQueue(supabase, filters)
 	]);
 

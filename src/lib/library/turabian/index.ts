@@ -35,10 +35,26 @@ export {
 	readReviewToday,
 	incrementReviewProgress,
 	readLifetimeCleared,
+	readLifetimeClearedTotal,
 	defaultReviewSlice,
 	isBacklogDefaultSlice,
 	SLICE_DENOMINATORS,
-	type ReviewTodayState
+	SPRINT_CHOICES,
+	readSprint,
+	startSprint,
+	recordSprintClear,
+	recordSprintSkip,
+	endSprint,
+	isSprintComplete,
+	formatSprintElapsed,
+	SLICE_MILESTONE_PERCENTS,
+	LIFETIME_MILESTONE_STEP,
+	milestoneKeysFor,
+	milestoneLabel,
+	readShownMilestones,
+	markMilestonesShown,
+	type ReviewTodayState,
+	type SprintState
 } from './review-progress';
 export { bibliographySortLastName } from './names';
 export { reviewCardToCitationInput } from './review-card';

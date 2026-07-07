@@ -101,7 +101,10 @@ End-of-session deliverables:
   - `src/lib/library/authors-label.ts` — `authorsLabelForBook` display labels; unit tests in `__tests__/`.
   - `src/lib/library/title-sort.ts` — `titleSortKey` (language-aware leading-article strip), importer match-key helper.
   - `src/lib/library/bible-book-names.ts` — static `BIBLE_BOOK_NAMES` vocab (perf rule: do not query `bible_books` per navigation).
-  - `src/lib/library/review.ts` — `parseReviewFilters`, review-queue slice/genre filtering for `/library/review`.
+  - `src/lib/library/review.ts` — `parseReviewFilters` (incl. deck params `missing`/`shelf`/`proposal`/`isbn`/`shuffle`), `withReviewShelfDefault` (away-from-shelf default), `SHELF_CHECK_MARKER`, slice/deck query filters for `/library/review` ([067](docs/decisions/067-library-review-sprint-decks.md)).
+ - `src/lib/library/review-decks.ts` — `REVIEW_DECKS` (Citation Critical / Genre Sprint / Research / Puzzles / Backlog / Needs the shelf), `hasReviewDeckParams`, `sliceForReviewFilters`, `isReviewDeckActive`, `reviewDeckSearchParams`, `REVIEW_TOP_GENRES`. Client-safe; drives `<ReviewDeckPicker>` + page-server deck counts ([067](docs/decisions/067-library-review-sprint-decks.md)).
+ - `src/lib/library/turabian/review-progress.ts` — localStorage burndown + **sprints** (`startSprint`/`recordSprintClear`/`recordSprintSkip`/`endSprint`/`isSprintComplete`, key `library.review.sprint`) + **milestones** (`milestoneKeysFor`/`milestoneLabel`/shown-set, key `library.review.milestones`); unit tests `turabian/__tests__/review-progress.test.ts` ([067](docs/decisions/067-library-review-sprint-decks.md)).
+ - `src/lib/library/server/proposal-actions.ts` — `resolveProposalAction` + `markProposalResolved` for `book_metadata_proposals` (AI research pass [068](docs/decisions/068-library-review-ai-research-pass.md)); accept path rides `reviewSaveAction` (`proposal_id` + `proposal_resolution` FormData fields). Proposals never clear `needs_review` by themselves.
   - `src/lib/library/ocr-scripture-refs.ts` — OCR candidate/response types shared by client + batch form (distinct from `ocr-invoke-client.ts`).
   - `src/lib/library/server/coverage-actions.ts` — bible/ancient coverage create + soft-delete actions, inline `ancient_texts` create.
   - `src/lib/library/server/topic-actions.ts` — `book_topics` CRUD + `parseBookTopicForm` (batch-capable).
@@ -162,6 +165,7 @@ End-of-session deliverables:
 - **`npm run supabase:db:push:staging`** — apply migrations to ppp-staging
 - **`npm run ship-library`** / **`ship-library:apply`** — library schema gate: `check` → `db:push:dry` (or full push + `gen-types` + `test` + `deploy-functions` on apply). Use after any library migration or OCR Edge change.
 - **`library:language-audit`** — dry-run / optional `--apply` English→German hints; uses `LIBRARY_AUDIT_DATABASE_URL` or **`LIBRARY_DST_DATABASE_URL`** / `LIBRARY_SRC_DATABASE_URL` (same migrate vars). See [`scripts/library-language-audit/README.md`](scripts/library-language-audit/README.md).
+- **`library:review-research`** — AI research pass ([068](docs/decisions/068-library-review-ai-research-pass.md)): OL + optional Anthropic genre proposals into `book_metadata_proposals` (pending; owner confirms on `/library/review`). Dry-run default; `LIBRARY_RESEARCH_CONFIRM=yes … --apply`. IPv4 networks need the **Session Pooler** URI (`LIBRARY_RESEARCH_DATABASE_URL`; derive via `scripts/backup-restore-verify/derive-pooler-url.ts`) — the Direct host is IPv6-only. See [`scripts/library-review-research/README.md`](scripts/library-review-research/README.md).
 
 ## Commit messages (library)
 

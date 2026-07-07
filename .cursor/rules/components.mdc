@@ -40,6 +40,12 @@ If you reach for one of these capabilities, use the existing component.
 | PWA new-version toast (`virtual:pwa-register/svelte`); **Update now** + Dismiss; mounted from root layout via dynamic import | [src/lib/components/PwaReloadToast.svelte](mdc:src/lib/components/PwaReloadToast.svelte) |
 | Module skeleton shown while `navigating` (tab-switch perceived speed; see performance.mdc) | [src/lib/components/nav-module-skeleton.svelte](mdc:src/lib/components/nav-module-skeleton.svelte) |
 | Turabian footnote/bibliography preview block with HTML+plain Copy | [src/lib/components/turabian-citation-block.svelte](mdc:src/lib/components/turabian-citation-block.svelte) |
+| Review deck picker rail (label + hint + live count cards; URL routing owned by host) | [src/lib/components/review-deck-picker.svelte](mdc:src/lib/components/review-deck-picker.svelte) |
+| Review header HUD: today/session counts, live burndown bar, sprint progress ring | [src/lib/components/review-sprint-hud.svelte](mdc:src/lib/components/review-sprint-hud.svelte) |
+| Genre Sprint chip row (top genres + More…, AI-suggested chip with sparkle; one tap = confirm via `onPick`) | [src/lib/components/review-genre-chips.svelte](mdc:src/lib/components/review-genre-chips.svelte) |
+| One-time milestone interstitial banner (positive framing, dismissible) | [src/lib/components/review-milestone-card.svelte](mdc:src/lib/components/review-milestone-card.svelte) |
+| End-of-sprint summary card (cleared/skipped/elapsed + go-again CTA) | [src/lib/components/review-sprint-summary.svelte](mdc:src/lib/components/review-sprint-summary.svelte) |
+| AI research proposal panel on review cards (per-field current→proposed, Apply/Apply all fill quick-edit state, Dismiss rejects) | [src/lib/components/review-proposal-panel.svelte](mdc:src/lib/components/review-proposal-panel.svelte) |
 | Dashboard library tile burndown second line (citation-verified / backlog cleared) | [src/lib/components/dashboard-library-tile-footer.svelte](mdc:src/lib/components/dashboard-library-tile-footer.svelte) |
 | Dashboard invoicing tile "Generate last week's invoice" footer (weekly clients with unbilled prior week) | [src/lib/components/dashboard-invoicing-tile-footer.svelte](mdc:src/lib/components/dashboard-invoicing-tile-footer.svelte) |
 | Inline project tree + weekly 5-segment health picker (carry-forward seed uses `untrack` in `$effect`; optional URL filters + latest-health trend badge) | [src/lib/components/project-tree.svelte](mdc:src/lib/components/project-tree.svelte) |

@@ -35,3 +35,6 @@ vite.config.ts.timestamp-*
 # Library import — local-only data + generated artifacts (Session 4)
 scripts/library-import/data/
 scripts/library-import/output/
+
+# CLI audit/research dry-run artifacts (library:language-audit, library:review-research)
+/data/

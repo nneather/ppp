@@ -19,6 +19,7 @@ import type {
 	ScriptureRefNeedingReviewListItem,
 	ReviewQueueFilters,
 	ReviewCard,
+	ReviewProposal,
 	ImportMatchType,
 	WorkType,
 	AncientTextRow,
@@ -37,7 +38,8 @@ import {
 	formatScriptureRefPageSummary,
 	formatScriptureRefRangeDisplay
 } from '$lib/library/scripture-ref-format';
-import { applyReviewSliceGenreFilter } from '$lib/library/review';
+import { applyReviewDeckFilters, applyReviewSliceGenreFilter } from '$lib/library/review';
+import { REVIEW_DECKS, type ReviewDeckKey } from '$lib/library/review-decks';
 import {
 	bookDetailToCitationInput,
 	type BookCitationInput
@@ -1042,46 +1044,50 @@ async function countRowsByBookId(
  * randomness from UUIDs is fine; we don't need title-sort here, the user is
  * draining the queue not browsing it.
  */
-export async function loadReviewQueue(
-	supabase: SupabaseClient,
-	people: PersonRow[],
-	filters: ReviewQueueFilters,
-	opts: { limit: number; excludeIds: string[] }
-): Promise<ReviewCard[]> {
-	let query = supabase
-		.from('books')
-		.select(
-			`
-			id,
-			title,
-			subtitle,
-			work_type,
-			genre,
-			reading_status,
-			needs_review,
-			needs_review_note,
-			volume_number,
-			year,
-			publisher,
-			publisher_location,
-			publisher_id,
-			${PUBLISHER_EMBED},
-			edition,
-			total_volumes,
-			original_year,
-			reprint_publisher,
-			reprint_location,
-			reprint_year,
-			language,
-			import_match_type,
-			series ( name, abbreviation ),
-			book_authors ( person_id, sort_order, role )
-		`
-		)
-		.is('deleted_at', null)
-		.eq('needs_review', true);
+type ReviewQueueQuery = {
+	is(column: string, value: null): ReviewQueueQuery;
+	eq(column: string, value: unknown): ReviewQueueQuery;
+	in(column: string, values: string[]): ReviewQueueQuery;
+	not(column: string, operator: string, value: unknown): ReviewQueueQuery;
+	ilike(column: string, pattern: string): ReviewQueueQuery;
+	or(filters: string, options?: { foreignTable?: string }): ReviewQueueQuery;
+};
+
+/**
+ * Narrow structural view of the PostgREST builder used by `loadReviewQueue`.
+ * The concrete `PostgrestFilterBuilder` generics blow up TS inference when
+ * threaded through `applyReviewQueueFilters<T>` ("type instantiation is
+ * excessively deep"), so the loader casts to this minimal chainable shape —
+ * rows are re-cast to `RawReviewCard` downstream anyway.
+ */
+type ReviewCardQueryBuilder = {
+	is(column: string, value: null): ReviewCardQueryBuilder;
+	eq(column: string, value: unknown): ReviewCardQueryBuilder;
+	in(column: string, values: string[]): ReviewCardQueryBuilder;
+	not(column: string, operator: string, value: unknown): ReviewCardQueryBuilder;
+	ilike(column: string, pattern: string): ReviewCardQueryBuilder;
+	or(filters: string, options?: { foreignTable?: string }): ReviewCardQueryBuilder;
+	gt(column: string, value: string): ReviewCardQueryBuilder;
+	lte(column: string, value: string): ReviewCardQueryBuilder;
+	order(column: string, opts: { ascending: boolean }): ReviewCardQueryBuilder;
+	limit(n: number): PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
+};
+
+/**
+ * Common review-queue filter chain shared by the card loader and the count
+ * queries. Pins `needs_review = true` + soft-delete, then applies slice, deck
+ * (`missing` / `shelf` / `isbn_blank` / `proposal`), and list filters. The
+ * `proposal` embed filters assume the caller's select string includes
+ * `book_metadata_proposals!inner ( id )` when `filters.proposal` is set.
+ */
+function applyReviewQueueFilters<T extends ReviewQueueQuery>(
+	queryIn: T,
+	filters: ReviewQueueFilters
+): T {
+	let query: ReviewQueueQuery = queryIn.is('deleted_at', null).eq('needs_review', true);
 
 	query = applyReviewSliceGenreFilter(query, filters.slice);
+	query = applyReviewDeckFilters(query, filters);
 
 	if (filters.subject_blank === true) {
 		query = query.is('genre', null);
@@ -1101,11 +1107,68 @@ export async function loadReviewQueue(
 	if (filters.import_match_type && filters.import_match_type.length > 0) {
 		query = query.in('import_match_type', filters.import_match_type);
 	}
-	if (opts.excludeIds.length > 0) {
-		query = query.not('id', 'in', `(${opts.excludeIds.join(',')})`);
+	if (filters.proposal === 'pending') {
+		query = query
+			.eq('book_metadata_proposals.status', 'pending')
+			.is('book_metadata_proposals.deleted_at', null);
 	}
+	return query as T;
+}
 
-	const { data, error } = await query
+const REVIEW_CARD_SELECT = `
+	id,
+	title,
+	subtitle,
+	work_type,
+	genre,
+	reading_status,
+	needs_review,
+	needs_review_note,
+	volume_number,
+	year,
+	publisher,
+	publisher_location,
+	publisher_id,
+	${PUBLISHER_EMBED},
+	edition,
+	total_volumes,
+	original_year,
+	reprint_publisher,
+	reprint_location,
+	reprint_year,
+	language,
+	import_match_type,
+	series ( name, abbreviation ),
+	book_authors ( person_id, sort_order, role )
+`;
+
+export async function loadReviewQueue(
+	supabase: SupabaseClient,
+	people: PersonRow[],
+	filters: ReviewQueueFilters,
+	opts: { limit: number; excludeIds: string[]; shufflePivot?: string | null }
+): Promise<ReviewCard[]> {
+	const select =
+		filters.proposal === 'pending'
+			? `${REVIEW_CARD_SELECT}, book_metadata_proposals!inner ( id )`
+			: REVIEW_CARD_SELECT;
+
+	const buildQuery = (): ReviewCardQueryBuilder => {
+		const base = supabase.from('books').select(select) as unknown as ReviewCardQueryBuilder;
+		let query = applyReviewQueueFilters(base, filters);
+		if (opts.excludeIds.length > 0) {
+			query = query.not('id', 'in', `(${opts.excludeIds.join(',')})`);
+		}
+		return query;
+	};
+
+	// Shuffle: UUIDs are uniform, so a random pivot + wrap-around gives a
+	// random window without a COUNT round-trip or OFFSET scan.
+	const pivot = opts.shufflePivot ?? null;
+
+	let firstQuery = buildQuery();
+	if (pivot) firstQuery = firstQuery.gt('id', pivot);
+	const { data: firstData, error } = await firstQuery
 		.order('id', { ascending: true })
 		.limit(opts.limit);
 	if (error) {
@@ -1113,12 +1176,27 @@ export async function loadReviewQueue(
 		return [];
 	}
 
+	let rows = firstData ?? [];
+	if (pivot && rows.length < opts.limit) {
+		const { data: wrapData, error: wrapError } = await buildQuery()
+			.lte('id', pivot)
+			.order('id', { ascending: true })
+			.limit(opts.limit - rows.length);
+		if (wrapError) {
+			console.error('[loadReviewQueue wrap]', wrapError);
+		} else {
+			rows = [...rows, ...(wrapData ?? [])];
+		}
+	}
+	const data = rows;
+
 	const peopleMap = new Map(people.map((p) => [p.id, p]));
 	const bookIds = (data ?? []).map((raw) => (raw as unknown as RawReviewCard).id);
 
-	const [topicsByBook, refsByBook] = await Promise.all([
+	const [topicsByBook, refsByBook, proposalsByBook] = await Promise.all([
 		countRowsByBookId(supabase, 'book_topics', bookIds),
-		countRowsByBookId(supabase, 'scripture_references', bookIds)
+		countRowsByBookId(supabase, 'scripture_references', bookIds),
+		loadPendingProposalsByBookId(supabase, bookIds)
 	]);
 
 	return (data ?? []).map((raw) => {
@@ -1165,9 +1243,39 @@ export async function loadReviewQueue(
 			import_match_type: (r.import_match_type as ImportMatchType | null) ?? null,
 			authors,
 			topics_count: topicsByBook.get(r.id) ?? 0,
-			scripture_refs_count: refsByBook.get(r.id) ?? 0
+			scripture_refs_count: refsByBook.get(r.id) ?? 0,
+			proposal: proposalsByBook.get(r.id) ?? null
 		} satisfies ReviewCard;
 	});
+}
+
+/** Pending AI research proposals for the current card batch (≤ page size ids). */
+async function loadPendingProposalsByBookId(
+	supabase: SupabaseClient,
+	bookIds: string[]
+): Promise<Map<string, ReviewProposal>> {
+	const out = new Map<string, ReviewProposal>();
+	if (bookIds.length === 0) return out;
+	const { data, error } = await supabase
+		.from('book_metadata_proposals')
+		.select('id, book_id, source, fields')
+		.in('book_id', bookIds)
+		.eq('status', 'pending')
+		.is('deleted_at', null);
+	if (error) {
+		console.error('[loadPendingProposalsByBookId]', error);
+		return out;
+	}
+	for (const row of data ?? []) {
+		const r = row as {
+			id: string;
+			book_id: string;
+			source: string;
+			fields: ReviewProposal['fields'] | null;
+		};
+		out.set(r.book_id, { id: r.id, source: r.source, fields: r.fields ?? {} });
+	}
+	return out;
 }
 
 /**
@@ -1180,24 +1288,16 @@ export async function countReviewQueue(
 	supabase: SupabaseClient,
 	filters: ReviewQueueFilters
 ): Promise<number> {
-	let query = supabase
+	const select =
+		filters.proposal === 'pending' ? 'id, book_metadata_proposals!inner ( id )' : '*';
+	// Same structural cast as `loadReviewQueue` — the concrete builder generics
+	// are too deep for TS through the shared filter helper.
+	type CountQueryBuilder = ReviewQueueQuery &
+		PromiseLike<{ count: number | null; error: { message: string } | null }>;
+	const base = supabase
 		.from('books')
-		.select('*', { count: 'exact', head: true })
-		.is('deleted_at', null)
-		.eq('needs_review', true);
-
-	query = applyReviewSliceGenreFilter(query, filters.slice);
-
-	if (filters.subject_blank === true) query = query.is('genre', null);
-	if (filters.genre && filters.genre.length > 0) query = query.in('genre', filters.genre);
-	if (filters.series_id && filters.series_id.length > 0)
-		query = query.in('series_id', filters.series_id);
-	if (filters.language && filters.language.length > 0)
-		query = query.in('language', filters.language);
-	if (filters.reading_status && filters.reading_status.length > 0)
-		query = query.in('reading_status', filters.reading_status);
-	if (filters.import_match_type && filters.import_match_type.length > 0)
-		query = query.in('import_match_type', filters.import_match_type);
+		.select(select, { count: 'exact', head: true }) as unknown as CountQueryBuilder;
+	const query = applyReviewQueueFilters(base, filters);
 
 	const { count, error } = await query;
 	if (error) {
@@ -1205,6 +1305,30 @@ export async function countReviewQueue(
 		return 0;
 	}
 	return count ?? 0;
+}
+
+/**
+ * Live per-deck counts for the `/library/review` deck picker. Each deck's
+ * filters get the same away-from-shelf default the page applies (`shelf`
+ * defaults to `exclude` unless the deck routes on it), so picker counts and
+ * the in-deck "N left" counter always agree.
+ */
+export async function countReviewDecks(
+	supabase: SupabaseClient
+): Promise<Record<ReviewDeckKey, number>> {
+	const counts = await Promise.all(
+		REVIEW_DECKS.map((deck) =>
+			countReviewQueue(supabase, {
+				...deck.filters,
+				shelf: deck.filters.shelf ?? 'exclude'
+			})
+		)
+	);
+	const out = {} as Record<ReviewDeckKey, number>;
+	REVIEW_DECKS.forEach((deck, i) => {
+		out[deck.key] = counts[i];
+	});
+	return out;
 }
 
 /**

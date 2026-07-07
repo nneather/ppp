@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { GENRES, LANGUAGES, READING_STATUSES, AUTHOR_ROLES, WORK_TYPES } from '$lib/types/library';
 import type { AuthorRole, Genre, Language, ReadingStatus, WorkType } from '$lib/types/library';
 import { findOrCreatePerson, parseTypedName } from '$lib/library/server/people-actions';
+import { markProposalResolved } from '$lib/library/server/proposal-actions';
 
 /**
  * Server-side helpers for the books vertical slice. Both `/library` (list) and
@@ -1167,6 +1168,18 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 			bookId: id,
 			message: updErr.message ?? 'Could not save review.'
 		});
+	}
+
+	// AI research pass (068): the card sends the pending proposal id plus how
+	// the user treated it — 'accepted' when at least one proposed value was
+	// applied, 'rejected' otherwise. Resolution is best-effort: the book save
+	// already succeeded, so a proposal-update failure only logs (the unique
+	// pending index means a stale pending row just resurfaces next visit).
+	const proposalId = parseUuidOrNull(fd.get('proposal_id'));
+	const resolutionRaw = String(fd.get('proposal_resolution') ?? '').trim();
+	if (proposalId && (resolutionRaw === 'accepted' || resolutionRaw === 'rejected')) {
+		const err = await markProposalResolved(supabase, proposalId, resolutionRaw, id);
+		if (err) console.error('[reviewSaveAction proposal]', err.message);
 	}
 
 	return { kind: 'reviewSaved' as const, bookId: id, success: true as const };

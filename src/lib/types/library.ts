@@ -276,11 +276,52 @@ export type BookListFilters = {
 /** Turabian-first review slices (Session 8). */
 export type ReviewSlice = 'critical' | 'backlog';
 
+/** `?shelf=` routing for `Deferred shelf-check:` books (unresolvable away from the shelf). */
+export type ReviewShelfFilter = 'only' | 'exclude' | 'all';
+
 export type ReviewQueueFilters = BookListFilters & {
 	subject_blank?: boolean;
 	import_match_type?: ImportMatchType[];
 	/** Citation Critical vs Backlog routing (`?slice=critical|backlog`). */
 	slice?: ReviewSlice;
+	/** `?missing=genre` — genre is the only citation-critical gap (Genre Sprint fast lane). */
+	missing?: 'genre';
+	/**
+	 * `?shelf=only|exclude|all`. The review page + queue endpoint default to
+	 * `exclude` when the param is absent (away-from-shelf mode); `all` disables
+	 * the default explicitly.
+	 */
+	shelf?: ReviewShelfFilter;
+	/** `?proposal=pending` — books with a pending AI research proposal (Research deck). */
+	proposal?: 'pending';
+	/** `?isbn=blank` — no ISBN on file (Puzzle deck: not researchable online). */
+	isbn_blank?: boolean;
+	/** `?shuffle=1` — randomize the refill window for variety. */
+	shuffle?: boolean;
+};
+
+/** Book fields the AI research pass may propose (all applyable on the review card). */
+export const PROPOSAL_FIELDS = ['genre', 'year', 'publisher', 'publisher_location'] as const;
+export type ProposalField = (typeof PROPOSAL_FIELDS)[number];
+
+export type ReviewProposalFieldDiff = {
+	current: string | number | null;
+	proposed: string | number;
+	/** Where the value came from: `openlibrary` | `ai-genre`. */
+	source: string;
+	/** One-line rationale (AI genre picks carry one). */
+	note?: string;
+};
+
+/**
+ * Pending row from `book_metadata_proposals`, attached to a `ReviewCard`.
+ * Accepting applies fields through the normal `reviewSaveAction` UPDATE —
+ * a proposal never clears `needs_review` by itself (064 Q3).
+ */
+export type ReviewProposal = {
+	id: string;
+	source: string;
+	fields: Partial<Record<ProposalField, ReviewProposalFieldDiff>>;
 };
 
 /**
@@ -305,6 +346,8 @@ export type ReviewCard = BookListRow & {
 	authors: BookAuthorAssignment[];
 	topics_count: number;
 	scripture_refs_count: number;
+	/** Pending AI research proposal, if any (Research deck / genre pre-highlight). */
+	proposal: ReviewProposal | null;
 };
 
 /**
