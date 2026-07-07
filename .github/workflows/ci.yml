@@ -7,6 +7,11 @@ on:
 jobs:
   check-and-test:
     runs-on: ubuntu-latest
+    # svelte-kit sync materializes $env/static/public from PUBLIC_* at check time.
+    # Anon key is public by design (RLS is the boundary); placeholders suffice for typecheck.
+    env:
+      PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
     steps:
       - uses: actions/checkout@v4
 
