@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-06 — Library Wave 2 Session 4 `.docx` bibliography export ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); prior same day: megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md)).
+**Last updated:** 2026-07-07 — Overnight deep-dive reviews: usage ([064](docs/decisions/064-usage-retrospective-review.md)), writing workflow ([065](docs/decisions/065-writing-workflow-review.md)), operational resilience ([066](docs/decisions/066-operational-resilience-review.md)); prior: `.docx` export ([063](docs/decisions/063-library-wave2-session4-docx-export.md)) + megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md)) same night.
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -9,6 +9,8 @@
 ---
 
 ## Current focus
+
+**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. Follow-up sessions queued below: **library writing-session gaps**, **review-queue improvement + AI research pass**, **ops hardening** (weekly cron, projects+profiles dumps, restore fix, REVOKE migration, nav watchdog). MYN 2-week adoption trial runs through ~2026-07-20.
 
 **Product review remediation (051):** R1 docs trust + **R2 security hardening** ([052](docs/decisions/052-security-hardening.md)) + **R3 UX safety** ([053](docs/decisions/053-ux-safety.md)) + **R4 invoicing polish** ([054](docs/decisions/054-invoicing-polish.md)) + **R5 CI + backups** ([055](docs/decisions/055-ci-backups.md)) — **complete**. Viewer-readiness items stay in backlog until a collaborator nears.
 
@@ -39,12 +41,12 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [066 — Operational resilience review](docs/decisions/066-operational-resilience-review.md) (2026-07-07) — backups live but restore broken (`pg_dump --where` doesn't exist) + unproven; **Free plan confirmed → weekly cron**; add projects + profiles dumps; REVOKE migration for denorm fns; nav-skeleton `__data.json` hypothesis + watchdog.
+- [065 — Writing workflow review](docs/decisions/065-writing-workflow-review.md) (2026-07-07) — formatters September-ready, writing session not: no short-form UI, `[page]` on every copy → writing-session-gaps session; `work_type` SQL sweep; fixture strings need Covenant validation in August; never build auto-Ibid.
+- [064 — Usage retrospective](docs/decisions/064-usage-retrospective-review.md) (2026-07-07) — two healthy weekly rituals (invoicing, project check-in); MYN tasks/links/progress zero rows → 2-week MYN trial; review-queue improvement + AI research pass; archive Fountain of Life.
 - [063 — Library Wave 2 Session 4 — .docx bibliography export](docs/decisions/063-library-wave2-session4-docx-export.md) (2026-07-06) — `GET /library/bibliography/download?ids=`; `buildBibliographyDocx` (server-only `docx` pkg, US Letter, 0.5" hanging indent, TNR 12pt) + `parseCitationHtmlSegments` + shared `formatBibliographyEntries`.
 - [062 — Library Wave 2 Session 3 — megacomponent split](docs/decisions/062-library-wave2-session3-megacomponent-split.md) (2026-07-06) — `<ScriptureOcrQueue>` + `<ScriptureRowEditor>` + `scripture-draft-row.ts`; `<BookFormAuthors>` + `<BookFormPublication>` + `book-form-ol.ts`; shells ~900/1,128 LOC.
 - [061 — PWA shell + ISBN author fixes](docs/decisions/061-pwa-shell-isbn-author-fixes.md) (2026-07-06) — SW NavigationRoute for offline.html; settings tabs scroll; sticky save bars; OL author auto-create at save; 8s OL fetch timeout.
-- [060 — Library Wave 2 Session 2 — essays CRUD UI](docs/decisions/060-library-wave2-session2-essays-ui.md) (2026-07-06) — `loadEssaysForBook`, essay actions, `<BookEssaysEditor>`; per-essay Turabian copy; audit `essay_title` label; seed apply pending owner.
-- [059 — Dashboard last-week invoice shortcut](docs/decisions/059-dashboard-last-week-invoice.md) (2026-07-06) — weekly clients with unbilled prior Chicago week show footer on `/dashboard`; one-click `?/generate` → draft review page.
-- [057 — PWA consistency pass](docs/decisions/057-pwa-consistency.md) (2026-07-06) — light theme chrome; offline navigate fallback; hourly + on-resume SW update checks; `__APP_BUILD__` on Settings; `vocab-cache-paths.ts` single source of truth.
 
 ---
 
@@ -67,14 +69,15 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-06** (`.docx` export / [063](docs/decisions/063-library-wave2-session4-docx-export.md); check **0 errors**; test **155/155** green). Prior same day: megacomponent split / [062](docs/decisions/062-library-wave2-session3-megacomponent-split.md).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-07** (overnight reviews closeout / [064](docs/decisions/064-usage-retrospective-review.md)–[066](docs/decisions/066-operational-resilience-review.md); check **0 errors**; test **155/155** green). Prior: `.docx` export / [063](docs/decisions/063-library-wave2-session4-docx-export.md) same night.
 
-**Data safety (monthly export):** Off-Supabase belt-and-suspenders beyond Supabase Pro's 7-day daily backups. Monthly `pg_dump -F c`, two files pushed to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (cron 1st of month + `workflow_dispatch`):
+**Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md) — the earlier "Pro 7-day backups" wording here was wrong), so the R2 dumps are the **only** backup. **Pipeline is live** — secrets set + first successful run 2026-07-06 (run 28830982000; both dumps in R2 under `2026/`). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + cron — **bump monthly → weekly `0 8 * * 1` in the ops hardening session**):
 
-- `ppp-invoicing-YYYY-MM.dump` — clients, client_rates, time_entries, invoices, invoice_line_items
+- `ppp-invoicing-YYYY-MM.dump` — clients, client_rates, time_entries, invoices, invoice_line_items (+ **`profiles`** per [066](docs/decisions/066-operational-resilience-review.md) Q10 — pending ops session)
 - `ppp-library-YYYY-MM.dump` — books, people, series, publishers, bible_books, ancient_texts, book_authors, book_bible_coverage, book_ancient_coverage, book_topics, essays, essay_authors, scripture_references
+- `ppp-projects-YYYY-MM.dump` — projects, project_updates, project_tasks, project_links (**pending ops session** — 120 check-ins currently unprotected)
 
-Notes: both reference `profiles`/`audit_log` — a restore loads the single `profiles` row first. Verify with [`scripts/backup-restore-verify/restore-smoke.sh`](scripts/backup-restore-verify/restore-smoke.sh) once GitHub secrets + R2 bucket are set ([055](docs/decisions/055-ci-backups.md)). Projects export deferred (low change rate). PITR add-on intentionally skipped (cost vs. solo value). Retention: keep all for now.
+**Restore is unproven and [`restore-smoke.sh`](scripts/backup-restore-verify/restore-smoke.sh) fails as written** (`pg_dump --where` doesn't exist in PG 17; profiles schema-load trips on auth FK/triggers — [066](docs/decisions/066-operational-resilience-review.md) §3). Fix + extend to a library-scale data-only rehearsal in the ops hardening session. Owner runbook incl. known failure modes: [docs/reviews/2026-07-07-operational-resilience.md](docs/reviews/2026-07-07-operational-resilience.md). PITR add-on intentionally skipped (cost vs. solo value). Retention: keep all for now.
 
 ---
 
@@ -86,15 +89,82 @@ Notes: both reference `profiles`/`audit_log` — a restore loads the single `pro
 
 ### Library Wave 2 — Session 4: .docx export ✅ done ([063](docs/decisions/063-library-wave2-session4-docx-export.md))
 
+### Library Wave 2 — writing-session gaps (short form + page input) — from [065](docs/decisions/065-writing-workflow-review.md) Q6
+
+```
+Session: library — writing-session gaps (subsequent footnotes + page numbers)
+Tracker: docs/POS_Library_Build_Tracker.md, Wave 2 (add row)
+Read: AGENTS.md, .cursor/rules/library-module.mdc, docs/reviews/2026-07-07-writing-workflow.md,
+  docs/decisions/065-writing-workflow-review.md, src/lib/library/turabian/ (format.ts shortForm path, article.ts),
+  src/routes/library/books/[id]/+page.svelte (copy buttons)
+Supabase: hosted `db push` only — no migration expected
+Goal: Make the per-footnote flow real-paper-ready: short-form copy + page input + incomplete-citation hint.
+Acceptance:
+ - [ ] "Copy short form" beside Footnote/Bibliography on /library/books/[id] and on essay rows;
+       books use formatFootnote({ shortForm: 'short' }); essays get a short-form branch in article.ts
+       (signed: `Sanders, "Canon," 836.`; TDNT abbreviated form already short — reuse)
+ - [ ] Page input beside the copy buttons feeds opts.page (books + essays); empty keeps `[page]`
+ - [ ] No auto-"Ibid." anywhere — short form is the only subsequent-note affordance (065)
+ - [ ] Amber "Citation may be incomplete — missing: …" caption via computeMissingImportant / needs_review
+ - [ ] Unit tests: essay short form; fixture row 20 stays green
+ - [ ] npm run check + npm run test pass; mobile-width screenshot of the copy row
+End-of-session: tracker row added+ticked, docs/decisions/<next-free>-*.md, PLAN.md refreshed
+```
+
+### Library — review-queue improvement + AI research pass — from [064](docs/decisions/064-usage-retrospective-review.md) Q3
+
+```
+Session: library — review-queue burndown tooling (799-book backlog)
+Read: AGENTS.md, docs/reviews/2026-07-07-usage-retrospective.md (review burndown section),
+  src/routes/library/review/, src/lib/library/review.ts, src/lib/library/turabian/review-progress.ts,
+  docs/decisions/036-session-8-5-review-queue-polish.md
+Goal: Make /library/review effective for steady burndown (Parker's pick over bulk-accept), and design an
+  AI research pass: agent proposes metadata fixes for needs_review books (OL/web lookup), owner confirms —
+  never auto-clears needs_review.
+Phase 0 (decide first): what makes book review slow today? batch size / missing-field focus / sort order?
+  AI pass output shape — draft proposals table? per-book diff review UI? start with citation-critical slice?
+End-of-session: docs/decisions/<next-free>-*.md, PLAN.md refreshed
+```
+
+### Ops hardening — from [066](docs/decisions/066-operational-resilience-review.md) Q10–Q14
+
+```
+Session: cross-module — ops hardening (overnight resilience review 066)
+Read: AGENTS.md, docs/decisions/066-operational-resilience-review.md,
+  docs/reviews/2026-07-07-operational-resilience.md, .github/workflows/backup.yml,
+  scripts/backup-restore-verify/ (README.md + restore-smoke.sh), .cursor/rules/db-changes.mdc,
+  src/service-worker.ts, src/routes/+layout.svelte (nav skeleton)
+Supabase: hosted `db push` only — one REVOKE migration
+Goal: Close all five resilience decisions: backup coverage, weekly cron, restore fix+proof, REVOKE, nav watchdog.
+Acceptance:
+ - [ ] backup.yml: weekly cron (0 8 * * 1); profiles added to invoicing dump; third ppp-projects dump
+       (projects project_updates project_tasks project_links)
+ - [ ] restore-smoke.sh fixed (no pg_dump --where; profiles via \copy or data-only whole-table; see 066 §3a)
+       and RUN green with Docker up — invoicing assert passes
+ - [ ] Library restore rehearsal: migrations-built scratch schema + pg_restore --data-only --disable-triggers
+       of the real R2 library dump; assert books/book_authors/scripture_references counts > 0
+ - [ ] Migration: REVOKE EXECUTE on library_refresh_book_list_denorm(uuid) + _trigger() FROM PUBLIC, anon;
+       GRANT to authenticated (mirror 20260528150000); npm run supabase:gen-types
+ - [ ] db-changes.mdc: add "new SECURITY DEFINER fn ⇒ REVOKE PUBLIC" checklist line
+ - [ ] Nav watchdog: navigating.to set >10–15s → "Still loading — tap to retry" → document navigation
+       (window.location.assign); owner phone repro with Safari inspector confirms __data.json hypothesis
+ - [ ] PLAN.md "Fix the docs" line: Data safety section already corrected in 066 session — verify
+ - [ ] npm run check + npm run test pass; security-review subagent before push (RLS/storage-adjacent migration)
+End-of-session: docs/decisions/<next-free>-*.md, PLAN.md refreshed (Data safety pending-items cleared)
+```
+
 ### Library Wave 2 — August shelf QA (owner + agent)
 
 ```
 Session: library — Wave 2 August shelf QA
 Tracker: docs/POS_Library_Build_Tracker.md, Wave 2 "August" row
 Read: AGENTS.md, docs/library-turabian-fixtures.md, docs/decisions/063-library-wave2-session4-docx-export.md,
-  .claude/skills/turabian-qa/
+  docs/decisions/065-writing-workflow-review.md, .claude/skills/turabian-qa/
 Goal: Verify all 20 fixture rows against the physical shelf; fix formatter gaps surfaced by real metadata.
-End-of-session: fixture doc statuses re-confirmed, docs/decisions/064-*.md, tracker August row ticked, PLAN.md refreshed
+Also (from 065): validate the 20 EXPECTED STRINGS against the Covenant guide itself, not just re-run the
+  suite — special attention rows 8 + 17 (signed-ABD title duplication in article.ts); verify the work_type
+  SQL sweep (Q8) against the shelf's reference works.
+End-of-session: fixture doc statuses re-confirmed, docs/decisions/<next-free>-*.md, tracker August row ticked, PLAN.md refreshed
 ```
 
 ### Library Wave 2 — Session 1: article-level formatters ✅ done ([058](docs/decisions/058-library-wave2-session1-article-formatters.md))
@@ -201,11 +271,11 @@ Acceptance:
 
 ## Next up
 
-1. **Apply essay seed** — paste [`supabase/seed/library_essays_seed.sql`](supabase/seed/library_essays_seed.sql) in Supabase SQL editor; owner smoke on ABD vol 1 ([060](docs/decisions/060-library-wave2-session2-essays-ui.md)).
-2. **Owner smokes** — phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke: `/library` select books → Build bibliography → Download .docx → open in Word, confirm hanging indent + italic titles ([063](docs/decisions/063-library-wave2-session4-docx-export.md)).
-3. **Library Wave 2 — August shelf QA** — physical verification of all 20 fixture rows (see Session prompts).
-4. **Projects — use v1 weekly** (tree check-in + optional `/projects/tasks`). Retrospective / process: central Claude project (see tracker Notes).
-5. **Projects backlog (pick one when ready):** global MYN Now view · optional full phone smoke on tracker.
-6. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
-7. **Invoicing:** first real-client send cadence (owner-driven).
-8. **Backups:** set GitHub secrets + R2 bucket; run `workflow_dispatch` + restore smoke once ([055](docs/decisions/055-ci-backups.md)).
+1. **Ops hardening session** ([066](docs/decisions/066-operational-resilience-review.md)) — weekly cron + projects/profiles dumps + **restore fix & proof** (script fails as written) + REVOKE migration + nav watchdog. See Session prompts. Backups themselves are **live**; essay seed **applied** 2026-07-06 (both former Next-up items done).
+2. **Library — writing-session gaps** ([065](docs/decisions/065-writing-workflow-review.md) Q6) — short-form copy + page input + incomplete-citation hint. See Session prompts. Plus owner-commissioned **`work_type` SQL sweep** (Q8) before or with it.
+3. **Owner smokes** — phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 (seed is live); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4 — soft-delete via UI).
+4. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/projects/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now).
+5. **Library — review-queue improvement + AI research pass** ([064](docs/decisions/064-usage-retrospective-review.md) Q3) — see Session prompts; 799-book backlog.
+6. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts.
+7. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
+8. **Invoicing:** first real-client send cadence (owner-driven).
