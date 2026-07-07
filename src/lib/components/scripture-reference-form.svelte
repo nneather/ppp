@@ -3,27 +3,15 @@
 	import { deserialize } from '$app/forms';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import * as Select from '$lib/components/ui/select/index.js';
-	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { cn } from '$lib/utils.js';
 	import Plus from '@lucide/svelte/icons/plus';
-	import Copy from '@lucide/svelte/icons/copy';
-	import Mail from '@lucide/svelte/icons/mail';
-	import X from '@lucide/svelte/icons/x';
-	import MessageSquare from '@lucide/svelte/icons/message-square';
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import MapPin from '@lucide/svelte/icons/map-pin';
-	import FileText from '@lucide/svelte/icons/file-text';
 	import SourcePicker from '$lib/components/source-picker.svelte';
 	import ScriptureBiblePickerSheet from '$lib/components/scripture-bible-picker-sheet.svelte';
-	import {
-		formatScriptureRefPageSummary,
-		formatScriptureRefRangeDisplay
-	} from '$lib/library/scripture-ref-format';
+	import ScriptureOcrQueue from '$lib/components/scripture-ocr-queue.svelte';
+	import ScriptureRowEditor from '$lib/components/scripture-row-editor.svelte';
 	import type { PolymorphicParent } from '$lib/library/polymorphic';
 	import type { BookListRow, ScriptureRefRow } from '$lib/types/library';
 	import { createClient } from '$lib/supabase/client';
@@ -31,12 +19,6 @@
 		SCRIPTURE_IMAGES_BUCKET,
 		scriptureImagePath
 	} from '$lib/library/storage';
-	import type { OcrScriptureCandidate } from '$lib/library/ocr-scripture-refs';
-	import {
-		formatOcrPipelineError,
-		invokeOcrScriptureRefs
-	} from '$lib/library/ocr-invoke-client';
-	import { runWithConcurrency } from '$lib/library/run-with-concurrency';
 	import {
 		clearScriptureBatchDraft,
 		loadScriptureBatchDraft,
@@ -49,11 +31,18 @@
 		BATCH_SAVE_CHUNK_SIZE,
 		buildRowsJsonPayload,
 		chunkArray,
-		collapseRowsAfterMerge,
 		computeRowWindow,
-		continuationNeedsBookRow,
 		ocrPipelineProgressLabel
 	} from '$lib/library/scripture-batch-upload';
+	import {
+		blankDraftRow,
+		continuationNeedsBook,
+		draftRowFromExisting,
+		freshDraftRowKey,
+		isDraftRowSaveable,
+		type ScriptureDraftRow,
+		type ScripturePageJob
+	} from '$lib/library/scripture-draft-row';
 
 	/**
 	 * <ScriptureReferenceForm>
@@ -65,18 +54,11 @@
 	 *   `?/updateScriptureRef`. Cancel button calls `onCancel`.
 	 *
 	 * - **Batch create mode** (default): renders N draft rows, starting with one.
-	 *   Optional **multi-image** OCR (up to 10 photos): queue photos from the gallery and/or
-	 *   repeated **camera** captures, then **Run OCR** — parallel downscale → upload →
-	 *   `ocr_scripture_refs` Edge invoke per file (browser-direct; avoids Vercel timeout on PDFs);
-	 *   results merge in file `lastModified` order
-	 *   with continuation `bible_book` carry from the prior page. Each row carries
-	 *   its own `source_image_url` (storage path) in `rows_json`. Posts to
-	 *   `?/createScriptureRefsBatch`. Empty draft rows (no bible_book AND no page_start)
-	 *   are silently skipped server-side.
+	 *   Optional **multi-image** OCR via `<ScriptureOcrQueue>` (up to 10 photos/PDFs).
+	 *   Posts to `?/createScriptureRefsBatch`. Empty draft rows are skipped server-side.
 	 *
 	 * Image upload: file input → client-side downscale (~2048px JPEG) →
 	 * supabase.storage.upload to `library-scripture-images/${userId}/${bookId}/…`.
-	 * Object path stored per row (batch) or top-level (edit); loaders sign on read.
 	 *
 	 * Page numbers are TEXT — schema handles `IV.317`, `xiv`, `106n21`. We intentionally
 	 * do NOT coerce.
@@ -115,218 +97,11 @@
 
 	const isEdit = $derived(!!existingRef);
 
-	type PositionInPage = 'first' | 'middle' | 'last' | 'only';
-
-	type DraftRow = {
-		key: string;
-		bible_book: string;
-		chapter_start: string;
-		verse_start: string;
-		chapter_end: string;
-		verse_end: string;
-		page_start: string;
-		page_end: string;
-		needs_review: boolean;
-		review_note: string;
-		/** Set when row came from OCR extract; optional on manual rows. */
-		confidence_score: number | null;
-		/** Storage object path for this row's source image (batch OCR). */
-		source_image_url: string;
-		/** True when OCR marked a run-on from the prior printed page; cleared after book carry or user pick. */
-		continuation_from_previous_page: boolean;
-		/** Collapsed compact strip vs full field editor (batch OCR review). */
-		expanded: boolean;
-		/** Include this row in the batch save payload. */
-		included: boolean;
-		/** 1-based index of the source page image in this OCR batch. */
-		pageJobOrder: number;
-		pageJobTotal: number;
-		positionInPage: PositionInPage;
-		/** Links row to `PageJob.id` for page-boundary thumbnail. */
-		pageJobId: string;
-		/** PDF page label within one uploaded file (1-based). */
-		pdfPageOrder: number;
-		pdfPageTotal: number;
-		/** How to render the page-boundary separator. */
-		pageLabelKind: 'file' | 'pdf-page';
-	};
-
-	type PageJob = {
-		id: string;
-		order: number;
-		sourcePath: string;
-		previewUrl: string | null;
-		status: 'uploading' | 'extracting' | 'done' | 'error';
-		error?: string;
-		candidates?: OcrScriptureCandidate[];
-		isPdf?: boolean;
-		/** e.g. "Page 2/5" while per-page PDF OCR runs */
-		extractLabel?: string;
-		/** Original file kept for retrying failed PDF pages */
-		sourceFile?: File;
-		/** 0-based PDF page indices that failed OCR (partial batch) */
-		failedPdfPages?: number[];
-		/** Shown after partial PDF OCR success */
-		pdfOcrWarning?: string;
-	};
-
-	type QueuedOcrFile = {
-		id: string;
-		file: File;
-		previewUrl: string;
-		isPdf: boolean;
-	};
-
-	const MAX_BATCH_IMAGES = 10;
-	const CONFIDENCE_REVIEW_THRESHOLD = 0.8;
-
-	function isRowSaveable(r: DraftRow): boolean {
-		return r.bible_book.trim().length > 0 && r.page_start.trim().length > 0;
-	}
-
-	function formatRowStripLabel(row: DraftRow): string {
-		const range = formatScriptureRefRangeDisplay({
-			bible_book: row.bible_book,
-			chapter_start: row.chapter_start.trim() ? Number(row.chapter_start) : null,
-			verse_start: row.verse_start.trim() ? Number(row.verse_start) : null,
-			chapter_end: row.chapter_end.trim() ? Number(row.chapter_end) : null,
-			verse_end: row.verse_end.trim() ? Number(row.verse_end) : null
-		});
-		const page = formatScriptureRefPageSummary(row.page_start, row.page_end);
-		if (!range && !page) return 'Incomplete reference';
-		if (range && page) return `${range} · ${page}`;
-		return range || page || '—';
-	}
-
-	function confidenceStripClass(conf: number | null): string {
-		if (conf == null) return 'text-muted-foreground';
-		if (conf >= 0.95) return 'text-muted-foreground/70';
-		if (conf >= CONFIDENCE_REVIEW_THRESHOLD) return 'text-muted-foreground';
-		return 'font-medium text-amber-700 dark:text-amber-300';
-	}
-
-	function rowShowsPageEdge(row: DraftRow): boolean {
-		return (
-			row.positionInPage === 'first' ||
-			row.positionInPage === 'last' ||
-			row.positionInPage === 'only'
-		);
-	}
-
-	function numStr(n: number | null | undefined): string {
-		if (n == null || !Number.isFinite(Number(n))) return '';
-		return String(n);
-	}
-
-	function mapCandidateToRow(c: OcrScriptureCandidate): DraftRow {
-		const conf =
-			typeof c.confidence_score === 'number' && Number.isFinite(c.confidence_score)
-				? c.confidence_score
-				: 1;
-		const cont = c.continuation_from_previous_page === true;
-		const bookRaw = (c.bible_book ?? '').trim();
-		const needsContinuationPick = cont && bookRaw.length === 0;
-		const needs = needsContinuationPick || conf < CONFIDENCE_REVIEW_THRESHOLD;
-		const pageStartRaw =
-			c.page_start != null && String(c.page_start).trim() !== ''
-				? String(c.page_start).trim()
-				: '';
-		const saveable = bookRaw.length > 0 && pageStartRaw.length > 0;
-		return {
-			key: freshKey(),
-			bible_book: bookRaw,
-			chapter_start: numStr(c.chapter_start ?? undefined),
-			verse_start: numStr(c.verse_start ?? undefined),
-			chapter_end: numStr(c.chapter_end ?? undefined),
-			verse_end: numStr(c.verse_end ?? undefined),
-			page_start: pageStartRaw,
-			page_end: c.page_end != null ? String(c.page_end) : '',
-			needs_review: needs,
-			review_note: '',
-			confidence_score: conf,
-			source_image_url: '',
-			continuation_from_previous_page: cont,
-			expanded: needs,
-			included: saveable,
-			pageJobOrder: 0,
-			pageJobTotal: 0,
-			positionInPage: 'only',
-			pageJobId: '',
-			pdfPageOrder: 0,
-			pdfPageTotal: 0,
-			pageLabelKind: 'file'
-		};
-	}
-
-	function sourcePageIndexForCandidate(c: OcrScriptureCandidate): number {
-		const n = c.source_page_index;
-		if (typeof n !== 'number' || !Number.isFinite(n)) return 0;
-		return Math.max(0, Math.trunc(n));
-	}
-
-	function freshKey(): string {
-		return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-			? crypto.randomUUID()
-			: `r-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-	}
-
-	function blankRow(): DraftRow {
-		return {
-			key: freshKey(),
-			bible_book: '',
-			chapter_start: '',
-			verse_start: '',
-			chapter_end: '',
-			verse_end: '',
-			page_start: '',
-			page_end: '',
-			needs_review: false,
-			review_note: '',
-			confidence_score: null,
-			source_image_url: '',
-			continuation_from_previous_page: false,
-			expanded: true,
-			included: false,
-			pageJobOrder: 0,
-			pageJobTotal: 0,
-			positionInPage: 'only',
-			pageJobId: '',
-			pdfPageOrder: 0,
-			pdfPageTotal: 0,
-			pageLabelKind: 'file'
-		};
-	}
-
-	function rowFromExisting(r: ScriptureRefRow): DraftRow {
-		return {
-			key: r.id,
-			bible_book: r.bible_book,
-			chapter_start: r.chapter_start?.toString() ?? '',
-			verse_start: r.verse_start?.toString() ?? '',
-			chapter_end: r.chapter_end?.toString() ?? '',
-			verse_end: r.verse_end?.toString() ?? '',
-			page_start: r.page_start ?? '',
-			page_end: r.page_end ?? '',
-			needs_review: r.needs_review,
-			review_note: r.review_note ?? '',
-			confidence_score: r.confidence_score,
-			source_image_url: r.source_image_url ?? '',
-			continuation_from_previous_page: false,
-			expanded: r.needs_review,
-			included: true,
-			pageJobOrder: 0,
-			pageJobTotal: 0,
-			positionInPage: 'only',
-			pageJobId: '',
-			pdfPageOrder: 0,
-			pdfPageTotal: 0,
-			pageLabelKind: 'file'
-		};
-	}
+	const seedKey = $derived(existingRef?.id ?? `__create__:${lockedBookId ?? ''}`);
 
 	let parent = $state<PolymorphicParent | null>(null);
-	let rows = $state<DraftRow[]>([blankRow()]);
-	let source_image_url = $state(''); // bucket object path (edit mode + legacy hidden fallback)
+	let rows = $state<ScriptureDraftRow[]>([blankDraftRow()]);
+	let source_image_url = $state('');
 	let source_image_mime = $state('image/jpeg');
 	let preview_url = $state<string | null>(null);
 	let pending = $state(false);
@@ -336,9 +111,7 @@
 	let extractInfo = $state<string | null>(null);
 	let batchUploadNotice = $state<string | null>(null);
 
-	let pages = $state<PageJob[]>([]);
-	/** Photos queued before "Run OCR" (gallery multi-pick + repeated camera shots). */
-	let ocrQueue = $state<QueuedOcrFile[]>([]);
+	let pages = $state<ScripturePageJob[]>([]);
 	let reviewNoteOpen = $state<Record<string, boolean>>({});
 	let pulseRowKeys = $state<Record<string, true>>({});
 	let saveProgress = $state('');
@@ -348,19 +121,16 @@
 	let rowListScrollTop = $state(0);
 	let rowListViewportHeight = $state(400);
 	let rowListEl = $state<HTMLDivElement | null>(null);
+	let ocrPipelineBusy = $state(false);
 
 	const PATCH_ROW_THRESHOLD = 50;
-
-	const ocrPipelineBusy = $derived(
-		pages.some((p) => p.status === 'uploading' || p.status === 'extracting')
-	);
 
 	const ocrProgressFooterLabel = $derived(ocrPipelineProgressLabel(pages, pageExtractLabels));
 
 	const hasUnsavedBatchDraft = $derived(
 		!isEdit &&
 			rows.length > 1 &&
-			(rows.some((r) => r.included && isRowSaveable(r)) || pages.length > 0 || ocrPipelineBusy)
+			(rows.some((r) => r.included && isDraftRowSaveable(r)) || pages.length > 0 || ocrPipelineBusy)
 	);
 
 	const useRowWindow = $derived(!isEdit && rows.length > BATCH_ROW_WINDOW_THRESHOLD);
@@ -381,7 +151,6 @@
 		useRowWindow ? rows.slice(rowWindow.start, rowWindow.end) : rows
 	);
 
-	/** Mobile-only: bottom sheet bible picker (`max-sm:` trigger replaces Select). */
 	let biblePickerOpen = $state(false);
 	let biblePickerRowKey = $state<string | null>(null);
 	let bibleFilter = $state('');
@@ -417,8 +186,8 @@
 		if (isEdit) return null;
 		const total = rows.length;
 		const flagged = rows.filter((r) => r.needs_review).length;
-		const confident = rows.filter((r) => !r.needs_review && isRowSaveable(r)).length;
-		const includedCount = rows.filter((r) => r.included && isRowSaveable(r)).length;
+		const confident = rows.filter((r) => !r.needs_review && isDraftRowSaveable(r)).length;
+		const includedCount = rows.filter((r) => r.included && isDraftRowSaveable(r)).length;
 		return { total, flagged, confident, includedCount };
 	});
 
@@ -436,7 +205,7 @@
 		if (!biblePickerOpen) biblePickerRowKey = null;
 	});
 
-	function patchRow(key: string, partial: Partial<DraftRow>) {
+	function patchRow(key: string, partial: Partial<ScriptureDraftRow>) {
 		if (rows.length <= PATCH_ROW_THRESHOLD) {
 			rows = rows.map((r) => (r.key === key ? { ...r, ...partial } : r));
 			return;
@@ -464,11 +233,15 @@
 		});
 	}
 
-	// Seed when mode/parent changes — keyed so a re-mount or existingRef swap
-	// re-applies, but typing inside a row never re-fires it.
+	function revokeAllPagePreviewBlobs(jobs: ScripturePageJob[]) {
+		for (const j of jobs) {
+			if (j.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(j.previewUrl);
+		}
+	}
+
 	let seededFor = $state<string | null>(null);
 	$effect(() => {
-		const key = existingRef?.id ?? `__create__:${lockedBookId ?? ''}`;
+		const key = seedKey;
 		if (seededFor === key) return;
 		seededFor = key;
 
@@ -478,12 +251,12 @@
 				: existingRef.essay_id
 					? { kind: 'essay', essay_id: existingRef.essay_id }
 					: null;
-			rows = [rowFromExisting(existingRef)];
+			rows = [draftRowFromExisting(existingRef)];
 			source_image_url = existingRef.source_image_url ?? '';
 			preview_url = existingRef.source_image_signed_url ?? null;
 		} else {
 			parent = lockedBookId ? { kind: 'book', book_id: lockedBookId } : null;
-			rows = [blankRow()];
+			rows = [blankDraftRow()];
 			source_image_url = '';
 			preview_url = null;
 		}
@@ -493,7 +266,7 @@
 		batchUploadNotice = null;
 		revokeAllPagePreviewBlobs(pages);
 		pages = [];
-		clearOcrQueue();
+		pageExtractLabels = {};
 		reviewNoteOpen = {};
 	});
 
@@ -512,8 +285,7 @@
 			: `${actionPath}?/createScriptureRefsBatch`
 	);
 
-	// Save bar: enabled when at least one included row is saveable.
-	const hasAnyValidRow = $derived(rows.some((r) => r.included && isRowSaveable(r)));
+	const hasAnyValidRow = $derived(rows.some((r) => r.included && isDraftRowSaveable(r)));
 
 	function toggleRowExpanded(key: string) {
 		const row = rows.find((r) => r.key === key);
@@ -532,7 +304,7 @@
 	function confirmConfidentRows() {
 		const keys: string[] = [];
 		rows = rows.map((r) => {
-			if (!r.needs_review && isRowSaveable(r)) {
+			if (!r.needs_review && isDraftRowSaveable(r)) {
 				keys.push(r.key);
 				return { ...r, included: true, expanded: false };
 			}
@@ -575,7 +347,7 @@
 		draftResumeOffer = null;
 		draftBannerSuppressed = true;
 		parent = draft.parent;
-		rows = draft.rows as DraftRow[];
+		rows = draft.rows as ScriptureDraftRow[];
 		extractInfo = null;
 		extractMessage = null;
 	}
@@ -604,36 +376,19 @@
 		}, 500);
 	}
 
-	let wakeLock: WakeLockSentinel | null = null;
-
-	async function acquireWakeLock() {
-		if (!browser || !('wakeLock' in navigator)) return;
-		try {
-			wakeLock = await navigator.wakeLock.request('screen');
-		} catch {
-			/* unsupported or denied */
-		}
-	}
-
-	function releaseWakeLock() {
-		void wakeLock?.release();
-		wakeLock = null;
-	}
-
 	function addRow() {
-		rows = [...rows, blankRow()];
+		rows = [...rows, blankDraftRow()];
 	}
 
 	function duplicateRow(idx: number) {
 		const src = rows[idx];
-		const copy: DraftRow = { ...src, key: freshKey(), expanded: true };
+		const copy: ScriptureDraftRow = { ...src, key: freshDraftRowKey(), expanded: true };
 		rows = [...rows.slice(0, idx + 1), copy, ...rows.slice(idx + 1)];
 	}
 
 	function removeRow(idx: number) {
 		if (rows.length === 1) {
-			// keep at least one row visible — clear it instead of removing
-			rows = [blankRow()];
+			rows = [blankDraftRow()];
 			return;
 		}
 		rows = rows.filter((_, i) => i !== idx);
@@ -644,96 +399,11 @@
 	}
 
 	// ---------------------------------------------------------------------------
-	// Image upload + multi-page OCR (batch create)
+	// Edit-mode single-image upload
 	// ---------------------------------------------------------------------------
 
 	const MAX_LONG_EDGE = 2048;
 	const TARGET_QUALITY = 0.85;
-
-	function revokeAllPagePreviewBlobs(jobs: PageJob[]) {
-		for (const j of jobs) {
-			if (j.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(j.previewUrl);
-		}
-	}
-
-	function isPdfFile(file: File): boolean {
-		return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-	}
-
-	function clearOcrQueue() {
-		for (const q of ocrQueue) {
-			if (q.previewUrl.startsWith('blob:')) URL.revokeObjectURL(q.previewUrl);
-		}
-		ocrQueue = [];
-	}
-
-	function appendToOcrQueue(files: File[]) {
-		batchUploadNotice = null;
-		const sorted = [...files].sort((a, b) => {
-			const t = a.lastModified - b.lastModified;
-			if (t !== 0) return t;
-			return a.name.localeCompare(b.name);
-		});
-		const startLen = ocrQueue.length;
-		const next = [...ocrQueue];
-		for (const f of sorted) {
-			if (next.length >= MAX_BATCH_IMAGES) break;
-			const isPdf = isPdfFile(f);
-			next.push({
-				id:
-					typeof crypto !== 'undefined' && 'randomUUID' in crypto
-						? crypto.randomUUID()
-						: `q-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-				file: f,
-				previewUrl: isPdf ? '' : URL.createObjectURL(f),
-				isPdf
-			});
-		}
-		const added = next.length - startLen;
-		if (added < sorted.length) {
-			batchUploadNotice = `${sorted.length - added} file(s) did not fit (queue max ${MAX_BATCH_IMAGES}).`;
-		}
-		ocrQueue = next;
-	}
-
-	function removeQueued(id: string) {
-		ocrQueue = ocrQueue.filter((q) => {
-			if (q.id === id && q.previewUrl.startsWith('blob:')) URL.revokeObjectURL(q.previewUrl);
-			return q.id !== id;
-		});
-	}
-
-	async function copyJobError(job: PageJob) {
-		if (!browser || !job.error) return;
-		try {
-			await navigator.clipboard.writeText(job.error);
-			extractMessage = null;
-			extractInfo = 'Error text copied to clipboard.';
-			window.setTimeout(() => {
-				if (extractInfo === 'Error text copied to clipboard.') extractInfo = null;
-			}, 2500);
-		} catch {
-			extractInfo = null;
-			extractMessage = 'Could not copy — select the error text manually.';
-		}
-	}
-
-	function ocrErrorMailtoHref(job: PageJob): string {
-		const bookIdForPath = lockedBookId ?? sourceBookId;
-		const report = [
-			`ppp / library / scripture OCR`,
-			`time (local): ${new Date().toISOString()}`,
-			`book_id: ${bookIdForPath ?? '(none)'}`,
-			`job_id: ${job.id}`,
-			`storage_path: ${job.sourcePath || '(none)'}`,
-			'',
-			'--- error ---',
-			job.error ?? '(no message)'
-		].join('\n');
-		const cap = 1800;
-		const body = report.length > cap ? `${report.slice(0, cap)}\n\n[truncated for mailto length]` : report;
-		return `mailto:parker.neathery@gmail.com?subject=${encodeURIComponent('ppp library OCR error')}&body=${encodeURIComponent(body)}`;
-	}
 
 	async function downscaleImage(file: File): Promise<Blob> {
 		try {
@@ -801,478 +471,6 @@
 		extractInfo = null;
 	}
 
-	function countOcrBoundaryGroups(jobs: PageJob[]): number {
-		let n = 0;
-		for (const job of jobs) {
-			if (job.status !== 'done' || !job.candidates?.length) continue;
-			if (job.isPdf) {
-				const indices = new Set<number>();
-				for (const c of job.candidates) indices.add(sourcePageIndexForCandidate(c));
-				n += indices.size > 0 ? indices.size : 1;
-			} else {
-				n += 1;
-			}
-		}
-		return n;
-	}
-
-	function applyContinuationCarry(row: DraftRow, lastBook: string): string {
-		if (row.continuation_from_previous_page && !row.bible_book.trim() && lastBook.length > 0) {
-			row.bible_book = lastBook;
-			row.continuation_from_previous_page = false;
-			const conf = row.confidence_score ?? 1;
-			row.needs_review = conf < CONFIDENCE_REVIEW_THRESHOLD;
-			row.expanded = row.needs_review;
-			row.included = isRowSaveable(row);
-		}
-		if (row.bible_book.trim().length > 0) return row.bible_book.trim();
-		return lastBook;
-	}
-
-	function setPositionInPageSlice(out: DraftRow[], pageStartIdx: number, pageEndIdx: number) {
-		if (pageEndIdx < pageStartIdx) return;
-		const count = pageEndIdx - pageStartIdx + 1;
-		for (let i = pageStartIdx; i <= pageEndIdx; i++) {
-			if (count === 1) out[i]!.positionInPage = 'only';
-			else if (i === pageStartIdx) out[i]!.positionInPage = 'first';
-			else if (i === pageEndIdx) out[i]!.positionInPage = 'last';
-			else out[i]!.positionInPage = 'middle';
-		}
-	}
-
-	function mergeJobsIntoRows(jobs: PageJob[]): DraftRow[] {
-		const ordered = [...jobs].sort((a, b) => a.order - b.order);
-		const doneJobs = ordered.filter((j) => j.status === 'done' && j.candidates?.length);
-		const boundaryTotal = countOcrBoundaryGroups(doneJobs);
-		let lastBook = '';
-		const out: DraftRow[] = [];
-		let globalGroupIndex = 0;
-
-		for (const job of ordered) {
-			if (job.status !== 'done' || !job.candidates?.length) continue;
-
-			if (job.isPdf) {
-				const byPage = new Map<number, OcrScriptureCandidate[]>();
-				for (const c of job.candidates) {
-					const idx = sourcePageIndexForCandidate(c);
-					const list = byPage.get(idx) ?? [];
-					list.push(c);
-					byPage.set(idx, list);
-				}
-				const pageIndices = [...byPage.keys()].sort((a, b) => a - b);
-				const pdfPageTotal = pageIndices.length > 0 ? Math.max(...pageIndices) + 1 : 1;
-
-				for (const pageIdx of pageIndices) {
-					globalGroupIndex++;
-					const pageStartIdx = out.length;
-					for (const c of byPage.get(pageIdx) ?? []) {
-						const row = mapCandidateToRow(c);
-						row.source_image_url = job.sourcePath;
-						row.pageJobOrder = globalGroupIndex;
-						row.pageJobTotal = boundaryTotal;
-						row.pageJobId = job.id;
-						row.pageLabelKind = 'pdf-page';
-						row.pdfPageOrder = pageIdx + 1;
-						row.pdfPageTotal = pdfPageTotal;
-						lastBook = applyContinuationCarry(row, lastBook);
-						out.push(row);
-					}
-					setPositionInPageSlice(out, pageStartIdx, out.length - 1);
-				}
-			} else {
-				globalGroupIndex++;
-				const pageStartIdx = out.length;
-				for (const c of job.candidates) {
-					const row = mapCandidateToRow(c);
-					row.source_image_url = job.sourcePath;
-					row.pageJobOrder = globalGroupIndex;
-					row.pageJobTotal = boundaryTotal;
-					row.pageJobId = job.id;
-					row.pageLabelKind = 'file';
-					lastBook = applyContinuationCarry(row, lastBook);
-					out.push(row);
-				}
-				setPositionInPageSlice(out, pageStartIdx, out.length - 1);
-			}
-		}
-		return out;
-	}
-
-	function tryFinalizeBatchMerge() {
-		if (pages.length === 0) return;
-		if (!pages.every((p) => p.status === 'done' || p.status === 'error')) return;
-
-		const merged = mergeJobsIntoRows(pages);
-		const partialWarnings = pages
-			.map((p) => p.pdfOcrWarning)
-			.filter((w): w is string => typeof w === 'string' && w.length > 0);
-		if (merged.length > 0) {
-			rows = collapseRowsAfterMerge(merged);
-			extractInfo = partialWarnings.length > 0 ? partialWarnings.join(' ') : null;
-			extractMessage = null;
-		} else {
-			const anyDone = pages.some((p) => p.status === 'done');
-			extractInfo = anyDone
-				? 'No references detected — add manually below.'
-				: 'Could not read any page — check errors on the chips above.';
-		}
-	}
-
-	function stampSourcePageIndex(
-		candidates: OcrScriptureCandidate[],
-		pageIndex: number
-	): OcrScriptureCandidate[] {
-		return candidates.map((c) => ({
-			...c,
-			source_page_index: c.source_page_index ?? pageIndex
-		}));
-	}
-
-	function pdfOcrWarningText(failedPages: number[], pageTotal: number): string {
-		const labels = failedPages.map((i) => `page ${i + 1}/${pageTotal}`).join(', ');
-		return `OCR failed on ${labels}. Other pages were extracted — retry failed page(s) on the chip above or add rows manually.`;
-	}
-
-	function removeCandidatesForPdfPages(
-		candidates: OcrScriptureCandidate[],
-		pageIndices: number[]
-	): OcrScriptureCandidate[] {
-		const removeSet = new Set(pageIndices);
-		return candidates.filter((c) => !removeSet.has(sourcePageIndexForCandidate(c)));
-	}
-
-	async function ocrPdfPageIndices(
-		jobId: string,
-		file: File,
-		bookIdForPath: string,
-		pageIndices: number[],
-		pageTotal: number,
-		existingCandidates: OcrScriptureCandidate[]
-	): Promise<{ candidates: OcrScriptureCandidate[]; failedPages: number[] }> {
-		const supa = createClient();
-		const merged = [...existingCandidates];
-		const failedPages: number[] = [];
-
-		const { renderPdfPageToJpegBlob } = await import('$lib/library/pdf-page-render');
-
-		for (const i of pageIndices) {
-			patchPage(jobId, {
-				status: 'extracting',
-				extractLabel: pageTotal > 1 ? `Page ${i + 1}/${pageTotal}` : undefined
-			});
-			try {
-				const jpegBlob = await renderPdfPageToJpegBlob(file, i);
-				const jpgPath = scriptureImagePath({ userId, bookId: bookIdForPath, ext: 'jpg' });
-				const { error: jpgErr } = await supa.storage
-					.from(SCRIPTURE_IMAGES_BUCKET)
-					.upload(jpgPath, jpegBlob, { contentType: 'image/jpeg', upsert: false });
-				if (jpgErr) {
-					failedPages.push(i);
-					continue;
-				}
-				const pageResult = await invokeOcrScriptureRefs(supa, {
-					object_path: jpgPath,
-					mime_type: 'image/jpeg',
-					book_id: bookIdForPath
-				});
-				if (!pageResult.ok) {
-					failedPages.push(i);
-					continue;
-				}
-				merged.push(...stampSourcePageIndex(pageResult.data.candidates, i));
-			} catch {
-				failedPages.push(i);
-			}
-		}
-
-		return { candidates: merged, failedPages };
-	}
-
-	async function retryFailedPdfPages(job: PageJob) {
-		if (!job.sourceFile || !job.failedPdfPages?.length || !job.sourcePath) return;
-		const bookIdForPath = lockedBookId ?? sourceBookId;
-		if (!bookIdForPath) return;
-
-		const { getPdfPageCountFromFile } = await import('$lib/library/pdf-page-render');
-		const pageTotal = await getPdfPageCountFromFile(job.sourceFile);
-		const indices = [...job.failedPdfPages];
-		patchPage(job.id, {
-			status: 'extracting',
-			error: undefined,
-			pdfOcrWarning: undefined,
-			extractLabel: undefined
-		});
-
-		const kept = removeCandidatesForPdfPages(job.candidates ?? [], indices);
-		const { candidates, failedPages } = await ocrPdfPageIndices(
-			job.id,
-			job.sourceFile,
-			bookIdForPath,
-			indices,
-			pageTotal,
-			kept
-		);
-
-		if (candidates.length === 0) {
-			patchPage(job.id, {
-				status: 'error',
-				error: `OCR failed on all pages (${indices.map((i) => i + 1).join(', ')}).`,
-				candidates: undefined,
-				failedPdfPages: failedPages.length > 0 ? failedPages : indices,
-				extractLabel: undefined
-			});
-		} else {
-			patchPage(job.id, {
-				status: 'done',
-				candidates,
-				failedPdfPages: failedPages.length > 0 ? failedPages : undefined,
-				pdfOcrWarning:
-					failedPages.length > 0 ? pdfOcrWarningText(failedPages, pageTotal) : undefined,
-				extractLabel: undefined
-			});
-		}
-		tryFinalizeBatchMerge();
-	}
-
-	function setPageExtractLabel(id: string, label: string | undefined) {
-		if (pageExtractLabels[id] === label) return;
-		pageExtractLabels = { ...pageExtractLabels, [id]: label };
-	}
-
-	function patchPage(id: string, patch: Partial<PageJob>) {
-		const { extractLabel, ...pagePatch } = patch;
-		if ('extractLabel' in patch) {
-			setPageExtractLabel(id, extractLabel);
-		}
-		if (Object.keys(pagePatch).length > 0) {
-			pages = pages.map((p) => (p.id === id ? { ...p, ...pagePatch } : p));
-		}
-	}
-
-	async function runPagePipeline(jobId: string, file: File) {
-		const bookIdForPath = lockedBookId ?? sourceBookId;
-		if (!bookIdForPath) {
-			patchPage(jobId, {
-				status: 'error',
-				error: 'Pick a source book before uploading images.'
-			});
-			tryFinalizeBatchMerge();
-			return;
-		}
-
-		const isPdf = isPdfFile(file);
-		patchPage(jobId, { isPdf, sourceFile: isPdf ? file : undefined });
-
-		let mime = 'image/jpeg';
-		let objectPath = '';
-		let previewUrl: string | null = null;
-
-		try {
-			const supa = createClient();
-			if (isPdf) {
-				mime = 'application/pdf';
-				objectPath = scriptureImagePath({ userId, bookId: bookIdForPath, ext: 'pdf' });
-				patchPage(jobId, { previewUrl: null, status: 'uploading' });
-				const { error: upErr } = await supa.storage
-					.from(SCRIPTURE_IMAGES_BUCKET)
-					.upload(objectPath, file, { contentType: mime, upsert: false });
-				if (upErr) {
-					patchPage(jobId, {
-						status: 'error',
-						error: upErr.message ?? 'Upload failed.',
-						sourcePath: ''
-					});
-					tryFinalizeBatchMerge();
-					return;
-				}
-			} else {
-				const blob = await downscaleImage(file);
-				mime = blob.type || 'image/jpeg';
-				const ext = mime.split('/')[1] ?? 'jpg';
-				objectPath = scriptureImagePath({ userId, bookId: bookIdForPath, ext });
-				previewUrl = URL.createObjectURL(blob);
-				patchPage(jobId, { previewUrl, status: 'uploading' });
-
-				const { error: upErr } = await supa.storage
-					.from(SCRIPTURE_IMAGES_BUCKET)
-					.upload(objectPath, blob, { contentType: mime, upsert: false });
-				if (upErr) {
-					patchPage(jobId, {
-						status: 'error',
-						error: upErr.message ?? 'Upload failed.',
-						sourcePath: '',
-						previewUrl
-					});
-					tryFinalizeBatchMerge();
-					return;
-				}
-			}
-
-			patchPage(jobId, { sourcePath: objectPath, status: 'extracting', previewUrl, extractLabel: undefined });
-
-			const invokeBase = {
-				object_path: objectPath,
-				mime_type: mime,
-				book_id: bookIdForPath
-			};
-
-			if (isPdf) {
-				let pageTotal: number;
-				try {
-					const { getPdfPageCountFromFile } = await import('$lib/library/pdf-page-render');
-					pageTotal = await getPdfPageCountFromFile(file);
-				} catch (e) {
-					patchPage(jobId, {
-						status: 'error',
-						error: e instanceof Error ? e.message : 'Could not read PDF page count.',
-						sourcePath: objectPath,
-						previewUrl
-					});
-					tryFinalizeBatchMerge();
-					return;
-				}
-				const pageIndices = Array.from({ length: pageTotal }, (_, i) => i);
-				const { candidates, failedPages } = await ocrPdfPageIndices(
-					jobId,
-					file,
-					bookIdForPath,
-					pageIndices,
-					pageTotal,
-					[]
-				);
-
-				if (candidates.length === 0) {
-					patchPage(jobId, {
-						status: 'error',
-						error:
-							failedPages.length > 0
-								? `OCR failed on all pages (${failedPages.map((i) => i + 1).join(', ')}/${pageTotal}).`
-								: 'No references detected in PDF.',
-						sourcePath: objectPath,
-						previewUrl,
-						failedPdfPages: failedPages.length > 0 ? failedPages : undefined,
-						extractLabel: undefined
-					});
-				} else {
-					patchPage(jobId, {
-						status: 'done',
-						candidates,
-						sourcePath: objectPath,
-						previewUrl,
-						failedPdfPages: failedPages.length > 0 ? failedPages : undefined,
-						pdfOcrWarning:
-							failedPages.length > 0 ? pdfOcrWarningText(failedPages, pageTotal) : undefined,
-						extractLabel: undefined
-					});
-				}
-			} else {
-				const ocrResult = await invokeOcrScriptureRefs(supa, invokeBase);
-				if (!ocrResult.ok) {
-					patchPage(jobId, {
-						status: 'error',
-						error: ocrResult.message,
-						sourcePath: objectPath,
-						previewUrl
-					});
-					tryFinalizeBatchMerge();
-					return;
-				}
-				patchPage(jobId, {
-					status: 'done',
-					candidates: ocrResult.data.candidates,
-					sourcePath: objectPath,
-					previewUrl
-				});
-			}
-		} catch (e) {
-			patchPage(jobId, {
-				status: 'error',
-				error: formatOcrPipelineError(e),
-				sourcePath: objectPath
-			});
-		}
-		tryFinalizeBatchMerge();
-	}
-
-	async function startBatchFromFiles(fileArr: File[]) {
-		if (fileArr.length === 0) return;
-
-		uploadError = null;
-		extractMessage = null;
-		extractInfo = null;
-		batchUploadNotice = null;
-
-		const sorted = [...fileArr].sort((a, b) => {
-			const t = a.lastModified - b.lastModified;
-			if (t !== 0) return t;
-			return a.name.localeCompare(b.name);
-		});
-
-		revokeAllPagePreviewBlobs(pages);
-
-		const newJobs: PageJob[] = sorted.map((f, i) => ({
-			id:
-				typeof crypto !== 'undefined' && 'randomUUID' in crypto
-					? crypto.randomUUID()
-					: `p-${Date.now()}-${i}`,
-			order: i,
-			sourcePath: '',
-			previewUrl: null,
-			status: 'uploading' as const,
-			isPdf: isPdfFile(f)
-		}));
-		pages = newJobs;
-		pageExtractLabels = {};
-		if (lockedBookId) clearScriptureBatchDraft(lockedBookId);
-
-		await acquireWakeLock();
-		try {
-			await runWithConcurrency(newJobs, 2, async (job, i) => {
-				await runPagePipeline(job.id, sorted[i]!);
-			});
-		} finally {
-			releaseWakeLock();
-		}
-	}
-
-	function enqueueGalleryFiles(e: Event) {
-		const input = e.currentTarget as HTMLInputElement;
-		const list = input.files;
-		if (!list?.length) return;
-		appendToOcrQueue(Array.from(list));
-		input.value = '';
-	}
-
-	function enqueueCameraFile(e: Event) {
-		const input = e.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
-		appendToOcrQueue([file]);
-		input.value = '';
-	}
-
-	function runQueuedExtract() {
-		if (ocrQueue.length === 0 || ocrPipelineBusy) return;
-		const files = ocrQueue.map((q) => q.file);
-		clearOcrQueue();
-		void startBatchFromFiles(files);
-	}
-
-	async function handleBatchFilesChange(e: Event) {
-		enqueueGalleryFiles(e);
-	}
-
-	function clearBatchPages() {
-		revokeAllPagePreviewBlobs(pages);
-		pages = [];
-		pageExtractLabels = {};
-		clearOcrQueue();
-		batchUploadNotice = null;
-		extractMessage = null;
-		extractInfo = null;
-		if (lockedBookId) clearScriptureBatchDraft(lockedBookId);
-	}
-
 	async function saveBatchChunked(): Promise<string[]> {
 		const payload = buildRowsJsonPayload(rows);
 		if (payload.length === 0) {
@@ -1308,10 +506,7 @@
 		return allRefIds;
 	}
 
-	// Edit mode submits one row's worth of fields in the legacy single-row
-	// contract; batch mode submits rows_json. We render hidden inputs for the
-	// edit contract from rows[0] when isEdit is true.
-	const editRow = $derived(rows[0] ?? blankRow());
+	const editRow = $derived(rows[0] ?? blankDraftRow());
 
 	const submitEnhance: SubmitFunction = ({ cancel }) => {
 		if (!isEdit) {
@@ -1324,12 +519,11 @@
 					const refIds = await saveBatchChunked();
 					if (lockedBookId) clearScriptureBatchDraft(lockedBookId);
 					if (browser) {
-						rows = [blankRow()];
+						rows = [blankDraftRow()];
 						source_image_url = '';
 						revokeAllPagePreviewBlobs(pages);
 						pages = [];
 						pageExtractLabels = {};
-						clearOcrQueue();
 						if (preview_url && preview_url.startsWith('blob:'))
 							URL.revokeObjectURL(preview_url);
 						preview_url = null;
@@ -1353,9 +547,6 @@
 			}
 		};
 	};
-
-	const continuationNeedsBook = (r: DraftRow) =>
-		continuationNeedsBookRow(r.continuation_from_previous_page, r.bible_book);
 
 	$effect(() => {
 		if (!browser || isEdit || !lockedBookId || draftBannerSuppressed) return;
@@ -1403,7 +594,6 @@
 
 	{#if isEdit && existingRef}
 		<input type="hidden" name="id" value={existingRef.id} />
-		<!-- Edit mode posts to ?/updateScriptureRef which expects single-row fields. -->
 		<input type="hidden" name="bible_book" value={editRow.bible_book} />
 		<input type="hidden" name="chapter_start" value={editRow.chapter_start} />
 		<input type="hidden" name="verse_start" value={editRow.verse_start} />
@@ -1463,203 +653,22 @@
 	<SourcePicker bind:value={parent} {books} {lockedBookId} />
 
 	{#if !isEdit}
-		<div class="space-y-2">
-			<Label for="sr-img-multi">Source images / PDF <span class="text-xs text-muted-foreground">(optional, OCR — up to 10)</span></Label>
-			<div class="flex flex-wrap items-center gap-2">
-				<label class="inline-flex">
-					<span
-						class="inline-flex h-11 cursor-pointer items-center rounded-md border border-dashed border-input bg-background px-3 text-sm hover:bg-muted"
-					>
-						Choose photos or PDF
-					</span>
-					<input
-						id="sr-img-multi"
-						type="file"
-						multiple
-						accept="image/*,application/pdf"
-						onchange={handleBatchFilesChange}
-						class="hidden"
-					/>
-				</label>
-				<label class="inline-flex">
-					<span
-						class="inline-flex h-11 cursor-pointer items-center rounded-md border border-dashed border-input bg-background px-3 text-sm hover:bg-muted"
-					>
-						Take photo
-					</span>
-					<input
-						id="sr-img-camera"
-						type="file"
-						accept="image/*"
-						capture="environment"
-						onchange={enqueueCameraFile}
-						class="hidden"
-					/>
-				</label>
-				<Button
-					type="button"
-					variant="secondary"
-					size="sm"
-					class="h-11"
-					disabled={ocrQueue.length === 0 || ocrPipelineBusy}
-					onclick={runQueuedExtract}
-					hotkey="g"
-				>
-					Run OCR{ocrQueue.length > 0 ? ` (${ocrQueue.length})` : ''}
-				</Button>
-				{#if pages.length > 0 || ocrQueue.length > 0}
-					<Button type="button" variant="ghost" size="sm" onclick={clearBatchPages}>
-						Clear queue & pages
-					</Button>
-				{/if}
-			</div>
-			{#if ocrQueue.length > 0}
-				<div class="flex flex-wrap gap-2" aria-label="Queued photos before OCR">
-					{#each ocrQueue as q (q.id)}
-						<div class="relative w-16 shrink-0">
-							{#if q.isPdf}
-								<div
-									class="flex aspect-[3/4] w-full flex-col items-center justify-center gap-1 rounded-md border border-border bg-muted/40 px-1"
-									aria-label="PDF queued"
-								>
-									<FileText class="size-6 text-muted-foreground" aria-hidden="true" />
-									<span class="text-[9px] font-medium uppercase tracking-wide text-muted-foreground"
-										>PDF</span
-									>
-								</div>
-							{:else}
-								<img
-									src={q.previewUrl}
-									alt=""
-									class="aspect-[3/4] w-full rounded-md border border-border object-cover"
-								/>
-							{/if}
-							<Button
-								type="button"
-								variant="secondary"
-								size="icon"
-								class="absolute -right-1 -top-1 h-7 w-7 rounded-full shadow-sm"
-								onclick={() => removeQueued(q.id)}
-								aria-label="Remove from queue"
-							>
-								<X class="h-3.5 w-3.5" />
-							</Button>
-						</div>
-					{/each}
-				</div>
-			{/if}
-			{#if batchUploadNotice}
-				<p class="text-xs text-amber-700 dark:text-amber-400" role="status">{batchUploadNotice}</p>
-			{/if}
-			{#if pages.length > 0}
-				<div class="flex flex-wrap gap-3" aria-label="OCR page status">
-					{#each pages as job (job.id)}
-						<div
-							class={cn(
-								'flex flex-col gap-1 rounded-md border border-border bg-muted/30 p-2 text-[10px]',
-								job.error || job.pdfOcrWarning || job.failedPdfPages?.length
-									? 'min-w-[min(100%,20rem)] max-w-full sm:max-w-md'
-									: 'w-[4.5rem]'
-							)}
-						>
-							{#if job.previewUrl}
-								<img
-									src={job.previewUrl}
-									alt=""
-									class={cn(
-										'rounded object-cover',
-										job.error ? 'mx-auto aspect-[3/4] max-h-40 w-auto' : 'aspect-[3/4] w-full'
-									)}
-								/>
-							{:else if job.isPdf}
-								<div
-									class={cn(
-										'flex flex-col items-center justify-center gap-1 rounded border border-border bg-muted/40',
-										job.error ? 'aspect-[3/4] max-h-40 min-h-[6rem] w-full' : 'aspect-[3/4] w-full'
-									)}
-								>
-									<FileText class="size-6 text-muted-foreground" aria-hidden="true" />
-									<span class="text-[9px] font-medium uppercase tracking-wide text-muted-foreground"
-										>PDF</span
-									>
-								</div>
-							{:else}
-								<div
-									class={cn(
-										'flex items-center justify-center rounded bg-muted text-muted-foreground',
-										job.error ? 'aspect-[3/4] max-h-40 min-h-[6rem] w-full' : 'aspect-[3/4] w-full'
-									)}
-								>
-									…
-								</div>
-							{/if}
-							<span
-								class={cn(
-									'rounded px-1 py-0.5 text-center font-medium uppercase tracking-wide',
-									job.status === 'done' && 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
-									job.status === 'error' && 'bg-destructive/15 text-destructive',
-									(job.status === 'uploading' || job.status === 'extracting') &&
-										'bg-amber-500/15 text-amber-900 dark:text-amber-200'
-								)}
-							>
-								{#if job.status === 'extracting' && (pageExtractLabels[job.id] ?? job.extractLabel)}
-									{pageExtractLabels[job.id] ?? job.extractLabel}
-								{:else}
-									{job.status}
-								{/if}
-							</span>
-							{#if job.pdfOcrWarning}
-								<p
-									class="max-w-full whitespace-pre-wrap break-words rounded border border-amber-500/30 bg-amber-500/10 p-2 text-[10px] leading-snug text-amber-900 dark:text-amber-200"
-									role="status"
-								>
-									{job.pdfOcrWarning}
-								</p>
-							{/if}
-							{#if job.failedPdfPages?.length && job.sourceFile}
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									class="w-full"
-									disabled={job.status === 'extracting'}
-									onclick={() => void retryFailedPdfPages(job)}
-								>
-									Retry failed pages
-								</Button>
-							{/if}
-							{#if job.error}
-								<pre
-									class="max-h-40 select-all overflow-auto whitespace-pre-wrap break-words rounded border border-destructive/20 bg-destructive/5 p-2 text-[10px] leading-snug text-destructive"
-									role="alert"
-								>{job.error}</pre>
-								<div class="flex flex-wrap items-center gap-2">
-									<Button type="button" variant="outline" size="sm" onclick={() => void copyJobError(job)}>
-										<Copy class="mr-1 h-3 w-3" />
-										Copy error
-									</Button>
-									<a
-										href={ocrErrorMailtoHref(job)}
-										class="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs font-medium hover:bg-muted"
-									>
-										<Mail class="h-3 w-3" />
-										Email report
-									</a>
-								</div>
-							{/if}
-						</div>
-					{/each}
-				</div>
-			{/if}
-			{#if extractMessage}
-				<p class="text-xs text-destructive" role="alert">{extractMessage}</p>
-			{/if}
-			{#if extractInfo}
-				<p class="text-xs text-muted-foreground" role="status">{extractInfo}</p>
-			{/if}
-		</div>
+		{#key seedKey}
+			<ScriptureOcrQueue
+				{userId}
+				{lockedBookId}
+				{sourceBookId}
+				bind:pages
+				bind:rows
+				bind:pageExtractLabels
+				bind:batchUploadNotice
+				bind:extractMessage
+				bind:extractInfo
+				bind:ocrPipelineBusy
+				onDraftClear={() => lockedBookId && clearScriptureBatchDraft(lockedBookId)}
+			/>
+		{/key}
 	{:else}
-		<!-- Edit mode: single shared image -->
 		<div class="space-y-2">
 			<Label for="sr-img">
 				Source image <span class="text-xs text-muted-foreground">(optional)</span>
@@ -1717,7 +726,6 @@
 		</div>
 	{/if}
 
-	<!-- Rows -->
 	<div class="flex flex-col gap-3">
 		{#if !isEdit}
 			<div
@@ -1775,621 +783,49 @@
 			{#if useRowWindow && rowWindow.topSpacer > 0}
 				<div aria-hidden="true" style:height="{rowWindow.topSpacer}px"></div>
 			{/if}
-		{#each visibleRows as row, localIdx (row.key)}
-			{@const idx = useRowWindow ? rowWindow.start + localIdx : localIdx}
-			{#if !isEdit && idx > 0 && row.pageJobOrder > 0 && rows[idx - 1]!.pageJobOrder !== row.pageJobOrder}
-				<div
-					class="flex items-center gap-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
-					role="separator"
-				>
-					<span class="h-px min-w-4 flex-1 bg-border"></span>
-					<span class="inline-flex shrink-0 items-center gap-1.5">
-						<MapPin class="size-3 text-amber-600/80 dark:text-amber-400/80" aria-hidden="true" />
-						{#if row.pageLabelKind === 'pdf-page'}
-							Page {row.pdfPageOrder} / {row.pdfPageTotal}
-						{:else}
-							from page {row.pageJobOrder} of {row.pageJobTotal}
-						{/if}
-						{#if pageJobPreviewUrl(row.pageJobId)}
-							<img
-								src={pageJobPreviewUrl(row.pageJobId)!}
-								alt=""
-								class="ml-1 inline-block h-7 w-5 rounded border border-border object-cover"
-							/>
-						{/if}
-					</span>
-					<span class="h-px min-w-4 flex-1 bg-border"></span>
-				</div>
-			{/if}
-			{#if isEdit}
-				<div
-					class="flex flex-col gap-3 rounded-lg border border-border/70 bg-muted/20 p-3"
-					aria-label={`Reference row ${idx + 1}`}
-				>
-					<div class="flex items-center justify-between">
-						<span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-							Reference
+			{#each visibleRows as row, localIdx (row.key)}
+				{@const idx = useRowWindow ? rowWindow.start + localIdx : localIdx}
+				{#if !isEdit && idx > 0 && row.pageJobOrder > 0 && rows[idx - 1]!.pageJobOrder !== row.pageJobOrder}
+					<div
+						class="flex items-center gap-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+						role="separator"
+					>
+						<span class="h-px min-w-4 flex-1 bg-border"></span>
+						<span class="inline-flex shrink-0 items-center gap-1.5">
+							<MapPin class="size-3 text-amber-600/80 dark:text-amber-400/80" aria-hidden="true" />
+							{#if row.pageLabelKind === 'pdf-page'}
+								Page {row.pdfPageOrder} / {row.pdfPageTotal}
+							{:else}
+								from page {row.pageJobOrder} of {row.pageJobTotal}
+							{/if}
+							{#if pageJobPreviewUrl(row.pageJobId)}
+								<img
+									src={pageJobPreviewUrl(row.pageJobId)!}
+									alt=""
+									class="ml-1 inline-block h-7 w-5 rounded border border-border object-cover"
+								/>
+							{/if}
 						</span>
-					</div>
-
-					<div class="grid gap-3 sm:grid-cols-[1fr_2fr]">
-						<div class="space-y-2">
-							<Label for={`sr-bible-${row.key}`}>
-								Bible book <span class="text-destructive">*</span>
-							</Label>
-							<div class="sm:hidden">
-								<Button
-									type="button"
-									id={`sr-bible-${row.key}`}
-									variant="outline"
-									class="h-12 min-h-11 w-full justify-between px-3 text-base font-normal"
-									onclick={() => openBiblePicker(row.key)}
-								>
-									<span class="truncate text-left">
-										{row.bible_book.length > 0 ? row.bible_book : '— Pick a book —'}
-									</span>
-								</Button>
-							</div>
-							<div class="hidden sm:block">
-								<Select.Root
-									type="single"
-									value={row.bible_book}
-									onValueChange={(v) => setRowBibleBook(row.key, v ?? '')}
-									items={bibleBookItems}
-								>
-									<Select.Trigger
-										id={`sr-bible-dsk-${row.key}`}
-										size="default"
-										class="h-11 w-full justify-between px-3"
-									>
-										<span data-slot="select-value" class="truncate text-left">
-											{row.bible_book.length > 0 ? row.bible_book : '— Pick a book —'}
-										</span>
-									</Select.Trigger>
-									<Select.Content class="max-h-72">
-										{#each bibleBookItems as b (b.value)}
-											<Select.Item value={b.value} label={b.label} class="min-h-10 py-2">
-												{b.label}
-											</Select.Item>
-										{/each}
-									</Select.Content>
-								</Select.Root>
-							</div>
-						</div>
-
-						<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2">
-							<div class="space-y-1">
-								<Label for={`sr-cs-${row.key}`} class="text-xs">Chapter</Label>
-								<Input
-									id={`sr-cs-${row.key}`}
-									type="number"
-									inputmode="numeric"
-									min="0"
-									max="199"
-									bind:value={row.chapter_start}
-									class="h-12 min-h-11 text-base tabular-nums sm:h-11"
-								/>
-							</div>
-							<div class="space-y-1">
-								<Label for={`sr-vs-${row.key}`} class="text-xs">Verse</Label>
-								<Input
-									id={`sr-vs-${row.key}`}
-									type="number"
-									inputmode="numeric"
-									min="0"
-									max="999"
-									bind:value={row.verse_start}
-									class="h-12 min-h-11 text-base tabular-nums sm:h-11"
-								/>
-							</div>
-							<div class="space-y-1">
-								<Label for={`sr-ce-${row.key}`} class="text-xs">to Ch.</Label>
-								<Input
-									id={`sr-ce-${row.key}`}
-									type="number"
-									inputmode="numeric"
-									min="0"
-									max="199"
-									bind:value={row.chapter_end}
-									class="h-12 min-h-11 text-base tabular-nums sm:h-11"
-								/>
-							</div>
-							<div class="space-y-1">
-								<Label for={`sr-ve-${row.key}`} class="text-xs">to Vs.</Label>
-								<Input
-									id={`sr-ve-${row.key}`}
-									type="number"
-									inputmode="numeric"
-									min="0"
-									max="999"
-									bind:value={row.verse_end}
-									class="h-12 min-h-11 text-base tabular-nums sm:h-11"
-								/>
-							</div>
-						</div>
-					</div>
-
-					<div class="grid gap-3 sm:grid-cols-2">
-						<div class="space-y-1">
-							<Label for={`sr-ps-${row.key}`} class="text-xs">
-								Page start <span class="text-destructive">*</span>
-							</Label>
-							<Input
-								id={`sr-ps-${row.key}`}
-								bind:value={row.page_start}
-								placeholder="e.g. 317, IV.317, xiv"
-								class="h-12 min-h-11 text-base sm:h-11"
-							/>
-						</div>
-						<div class="space-y-1">
-							<Label for={`sr-pe-${row.key}`} class="text-xs">Page end</Label>
-							<Input
-								id={`sr-pe-${row.key}`}
-								bind:value={row.page_end}
-								placeholder="(blank for single page)"
-								class="h-12 min-h-11 text-base sm:h-11"
-							/>
-						</div>
-					</div>
-
-					<div class="space-y-2">
-						<label class="flex items-center gap-2 text-xs">
-							<input type="checkbox" bind:checked={row.needs_review} class="size-4" />
-							<span>Needs review</span>
-						</label>
-						{#if row.needs_review}
-							<textarea
-								bind:value={row.review_note}
-								rows={2}
-								class="flex min-h-16 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-								placeholder="Why does this need review?"
-							></textarea>
-						{/if}
-					</div>
-				</div>
-			{:else}
-				{#if !row.expanded}
-					<div
-						class={cn(
-							'flex min-h-11 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-2 py-1 sm:hidden',
-							rowShowsPageEdge(row) && 'border-l-2 border-l-amber-400/60',
-							pulseRowKeys[row.key] && 'bg-emerald-500/15 ring-1 ring-emerald-500/40',
-							continuationNeedsBook(row) && 'border-amber-500/50 bg-amber-500/10'
-						)}
-						aria-label={`Reference row ${idx + 1} (compact)`}
-					>
-						<input
-							type="checkbox"
-							class="size-4 shrink-0 max-md:h-11 max-md:w-11"
-							checked={row.included}
-							disabled={!isRowSaveable(row)}
-							aria-label="Include in save"
-							onchange={(e) =>
-								setRowIncluded(row.key, (e.currentTarget as HTMLInputElement).checked)}
-						/>
-						<button
-							type="button"
-							class="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
-							onclick={() => toggleRowExpanded(row.key)}
-							onkeydown={(e) => handleStripKeydown(e, row.key)}
-						>
-							<span class="min-w-0 flex-1 truncate font-medium text-foreground">
-								{formatRowStripLabel(row)}
-							</span>
-							{#if row.confidence_score != null}
-								<span class={cn('shrink-0 text-xs tabular-nums', confidenceStripClass(row.confidence_score))}>
-									{Math.round(row.confidence_score * 100)}%
-								</span>
-							{/if}
-						</button>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							class="size-9 shrink-0"
-							aria-label="Expand row"
-							onclick={() => toggleRowExpanded(row.key)}
-						>
-							<ChevronDown class="size-4" />
-						</Button>
-					</div>
-					<div
-						class={cn(
-							'hidden min-h-9 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-2 py-1 sm:flex',
-							rowShowsPageEdge(row) && 'border-l-2 border-l-amber-400/60',
-							pulseRowKeys[row.key] && 'bg-emerald-500/15 ring-1 ring-emerald-500/40',
-							continuationNeedsBook(row) && 'border-amber-500/50 bg-amber-500/10'
-						)}
-						aria-label={`Reference row ${idx + 1} (compact)`}
-					>
-						<input
-							type="checkbox"
-							class="size-3.5 shrink-0"
-							checked={row.included}
-							disabled={!isRowSaveable(row)}
-							aria-label="Include in save"
-							onchange={(e) =>
-								setRowIncluded(row.key, (e.currentTarget as HTMLInputElement).checked)}
-						/>
-						<button
-							type="button"
-							class="flex min-w-0 flex-1 items-center gap-2 text-left text-xs"
-							onclick={() => toggleRowExpanded(row.key)}
-							onkeydown={(e) => handleStripKeydown(e, row.key)}
-						>
-							<span class="min-w-0 flex-1 truncate">{formatRowStripLabel(row)}</span>
-							{#if row.confidence_score != null}
-								<span class={cn('shrink-0 tabular-nums', confidenceStripClass(row.confidence_score))}>
-									{Math.round(row.confidence_score * 100)}%
-								</span>
-							{/if}
-						</button>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							class="size-8 shrink-0"
-							aria-label="Expand row"
-							onclick={() => toggleRowExpanded(row.key)}
-						>
-							<ChevronDown class="size-3.5" />
-						</Button>
+						<span class="h-px min-w-4 flex-1 bg-border"></span>
 					</div>
 				{/if}
-				{#if row.expanded}
-				<!-- Mobile: card -->
-				<div
-					class={cn(
-						'flex flex-col gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 sm:hidden',
-						rowShowsPageEdge(row) && 'border-l-2 border-l-amber-400/60',
-						continuationNeedsBook(row) && 'border-amber-500/50 bg-amber-500/10'
-					)}
-					aria-label={`Reference row ${idx + 1}`}
-				>
-					<div class="flex items-center justify-between">
-						<span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-							Row {idx + 1}
-						</span>
-						<div class="flex gap-1">
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onclick={() => toggleRowExpanded(row.key)}
-								aria-label="Collapse row"
-							>
-								<ChevronUp class="size-3.5" /> Collapse
-							</Button>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onclick={() => duplicateRow(idx)}
-								aria-label="Duplicate row"
-							>
-								<Copy class="size-3.5" /> Duplicate
-							</Button>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onclick={() => removeRow(idx)}
-								aria-label="Remove row"
-								class="text-destructive hover:text-destructive"
-							>
-								<X class="size-3.5" />
-							</Button>
-						</div>
-					</div>
-					{#if continuationNeedsBook(row)}
-						<p class="text-xs font-medium text-amber-900 dark:text-amber-200">
-							Choose the Bible book — this line continues from the previous page.
-						</p>
-					{/if}
-
-					<div class="grid gap-3 sm:grid-cols-[1fr_2fr]">
-						<div class="space-y-2">
-							<Label for={`sr-bible-m-${row.key}`}>
-								Bible book <span class="text-destructive">*</span>
-							</Label>
-							<Button
-								type="button"
-								id={`sr-bible-m-${row.key}`}
-								variant="outline"
-								class={cn(
-									'h-12 min-h-11 w-full justify-between px-3 text-base font-normal',
-									continuationNeedsBook(row) &&
-										'border-destructive/40 bg-destructive/5 text-destructive'
-								)}
-								onclick={() => openBiblePicker(row.key)}
-							>
-								<span class="truncate text-left">
-									{continuationNeedsBook(row)
-										? 'Choose book — continues from previous page'
-										: row.bible_book.length > 0
-											? row.bible_book
-											: '— Pick a book —'}
-								</span>
-							</Button>
-						</div>
-
-						<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2">
-							<div class="space-y-1">
-								<Label for={`sr-cs-m-${row.key}`} class="text-xs">Chapter</Label>
-								<Input
-									id={`sr-cs-m-${row.key}`}
-									type="number"
-									inputmode="numeric"
-									min="0"
-									max="199"
-									bind:value={row.chapter_start}
-									class="h-12 min-h-11 text-base tabular-nums sm:h-11"
-								/>
-							</div>
-							<div class="space-y-1">
-								<Label for={`sr-vs-m-${row.key}`} class="text-xs">Verse</Label>
-								<Input
-									id={`sr-vs-m-${row.key}`}
-									type="number"
-									inputmode="numeric"
-									min="0"
-									max="999"
-									bind:value={row.verse_start}
-									class="h-12 min-h-11 text-base tabular-nums sm:h-11"
-								/>
-							</div>
-							<div class="space-y-1">
-								<Label for={`sr-ce-m-${row.key}`} class="text-xs">to Ch.</Label>
-								<Input
-									id={`sr-ce-m-${row.key}`}
-									type="number"
-									inputmode="numeric"
-									min="0"
-									max="199"
-									bind:value={row.chapter_end}
-									class="h-12 min-h-11 text-base tabular-nums sm:h-11"
-								/>
-							</div>
-							<div class="space-y-1">
-								<Label for={`sr-ve-m-${row.key}`} class="text-xs">to Vs.</Label>
-								<Input
-									id={`sr-ve-m-${row.key}`}
-									type="number"
-									inputmode="numeric"
-									min="0"
-									max="999"
-									bind:value={row.verse_end}
-									class="h-12 min-h-11 text-base tabular-nums sm:h-11"
-								/>
-							</div>
-						</div>
-					</div>
-
-					<div class="grid gap-3 sm:grid-cols-2">
-						<div class="space-y-1">
-							<Label for={`sr-ps-m-${row.key}`} class="text-xs">
-								Page start <span class="text-destructive">*</span>
-							</Label>
-							<Input
-								id={`sr-ps-m-${row.key}`}
-								bind:value={row.page_start}
-								placeholder="e.g. 317, IV.317, xiv"
-								class="h-12 min-h-11 text-base sm:h-11"
-							/>
-						</div>
-						<div class="space-y-1">
-							<Label for={`sr-pe-m-${row.key}`} class="text-xs">Page end</Label>
-							<Input
-								id={`sr-pe-m-${row.key}`}
-								bind:value={row.page_end}
-								placeholder="(blank for single page)"
-								class="h-12 min-h-11 text-base sm:h-11"
-							/>
-						</div>
-					</div>
-
-					<div class="flex flex-wrap items-center gap-2 text-xs">
-						<label class="flex items-center gap-2">
-							<input
-								type="checkbox"
-								class="size-4"
-								checked={row.included}
-								disabled={!isRowSaveable(row)}
-								aria-label="Include in save"
-								onchange={(e) =>
-									setRowIncluded(row.key, (e.currentTarget as HTMLInputElement).checked)}
-							/>
-							<span>Include in save</span>
-						</label>
-						<label class="flex items-center gap-2">
-							<input type="checkbox" bind:checked={row.needs_review} class="size-4" />
-							<span>Needs review</span>
-						</label>
-						{#if row.needs_review}
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								class="h-8 px-2"
-								onclick={() => toggleReviewNote(row.key)}
-								aria-expanded={reviewNoteOpen[row.key] === true}
-								aria-label="Edit review note"
-							>
-								<MessageSquare class="size-3.5" />
-								Note
-							</Button>
-						{/if}
-					</div>
-					{#if row.needs_review && reviewNoteOpen[row.key]}
-						<textarea
-							bind:value={row.review_note}
-							rows={2}
-							class="flex min-h-16 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-							placeholder="Why does this need review?"
-						></textarea>
-					{/if}
-				</div>
-
-				<!-- Desktop: compact grid -->
-				<div class="hidden sm:block">
-					<div
-						class={cn(
-							'min-w-[48rem] rounded-lg border border-border/70 bg-muted/20 px-2 py-1.5',
-							rowShowsPageEdge(row) && 'border-l-2 border-l-amber-400/60',
-							continuationNeedsBook(row) && 'border-amber-500/50 bg-amber-500/10'
-						)}
-					>
-						<div
-							class="grid grid-cols-[minmax(8rem,10rem)_3.5rem_3.5rem_1.25rem_3.5rem_3.5rem_7rem_7rem_auto_minmax(6rem,1fr)] items-center gap-1"
-						>
-							<div class="min-w-0">
-								{#if continuationNeedsBook(row)}
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										class="h-8 w-full border-destructive/40 bg-destructive/5 px-2 text-xs text-destructive"
-										onclick={() => openBiblePicker(row.key)}
-									>
-										<span class="line-clamp-2 text-left leading-tight">
-											Choose book — continues from previous page
-										</span>
-									</Button>
-								{:else}
-									<Select.Root
-										type="single"
-										value={row.bible_book}
-										onValueChange={(v) => setRowBibleBook(row.key, v ?? '')}
-										items={bibleBookItems}
-									>
-										<Select.Trigger
-											size="sm"
-											class="h-8 w-full min-w-0 justify-between px-2 text-xs"
-											aria-label="Bible book"
-										>
-											<span data-slot="select-value" class="truncate text-left">
-												{row.bible_book.length > 0 ? row.bible_book : 'Book'}
-											</span>
-										</Select.Trigger>
-										<Select.Content class="max-h-72">
-											{#each bibleBookItems as b (b.value)}
-												<Select.Item value={b.value} label={b.label} class="min-h-8 py-1 text-sm">
-													{b.label}
-												</Select.Item>
-											{/each}
-										</Select.Content>
-									</Select.Root>
-								{/if}
-							</div>
-							<Input
-								id={`sr-cs-d-${row.key}`}
-								type="number"
-								inputmode="numeric"
-								min="0"
-								max="199"
-								bind:value={row.chapter_start}
-								class="h-8 min-w-0 px-2 text-xs tabular-nums"
-								aria-label="Chapter start"
-							/>
-							<Input
-								id={`sr-vs-d-${row.key}`}
-								type="number"
-								inputmode="numeric"
-								min="0"
-								max="999"
-								bind:value={row.verse_start}
-								class="h-8 min-w-0 px-2 text-xs tabular-nums"
-								aria-label="Verse start"
-							/>
-							<span class="text-center text-xs text-muted-foreground">–</span>
-							<Input
-								id={`sr-ce-d-${row.key}`}
-								type="number"
-								inputmode="numeric"
-								min="0"
-								max="199"
-								bind:value={row.chapter_end}
-								class="h-8 min-w-0 px-2 text-xs tabular-nums"
-								aria-label="Chapter end"
-							/>
-							<Input
-								id={`sr-ve-d-${row.key}`}
-								type="number"
-								inputmode="numeric"
-								min="0"
-								max="999"
-								bind:value={row.verse_end}
-								class="h-8 min-w-0 px-2 text-xs tabular-nums"
-								aria-label="Verse end"
-							/>
-							<Input
-								id={`sr-ps-d-${row.key}`}
-								bind:value={row.page_start}
-								placeholder="Page"
-								class="h-8 min-w-0 px-2 text-xs"
-								aria-label="Page start"
-							/>
-							<Input
-								id={`sr-pe-d-${row.key}`}
-								bind:value={row.page_end}
-								placeholder="End"
-								class="h-8 min-w-0 px-2 text-xs"
-								aria-label="Page end"
-							/>
-							<label class="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
-								<input type="checkbox" bind:checked={row.needs_review} class="size-3.5" aria-label="Needs review" />
-								<span class="hidden xl:inline">Review</span>
-							</label>
-							<div class="flex justify-center gap-0.5">
-								{#if row.needs_review}
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon-sm"
-										class="size-8"
-										onclick={() => toggleReviewNote(row.key)}
-										aria-label="Review note"
-									>
-										<MessageSquare class="size-3.5" />
-									</Button>
-								{:else}
-									<span class="size-8"></span>
-								{/if}
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-sm"
-									class="size-8"
-									onclick={() => duplicateRow(idx)}
-									aria-label="Duplicate row"
-								>
-									<Copy class="size-3.5" />
-								</Button>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-sm"
-									class="size-8 text-destructive hover:text-destructive"
-									onclick={() => removeRow(idx)}
-									aria-label="Remove row"
-								>
-									<X class="size-3.5" />
-								</Button>
-							</div>
-						</div>
-						{#if row.needs_review && reviewNoteOpen[row.key]}
-							<textarea
-								bind:value={row.review_note}
-								rows={2}
-								class="mt-2 min-h-14 w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-								placeholder="Why does this need review?"
-							></textarea>
-						{/if}
-					</div>
-				</div>
-				{/if}
-			{/if}
-		{/each}
+				<ScriptureRowEditor
+					bind:row={rows[idx]!}
+					index={idx}
+					{isEdit}
+					{bibleBookItems}
+					{reviewNoteOpen}
+					pulsed={!!pulseRowKeys[row.key]}
+					onOpenBiblePicker={() => openBiblePicker(row.key)}
+					onSetBibleBook={(v) => setRowBibleBook(row.key, v)}
+					onDuplicate={() => duplicateRow(idx)}
+					onRemove={() => removeRow(idx)}
+					onToggleExpanded={() => toggleRowExpanded(row.key)}
+					onSetIncluded={(included) => setRowIncluded(row.key, included)}
+					onToggleReviewNote={() => toggleReviewNote(row.key)}
+					onStripKeydown={(e) => handleStripKeydown(e, row.key)}
+				/>
+			{/each}
 			{#if useRowWindow && rowWindow.bottomSpacer > 0}
 				<div aria-hidden="true" style:height="{rowWindow.bottomSpacer}px"></div>
 			{/if}
@@ -2402,7 +838,6 @@
 		{/if}
 	</div>
 
-	<!-- Sticky save bar (scrollport bottom; tab bar is flex footer) -->
 	<div
 		class="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-md:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.06)] max-md:dark:shadow-[0_-4px_12px_-4px_rgb(0_0_0/0.25)] sm:-mx-6 sm:px-6"
 	>
@@ -2427,26 +862,26 @@
 				type="submit"
 				class="min-h-11 gap-1.5"
 				hotkey="s"
-			disabled={pending ||
-				uploading ||
-				ocrPipelineBusy ||
-				!parent ||
-				!hasAnyValidRow}
-			label={pending
-				? saveProgress || 'Saving…'
-				: isEdit
-					? 'Save changes'
-					: (() => {
-							const stats = batchReviewStats;
-							if (!stats) return 'Save references';
-							const { includedCount, total } = stats;
-							if (includedCount === 0) return 'Save references';
-							if (includedCount === total)
-								return includedCount === 1
-									? 'Save 1 reference'
-									: `Save ${includedCount} references`;
-							return `Save ${includedCount} of ${total}`;
-						})()}
+				disabled={pending ||
+					uploading ||
+					ocrPipelineBusy ||
+					!parent ||
+					!hasAnyValidRow}
+				label={pending
+					? saveProgress || 'Saving…'
+					: isEdit
+						? 'Save changes'
+						: (() => {
+								const stats = batchReviewStats;
+								if (!stats) return 'Save references';
+								const { includedCount, total } = stats;
+								if (includedCount === 0) return 'Save references';
+								if (includedCount === total)
+									return includedCount === 1
+										? 'Save 1 reference'
+										: `Save ${includedCount} references`;
+								return `Save ${includedCount} of ${total}`;
+							})()}
 			/>
 		</div>
 	</div>
