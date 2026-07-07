@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatEssayFootnote } from '../article';
+import { formatEssayBibliography, formatEssayFootnote } from '../article';
 import { formatBibliography, formatFootnote } from '../format';
 import { resolveCitationSourceType } from '../dispatch';
 import type { BookCitationInput } from '../types';
@@ -390,7 +390,7 @@ describe('formatFootnote', () => {
 			]
 		});
 		expect(formatFootnote(b, { shortForm: 'short', page: '42' }).plain).toBe(
-			'long, The Art of Biblical History, 42.'
+			'Long, Art of Biblical History, 42.'
 		);
 	});
 
@@ -654,66 +654,43 @@ describe('publisher resolution in citations', () => {
 describe('Wave 2 fixtures (docs/library-turabian-fixtures.md)', () => {
 	for (const row of WAVE2_FIXTURES) {
 		if (row.status === 'pass') {
-			it(`row ${row.id} ${row.slug} — footnote`, () => {
-				const fn = formatFootnote(row.book, {
-					page: row.page,
-					bibleVersion: 'English Standard Version'
+			if (row.essay && row.expectedFootnote) {
+				it(`row ${row.id} ${row.slug} — essay footnote`, () => {
+					const fn = formatEssayFootnote(row.essay!, row.book, { page: row.page });
+					expect(fn.plain).toBe(row.expectedFootnote);
 				});
-				expect(fn.plain).toBe(row.expectedFootnote);
-			});
 
-			if (row.expectedBibliography !== undefined) {
-				it(`row ${row.id} ${row.slug} — bibliography`, () => {
-					expect(formatBibliography(row.book).plain).toBe(row.expectedBibliography);
+				if (row.expectedBibliography !== undefined) {
+					it(`row ${row.id} ${row.slug} — essay bibliography`, () => {
+						expect(formatEssayBibliography(row.essay!, row.book).plain).toBe(
+							row.expectedBibliography
+						);
+					});
+				}
+			} else if (row.shortForm) {
+				const shortForm = row.shortForm;
+				it(`row ${row.id} ${row.slug} — short footnote`, () => {
+					const actual = formatFootnote(row.book, {
+						shortForm: shortForm.kind,
+						page: shortForm.page
+					}).plain;
+					expect(actual).toBe(shortForm.expected);
 				});
+			} else {
+				it(`row ${row.id} ${row.slug} — footnote`, () => {
+					const fn = formatFootnote(row.book, {
+						page: row.page,
+						bibleVersion: 'English Standard Version'
+					});
+					expect(fn.plain).toBe(row.expectedFootnote);
+				});
+
+				if (row.expectedBibliography !== undefined) {
+					it(`row ${row.id} ${row.slug} — bibliography`, () => {
+						expect(formatBibliography(row.book).plain).toBe(row.expectedBibliography);
+					});
+				}
 			}
 		}
 	}
-
-	it.fails('row 16 unsigned-sv-lexicon — BDAG s.v. footnote', () => {
-		const row = WAVE2_FIXTURES.find((r) => r.id === 16)!;
-		const actual = formatEssayFootnote(row.essay!, row.book, { page: row.page }).plain;
-		expect(actual).toBe(row.expectedFootnote);
-	});
-
-	it.fails('row 17 signed-dictionary-article — ABD footnote', () => {
-		const row = WAVE2_FIXTURES.find((r) => r.id === 17)!;
-		const actual = formatEssayFootnote(row.essay!, row.book, { page: row.page }).plain;
-		expect(actual).toBe(row.expectedFootnote);
-	});
-
-	it.fails('row 17 signed-dictionary-article — bibliography', () => {
-		const row = WAVE2_FIXTURES.find((r) => r.id === 17)!;
-		// Session 1: formatEssayBibliography
-		const actual = '';
-		expect(actual).toBe(row.expectedBibliography);
-	});
-
-	it.fails('row 18 tdnt-signed-article — abbreviated footnote', () => {
-		const row = WAVE2_FIXTURES.find((r) => r.id === 18)!;
-		const actual = formatEssayFootnote(row.essay!, row.book, { page: row.page }).plain;
-		expect(actual).toBe(row.expectedFootnote);
-	});
-
-	it.fails('row 19 chapter-edited-volume — footnote', () => {
-		const row = WAVE2_FIXTURES.find((r) => r.id === 19)!;
-		// Session 1: formatChapterFootnote (not formatEssayFootnote s.v. path)
-		const actual = formatEssayFootnote(row.essay!, row.book, { page: row.page }).plain;
-		expect(actual).toBe(row.expectedFootnote);
-	});
-
-	it.fails('row 19 chapter-edited-volume — bibliography', () => {
-		const row = WAVE2_FIXTURES.find((r) => r.id === 19)!;
-		const actual = '';
-		expect(actual).toBe(row.expectedBibliography);
-	});
-
-	it.fails('row 20 short-footnote — capitalized last name + shortened title', () => {
-		const row = WAVE2_FIXTURES.find((r) => r.id === 20)!;
-		const actual = formatFootnote(row.book, {
-			shortForm: row.shortForm!.kind,
-			page: row.shortForm!.page
-		}).plain;
-		expect(actual).toBe(row.shortForm!.expected);
-	});
 });

@@ -15,7 +15,7 @@
 >
 > Standards live in those files; the tracker is the plan. Where this tracker would otherwise restate a standard, it links instead.
 
-_Last updated: July 6, 2026 | Module: Library (2nd) | **Trip build: complete** | **Wave 2: Phase 0 locked — Session 1 next**_
+_Last updated: July 6, 2026 | Module: Library (2nd) | **Trip build: complete** | **Wave 2: Session 1 complete — Session 2 next**_
 
 **Trip owner QA:** **Signed off 2026-06-03** — library passable for trip / sermon prep; PWA performance tracked separately ([043](decisions/043-library-trip-qa-signoff-projects-handoff.md)). Runbook → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md) (historical steps). **Viewer UI smoke (§B):** deferred until collaborator exists. **DB/RPC RLS:** optional `npm run test:rls` on **ppp-staging** ([042](decisions/042-rls-smoke-staging-harness.md)). Repo gate `npm run check` + `npm run test` passed 2026-05-19 ([033](decisions/033-library-pm-review-may-2026.md)).
 
@@ -25,12 +25,12 @@ _Last updated: July 6, 2026 | Module: Library (2nd) | **Trip build: complete** |
 
 _Post-trip; do not renumber Sessions 1–9 below._
 
-**Phase 0 locked 2026-07-06** ([056](decisions/056-library-wave2-phase0.md)): 20-row QA fixture set at [library-turabian-fixtures.md](library-turabian-fixtures.md) + executable mirror in `src/lib/library/turabian/__tests__/fixtures.ts`. **15 pass / 5 fail** today (gaps: unsigned `s.v.`, signed dictionary article, TDNT abbreviated article, chapter-in-edited-volume, short-footnote casing/title). Gap rows use `it.fails` until Session 1 formatters ship.
+**Phase 0 locked 2026-07-06** ([056](decisions/056-library-wave2-phase0.md)): 20-row QA fixture set at [library-turabian-fixtures.md](library-turabian-fixtures.md) + executable mirror in `src/lib/library/turabian/__tests__/fixtures.ts`. **20 pass / 0 fail** after Session 1 ([058](decisions/058-library-wave2-session1-article-formatters.md)).
 
 | Session | Ships | Status |
 |---------|--------|--------|
 | **Phase 0** | Fixture doc + gap analysis + session sequence | ☑ 2026-07-06 |
-| **1** | Article-level formatters (`EssayCitationInput` authors, signed/unsigned `s.v.`, chapter footnote + essay bib, short-footnote fixes); seed ~5 essay rows via SQL | ☐ |
+| **1** | Article-level formatters (`EssayCitationInput` authors, signed/unsigned `s.v.`, chapter footnote + essay bib, short-footnote fixes); seed ~5 essay rows via SQL | ☑ 2026-07-06 |
 | **2** | Essays CRUD UI on book detail; per-essay copy; loaders + audit whitelist | ☐ |
 | **3** | Megacomponent split (`scripture-reference-form` → OCR queue + row editor; `book-form` → authors + publication + OL) | ☐ |
 | **4** | `.docx` export (hanging indent + italics) | ☐ |
@@ -40,8 +40,8 @@ _Post-trip; do not renumber Sessions 1–9 below._
 |---|---|---|
 | Owner smokes | Trip QA signed off 2026-06-03 ([043](decisions/043-library-trip-qa-signoff-projects-handoff.md)); re-run skill after major library UI/OCR changes | `.claude/skills/library-owner-smoke/` |
 | Genre burndown | `/library/review` Citation Critical slice drill | [031](decisions/031-library-session-8-turabian.md) |
-| Turabian 20-row QA | [library-turabian-fixtures.md](library-turabian-fixtures.md) — 15 pass / 5 fail; flip on Session 1 | `.claude/skills/turabian-qa/` |
-| Citation blockers | Article-level citations **IN scope** (essays UI Session 2); short-form registry deferred to Session 1 | [056](decisions/056-library-wave2-phase0.md) |
+| Turabian 20-row QA | [library-turabian-fixtures.md](library-turabian-fixtures.md) — **20 pass / 0 fail** | `.claude/skills/turabian-qa/` |
+| Citation blockers | Article-level formatters shipped Session 1; **essays UI Session 2** | [058](decisions/058-library-wave2-session1-article-formatters.md) |
 | Megacomponent split | `scripture-reference-form` → OCR queue + row editor; `book-form` → authors + publication + OL hook | [033](decisions/033-library-pm-review-may-2026.md) |
 | Essays UI (Q5) | **Promoted** — Session 2 after formatters; link from [003](decisions/003-library-books-vertical-slice.md) polymorphic pattern | [056](decisions/056-library-wave2-phase0.md) |
 | Ship discipline | `npm run ship-library:apply` every schema change | `.claude/skills/ship-library-change/` |

@@ -10,6 +10,19 @@ const RE_DE_ARTICLE =
  * English path matches legacy behavior. German uses German articles (and
  * still strips English for mixed-language titles).
  */
+/** Strip leading articles for short-title display (preserves case). */
+export function stripLeadingArticleDisplay(title: string | null, language?: Language | null): string {
+	if (!title) return '';
+	let t = title.trim();
+	if (language === 'german') {
+		t = t.replace(RE_DE_ARTICLE, '');
+		t = t.replace(RE_EN_ARTICLE, '');
+	} else {
+		t = t.replace(RE_EN_ARTICLE, '');
+	}
+	return t.trim();
+}
+
 export function titleSortKey(title: string | null, language?: Language | null): string {
 	if (!title) return '';
 	let t = title.trim();

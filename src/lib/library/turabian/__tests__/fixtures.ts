@@ -390,11 +390,12 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 		slug: 'unsigned-sv-lexicon',
 		label: 'Unsigned lexicon s.v. (BDAG)',
 		sourceType: 'reference-work-single-author',
-		status: 'fail',
+		status: 'pass',
 		book: book({
 			work_type: 'reference_work',
 			genre: 'Greek Language Tools',
 			title: 'A Greek-English Lexicon of the New Testament and Other Early Christian Literature',
+			series_abbreviation: 'BDAG',
 			authors: [
 				{
 					person_id: 'a1',
@@ -423,7 +424,7 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 		slug: 'signed-dictionary-article',
 		label: 'Signed dictionary article (ABD — Sanders on Canon)',
 		sourceType: 'article-in-reference-work',
-		status: 'fail',
+		status: 'pass',
 		book: book({
 			work_type: 'reference_work',
 			genre: 'Biblical Reference',
@@ -460,7 +461,7 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 		slug: 'tdnt-signed-article',
 		label: 'TDNT signed article — abbreviated series vol:page (Kittel)',
 		sourceType: 'article-in-reference-work',
-		status: 'fail',
+		status: 'pass',
 		book: book({
 			work_type: 'reference_work',
 			genre: 'Biblical Reference',
@@ -491,7 +492,7 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 		slug: 'chapter-edited-volume',
 		label: 'Chapter in edited volume (§17.1.8 — Piper in Peterson/Wells)',
 		sourceType: 'chapter-in-edited-volume',
-		status: 'fail',
+		status: 'pass',
 		book: book({
 			work_type: 'edited_volume',
 			title: 'The Glory of the Atonement',
@@ -521,7 +522,7 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 		slug: 'short-footnote',
 		label: 'Short footnote — capitalized last name + shortened title',
 		sourceType: 'single-author-book',
-		status: 'fail',
+		status: 'pass',
 		book: book({
 			title: 'The Art of Biblical History',
 			authors: [

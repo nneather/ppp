@@ -2,7 +2,7 @@
 
 **Locked:** 2026-07-06 (Phase 0)  
 **Reference:** Covenant Seminary Turabian guide §17.1; executable mirror in `src/lib/library/turabian/__tests__/fixtures.ts`  
-**Gap rows:** encoded as `it.fails` in `format.test.ts` until Session 1+ formatters ship.
+**Gap rows:** all 20 pass as of Wave 2 Session 1 ([058](decisions/058-library-wave2-session1-article-formatters.md)).
 
 | # | Slug | Source type | Shelf example | Footnote | Bib | Status |
 |---|------|-------------|---------------|----------|-----|--------|
@@ -21,13 +21,13 @@
 | 13 | `commentary-in-series` | commentary-in-series | Smalley, WBC | pass | pass | **pass** |
 | 14 | `german-reprint` | standalone-commentary | Barth *Der Römerbrief* | pass | pass | **pass** |
 | 15 | `bible` | bible | ESV | pass | empty | **pass** |
-| 16 | `unsigned-sv-lexicon` | reference-work (unsigned s.v.) | BDAG lemma | **fail** | n/a | **fail** |
-| 17 | `signed-dictionary-article` | article-in-reference-work | ABD — Sanders, "Canon" | **fail** | **fail** | **fail** |
-| 18 | `tdnt-signed-article` | article-in-reference-work | TDNT — Kittel, "λέγω" | **fail** | n/a | **fail** |
-| 19 | `chapter-edited-volume` | chapter-in-edited-volume | Piper in Peterson/Wells | **fail** | **fail** | **fail** |
-| 20 | `short-footnote` | short-form (§16.4.1) | Long, shortened title | **fail** | n/a | **fail** |
+| 16 | `unsigned-sv-lexicon` | reference-work (unsigned s.v.) | BDAG lemma | pass | n/a | **pass** |
+| 17 | `signed-dictionary-article` | article-in-reference-work | ABD — Sanders, "Canon" | pass | pass | **pass** |
+| 18 | `tdnt-signed-article` | article-in-reference-work | TDNT — Kittel, "λέγω" | pass | n/a | **pass** |
+| 19 | `chapter-edited-volume` | chapter-in-edited-volume | Piper in Peterson/Wells | pass | pass | **pass** |
+| 20 | `short-footnote` | short-form (§16.4.1) | Long, shortened title | pass | n/a | **pass** |
 
-**Summary:** 15 pass · 5 fail (rows 16–20)
+**Summary:** 20 pass · 0 fail
 
 ---
 
@@ -108,33 +108,29 @@
 - **Footnote:** `Gen. 1:1 (English Standard Version).`
 - **Bibliography:** _(empty — standard Turabian treatment)_
 
-### 16 — Unsigned lexicon s.v. **FAIL**
+### 16 — Unsigned lexicon s.v.
 
-- **Target footnote:** `BDAG, s.v. "ἀγάπη," 12.`
-- **Gap:** `formatEssayFootnote` prefixes article title as pseudo-author; no BDAG abbreviation path.
+- **Footnote:** `BDAG, s.v. "ἀγάπη," 12.`
+- **Carrier:** parent book `series_abbreviation = 'BDAG'` (unsigned — no `essay_authors` row).
 
-### 17 — Signed dictionary article **FAIL**
+### 17 — Signed dictionary article
 
-- **Target footnote:** `James A. Sanders, "Canon," in David Noel Freedman, ed., Anchor Bible Dictionary (New York: Doubleday, 1992), s.v. "Canon," 835.`
-- **Target bibliography:** `Sanders, James A. "Canon." In Anchor Bible Dictionary, edited by David Noel Freedman. New York: Doubleday, 1992.`
-- **Gap:** `EssayCitationInput` authors not consumed by formatter; unsigned `s.v.` path only.
+- **Footnote:** `James A. Sanders, "Canon," in David Noel Freedman, ed., Anchor Bible Dictionary (New York: Doubleday, 1992), s.v. "Canon," 835.`
+- **Bibliography:** `Sanders, James A. "Canon." In Anchor Bible Dictionary, edited by David Noel Freedman. New York: Doubleday, 1992.`
 
-### 18 — TDNT signed article **FAIL**
+### 18 — TDNT signed article
 
-- **Target footnote:** `Gerhard Kittel, "λέγω," TDNT 4:100.`
-- **Gap:** no abbreviated multi-volume article form; may defer to Session 2 if Session 1 runs long.
+- **Footnote:** `Gerhard Kittel, "λέγω," TDNT 4:100.`
+- **Carrier:** parent `series_abbreviation = 'TDNT'` + `volume_number` for abbreviated vol:page form.
 
-### 19 — Chapter in edited volume **FAIL**
+### 19 — Chapter in edited volume
 
-- **Target footnote:** `John Piper, "The Perseverance of the Saints," in David G. Peterson and David F. Wells, eds., The Glory of the Atonement (Grand Rapids, MI: Baker Academic, 2004), 123.`
-- **Target bibliography:** `Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells, 123. Grand Rapids, MI: Baker Academic, 2004.`
-- **Gap:** no `formatChapterFootnote` / essay bibliography formatter.
+- **Footnote:** `John Piper, "The Perseverance of the Saints," in David G. Peterson and David F. Wells, eds., The Glory of the Atonement (Grand Rapids, MI: Baker Academic, 2004), 123.`
+- **Bibliography:** `Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells, 123. Grand Rapids, MI: Baker Academic, 2004.`
 
-### 20 — Short footnote **FAIL**
+### 20 — Short footnote
 
-- **Current:** `long, The Art of Biblical History, 42.`
 - **Target:** `Long, Art of Biblical History, 42.`
-- **Gap:** lowercased last name; no leading-article strip on short title.
 
 ---
 
@@ -142,7 +138,7 @@
 
 | Session | Ships |
 |---------|--------|
-| **1** | Article-level formatters; short-footnote fixes; flip rows 16–20 `it.fails` → `it`; seed ~5 essay rows via SQL |
+| **1** | Article-level formatters; short-footnote fixes; flip rows 16–20; seed ~5 essay rows via SQL | ☑ 2026-07-06 |
 | **2** | Essays CRUD UI on book detail; per-essay copy buttons; loaders |
 | **3** | Megacomponent split (`scripture-reference-form`, `book-form`) |
 | **4** | `.docx` export (hanging indent + italics) |

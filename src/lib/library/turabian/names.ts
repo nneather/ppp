@@ -170,6 +170,25 @@ export function formatEditorsCreditNote(authors: BookAuthorAssignment[]): string
 	return `${parsed.length === 1 ? 'ed.' : 'eds.'} ${names}`;
 }
 
+/** Essay/chapter bibliography: lowercase "edited by Name" (not "Edited by …."). */
+export function formatEditorsInlineBibliography(authors: BookAuthorAssignment[]): string {
+	const rows = authorsByRole(authors, 'editor');
+	if (rows.length === 0) return '';
+	const parsed = rows.map((a) => parseAuthorAssignment(a));
+	const names =
+		parsed.length === 1
+			? noteNameOrder(parsed[0]!)
+			: parsed.length === 2
+				? `${noteNameOrder(parsed[0]!)} and ${noteNameOrder(parsed[1]!)}`
+				: parsed.length === 3
+					? `${noteNameOrder(parsed[0]!)}, ${noteNameOrder(parsed[1]!)}, and ${noteNameOrder(parsed[2]!)}`
+					: `${noteNameOrder(parsed[0]!)}, ${parsed
+							.slice(1, -1)
+							.map(noteNameOrder)
+							.join(', ')}, and ${noteNameOrder(parsed[parsed.length - 1]!)}`;
+	return `edited by ${names}`;
+}
+
 /** Inline editor credit in bibliography (author-present books). */
 export function formatEditorsCreditBibliography(authors: BookAuthorAssignment[]): string {
 	const rows = authorsByRole(authors, 'editor');

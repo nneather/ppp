@@ -8,7 +8,9 @@ import {
 	formatEditorsCreditNote,
 	formatEditorsNote,
 	formatTranslatorsBibliography,
-	formatTranslatorsNote
+	formatTranslatorsNote,
+	parseAuthorAssignment,
+	authorsByRole
 } from './names';
 import {
 	formatEditionSegment,
@@ -18,6 +20,7 @@ import {
 	formatVolumeBibliography,
 	formatVolumePageNote
 } from './publication';
+import { stripLeadingArticleDisplay } from '../title-sort';
 import type { BookCitationInput, CitationFormatted, CitationSourceType } from './types';
 
 export type FootnoteShortForm = 'ibid' | 'short';
@@ -197,9 +200,14 @@ function formatShortFootnote(
 		const html = page && page !== '[page]' ? `Ibid., ${escapeHtml(page)}.` : 'Ibid.';
 		return buildPair(plain, html, sourceType);
 	}
-	const last = bibliographySortLastName(book.authors);
-	const shortTitle = formatTitleWithSubtitle(book, 'plain');
-	const authorLead = last || formatAuthorsNote(book.authors);
+	const authorRows = authorsByRole(book.authors, 'author');
+	const editorRows = authorsByRole(book.authors, 'editor');
+	const primary = authorRows.length > 0 ? authorRows : editorRows;
+	const lastName =
+		primary.length > 0 ? parseAuthorAssignment(primary[0]!).last : bibliographySortLastName(book.authors);
+	const rawTitle = (book.title ?? '').trim();
+	const shortTitle = stripLeadingArticleDisplay(rawTitle, book.language) || rawTitle;
+	const authorLead = lastName || formatAuthorsNote(book.authors);
 	const plain = `${authorLead}, ${shortTitle}, ${page}.`;
 	const html = `${escapeHtml(authorLead)}, <i>${escapeHtml(shortTitle)}</i>, ${escapeHtml(page)}.`;
 	return buildPair(plain, html, sourceType);
