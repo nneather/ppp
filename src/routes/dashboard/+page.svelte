@@ -4,6 +4,7 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import DashboardLibraryTileFooter from '$lib/components/dashboard-library-tile-footer.svelte';
+	import DashboardInvoicingTileFooter from '$lib/components/dashboard-invoicing-tile-footer.svelte';
 	import ProjectStatusStrip from '$lib/components/project-status-strip.svelte';
 	import { cn } from '$lib/utils';
 	import type { PageProps } from './$types';
@@ -111,6 +112,24 @@
 							<div class="border-t border-border px-5 pb-4 pt-3">
 								<span class="text-sm text-muted-foreground">Review queue: –</span>
 							</div>
+						{/if}
+					</div>
+				{:else if href === '/invoicing'}
+					<div class={cardClass}>
+						<a href="/invoicing" class={innerLinkClass}>
+							<div class="mb-4 flex items-center gap-2 text-muted-foreground">
+								<Icon class="size-5 shrink-0" />
+								<span class="text-base font-semibold tracking-tight text-foreground">{title}</span>
+							</div>
+							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+								{statLabel}
+							</p>
+							<p class="mt-2 text-3xl font-semibold text-foreground tabular-nums" aria-live="polite">
+								{tileStat(href)}
+							</p>
+						</a>
+						{#if data.lastWeekInvoiceCandidates.length > 0}
+							<DashboardInvoicingTileFooter candidates={data.lastWeekInvoiceCandidates} />
 						{/if}
 					</div>
 				{:else}

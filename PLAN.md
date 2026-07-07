@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-06 — Library Wave 2 Session 1 shipped ([058](docs/decisions/058-library-wave2-session1-article-formatters.md)): article formatters, 20/20 Turabian fixtures green, essay seed SQL. Prior: PWA consistency ([057](docs/decisions/057-pwa-consistency.md)).
+**Last updated:** 2026-07-06 — Dashboard last-week invoice shortcut ([059](docs/decisions/059-dashboard-last-week-invoice.md)): weekly clients with unbilled prior week get one-click generate on `/dashboard`. Prior: Library Wave 2 Session 1 ([058](docs/decisions/058-library-wave2-session1-article-formatters.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -29,7 +29,7 @@ Nearest hard dates:
 
 | Module | Tracker | State |
 |---|---|---|
-| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md) — ConfirmDialog / PageHeader / bottom-tabbar / hotkeys). |
+| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Session 1 shipped** ([058](docs/decisions/058-library-wave2-session1-article-formatters.md)): 20/20 Turabian fixtures, article formatters, essay seed SQL. **Next: Session 2** essays UI. Sessions 3–4: megacomponent split, `.docx`. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** — tree/check-in, dashboard/filters, MYN `/projects/tasks`, links in Sheet, audit. **Viewer access:** owner-only by design (not deferred debt); revisit only if a collaborator is added — [POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md). **Backlog:** polish, global Now ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)), optional full phone smoke. |
 
@@ -39,9 +39,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [059 — Dashboard last-week invoice shortcut](docs/decisions/059-dashboard-last-week-invoice.md) (2026-07-06) — weekly clients with unbilled prior Chicago week show footer on `/dashboard`; one-click `?/generate` → draft review page.
 - [058 — Library Wave 2 Session 1 — article formatters](docs/decisions/058-library-wave2-session1-article-formatters.md) (2026-07-06) — `formatEssayFootnote`/`formatEssayBibliography` dispatch; short-footnote casing + article strip; 20/20 fixtures; `library_essays_seed.sql`.
 - [057 — PWA consistency pass](docs/decisions/057-pwa-consistency.md) (2026-07-06) — light theme chrome; offline navigate fallback; hourly + on-resume SW update checks; `__APP_BUILD__` on Settings; `vocab-cache-paths.ts` single source of truth.
-- [056 — Library Wave 2 Phase 0 — fixture-first Turabian](docs/decisions/056-library-wave2-phase0.md) (2026-07-06) — 20-row QA fixture doc + `WAVE2_FIXTURES` vitest mirror; 15 pass / 5 fail gap analysis; Session 1–4 sequence locked; `EssayCitationInput.authors` type wedge.
 - [054 — Invoicing UX standardization (review 051 R4)](docs/decisions/054-invoicing-polish.md) (2026-07-06) — retired all `window.confirm` for `<ConfirmDialog>` (invoice detail + time-entry sheet + library batch-scripture nav guard), `<PageHeader>` migration, `bottom-tabbar` FAB, `hotkey="b"` on create triggers, `formMessage` narrowed on `form.kind`.
 
 ---
@@ -65,7 +65,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` + `npm run build` re-verified **2026-07-06** (Library Wave 2 Session 1 / [058](docs/decisions/058-library-wave2-session1-article-formatters.md); check **0 errors**; test **132/132** green). Prior: PWA consistency / [057](docs/decisions/057-pwa-consistency.md).
+**Repo gate:** `npm run check` + `npm run test` + `npm run build` re-verified **2026-07-06** (dashboard last-week invoice / [059](docs/decisions/059-dashboard-last-week-invoice.md); check **0 errors**; test **132/132** green). Prior: Library Wave 2 Session 1 / [058](docs/decisions/058-library-wave2-session1-article-formatters.md).
 
 **Data safety (monthly export):** Off-Supabase belt-and-suspenders beyond Supabase Pro's 7-day daily backups. Monthly `pg_dump -F c`, two files pushed to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (cron 1st of month + `workflow_dispatch`):
 
@@ -92,7 +92,7 @@ Acceptance:
  - [ ] Copy Footnote / Copy Bibliography per essay row
  - [ ] audit_log whitelist extended for essays + essay_authors
  - [ ] npm run check + npm run test pass
-End-of-session: docs/decisions/059-*.md, tracker Session 2 ticked, PLAN.md refreshed
+End-of-session: docs/decisions/060-*.md, tracker Session 2 ticked, PLAN.md refreshed
 ```
 
 ### Library Wave 2 — Session 1: article-level formatters ✅ done ([058](docs/decisions/058-library-wave2-session1-article-formatters.md))

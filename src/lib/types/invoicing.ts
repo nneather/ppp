@@ -100,3 +100,13 @@ export type UnbilledEntryPreview = {
 	hours: number;
 	rate: number;
 };
+
+/** Weekly client with unbilled entries in the completed prior Chicago week (dashboard shortcut). */
+export type LastWeekInvoiceCandidate = {
+	clientId: string;
+	clientName: string;
+	entryCount: number;
+	hours: number;
+	periodStart: string;
+	periodEnd: string;
+};
