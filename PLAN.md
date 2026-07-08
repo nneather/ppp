@@ -71,7 +71,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-08** ([072](docs/decisions/072-pwa-cold-start-resilience.md); check **0 errors**; test **205/205** green). Prior: review-queue authorless + undo ([071](docs/decisions/071-review-queue-authorless-undo.md); 202/202).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-08** ([073](docs/decisions/073-library-drama-genre.md); check **0 errors**; test **205/205** green). Prior: PWA cold-start ([072](docs/decisions/072-pwa-cold-start-resilience.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md) — the earlier "Pro 7-day backups" wording here was wrong), so the R2 dumps are the **only** backup. **Pipeline is live** — secrets set + first successful run 2026-07-06 (run 28830982000; both dumps in R2 under `2026/`). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + cron — **bump monthly → weekly `0 8 * * 1` in the ops hardening session**):
 
