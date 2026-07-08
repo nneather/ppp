@@ -124,6 +124,7 @@
 	let editReadingStatus = $state<ReadingStatus | null>(null);
 	let editWorkType = $state<WorkType | null>(null);
 	let editNoAttributedAuthor = $state<boolean | null>(null);
+	let editIsbn = $state<string | null>(null);
 	let pendingSaveId = $state<string | null>(null);
 	let confirmDeleteOpen = $state(false);
 	let confirmDeletePending = $state(false);
@@ -253,6 +254,7 @@
 		editLanguage = null;
 		editReadingStatus = null;
 		editWorkType = null;
+		editIsbn = null;
 		confirmDeleteOpen = false;
 		milestone = null;
 		sprintSummary = null;
@@ -269,6 +271,7 @@
 		editReadingStatus = null;
 		editWorkType = null;
 		editNoAttributedAuthor = null;
+		editIsbn = null;
 	}
 
 	function clearUndoToast() {
@@ -767,6 +770,21 @@
 		return editNoAttributedAuthor !== null ? editNoAttributedAuthor : c.no_attributed_author;
 	}
 
+	function effectiveIsbn(c: ReviewCard): string | null {
+		if (editIsbn !== null) {
+			const t = editIsbn.trim();
+			return t.length > 0 ? t : null;
+		}
+		return c.isbn;
+	}
+
+	function showIsbnRow(c: ReviewCard): boolean {
+		if (editIsbn !== null) return true;
+		if (c.isbn) return false;
+		if (data.filters.isbn_blank === true) return true;
+		return (c.needs_review_note?.toLowerCase().includes('isbn') ?? false);
+	}
+
 	function hasContributorRole(c: ReviewCard, role: 'author' | 'editor'): boolean {
 		return c.authors.some((a) => a.role === role);
 	}
@@ -776,6 +794,14 @@
 		if (effectiveNoAttributedAuthor(c)) return false;
 		if (effectiveWorkType(c) !== 'monograph') return false;
 		return hasContributorRole(c, 'editor') && !hasContributorRole(c, 'author');
+	}
+
+	/** Which contributor role is still missing for the live preview (author vs editor). */
+	function contributorGap(c: ReviewCard): 'author' | 'editor' | null {
+		const gaps = previewMissing(c);
+		if (gaps.includes('author')) return 'author';
+		if (gaps.includes('editor')) return 'editor';
+		return null;
 	}
 
 	/** Author counts as "present" iff contributors match work_type or card is marked authorless. */
@@ -793,6 +819,7 @@
 		if (!effectiveGenre(c)) out.push('genre');
 		if (effectiveYear(c) == null) out.push('year');
 		if (!effectivePublisher(c)) out.push('publisher');
+		if (showIsbnRow(c) && !effectiveIsbn(c)) out.push('isbn');
 		return out;
 	}
 
@@ -912,7 +939,6 @@
 		{:else if currentCard}
 			{@const card = currentCard}
 			{@const missing = previewMissing(card)}
-			{@const auto = autoLinePart(card.needs_review_note)}
 			{@const userNote = userNotePart(card.needs_review_note)}
 			{@const genreRowOpen = !card.genre || editGenre !== null || metaGenreExpanded}
 			{@const statusRowOpen = editReadingStatus !== null || metaStatusExpanded}
@@ -1008,15 +1034,29 @@
 							{/if}
 						{:else if effectiveNoAttributedAuthor(card)}
 							<p class="mt-1 text-xs text-muted-foreground italic">No attributed author (by design)</p>
-						{:else}
-							<p class="mt-1 text-xs italic text-amber-700 dark:text-amber-300">No author on file</p>
-							<button
-								type="button"
-								class="mt-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] transition-colors hover:bg-muted"
-								onclick={() => (editNoAttributedAuthor = true)}
-							>
-								Mark: no attributed author
-							</button>
+						{:else if contributorGap(card)}
+							{@const gap = contributorGap(card)}
+							<p class="mt-1 text-xs italic text-amber-700 dark:text-amber-300">
+								No {gap} on file
+							</p>
+							<div class="mt-1.5 flex flex-wrap gap-1.5">
+								<button
+									type="button"
+									class="rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] transition-colors hover:bg-muted"
+									onclick={() => goto(bookEditHref)}
+								>
+									Add on full edit
+								</button>
+								{#if effectiveWorkType(card) === 'monograph'}
+									<button
+										type="button"
+										class="rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] transition-colors hover:bg-muted"
+										onclick={() => (editNoAttributedAuthor = true)}
+									>
+										Mark: no attributed author
+									</button>
+								{/if}
+							</div>
 						{/if}
 					</div>
 					<div class="flex flex-col items-end gap-1 text-right">
@@ -1056,13 +1096,6 @@
 					>
 						<AlertCircle class="mt-0.5 size-3.5 flex-shrink-0" />
 						<div class="flex-1">Missing: {missing.join(', ')}</div>
-					</div>
-				{:else if auto}
-					<div
-						class="mt-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-900 dark:text-amber-100"
-					>
-						<AlertCircle class="mt-0.5 size-3.5 flex-shrink-0" />
-						<div class="flex-1">{auto}</div>
 					</div>
 				{/if}
 				{#if userNote}
@@ -1143,15 +1176,15 @@
 						{/if}
 
 						<div
-							class="sticky bottom-0 z-20 -mx-4 mt-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:mt-2 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+							class="sticky bottom-0 z-20 -mx-4 mt-2 border-t border-border bg-background/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:mt-2 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
 						>
-							<div class="mx-auto flex max-w-md flex-col gap-2">
-								<div class="grid grid-cols-2 gap-2">
+							<div class="mx-auto flex max-w-md flex-col gap-1.5">
+								<div class="grid grid-cols-2 gap-1.5">
 									<Button
 										type="submit"
 										variant="outline"
 										hotkey="s"
-										class="min-h-11"
+										class="min-h-9"
 										label={pendingSaveId === card.id ? 'Saving…' : 'Confirm as-is'}
 										disabled={pendingSaveId !== null}
 									/>
@@ -1159,7 +1192,7 @@
 										type="button"
 										variant="outline"
 										hotkey="Escape"
-										class="min-h-11"
+										class="min-h-9"
 										label="Skip"
 										onclick={skipCurrent}
 										disabled={pendingSaveId !== null}
@@ -1169,7 +1202,7 @@
 									type="submit"
 									formaction="?/markNeedsShelf"
 									variant="outline"
-									class="min-h-11 w-full"
+									class="min-h-9 w-full"
 									label="Needs shelf"
 									disabled={pendingSaveId !== null}
 								/>
@@ -1283,6 +1316,23 @@
 							name="publisher_id"
 							value={editPublisherId ?? card.publisher_id ?? ''}
 						/>
+						{#if showIsbnRow(card)}
+							<label class="flex flex-col gap-1 text-xs">
+								<span class="font-medium text-muted-foreground">ISBN</span>
+								<Input
+									name="isbn"
+									type="text"
+									inputmode="numeric"
+									autocomplete="off"
+									placeholder="978… or 10-digit"
+									value={editIsbn ?? card.isbn ?? ''}
+									oninput={(e) =>
+										(editIsbn = (e.currentTarget as HTMLInputElement).value)}
+								/>
+							</label>
+						{:else if card.isbn}
+							<input type="hidden" name="isbn" value={card.isbn} />
+						{/if}
 					</div>
 
 					<!-- Genre chip row -->
@@ -1493,13 +1543,13 @@
 					</div>
 
 					<div
-						class="sticky bottom-0 z-20 -mx-4 mt-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:mt-4 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+						class="sticky bottom-0 z-20 -mx-4 mt-4 border-t border-border bg-background/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:mt-4 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
 					>
-						<div class="mx-auto flex max-w-md flex-col gap-2">
+						<div class="mx-auto flex max-w-md flex-col gap-1.5">
 							<Button
 								type="submit"
 								hotkey="s"
-								class="min-h-12 w-full md:hidden"
+								class="min-h-9 w-full md:hidden"
 								label={pendingSaveId === card.id ? 'Saving…' : 'Confirm citation-ready'}
 								disabled={pendingSaveId !== null}
 							/>
@@ -1507,16 +1557,16 @@
 								type="submit"
 								formaction="?/markNeedsShelf"
 								variant="outline"
-								class="min-h-11 w-full md:hidden"
+								class="min-h-9 w-full md:hidden"
 								label="Needs shelf"
 								disabled={pendingSaveId !== null}
 							/>
-							<div class="grid grid-cols-2 gap-2 md:hidden">
+							<div class="grid grid-cols-2 gap-1.5 md:hidden">
 								{#if skippedStack.length > 0}
 									<Button
 										type="button"
 										variant="outline"
-										class="min-h-11"
+										class="min-h-9"
 										label="Back"
 										onclick={goBackToSkipped}
 										disabled={pendingSaveId !== null}
@@ -1526,7 +1576,7 @@
 									type="button"
 									variant="outline"
 									hotkey="e"
-									class="min-h-11"
+									class="min-h-9"
 									label="Field wrong"
 									onclick={() => goto(bookEditHref)}
 									disabled={pendingSaveId !== null}
@@ -1535,15 +1585,16 @@
 									type="button"
 									variant="outline"
 									hotkey="Escape"
-									class="min-h-11"
+									class="min-h-9"
 									label="Skip"
 									onclick={skipCurrent}
 									disabled={pendingSaveId !== null}
 								/>
 							</div>
-							<div class="hidden flex-wrap items-center gap-2 md:flex">
+							<div class="hidden flex-wrap items-center gap-1.5 md:flex">
 								<Button
 									type="submit"
+									size="sm"
 									hotkey="s"
 									label={pendingSaveId === card.id ? 'Saving…' : 'Confirm citation-ready'}
 									disabled={pendingSaveId !== null}
@@ -1552,6 +1603,7 @@
 									type="submit"
 									formaction="?/markNeedsShelf"
 									variant="outline"
+									size="sm"
 									label="Needs shelf"
 									disabled={pendingSaveId !== null}
 								/>
@@ -1559,6 +1611,7 @@
 									<Button
 										type="button"
 										variant="outline"
+										size="sm"
 										label="Back"
 										onclick={goBackToSkipped}
 										disabled={pendingSaveId !== null}
@@ -1567,6 +1620,7 @@
 								<Button
 									type="button"
 									variant="outline"
+									size="sm"
 									hotkey="e"
 									label="Field wrong"
 									onclick={() => goto(bookEditHref)}
@@ -1575,6 +1629,7 @@
 								<Button
 									type="button"
 									variant="outline"
+									size="sm"
 									hotkey="Escape"
 									label="Skip"
 									onclick={skipCurrent}
@@ -1679,6 +1734,7 @@
 				<input type="hidden" name="language" value={undoSnapshot.card.language} />
 				<input type="hidden" name="reading_status" value={undoSnapshot.card.reading_status} />
 				<input type="hidden" name="work_type" value={undoSnapshot.card.work_type} />
+				<input type="hidden" name="isbn" value={undoSnapshot.card.isbn ?? ''} />
 				<input
 					type="hidden"
 					name="no_attributed_author"

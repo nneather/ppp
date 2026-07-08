@@ -353,6 +353,7 @@ export type ReviewCard = BookListRow & {
 	reprint_year: number | null;
 	needs_review_note: string | null;
 	no_attributed_author: boolean;
+	isbn: string | null;
 	import_match_type: ImportMatchType | null;
 	/** Full junction rows for Turabian (all roles, sort_order). */
 	authors: BookAuthorAssignment[];

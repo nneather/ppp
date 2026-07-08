@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-08 — **Review tab corrections** ([074](docs/decisions/074-review-tab-corrections.md)): 5 new genres, clickable title → edit with return path, "Needs shelf" defer button, genre-confirm stall fixes. Prior: Drama genre + 070 deploy sync ([073](docs/decisions/073-library-drama-genre.md)).
+**Last updated:** 2026-07-08 — **Review tab follow-ups** ([075](docs/decisions/075-review-tab-follow-ups.md)): edited-volume banner fix, slimmer action bar, ISBN quick-edit on review cards. Prior: review tab corrections ([074](docs/decisions/074-review-tab-corrections.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -43,9 +43,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
-- [074 — Review tab corrections](docs/decisions/074-review-tab-corrections.md) (2026-07-08) — 5 new genres (52 values); review title → full edit with `returnTo`; "Needs shelf" defer (`markNeedsShelfAction`); genre-confirm `formData` injection + error toasts + `try/finally` unlock.
+- [075 — Review tab follow-ups](docs/decisions/075-review-tab-follow-ups.md) (2026-07-08) — live-only missing banner (no stale auto-line); role-aware contributor header; slimmer sticky bar; ISBN show-on-gap quick-edit + `reviewSaveAction` validation.
+- [074 — Review tab corrections](docs/decisions/074-review-tab-corrections.md) (2026-07-08) — 5 new genres (52 values); review title → full edit with `returnTo`; "Needs shelf" defer; genre-confirm `formData` injection + error toasts.
 - [073 — Library Drama genre](docs/decisions/073-library-drama-genre.md) (2026-07-08) — added `Drama` (47 values); backfilled 11 play volumes + 3 Research proposals; OL prefill + AI prompt rules; shipped uncommitted 070 `GENRES` so review picker matches hosted DB (deploy was on pre-070 commit).
-- [072 — PWA cold-start resilience](docs/decisions/072-pwa-cold-start-resilience.md) (2026-07-08) — boot shell + 15s retry in `app.html`; `hooks.client.ts` + chunk-load recovery card; 12s nav watchdog (066 Q14).
 - [071 — Review queue authorless + undo](docs/decisions/071-review-queue-authorless-undo.md) (2026-07-08) — work-type chips + editors-only monograph one-tap fix on review cards; role-aware missing preview; 10s Confirm undo (field restore + proposal re-pending); Back button for skipped cards.
 - [069 — Review queue follow-ups](docs/decisions/069-review-queue-follow-ups.md) (2026-07-07) — Turabian `publisher_location` normalization; proposal filter + dismissed-stays-gone; editable Apply on review card; italic citation previews; `books.no_attributed_author` for authorless reference works; `rejectRedundantProposals.ts` cleanup script.
 - [067 — Review queue sprint decks](docs/decisions/067-library-review-sprint-decks.md) (2026-07-06) — deck picker (6 decks, live counts) replaces slice pills; Genre Sprint one-tap fast lane (585 books); 5/10/25 sprints + ring + summary; live-ticking burndown; milestones (25/50/75/100% + per-100 lifetime); shuffle; shelf-bound books excluded by default while away. Shelf marker is the word `shelf`, not the importer prefix.
@@ -72,7 +72,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-08** ([074](docs/decisions/074-review-tab-corrections.md); check **0 errors**; test **207/207** green). Prior: Drama genre ([073](docs/decisions/073-library-drama-genre.md)).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-08** ([075](docs/decisions/075-review-tab-follow-ups.md); check **0 errors**; test **207/207** green). Prior: review tab corrections ([074](docs/decisions/074-review-tab-corrections.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md) — the earlier "Pro 7-day backups" wording here was wrong), so the R2 dumps are the **only** backup. **Pipeline is live** — secrets set + first successful run 2026-07-06 (run 28830982000; both dumps in R2 under `2026/`). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + cron — **bump monthly → weekly `0 8 * * 1` in the ops hardening session**):
 

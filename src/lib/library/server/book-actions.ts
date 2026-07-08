@@ -5,6 +5,7 @@ import type { AuthorRole, Genre, Language, ReadingStatus, WorkType } from '$lib/
 import { findOrCreatePerson, parseTypedName } from '$lib/library/server/people-actions';
 import { markProposalResolved, markProposalPending } from '$lib/library/server/proposal-actions';
 import { ensureShelfMarkerNote } from '$lib/library/review';
+import { parseIsbnWithChecksum } from '$lib/library/isbn';
 
 /**
  * Server-side helpers for the books vertical slice. Both `/library` (list) and
@@ -1029,7 +1030,7 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 	const { data: existingRow, error: fetchErr } = await supabase
 		.from('books')
 		.select(
-			'id, title, year, publisher, publisher_location, publisher_id, genre, work_type, language, reading_status, needs_review_note, no_attributed_author, deleted_at'
+			'id, title, year, publisher, publisher_location, publisher_id, genre, work_type, language, reading_status, needs_review_note, no_attributed_author, isbn, deleted_at'
 		)
 		.eq('id', id)
 		.maybeSingle();
@@ -1053,6 +1054,7 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		reading_status: string;
 		needs_review_note: string | null;
 		no_attributed_author: boolean;
+		isbn: string | null;
 		deleted_at: string | null;
 	};
 	if (ex.deleted_at) {
@@ -1137,6 +1139,32 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		workType = t as WorkType;
 	}
 
+	const isbnRaw = fd.get('isbn');
+	let isbn: string | null = ex.isbn;
+	if (isbnRaw !== null) {
+		const t = String(isbnRaw).trim();
+		if (t === '') isbn = null;
+		else {
+			const parsed = parseIsbnWithChecksum(t);
+			if (!parsed) {
+				return fail(400, {
+					kind: 'reviewSaved' as const,
+					bookId: id,
+					message: 'Enter a valid ISBN-10 or ISBN-13.'
+				});
+			}
+			isbn = parsed;
+		}
+	}
+	const isbnCollide = await ensureNoIsbnCollision(supabase, isbn, id);
+	if (!isbnCollide.ok) {
+		return fail(400, {
+			kind: 'reviewSaved' as const,
+			bookId: id,
+			message: isbnCollide.message
+		});
+	}
+
 	// Contributor-presence for Missing: computation (author vs editor by work_type).
 	const contributorRole = workType === 'monograph' ? 'author' : 'editor';
 	const { count: contributorCount } = await supabase
@@ -1184,7 +1212,8 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		needs_review: false,
 		needs_review_note,
 		no_attributed_author,
-		work_type: workType
+		work_type: workType,
+		isbn
 	};
 
 	const { error: updErr } = await supabase
@@ -1377,6 +1406,7 @@ export async function undoReviewSaveAction(supabase: SupabaseClient, fd: FormDat
 
 	const no_attributed_author = parseBoolean(fd.get('no_attributed_author'));
 	const needs_review_note = trimOrNull(fd.get('needs_review_note'));
+	const isbn = trimOrNull(fd.get('isbn'));
 
 	const payload: Record<string, unknown> = {
 		title,
@@ -1390,7 +1420,8 @@ export async function undoReviewSaveAction(supabase: SupabaseClient, fd: FormDat
 		work_type,
 		no_attributed_author,
 		needs_review: true,
-		needs_review_note
+		needs_review_note,
+		isbn
 	};
 
 	const { error: updErr } = await supabase

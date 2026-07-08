@@ -1006,6 +1006,7 @@ type RawReviewCard = RawBookListRow & {
 	reprint_location: string | null;
 	reprint_year: number | null;
 	needs_review_note: string | null;
+	isbn: string | null;
 	no_attributed_author: boolean | null;
 	import_match_type: string | null;
 };
@@ -1143,6 +1144,7 @@ const REVIEW_CARD_SELECT = `
 	reprint_location,
 	reprint_year,
 	language,
+	isbn,
 	import_match_type,
 	series ( name, abbreviation ),
 	book_authors ( person_id, sort_order, role )
@@ -1258,6 +1260,7 @@ export async function loadReviewQueue(
 			reprint_location: r.reprint_location ?? null,
 			reprint_year: r.reprint_year ?? null,
 			needs_review_note: r.needs_review_note ?? null,
+			isbn: r.isbn ?? null,
 			no_attributed_author: Boolean(r.no_attributed_author),
 			import_match_type: (r.import_match_type as ImportMatchType | null) ?? null,
 			authors,
