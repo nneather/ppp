@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseReviewFilters, withReviewShelfDefault, SHELF_CHECK_MARKER } from './review';
+import { parseReviewFilters, withReviewShelfDefault, SHELF_CHECK_MARKER, ensureShelfMarkerNote } from './review';
 
 function urlWith(search: string): URL {
 	return new URL(`https://example.test/library/review${search}`);
@@ -56,6 +56,19 @@ describe('withReviewShelfDefault', () => {
 		const input = { slice: 'backlog' as const };
 		void withReviewShelfDefault(input);
 		expect('shelf' in input).toBe(false);
+	});
+});
+
+describe('ensureShelfMarkerNote', () => {
+	it('appends the defer line when no shelf marker is present', () => {
+		expect(ensureShelfMarkerNote(null)).toBe('Verify at shelf');
+		expect(ensureShelfMarkerNote('Missing: genre')).toBe('Missing: genre\n\nVerify at shelf');
+	});
+
+	it('is idempotent when the marker already exists', () => {
+		const note = 'Will verify exact ISBN at shelf.';
+		expect(ensureShelfMarkerNote(note)).toBe(note);
+		expect(ensureShelfMarkerNote('Shelf-check pending')).toBe('Shelf-check pending');
 	});
 });
 

@@ -53,18 +53,25 @@
 		confirmedDiscard = true;
 		await invalidate(`app:library:book:${data.book.id}`);
 		await invalidate('app:library:list');
-		goto(`/library/books/${bookId}`);
+		goto(returnTo ?? `/library/books/${bookId}`);
 	}
 
 	const detailHref = $derived(`/library/books/${data.book.id}`);
 	const titleLabel = $derived(data.book.title?.trim() || '(untitled book)');
+	const returnTo = $derived.by(() => {
+		const raw = page.url.searchParams.get('returnTo');
+		if (!raw || !raw.startsWith('/library/review')) return null;
+		return raw;
+	});
+	const backHref = $derived(returnTo ?? detailHref);
+	const backLabel = $derived(returnTo ? 'Back to review' : titleLabel);
 
 	function handleCancel() {
 		if (dirty) {
-			pendingNav = new URL(detailHref, window.location.origin);
+			pendingNav = new URL(backHref, window.location.origin);
 			confirmDiscardOpen = true;
 		} else {
-			goto(detailHref);
+			goto(backHref);
 		}
 	}
 </script>
@@ -79,7 +86,7 @@
 
 <div class="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
 	<PageHeader
-		back={{ href: detailHref, label: titleLabel }}
+		back={{ href: backHref, label: backLabel }}
 		title={`Edit: ${titleLabel}`}
 		titlePlaceholder={!data.book.title?.trim()}
 		lead={editBookLead}

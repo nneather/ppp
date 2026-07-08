@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-08 — **Drama genre + 070 deploy sync** ([073](docs/decisions/073-library-drama-genre.md)): added `Drama` (47 values), backfilled 11 play volumes + 3 Research proposals; shipped uncommitted 070 `GENRES` so review picker matches hosted DB. Prior: PWA cold-start resilience ([072](docs/decisions/072-pwa-cold-start-resilience.md)), review-queue authorless + undo ([071](docs/decisions/071-review-queue-authorless-undo.md)).
+**Last updated:** 2026-07-08 — **Review tab corrections** ([074](docs/decisions/074-review-tab-corrections.md)): 5 new genres, clickable title → edit with return path, "Needs shelf" defer button, genre-confirm stall fixes. Prior: Drama genre + 070 deploy sync ([073](docs/decisions/073-library-drama-genre.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -43,6 +43,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [074 — Review tab corrections](docs/decisions/074-review-tab-corrections.md) (2026-07-08) — 5 new genres (52 values); review title → full edit with `returnTo`; "Needs shelf" defer (`markNeedsShelfAction`); genre-confirm `formData` injection + error toasts + `try/finally` unlock.
 - [073 — Library Drama genre](docs/decisions/073-library-drama-genre.md) (2026-07-08) — added `Drama` (47 values); backfilled 11 play volumes + 3 Research proposals; OL prefill + AI prompt rules; shipped uncommitted 070 `GENRES` so review picker matches hosted DB (deploy was on pre-070 commit).
 - [072 — PWA cold-start resilience](docs/decisions/072-pwa-cold-start-resilience.md) (2026-07-08) — boot shell + 15s retry in `app.html`; `hooks.client.ts` + chunk-load recovery card; 12s nav watchdog (066 Q14).
 - [071 — Review queue authorless + undo](docs/decisions/071-review-queue-authorless-undo.md) (2026-07-08) — work-type chips + editors-only monograph one-tap fix on review cards; role-aware missing preview; 10s Confirm undo (field restore + proposal re-pending); Back button for skipped cards.
@@ -71,7 +72,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-08** ([073](docs/decisions/073-library-drama-genre.md); check **0 errors**; test **205/205** green). Prior: PWA cold-start ([072](docs/decisions/072-pwa-cold-start-resilience.md)).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-08** ([074](docs/decisions/074-review-tab-corrections.md); check **0 errors**; test **207/207** green). Prior: Drama genre ([073](docs/decisions/073-library-drama-genre.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md) — the earlier "Pro 7-day backups" wording here was wrong), so the R2 dumps are the **only** backup. **Pipeline is live** — secrets set + first successful run 2026-07-06 (run 28830982000; both dumps in R2 under `2026/`). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + cron — **bump monthly → weekly `0 8 * * 1` in the ops hardening session**):
 

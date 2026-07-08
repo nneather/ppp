@@ -14,6 +14,7 @@ import type { ReviewSlice } from '$lib/types/library';
 import {
 	reviewSaveAction,
 	undoReviewSaveAction,
+	markNeedsShelfAction,
 	softDeleteBookAction
 } from '$lib/library/server/book-actions';
 import { resolveProposalAction } from '$lib/library/server/proposal-actions';
@@ -74,6 +75,13 @@ export const actions: Actions = {
 			return fail(401, { kind: 'reviewSaved' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return reviewSaveAction(locals.supabase, user.id, fd);
+	},
+	markNeedsShelf: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'markedNeedsShelf' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return markNeedsShelfAction(locals.supabase, fd);
 	},
 	undoReviewSave: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

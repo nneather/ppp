@@ -106,6 +106,13 @@
 
 	const currentCard = $derived<ReviewCard | null>(cards.length > 0 ? cards[0] : null);
 
+	const bookEditHref = $derived.by(() => {
+		const c = currentCard;
+		if (!c) return '';
+		const returnTo = encodeURIComponent(page.url.pathname + page.url.search);
+		return `/library/books/${c.id}/edit?returnTo=${returnTo}`;
+	});
+
 	// Per-card edit state — null means "leave field as-is".
 	let editTitle = $state<string | null>(null);
 	let editYear = $state<string | null>(null);
@@ -121,6 +128,8 @@
 	let confirmDeleteOpen = $state(false);
 	let confirmDeletePending = $state(false);
 	let copyToast = $state<string | null>(null);
+	let actionToast = $state<{ message: string; error?: boolean } | null>(null);
+	let actionToastTimer = $state<number | null>(null);
 	let todayCleared = $state(0);
 	let swipeDx = $state(0);
 	let successPulse = $state(false);
@@ -282,6 +291,20 @@
 		}
 	}
 
+	function showActionToast(message: string, error = false) {
+		if (actionToastTimer != null) {
+			clearTimeout(actionToastTimer);
+			actionToastTimer = null;
+		}
+		actionToast = { message, error };
+		if (browser) {
+			actionToastTimer = window.setTimeout(() => {
+				actionToast = null;
+				actionToastTimer = null;
+			}, 5_000);
+		}
+	}
+
 	/** When the visible card changes, clear in-progress edits and metadata row layout. */
 	$effect(() => {
 		const c = currentCard;
@@ -355,9 +378,37 @@
 	// Form submitters
 	// -------------------------------------------------------------------------
 
-	function saveSubmit(): SubmitFunction {
-		return ({ formData }) => {
+	function reviewFormSubmit(): SubmitFunction {
+		return ({ formData, action }) => {
 			const id = String(formData.get('id') ?? '');
+			const isShelf = action.search.includes('markNeedsShelf');
+
+			if (isShelf) {
+				pendingSaveId = id;
+				return async ({ result, update }) => {
+					try {
+						disableScrollHandling();
+						await update({ reset: false, invalidateAll: false });
+						if (result.type === 'success') {
+							clearUndoToast();
+							sprint = recordSprintSkip() ?? sprint;
+							remaining = Math.max(0, remaining - 1);
+							advance(id);
+						} else if (result.type === 'failure') {
+							const msg =
+								(result.data as { message?: string } | undefined)?.message ??
+								'Could not mark as shelf-bound.';
+							showActionToast(msg, true);
+						} else if (result.type === 'error') {
+							showActionToast('Could not save — check connection.', true);
+						}
+					} finally {
+						pendingSaveId = null;
+					}
+				};
+			}
+
+			if (editGenre) formData.set('genre', editGenre);
 			const snapshotCard = currentCard;
 			const proposalResolutionRaw = String(formData.get('proposal_resolution') ?? '').trim();
 			const proposalResolution: 'accepted' | 'rejected' | null =
@@ -368,34 +419,44 @@
 			pendingFromSwipe = false;
 			pendingSaveId = id;
 			return async ({ result, update }) => {
-				disableScrollHandling();
-				await update({ reset: false, invalidateAll: false });
-				if (result.type === 'success') {
-					reviewedThisSession += 1;
-					remaining = Math.max(0, remaining - 1);
-					incrementReviewProgress(activeSlice);
-					todayCleared = readReviewToday().count;
-					sprint = recordSprintClear();
-					checkMilestones();
-					if (!fromSwipe) reviewHaptic();
-					successPulse = true;
-					await new Promise((r) => setTimeout(r, 200));
-					successPulse = false;
-					if (snapshotCard && snapshotCard.id === id) {
-						showUndoToast({
-							card: structuredClone(snapshotCard),
-							proposalResolution,
-							activeSlice
-						});
+				try {
+					disableScrollHandling();
+					await update({ reset: false, invalidateAll: false });
+					if (result.type === 'success') {
+						reviewedThisSession += 1;
+						remaining = Math.max(0, remaining - 1);
+						incrementReviewProgress(activeSlice);
+						todayCleared = readReviewToday().count;
+						sprint = recordSprintClear();
+						checkMilestones();
+						if (!fromSwipe) reviewHaptic();
+						successPulse = true;
+						await new Promise((r) => setTimeout(r, 200));
+						successPulse = false;
+						if (snapshotCard && snapshotCard.id === id) {
+							showUndoToast({
+								card: structuredClone(snapshotCard),
+								proposalResolution,
+								activeSlice
+							});
+						}
+						advance(id);
+						if (isSprintComplete(sprint) && sprint) {
+							sprintSummary = { finished: sprint, endedAt: Date.now() };
+							endSprint();
+							sprint = null;
+						}
+					} else if (result.type === 'failure') {
+						const msg =
+							(result.data as { message?: string } | undefined)?.message ??
+							'Could not save review.';
+						showActionToast(msg, true);
+					} else if (result.type === 'error') {
+						showActionToast('Could not save — check connection.', true);
 					}
-					advance(id);
-					if (isSprintComplete(sprint) && sprint) {
-						sprintSummary = { finished: sprint, endedAt: Date.now() };
-						endSprint();
-						sprint = null;
-					}
+				} finally {
+					pendingSaveId = null;
 				}
-				pendingSaveId = null;
 			};
 		};
 	}
@@ -902,7 +963,14 @@
 				<div class="flex items-start justify-between gap-3">
 					<div class="min-w-0">
 						{#if card.title}
-							<h2 class="text-lg font-semibold leading-snug">{card.title}</h2>
+							<h2 class="text-lg font-semibold leading-snug">
+								<a
+									href={bookEditHref}
+									class="rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+								>
+									{card.title}
+								</a>
+							</h2>
 						{:else}
 							<h2 class="text-lg italic text-muted-foreground">(untitled)</h2>
 						{/if}
@@ -1047,7 +1115,7 @@
 				<form
 					method="POST"
 					action="?/saveReviewed"
-					use:enhance={saveSubmit()}
+					use:enhance={reviewFormSubmit()}
 					bind:this={reviewFormEl}
 					class="mt-4 flex flex-col gap-4"
 				>
@@ -1077,22 +1145,32 @@
 						<div
 							class="sticky bottom-0 z-20 -mx-4 mt-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:mt-2 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
 						>
-							<div class="mx-auto grid max-w-md grid-cols-2 gap-2">
+							<div class="mx-auto flex max-w-md flex-col gap-2">
+								<div class="grid grid-cols-2 gap-2">
+									<Button
+										type="submit"
+										variant="outline"
+										hotkey="s"
+										class="min-h-11"
+										label={pendingSaveId === card.id ? 'Saving…' : 'Confirm as-is'}
+										disabled={pendingSaveId !== null}
+									/>
+									<Button
+										type="button"
+										variant="outline"
+										hotkey="Escape"
+										class="min-h-11"
+										label="Skip"
+										onclick={skipCurrent}
+										disabled={pendingSaveId !== null}
+									/>
+								</div>
 								<Button
 									type="submit"
+									formaction="?/markNeedsShelf"
 									variant="outline"
-									hotkey="s"
-									class="min-h-11"
-									label={pendingSaveId === card.id ? 'Saving…' : 'Confirm as-is'}
-									disabled={pendingSaveId !== null}
-								/>
-								<Button
-									type="button"
-									variant="outline"
-									hotkey="Escape"
-									class="min-h-11"
-									label="Skip"
-									onclick={skipCurrent}
+									class="min-h-11 w-full"
+									label="Needs shelf"
 									disabled={pendingSaveId !== null}
 								/>
 							</div>
@@ -1396,8 +1474,9 @@
 						<Button
 							variant="ghost"
 							size="sm"
-							href={`/library/books/${card.id}/edit`}
+							type="button"
 							class="gap-1 text-xs"
+							onclick={() => goto(bookEditHref)}
 						>
 							<ExternalLink class="size-3.5" /> Edit full
 						</Button>
@@ -1424,6 +1503,14 @@
 								label={pendingSaveId === card.id ? 'Saving…' : 'Confirm citation-ready'}
 								disabled={pendingSaveId !== null}
 							/>
+							<Button
+								type="submit"
+								formaction="?/markNeedsShelf"
+								variant="outline"
+								class="min-h-11 w-full md:hidden"
+								label="Needs shelf"
+								disabled={pendingSaveId !== null}
+							/>
 							<div class="grid grid-cols-2 gap-2 md:hidden">
 								{#if skippedStack.length > 0}
 									<Button
@@ -1441,7 +1528,7 @@
 									hotkey="e"
 									class="min-h-11"
 									label="Field wrong"
-									href={`/library/books/${card.id}/edit`}
+									onclick={() => goto(bookEditHref)}
 									disabled={pendingSaveId !== null}
 								/>
 								<Button
@@ -1461,6 +1548,13 @@
 									label={pendingSaveId === card.id ? 'Saving…' : 'Confirm citation-ready'}
 									disabled={pendingSaveId !== null}
 								/>
+								<Button
+									type="submit"
+									formaction="?/markNeedsShelf"
+									variant="outline"
+									label="Needs shelf"
+									disabled={pendingSaveId !== null}
+								/>
 								{#if skippedStack.length > 0}
 									<Button
 										type="button"
@@ -1475,7 +1569,7 @@
 									variant="outline"
 									hotkey="e"
 									label="Field wrong"
-									href={`/library/books/${card.id}/edit`}
+									onclick={() => goto(bookEditHref)}
 									disabled={pendingSaveId !== null}
 								/>
 								<Button
@@ -1548,6 +1642,19 @@
 			role="status"
 		>
 			{copyToast}
+		</p>
+	{/if}
+
+	{#if actionToast}
+		<p
+			class={`bottom-tabbar fixed left-1/2 z-50 max-w-sm -translate-x-1/2 rounded-full border px-4 py-2 text-center text-sm shadow-lg ${
+				actionToast.error
+					? 'border-destructive/40 bg-destructive/10 text-destructive'
+					: 'border-border bg-card'
+			}`}
+			role="alert"
+		>
+			{actionToast.message}
 		</p>
 	{/if}
 

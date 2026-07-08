@@ -27,6 +27,22 @@ const SHELF_SET = new Set<ReviewShelfFilter>(['only', 'exclude', 'all']);
  */
 export const SHELF_CHECK_MARKER = 'shelf';
 
+/** Standard defer line appended when a book needs physical-shelf verification. */
+export const SHELF_DEFER_LINE = 'Verify at shelf';
+
+/**
+ * Ensure `needs_review_note` contains the shelf marker (ILIKE `%shelf%`).
+ * Idempotent — returns existing text unchanged when the marker is already present.
+ */
+export function ensureShelfMarkerNote(existing: string | null): string {
+	const trimmed = existing?.trim() ?? '';
+	if (trimmed.toLowerCase().includes(SHELF_CHECK_MARKER.toLowerCase())) {
+		return trimmed.length > 0 ? trimmed : SHELF_DEFER_LINE;
+	}
+	if (trimmed.length === 0) return SHELF_DEFER_LINE;
+	return `${trimmed}\n\n${SHELF_DEFER_LINE}`;
+}
+
 export function parseReviewFilters(url: URL): ReviewQueueFilters {
 	const filters: ReviewQueueFilters = {};
 

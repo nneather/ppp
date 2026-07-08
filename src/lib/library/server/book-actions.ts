@@ -4,6 +4,7 @@ import { GENRES, LANGUAGES, READING_STATUSES, AUTHOR_ROLES, WORK_TYPES } from '$
 import type { AuthorRole, Genre, Language, ReadingStatus, WorkType } from '$lib/types/library';
 import { findOrCreatePerson, parseTypedName } from '$lib/library/server/people-actions';
 import { markProposalResolved, markProposalPending } from '$lib/library/server/proposal-actions';
+import { ensureShelfMarkerNote } from '$lib/library/review';
 
 /**
  * Server-side helpers for the books vertical slice. Both `/library` (list) and
@@ -32,6 +33,7 @@ export type ActionKind =
 	| 'createPerson'
 	| 'reviewSaved'
 	| 'reviewUndone'
+	| 'markedNeedsShelf'
 	| 'bulkUpdateBooks';
 
 export type AuthorAssignmentInput = {
@@ -1211,6 +1213,56 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 	}
 
 	return { kind: 'reviewSaved' as const, bookId: id, success: true as const };
+}
+
+/**
+ * Defer a review card to the physical-shelf deck — keeps `needs_review = true`
+ * and appends a shelf marker to `needs_review_note` when absent.
+ */
+export async function markNeedsShelfAction(supabase: SupabaseClient, fd: FormData) {
+	const id = String(fd.get('id') ?? '').trim();
+	if (!id) return fail(400, { kind: 'markedNeedsShelf' as const, message: 'Missing book id.' });
+
+	const { data: existingRow, error: fetchErr } = await supabase
+		.from('books')
+		.select('id, needs_review_note, deleted_at')
+		.eq('id', id)
+		.maybeSingle();
+	if (fetchErr || !existingRow) {
+		return fail(404, {
+			kind: 'markedNeedsShelf' as const,
+			bookId: id,
+			message: 'Book not found.'
+		});
+	}
+	const ex = existingRow as {
+		id: string;
+		needs_review_note: string | null;
+		deleted_at: string | null;
+	};
+	if (ex.deleted_at) {
+		return fail(404, {
+			kind: 'markedNeedsShelf' as const,
+			bookId: id,
+			message: 'Book was deleted.'
+		});
+	}
+
+	const needs_review_note = ensureShelfMarkerNote(ex.needs_review_note);
+	const { error: updErr } = await supabase
+		.from('books')
+		.update({ needs_review: true, needs_review_note } as never)
+		.eq('id', id);
+	if (updErr) {
+		console.error(updErr);
+		return fail(500, {
+			kind: 'markedNeedsShelf' as const,
+			bookId: id,
+			message: updErr.message ?? 'Could not mark as shelf-bound.'
+		});
+	}
+
+	return { kind: 'markedNeedsShelf' as const, bookId: id, success: true as const };
 }
 
 /**
