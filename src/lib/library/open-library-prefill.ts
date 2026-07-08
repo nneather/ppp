@@ -380,7 +380,11 @@ function suggestGenreFromSubjects(subjects: string[]): Genre | null {
 		},
 		{ genre: 'Theology', re: /\btheology\b|\bdoctrine\b|\bsystematic\b/i },
 		{ genre: 'Church History', re: /\bchurch history\b|\bpatristic\b|\bearly christianity\b|\breformation\b/i },
-		{ genre: 'Pastoral Ministry', re: /\bpastoral\b|\bpreaching\b|\bhomiletics\b|\bministry\b/i }
+		{ genre: 'Pastoral Ministry', re: /\bpastoral\b|\bpreaching\b|\bhomiletics\b|\bministry\b/i },
+		{
+			genre: 'Drama',
+			re: /\bdrama\b|\bplays?\b|\bshakespeare\b|\bmarlowe\b|\btheban plays\b|\blysistrata\b/i
+		}
 	];
 
 	for (const { genre, re } of rules) {

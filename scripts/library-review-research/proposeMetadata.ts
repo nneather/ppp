@@ -173,7 +173,8 @@ async function classifyGenres(
 		)
 		.join('\n');
 
-	const prompt = `You classify books from a pastor-scholar's personal theological library into EXACTLY one genre from this closed list:\n\n${genreList}\n\nRules:\n- Use ONLY genres from the list, spelled exactly.\n- "* Language Tools" genres are for grammars, lexicons, readers, and dictionaries OF that language — not merely books IN that language.\n- General fiction, novels, poetry collections → Literature or Poetry as appropriate.\n- If genuinely unsure, omit the book from the output.\n\nBooks (one JSON object per line):\n${bookLines}\n\nRespond with ONLY a JSON array, no prose: [{"id": "...", "genre": "...", "note": "<one short reason>"}]`;
+	const prompt = `You classify books from a pastor-scholar's personal theological library into EXACTLY one genre from this closed list:\n\n${genreList}\n\nRules:\n- Use ONLY genres from the list, spelled exactly.\n- "* Language Tools" genres are for grammars, lexicons, readers, and dictionaries OF that language — not merely books IN that language.\n- General fiction, novels, poetry collections → Literature or Poetry as appropriate.
+- Stage plays, play collections, and drama anthologies → Drama (not leadership "playbook" books about unrelated topics).\n- If genuinely unsure, omit the book from the output.\n\nBooks (one JSON object per line):\n${bookLines}\n\nRespond with ONLY a JSON array, no prose: [{"id": "...", "genre": "...", "note": "<one short reason>"}]`;
 
 	try {
 		const res = await fetch('https://api.anthropic.com/v1/messages', {

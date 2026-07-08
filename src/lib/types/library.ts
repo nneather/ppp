@@ -24,6 +24,7 @@ export const GENRES = [
 	'Commentary',
 	'Culture',
 	'Devotional',
+	'Drama',
 	'Ethics',
 	'General',
 	'General Epistles',
