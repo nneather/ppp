@@ -183,7 +183,7 @@ export const SUBJECT_TO_GENRE: Record<string, Genre | null> = {
 	BH: 'Biblical Reference', // Brockhaus is general reference; closest of the 12 closed genres
 	THE: 'Theology',
 	HIS: 'Church History',
-	PAS: 'Pastoral',
+	PAS: 'Pastoral Ministry',
 	GEN: 'General',
 	// Lowercase variants
 	cmt: 'Commentary',
@@ -194,7 +194,7 @@ export const SUBJECT_TO_GENRE: Record<string, Genre | null> = {
 	lhb: 'Hebrew Language Tools',
 	the: 'Theology',
 	his: 'Church History',
-	pas: 'Pastoral',
+	pas: 'Pastoral Ministry',
 	gen: 'General'
 };
 

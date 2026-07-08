@@ -59,6 +59,24 @@ export function incrementReviewProgress(slice: ReviewSlice): void {
 	localStorage.setItem(REVIEW_PROGRESS_KEYS.lastSlice, slice);
 }
 
+/** Inverse of `incrementReviewProgress` — review-queue undo only; milestones are not rolled back. */
+export function decrementReviewProgress(slice: ReviewSlice): void {
+	if (typeof localStorage === 'undefined') return;
+	const today = readReviewToday();
+	const nextToday = { date: localYmd(), count: Math.max(0, today.count - 1) };
+	localStorage.setItem(REVIEW_PROGRESS_KEYS.today, JSON.stringify(nextToday));
+
+	const lifetimeKey =
+		slice === 'critical'
+			? REVIEW_PROGRESS_KEYS.lifetimeCritical
+			: REVIEW_PROGRESS_KEYS.lifetimeBacklog;
+	const prev = Number(localStorage.getItem(lifetimeKey) ?? '0') || 0;
+	localStorage.setItem(lifetimeKey, String(Math.max(0, prev - 1)));
+
+	const allPrev = Number(localStorage.getItem(REVIEW_PROGRESS_KEYS.lifetimeCleared) ?? '0') || 0;
+	localStorage.setItem(REVIEW_PROGRESS_KEYS.lifetimeCleared, String(Math.max(0, allPrev - 1)));
+}
+
 export function readLifetimeCleared(slice: ReviewSlice): number {
 	if (typeof localStorage === 'undefined') return 0;
 	const key =
@@ -140,6 +158,15 @@ export function recordSprintSkip(): SprintState | null {
 	const state = readSprint();
 	if (!state) return null;
 	const next = { ...state, skipped: state.skipped + 1 };
+	writeSprint(next);
+	return next;
+}
+
+/** Inverse of `recordSprintClear` — review-queue undo only. */
+export function recordSprintUnclear(): SprintState | null {
+	const state = readSprint();
+	if (!state) return null;
+	const next = { ...state, cleared: Math.max(0, state.cleared - 1) };
 	writeSprint(next);
 	return next;
 }

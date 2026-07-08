@@ -9,8 +9,12 @@ import {
 	readSprint,
 	recordSprintClear,
 	recordSprintSkip,
+	recordSprintUnclear,
 	startSprint,
-	endSprint
+	endSprint,
+	incrementReviewProgress,
+	decrementReviewProgress,
+	readReviewToday
 } from '../review-progress';
 
 /** Minimal in-memory localStorage so the guarded helpers run under node. */
@@ -133,6 +137,30 @@ describe('sprint state (fake localStorage)', () => {
 		expect(shown.size).toBe(2);
 		expect(shown.has('lifetime:100')).toBe(true);
 	});
+
+	it('decrements review progress without going negative', () => {
+		incrementReviewProgress('critical');
+		incrementReviewProgress('critical');
+		expect(readReviewToday().count).toBe(2);
+		decrementReviewProgress('critical');
+		expect(readReviewToday().count).toBe(1);
+		decrementReviewProgress('critical');
+		expect(readReviewToday().count).toBe(0);
+		decrementReviewProgress('critical');
+		expect(readReviewToday().count).toBe(0);
+	});
+
+	it('recordSprintUnclear reverses a clear', () => {
+		startSprint(5, 'critical');
+		recordSprintClear();
+		recordSprintClear();
+		let s = recordSprintUnclear();
+		expect(s?.cleared).toBe(1);
+		s = recordSprintUnclear();
+		expect(s?.cleared).toBe(0);
+		s = recordSprintUnclear();
+		expect(s?.cleared).toBe(0);
+	});
 });
 
 describe('sprint state (no localStorage)', () => {
@@ -141,6 +169,8 @@ describe('sprint state (no localStorage)', () => {
 		expect(readSprint()).toBeNull();
 		expect(recordSprintClear()).toBeNull();
 		expect(recordSprintSkip()).toBeNull();
+		expect(recordSprintUnclear()).toBeNull();
 		expect(readShownMilestones().size).toBe(0);
+		decrementReviewProgress('critical');
 	});
 });

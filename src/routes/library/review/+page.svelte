@@ -11,6 +11,7 @@
 		formatBibliography,
 		formatFootnote,
 		incrementReviewProgress,
+		decrementReviewProgress,
 		isSprintComplete,
 		markMilestonesShown,
 		milestoneKeysFor,
@@ -21,6 +22,7 @@
 		readSprint,
 		recordSprintClear,
 		recordSprintSkip,
+		recordSprintUnclear,
 		reviewCardToCitationInput,
 		SPRINT_CHOICES,
 		startSprint,
@@ -58,13 +60,16 @@
 	import Shuffle from '@lucide/svelte/icons/shuffle';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Trophy from '@lucide/svelte/icons/trophy';
+	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import {
 		GENRES,
 		IMPORT_MATCH_TYPE_LABELS,
 		LANGUAGES,
 		LANGUAGE_LABELS,
 		READING_STATUSES,
-		READING_STATUS_LABELS
+		READING_STATUS_LABELS,
+		WORK_TYPES,
+		WORK_TYPE_LABELS
 	} from '$lib/types/library';
 	import type {
 		Genre,
@@ -73,7 +78,8 @@
 		ProposalField,
 		ReadingStatus,
 		ReviewCard,
-		ReviewSlice
+		ReviewSlice,
+		WorkType
 	} from '$lib/types/library';
 	import type { PageProps } from './$types';
 
@@ -109,6 +115,7 @@
 	let editGenre = $state<Genre | null>(null);
 	let editLanguage = $state<Language | null>(null);
 	let editReadingStatus = $state<ReadingStatus | null>(null);
+	let editWorkType = $state<WorkType | null>(null);
 	let editNoAttributedAuthor = $state<boolean | null>(null);
 	let pendingSaveId = $state<string | null>(null);
 	let confirmDeleteOpen = $state(false);
@@ -120,6 +127,16 @@
 	let reviewFormEl = $state<HTMLFormElement | null>(null);
 	let reviewCardEl = $state<HTMLElement | null>(null);
 	let pendingFromSwipe = $state(false);
+
+	type UndoSnapshot = {
+		card: ReviewCard;
+		proposalResolution: 'accepted' | 'rejected' | null;
+		activeSlice: ReviewSlice;
+	};
+	let undoSnapshot = $state<UndoSnapshot | null>(null);
+	let undoToastVisible = $state(false);
+	let undoPending = $state(false);
+	let undoTimer = $state<number | null>(null);
 
 	// Sprint + milestone state (localStorage-backed; read on mount).
 	let sprint = $state<SprintState | null>(null);
@@ -184,6 +201,7 @@
 			publisher_location: effectivePublisherLocation(c),
 			publisher_canonical: effectivePublisher(c),
 			publisher_effective_location: effectivePublisherLocation(c),
+			work_type: effectiveWorkType(c),
 			no_attributed_author: effectiveNoAttributedAuthor(c)
 		});
 		return {
@@ -195,6 +213,7 @@
 	/** Collapsed chip rows default closed when the server already has a value. */
 	let metaGenreExpanded = $state(false);
 	let metaStatusExpanded = $state(false);
+	let metaWorkTypeExpanded = $state(false);
 	let metaLangExpanded = $state(false);
 
 	/**
@@ -224,6 +243,7 @@
 		editGenre = null;
 		editLanguage = null;
 		editReadingStatus = null;
+		editWorkType = null;
 		confirmDeleteOpen = false;
 		milestone = null;
 		sprintSummary = null;
@@ -238,7 +258,28 @@
 		editGenre = null;
 		editLanguage = null;
 		editReadingStatus = null;
+		editWorkType = null;
 		editNoAttributedAuthor = null;
+	}
+
+	function clearUndoToast() {
+		undoToastVisible = false;
+		undoSnapshot = null;
+		if (undoTimer != null) {
+			clearTimeout(undoTimer);
+			undoTimer = null;
+		}
+	}
+
+	function showUndoToast(snapshot: UndoSnapshot) {
+		clearUndoToast();
+		undoSnapshot = snapshot;
+		undoToastVisible = true;
+		if (browser) {
+			undoTimer = window.setTimeout(() => {
+				clearUndoToast();
+			}, 10_000);
+		}
 	}
 
 	/** When the visible card changes, clear in-progress edits and metadata row layout. */
@@ -252,6 +293,7 @@
 				if (c) {
 					metaGenreExpanded = !c.genre;
 					metaStatusExpanded = false;
+					metaWorkTypeExpanded = false;
 					metaLangExpanded = false;
 				}
 			}
@@ -316,6 +358,12 @@
 	function saveSubmit(): SubmitFunction {
 		return ({ formData }) => {
 			const id = String(formData.get('id') ?? '');
+			const snapshotCard = currentCard;
+			const proposalResolutionRaw = String(formData.get('proposal_resolution') ?? '').trim();
+			const proposalResolution: 'accepted' | 'rejected' | null =
+				proposalResolutionRaw === 'accepted' || proposalResolutionRaw === 'rejected'
+					? proposalResolutionRaw
+					: null;
 			const fromSwipe = pendingFromSwipe;
 			pendingFromSwipe = false;
 			pendingSaveId = id;
@@ -333,6 +381,13 @@
 					successPulse = true;
 					await new Promise((r) => setTimeout(r, 200));
 					successPulse = false;
+					if (snapshotCard && snapshotCard.id === id) {
+						showUndoToast({
+							card: structuredClone(snapshotCard),
+							proposalResolution,
+							activeSlice
+						});
+					}
 					advance(id);
 					if (isSprintComplete(sprint) && sprint) {
 						sprintSummary = { finished: sprint, endedAt: Date.now() };
@@ -341,6 +396,29 @@
 					}
 				}
 				pendingSaveId = null;
+			};
+		};
+	}
+
+	function undoSubmit(): SubmitFunction {
+		return () => {
+			undoPending = true;
+			return async ({ result, update }) => {
+				disableScrollHandling();
+				await update({ reset: false, invalidateAll: false });
+				undoPending = false;
+				if (result.type === 'success' && undoSnapshot) {
+					const snap = undoSnapshot;
+					clearUndoToast();
+					excludedIds = new Set([...excludedIds].filter((bid) => bid !== snap.card.id));
+					cards = [snap.card, ...cards.filter((c) => c.id !== snap.card.id)];
+					remaining += 1;
+					reviewedThisSession = Math.max(0, reviewedThisSession - 1);
+					decrementReviewProgress(snap.activeSlice);
+					todayCleared = readReviewToday().count;
+					sprint = recordSprintUnclear() ?? sprint;
+					void scrollReviewCardIntoView();
+				}
 			};
 		};
 	}
@@ -366,6 +444,7 @@
 
 	function skipCurrent() {
 		if (!currentCard) return;
+		clearUndoToast();
 		skippedStack = [...skippedStack, currentCard];
 		sprint = recordSprintSkip() ?? sprint;
 		advance(currentCard.id);
@@ -434,6 +513,7 @@
 		return ({ formData }) => {
 			const id = String(formData.get('id') ?? '');
 			confirmDeletePending = true;
+			clearUndoToast();
 			return async ({ result, update }) => {
 				disableScrollHandling();
 				await update({ reset: false, invalidateAll: false });
@@ -618,15 +698,37 @@
 		return editReadingStatus ?? c.reading_status;
 	}
 
+	function effectiveWorkType(c: ReviewCard): WorkType {
+		return editWorkType ?? c.work_type;
+	}
+
 	function effectiveNoAttributedAuthor(c: ReviewCard): boolean {
 		return editNoAttributedAuthor !== null ? editNoAttributedAuthor : c.no_attributed_author;
 	}
 
-	/** Author counts as "present" iff the card already shows authors or is marked authorless. */
+	function hasContributorRole(c: ReviewCard, role: 'author' | 'editor'): boolean {
+		return c.authors.some((a) => a.role === role);
+	}
+
+	/** Monograph with editors on file but no author-role rows — work-type fix, not authorless. */
+	function showEditorsOnlyHint(c: ReviewCard): boolean {
+		if (effectiveNoAttributedAuthor(c)) return false;
+		if (effectiveWorkType(c) !== 'monograph') return false;
+		return hasContributorRole(c, 'editor') && !hasContributorRole(c, 'author');
+	}
+
+	/** Author counts as "present" iff contributors match work_type or card is marked authorless. */
 	function previewMissing(c: ReviewCard): string[] {
 		const out: string[] = [];
 		if (!effectiveTitle(c)) out.push('title');
-		if (!effectiveNoAttributedAuthor(c) && !c.authors_label) out.push('author');
+		if (!effectiveNoAttributedAuthor(c)) {
+			const wt = effectiveWorkType(c);
+			if (wt === 'monograph') {
+				if (!hasContributorRole(c, 'author')) out.push('author');
+			} else if (!hasContributorRole(c, 'editor')) {
+				out.push('editor');
+			}
+		}
 		if (!effectiveGenre(c)) out.push('genre');
 		if (effectiveYear(c) == null) out.push('year');
 		if (!effectivePublisher(c)) out.push('publisher');
@@ -753,6 +855,7 @@
 			{@const userNote = userNotePart(card.needs_review_note)}
 			{@const genreRowOpen = !card.genre || editGenre !== null || metaGenreExpanded}
 			{@const statusRowOpen = editReadingStatus !== null || metaStatusExpanded}
+			{@const workTypeRowOpen = editWorkType !== null || metaWorkTypeExpanded}
 			{@const langRowOpen = editLanguage !== null || metaLangExpanded}
 			{#if milestone}
 				<ReviewMilestoneCard
@@ -808,6 +911,33 @@
 						{/if}
 						{#if card.authors_label}
 							<p class="mt-1 text-xs text-muted-foreground">{card.authors_label}</p>
+							{#if showEditorsOnlyHint(card)}
+								<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+									<span class="text-[11px] text-amber-800 dark:text-amber-300">
+										Contributors are editors — mark as:
+									</span>
+									<button
+										type="button"
+										class="rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] transition-colors hover:bg-muted"
+										onclick={() => {
+											metaWorkTypeExpanded = true;
+											editWorkType = 'edited_volume';
+										}}
+									>
+										Edited volume
+									</button>
+									<button
+										type="button"
+										class="rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] transition-colors hover:bg-muted"
+										onclick={() => {
+											metaWorkTypeExpanded = true;
+											editWorkType = 'reference_work';
+										}}
+									>
+										Reference work
+									</button>
+								</div>
+							{/if}
 						{:else if effectiveNoAttributedAuthor(card)}
 							<p class="mt-1 text-xs text-muted-foreground italic">No attributed author (by design)</p>
 						{:else}
@@ -852,7 +982,14 @@
 				{/if}
 
 				<!-- Auto-line + user note -->
-				{#if auto}
+				{#if missing.length > 0}
+					<div
+						class="mt-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-900 dark:text-amber-100"
+					>
+						<AlertCircle class="mt-0.5 size-3.5 flex-shrink-0" />
+						<div class="flex-1">Missing: {missing.join(', ')}</div>
+					</div>
+				{:else if auto}
 					<div
 						class="mt-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-900 dark:text-amber-100"
 					>
@@ -1160,6 +1297,44 @@
 						<input type="hidden" name="reading_status" value={effectiveReadingStatus(card)} />
 					</div>
 
+					<!-- Work type chip row -->
+					<div>
+						{#if workTypeRowOpen}
+							<div class="mb-1.5 text-xs font-medium text-muted-foreground">Work type</div>
+							<div class="flex flex-col gap-1.5">
+								{#each WORK_TYPES as wt (wt)}
+									{@const active = effectiveWorkType(card) === wt}
+									<button
+										type="button"
+										class={`rounded-full border px-2.5 py-1 text-left text-xs transition-colors ${chipClasses(active)}`}
+										onclick={() => {
+											metaWorkTypeExpanded = true;
+											editWorkType = wt;
+										}}
+										aria-pressed={active}
+									>
+										{WORK_TYPE_LABELS[wt]}
+									</button>
+								{/each}
+							</div>
+						{:else}
+							<button
+								type="button"
+								class="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-2 py-2 text-left hover:bg-muted/50"
+								onclick={() => (metaWorkTypeExpanded = true)}
+							>
+								<ChevronRight
+									class="size-4 shrink-0 text-muted-foreground rtl:rotate-180"
+								/>
+								<span class="text-xs font-medium text-muted-foreground">Work type</span>
+								<span class="min-w-0 flex-1 truncate text-xs text-foreground"
+									>{WORK_TYPE_LABELS[effectiveWorkType(card)]}</span
+								>
+							</button>
+						{/if}
+						<input type="hidden" name="work_type" value={effectiveWorkType(card)} />
+					</div>
+
 					<input
 						type="hidden"
 						name="no_attributed_author"
@@ -1250,6 +1425,16 @@
 								disabled={pendingSaveId !== null}
 							/>
 							<div class="grid grid-cols-2 gap-2 md:hidden">
+								{#if skippedStack.length > 0}
+									<Button
+										type="button"
+										variant="outline"
+										class="min-h-11"
+										label="Back"
+										onclick={goBackToSkipped}
+										disabled={pendingSaveId !== null}
+									/>
+								{/if}
 								<Button
 									type="button"
 									variant="outline"
@@ -1276,6 +1461,15 @@
 									label={pendingSaveId === card.id ? 'Saving…' : 'Confirm citation-ready'}
 									disabled={pendingSaveId !== null}
 								/>
+								{#if skippedStack.length > 0}
+									<Button
+										type="button"
+										variant="outline"
+										label="Back"
+										onclick={goBackToSkipped}
+										disabled={pendingSaveId !== null}
+									/>
+								{/if}
 								<Button
 									type="button"
 									variant="outline"
@@ -1355,6 +1549,49 @@
 		>
 			{copyToast}
 		</p>
+	{/if}
+
+	{#if undoToastVisible && undoSnapshot}
+		<div
+			class="bottom-tabbar fixed inset-x-0 z-50 mx-auto flex w-full max-w-sm items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-card-foreground shadow-lg md:bottom-6"
+			role="status"
+		>
+			<span class="min-w-0 flex-1 truncate text-muted-foreground">Book confirmed</span>
+			<form method="POST" action="?/undoReviewSave" use:enhance={undoSubmit()} class="shrink-0">
+				<input type="hidden" name="id" value={undoSnapshot.card.id} />
+				<input type="hidden" name="title" value={undoSnapshot.card.title ?? ''} />
+				<input type="hidden" name="year" value={undoSnapshot.card.year ?? ''} />
+				<input type="hidden" name="publisher" value={undoSnapshot.card.publisher ?? ''} />
+				<input
+					type="hidden"
+					name="publisher_location"
+					value={undoSnapshot.card.publisher_location ?? ''}
+				/>
+				<input type="hidden" name="publisher_id" value={undoSnapshot.card.publisher_id ?? ''} />
+				<input type="hidden" name="genre" value={undoSnapshot.card.genre ?? ''} />
+				<input type="hidden" name="language" value={undoSnapshot.card.language} />
+				<input type="hidden" name="reading_status" value={undoSnapshot.card.reading_status} />
+				<input type="hidden" name="work_type" value={undoSnapshot.card.work_type} />
+				<input
+					type="hidden"
+					name="no_attributed_author"
+					value={undoSnapshot.card.no_attributed_author ? 'true' : 'false'}
+				/>
+				<input
+					type="hidden"
+					name="needs_review_note"
+					value={undoSnapshot.card.needs_review_note ?? ''}
+				/>
+				{#if undoSnapshot.card.proposal && undoSnapshot.proposalResolution}
+					<input type="hidden" name="proposal_id" value={undoSnapshot.card.proposal.id} />
+					<input type="hidden" name="proposal_resolution" value={undoSnapshot.proposalResolution} />
+				{/if}
+				<Button type="submit" size="sm" variant="outline" disabled={undoPending} class="gap-1">
+					<Undo2 class="size-3.5" /> {undoPending ? 'Undoing…' : 'Undo'}
+				</Button>
+			</form>
+			<Button type="button" size="sm" variant="ghost" onclick={clearUndoToast}>Dismiss</Button>
+		</div>
 	{/if}
 
 	{#if data.scriptureRefsNeedingReview.length > 0}

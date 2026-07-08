@@ -31,6 +31,29 @@ export async function markProposalResolved(
 	return null;
 }
 
+/** Undo path for review-queue Confirm — restore a resolved proposal to pending. */
+export async function markProposalPending(
+	supabase: SupabaseClient,
+	proposalId: string,
+	/** Must match the status set at confirm time (accepted or rejected). */
+	fromStatus: 'accepted' | 'rejected',
+	bookId?: string
+): Promise<{ message: string } | null> {
+	let query = supabase
+		.from('book_metadata_proposals')
+		.update({ status: 'pending', reviewed_at: null } as never)
+		.eq('id', proposalId)
+		.eq('status', fromStatus)
+		.is('deleted_at', null);
+	if (bookId) query = query.eq('book_id', bookId);
+	const { error } = await query;
+	if (error) {
+		console.error('[markProposalPending]', error);
+		return { message: error.message ?? 'Could not restore proposal.' };
+	}
+	return null;
+}
+
 export async function resolveProposalAction(supabase: SupabaseClient, fd: FormData) {
 	const id = String(fd.get('proposal_id') ?? '').trim();
 	if (!UUID_RE.test(id))

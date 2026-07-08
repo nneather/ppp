@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { GENRES, LANGUAGES, READING_STATUSES, AUTHOR_ROLES, WORK_TYPES } from '$lib/types/library';
 import type { AuthorRole, Genre, Language, ReadingStatus, WorkType } from '$lib/types/library';
 import { findOrCreatePerson, parseTypedName } from '$lib/library/server/people-actions';
-import { markProposalResolved } from '$lib/library/server/proposal-actions';
+import { markProposalResolved, markProposalPending } from '$lib/library/server/proposal-actions';
 
 /**
  * Server-side helpers for the books vertical slice. Both `/library` (list) and
@@ -31,6 +31,7 @@ export type ActionKind =
 	| 'undoSoftDeleteBook'
 	| 'createPerson'
 	| 'reviewSaved'
+	| 'reviewUndone'
 	| 'bulkUpdateBooks';
 
 export type AuthorAssignmentInput = {
@@ -1008,7 +1009,7 @@ export async function createPersonAction(supabase: SupabaseClient, userId: strin
  *
  * 1. **Partial overlay only.** Only the fields the card surfaces (`title`,
  *    `year`, `publisher`, `publisher_location`, `publisher_id`, `genre`,
- *    `language`, `reading_status`) are read
+ *    `work_type`, `language`, `reading_status`, `no_attributed_author`) are read
  *    from FormData and merged onto the existing row. Everything else stays
  *    byte-identical — no junctions, no `personal_notes`, no `rating`.
  * 2. **`needs_review = false` is unconditional.** The user explicitly
@@ -1118,10 +1119,21 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 	const no_attributed_author =
 		noAttributedRaw !== null ? parseBoolean(noAttributedRaw) : ex.no_attributed_author;
 
-	const workType =
+	const workTypeRaw = fd.get('work_type');
+	let workType: WorkType =
 		ex.work_type === 'edited_volume' || ex.work_type === 'reference_work'
 			? ex.work_type
 			: 'monograph';
+	if (workTypeRaw !== null) {
+		const t = String(workTypeRaw).trim();
+		if (!WORK_TYPE_SET.has(t))
+			return fail(400, {
+				kind: 'reviewSaved' as const,
+				bookId: id,
+				message: 'Pick a work type from the list.'
+			});
+		workType = t as WorkType;
+	}
 
 	// Contributor-presence for Missing: computation (author vs editor by work_type).
 	const contributorRole = workType === 'monograph' ? 'author' : 'editor';
@@ -1169,7 +1181,8 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 		reading_status,
 		needs_review: false,
 		needs_review_note,
-		no_attributed_author
+		no_attributed_author,
+		work_type: workType
 	};
 
 	const { error: updErr } = await supabase
@@ -1198,4 +1211,158 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 	}
 
 	return { kind: 'reviewSaved' as const, bookId: id, success: true as const };
+}
+
+/**
+ * Undo the most recent review-queue Confirm — restore the pre-save book snapshot
+ * and re-flag `needs_review`. Best-effort proposal reset when the confirm had
+ * resolved a pending proposal.
+ */
+export async function undoReviewSaveAction(supabase: SupabaseClient, fd: FormData) {
+	const id = String(fd.get('id') ?? '').trim();
+	if (!id) return fail(400, { kind: 'reviewUndone' as const, message: 'Missing book id.' });
+
+	const { data: existingRow, error: fetchErr } = await supabase
+		.from('books')
+		.select('id, deleted_at')
+		.eq('id', id)
+		.maybeSingle();
+	if (fetchErr || !existingRow) {
+		return fail(404, {
+			kind: 'reviewUndone' as const,
+			bookId: id,
+			message: 'Book not found.'
+		});
+	}
+	const ex = existingRow as { id: string; deleted_at: string | null };
+	if (ex.deleted_at) {
+		return fail(404, {
+			kind: 'reviewUndone' as const,
+			bookId: id,
+			message: 'Book was deleted.'
+		});
+	}
+
+	const title = trimOrNull(fd.get('title'));
+	const publisher = trimOrNull(fd.get('publisher'));
+	const publisher_location = trimOrNull(fd.get('publisher_location'));
+	const publisher_id = parseUuidOrNull(fd.get('publisher_id'));
+
+	const yearRaw = fd.get('year');
+	let year: number | null = null;
+	if (yearRaw !== null) {
+		const t = String(yearRaw).trim();
+		if (t !== '') {
+			const parsed = parseInt0(yearRaw);
+			if (parsed === null)
+				return fail(400, {
+					kind: 'reviewUndone' as const,
+					bookId: id,
+					message: 'Invalid year in undo snapshot.'
+				});
+			year = parsed;
+		}
+	}
+
+	const genreRaw = fd.get('genre');
+	let genre: string | null = null;
+	if (genreRaw !== null) {
+		const t = String(genreRaw).trim();
+		if (t === '') genre = null;
+		else if (GENRE_SET.has(t)) genre = t;
+		else
+			return fail(400, {
+				kind: 'reviewUndone' as const,
+				bookId: id,
+				message: 'Invalid genre in undo snapshot.'
+			});
+	}
+
+	const langRaw = fd.get('language');
+	if (langRaw === null)
+		return fail(400, {
+			kind: 'reviewUndone' as const,
+			bookId: id,
+			message: 'Missing language in undo snapshot.'
+		});
+	const language = String(langRaw).trim();
+	if (!LANGUAGE_SET.has(language))
+		return fail(400, {
+			kind: 'reviewUndone' as const,
+			bookId: id,
+			message: 'Invalid language in undo snapshot.'
+		});
+
+	const statusRaw = fd.get('reading_status');
+	if (statusRaw === null)
+		return fail(400, {
+			kind: 'reviewUndone' as const,
+			bookId: id,
+			message: 'Missing reading status in undo snapshot.'
+		});
+	const reading_status = String(statusRaw).trim();
+	if (!READING_STATUS_SET.has(reading_status))
+		return fail(400, {
+			kind: 'reviewUndone' as const,
+			bookId: id,
+			message: 'Invalid reading status in undo snapshot.'
+		});
+
+	const workTypeRaw = fd.get('work_type');
+	if (workTypeRaw === null)
+		return fail(400, {
+			kind: 'reviewUndone' as const,
+			bookId: id,
+			message: 'Missing work type in undo snapshot.'
+		});
+	const work_type = String(workTypeRaw).trim();
+	if (!WORK_TYPE_SET.has(work_type))
+		return fail(400, {
+			kind: 'reviewUndone' as const,
+			bookId: id,
+			message: 'Invalid work type in undo snapshot.'
+		});
+
+	const no_attributed_author = parseBoolean(fd.get('no_attributed_author'));
+	const needs_review_note = trimOrNull(fd.get('needs_review_note'));
+
+	const payload: Record<string, unknown> = {
+		title,
+		year,
+		publisher,
+		publisher_location,
+		publisher_id,
+		genre,
+		language,
+		reading_status,
+		work_type,
+		no_attributed_author,
+		needs_review: true,
+		needs_review_note
+	};
+
+	const { error: updErr } = await supabase
+		.from('books')
+		.update(payload as never)
+		.eq('id', id);
+	if (updErr) {
+		console.error(updErr);
+		return fail(500, {
+			kind: 'reviewUndone' as const,
+			bookId: id,
+			message: updErr.message ?? 'Could not undo review.'
+		});
+	}
+
+	const proposalId = parseUuidOrNull(fd.get('proposal_id'));
+	const resolutionRaw = String(fd.get('proposal_resolution') ?? '').trim();
+	if (
+		proposalId &&
+		(resolutionRaw === 'accepted' || resolutionRaw === 'rejected')
+	) {
+		const err = await markProposalPending(supabase, proposalId, resolutionRaw, id);
+		if (err) console.error('[undoReviewSaveAction proposal]', err.message);
+	}
+
+	return { kind: 'reviewUndone' as const, bookId: id, success: true as const };
 }

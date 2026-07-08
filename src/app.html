@@ -10,9 +10,72 @@
 		<meta name="apple-mobile-web-app-title" content="ppp" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<meta name="theme-color" content="#ffffff" />
+		<style>
+			#ppp-boot-shell {
+				position: fixed;
+				inset: 0;
+				z-index: 9999;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 1.5rem;
+				font-family:
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					sans-serif;
+				background: #ffffff;
+				color: #18181b;
+				-webkit-font-smoothing: antialiased;
+				text-align: center;
+			}
+			#ppp-boot-shell p {
+				margin: 0;
+				font-size: 0.875rem;
+				line-height: 1.5;
+				color: #71717a;
+			}
+			#ppp-boot-shell.ppp-boot-retry {
+				cursor: pointer;
+			}
+			#ppp-boot-shell.ppp-boot-retry button {
+				margin-top: 1rem;
+				padding: 0.5rem 1rem;
+				border: 1px solid #e4e4e7;
+				border-radius: 0.5rem;
+				background: #18181b;
+				color: #fafafa;
+				font-size: 0.875rem;
+				font-weight: 500;
+				cursor: pointer;
+			}
+		</style>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="tap" data-sveltekit-preload-code="eager">
-		<div style="display: contents">%sveltekit.body%</div>
+		<div style="display: contents">
+			<div id="ppp-boot-shell" data-ppp-boot role="status" aria-live="polite" aria-busy="true">
+				<p>Loading ppp…</p>
+			</div>
+			%sveltekit.body%
+		</div>
+		<script>
+			(function () {
+				var WATCH_MS = 15000;
+				window.setTimeout(function () {
+					var el = document.querySelector('[data-ppp-boot]');
+					if (!el) return;
+					el.classList.add('ppp-boot-retry');
+					el.setAttribute('aria-busy', 'false');
+					el.innerHTML =
+						'<div><p>Still loading</p><p style="margin-top:0.5rem">Tap to retry</p><button type="button">Try again</button></div>';
+					el.onclick = function () {
+						window.location.reload();
+					};
+				}, WATCH_MS);
+			})();
+		</script>
 	</body>
 </html>

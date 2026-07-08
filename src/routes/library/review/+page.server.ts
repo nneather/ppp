@@ -13,6 +13,7 @@ import { defaultReviewSlice } from '$lib/library/turabian/review-progress';
 import type { ReviewSlice } from '$lib/types/library';
 import {
 	reviewSaveAction,
+	undoReviewSaveAction,
 	softDeleteBookAction
 } from '$lib/library/server/book-actions';
 import { resolveProposalAction } from '$lib/library/server/proposal-actions';
@@ -73,6 +74,13 @@ export const actions: Actions = {
 			return fail(401, { kind: 'reviewSaved' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return reviewSaveAction(locals.supabase, user.id, fd);
+	},
+	undoReviewSave: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'reviewUndone' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return undoReviewSaveAction(locals.supabase, fd);
 	},
 	softDeleteBook: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

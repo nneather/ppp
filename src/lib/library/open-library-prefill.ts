@@ -353,9 +353,34 @@ function suggestGenreFromSubjects(subjects: string[]): Genre | null {
 		{ genre: 'German Language Tools', re: /\bgerman\b.*\b(grammar|reader|language)\b|\bdeutsch\b/i },
 		{ genre: 'Chinese Language Tools', re: /\bchinese\b.*\b(grammar|reader|language)\b/i },
 		{ genre: 'Bibles', re: /\bholy bible\b|\bscriptures\b(?!\s+criticism)|\bbible study edition\b|\bstudy bible\b/i },
+		{
+			genre: 'Gospels and Jesus',
+			re: /\bgospels?\b|\blife of (jesus|christ)\b|\bhistorical jesus\b/i
+		},
+		{
+			genre: 'General Epistles',
+			re: /\bgeneral epistles\b|\bcatholic epistles\b|\bepistles? of (james|peter|john|jude)\b/i
+		},
+		{
+			genre: 'Acts and Paul',
+			re: /\bacts of the apostles\b|\bpauline (epistles|letters|theology)\b|\bapostle paul\b/i
+		},
+		{ genre: 'Pentateuch', re: /\bpentateuch\b|\btorah\b/i },
+		{
+			genre: 'Old Testament Historical Books',
+			re: /\bold testament history\b|\bhistorical books\b/i
+		},
+		{
+			genre: 'Psalms and Wisdom Literature',
+			re: /\bpsalms\b|\bwisdom literature\b|\bproverbs\b|\becclesiastes\b/i
+		},
+		{
+			genre: 'Prophets',
+			re: /\bminor prophets\b|\bmajor prophets\b|\bhebrew prophets\b|\bold testament prophets\b/i
+		},
 		{ genre: 'Theology', re: /\btheology\b|\bdoctrine\b|\bsystematic\b/i },
 		{ genre: 'Church History', re: /\bchurch history\b|\bpatristic\b|\bearly christianity\b|\breformation\b/i },
-		{ genre: 'Pastoral', re: /\bpastoral\b|\bpreaching\b|\bhomiletics\b|\bministry\b/i }
+		{ genre: 'Pastoral Ministry', re: /\bpastoral\b|\bpreaching\b|\bhomiletics\b|\bministry\b/i }
 	];
 
 	for (const { genre, re } of rules) {

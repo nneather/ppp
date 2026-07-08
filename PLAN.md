@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-07 — **Review-queue follow-ups shipped** ([069](docs/decisions/069-review-queue-follow-ups.md)): Turabian location normalization, editable proposal apply, italic citation previews, `no_attributed_author`, dismissed proposals stay gone. Prior: sprint decks + AI research pass ([067](docs/decisions/067-library-review-sprint-decks.md)–[068](docs/decisions/068-library-review-ai-research-pass.md)).
+**Last updated:** 2026-07-08 — **PWA cold-start resilience** ([072](docs/decisions/072-pwa-cold-start-resilience.md)): boot shell + 15s retry in `app.html`, chunk-load recovery card (`hooks.client.ts`), 12s nav watchdog (066 Q14). Prior: review-queue authorless + undo ([071](docs/decisions/071-review-queue-authorless-undo.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,9 +10,9 @@
 
 ## Current focus
 
-**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). Still queued below: **library writing-session gaps**, **ops hardening** (weekly cron, projects+profiles dumps, restore fix, REVOKE migration, nav watchdog). MYN 2-week adoption trial runs through ~2026-07-20.
+**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)). Still queued: **library writing-session gaps**, **ops hardening** (weekly cron, projects+profiles dumps, restore fix, REVOKE migration). MYN 2-week adoption trial runs through ~2026-07-20.
 
-**Review queue — sprint decks + AI research pass (2026-07-06/07, [067](docs/decisions/067-library-review-sprint-decks.md) + [068](docs/decisions/068-library-review-ai-research-pass.md)):** `/library/review` rebuilt around **decks** (Citation Critical 27 · Genre Sprint 585 one-tap · Research 30 · Puzzles 119 · Backlog 728 · Needs the shelf 44 — shelf-bound books excluded everywhere else by default while in Madison), **sprints** (5/10/25 + ring + summary card), **live-ticking burndown + one-time milestones**, shuffle, and `book_metadata_proposals` (script proposes, owner confirms on-card, never auto-clears). **Owner:** add `ANTHROPIC_API_KEY` to `.env.local` → rerun `library:review-research --apply` for genre proposals (585-book slice); phone smoke the new review page; try one 10-sprint.
+**Review queue — sprint decks + AI research pass, now full backlog (2026-07-06/07, [067](docs/decisions/067-library-review-sprint-decks.md)+[068](docs/decisions/068-library-review-ai-research-pass.md)+[070](docs/decisions/070-library-genre-taxonomy-audit.md)):** `/library/review` rebuilt around **decks** (Citation Critical, Genre Sprint one-tap, Research, Puzzles, Backlog, Needs the shelf — shelf-bound books excluded everywhere else by default while in Madison), **sprints** (5/10/25 + ring + summary card), **live-ticking burndown + one-time milestones**, shuffle, and `book_metadata_proposals`. **`ANTHROPIC_API_KEY` added to `.env.local`; full-backlog run done** — Research deck now carries **~673 pending proposals** (639 with a genre suggestion) covering the whole prior 716-book null-genre set; only **45 books** remain with zero AI signal (no ISBN/OL match). **Owner:** phone smoke the Research deck accept flow at this new volume; try one 10-sprint; the 45 stragglers need manual attention eventually.
 
 **Product review remediation (051):** R1 docs trust + **R2 security hardening** ([052](docs/decisions/052-security-hardening.md)) + **R3 UX safety** ([053](docs/decisions/053-ux-safety.md)) + **R4 invoicing polish** ([054](docs/decisions/054-invoicing-polish.md)) + **R5 CI + backups** ([055](docs/decisions/055-ci-backups.md)) — **complete**. Viewer-readiness items stay in backlog until a collaborator nears.
 
@@ -43,11 +43,12 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [072 — PWA cold-start resilience](docs/decisions/072-pwa-cold-start-resilience.md) (2026-07-08) — boot shell + 15s retry in `app.html`; `hooks.client.ts` + chunk-load recovery card; 12s nav watchdog (066 Q14). Morning white-screen incident: cold launch, pure white, likely chunk skew or network blip after Jul 7 deploy.
+- [071 — Review queue authorless + undo](docs/decisions/071-review-queue-authorless-undo.md) (2026-07-08) — work-type chips + editors-only monograph one-tap fix on review cards; role-aware missing preview; 10s Confirm undo (field restore + proposal re-pending); Back button for skipped cards.
+- [070 — Genre taxonomy audit](docs/decisions/070-library-genre-taxonomy-audit.md) (2026-07-07) — full-backlog `library:review-research --all --apply` (648 proposals, 45 residual no-signal books); crosswalk confirmed the 42-genre list is sound (pre-classification counts were misleading — 52% of the library was unclassified); merged `Pastoral` → `Pastoral Ministry`; added 5 NT/OT sub-genres (`Acts and Paul`, `Pentateuch`, `Old Testament Historical Books`, `Psalms and Wisdom Literature`, `Prophets` — 46 values total) + retagged the 6 pre-existing plain NT/OT books into them; re-tagged 33 general-purpose `Biblical Reference` rows (Brockhaus set) to `Reference`; added OL-prefill heuristics for all 7 NT/OT sub-genres. Four migrations applied, gen-types run, check/test green (200/200).
 - [069 — Review queue follow-ups](docs/decisions/069-review-queue-follow-ups.md) (2026-07-07) — Turabian `publisher_location` normalization; proposal filter + dismissed-stays-gone; editable Apply on review card; italic citation previews; `books.no_attributed_author` for authorless reference works; `rejectRedundantProposals.ts` cleanup script.
-- [068 — Review queue AI research pass](docs/decisions/068-library-review-ai-research-pass.md) (2026-07-06) — `book_metadata_proposals` (one pending per book, RLS + audit, applied to prod); `library:review-research` script (OL + optional Anthropic genre); `<ReviewProposalPanel>` apply/dismiss on cards; Research deck via `!inner` embed; first run: 30 proposals from 100 ISBN books. Security-review + Bugbot clean.
 - [067 — Review queue sprint decks](docs/decisions/067-library-review-sprint-decks.md) (2026-07-06) — deck picker (6 decks, live counts) replaces slice pills; Genre Sprint one-tap fast lane (585 books); 5/10/25 sprints + ring + summary; live-ticking burndown; milestones (25/50/75/100% + per-100 lifetime); shuffle; shelf-bound books excluded by default while away. Shelf marker is the word `shelf`, not the importer prefix.
 - [065 — Writing workflow review](docs/decisions/065-writing-workflow-review.md) (2026-07-07) — formatters September-ready, writing session not: no short-form UI, `[page]` on every copy → writing-session-gaps session; `work_type` SQL sweep; fixture strings need Covenant validation in August; never build auto-Ibid.
-- [064 — Usage retrospective](docs/decisions/064-usage-retrospective-review.md) (2026-07-07) — two healthy weekly rituals (invoicing, project check-in); MYN tasks/links/progress zero rows → 2-week MYN trial; review-queue improvement + AI research pass; archive Fountain of Life.
 
 ---
 
@@ -70,7 +71,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-07** ([069](docs/decisions/069-review-queue-follow-ups.md); check **0 errors**; test **197/197** green). Prior: review-queue gamification ([067](docs/decisions/067-library-review-sprint-decks.md)–[068](docs/decisions/068-library-review-ai-research-pass.md); 187/187).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-08** ([072](docs/decisions/072-pwa-cold-start-resilience.md); check **0 errors**; test **205/205** green). Prior: review-queue authorless + undo ([071](docs/decisions/071-review-queue-authorless-undo.md); 202/202).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md) — the earlier "Pro 7-day backups" wording here was wrong), so the R2 dumps are the **only** backup. **Pipeline is live** — secrets set + first successful run 2026-07-06 (run 28830982000; both dumps in R2 under `2026/`). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + cron — **bump monthly → weekly `0 8 * * 1` in the ops hardening session**):
 
@@ -112,9 +113,9 @@ Acceptance:
 End-of-session: tracker row added+ticked, docs/decisions/<next-free>-*.md, PLAN.md refreshed
 ```
 
-### Library — review-queue improvement + AI research pass ✅ done ([067](docs/decisions/067-library-review-sprint-decks.md) + [068](docs/decisions/068-library-review-ai-research-pass.md))
+### Library — review-queue improvement + AI research pass ✅ done, full backlog run ✅ done ([067](docs/decisions/067-library-review-sprint-decks.md) + [068](docs/decisions/068-library-review-ai-research-pass.md) + [070](docs/decisions/070-library-genre-taxonomy-audit.md))
 
-Owner follow-ups: `ANTHROPIC_API_KEY` into `.env.local` → `LIBRARY_RESEARCH_CONFIRM=yes npm run library:review-research -- --apply` (genre proposals for the 585-book Genre Sprint slice; re-run also covers the ~440 remaining ISBN books); phone smoke decks/sprint/fast lane.
+Owner follow-up: phone smoke the Research deck accept flow at ~673 pending proposals; the 45 books with no AI signal at all need eventual manual attention.
 
 ### Ops hardening — from [066](docs/decisions/066-operational-resilience-review.md) Q10–Q14
 
@@ -125,7 +126,7 @@ Read: AGENTS.md, docs/decisions/066-operational-resilience-review.md,
   scripts/backup-restore-verify/ (README.md + restore-smoke.sh), .cursor/rules/db-changes.mdc,
   src/service-worker.ts, src/routes/+layout.svelte (nav skeleton)
 Supabase: hosted `db push` only — one REVOKE migration
-Goal: Close all five resilience decisions: backup coverage, weekly cron, restore fix+proof, REVOKE, nav watchdog.
+Goal: Close remaining resilience decisions: backup coverage, weekly cron, restore fix+proof, REVOKE. (Nav watchdog + cold-start boot shell shipped in [072](docs/decisions/072-pwa-cold-start-resilience.md).)
 Acceptance:
  - [ ] backup.yml: weekly cron (0 8 * * 1); profiles added to invoicing dump; third ppp-projects dump
        (projects project_updates project_tasks project_links)
@@ -136,8 +137,8 @@ Acceptance:
  - [ ] Migration: REVOKE EXECUTE on library_refresh_book_list_denorm(uuid) + _trigger() FROM PUBLIC, anon;
        GRANT to authenticated (mirror 20260528150000); npm run supabase:gen-types
  - [ ] db-changes.mdc: add "new SECURITY DEFINER fn ⇒ REVOKE PUBLIC" checklist line
- - [ ] Nav watchdog: navigating.to set >10–15s → "Still loading — tap to retry" → document navigation
-       (window.location.assign); owner phone repro with Safari inspector confirms __data.json hypothesis
+ - [x] Nav watchdog — shipped [072](docs/decisions/072-pwa-cold-start-resilience.md) (12s overlay → document nav)
+ - [ ] Owner phone smoke: cold-launch boot shell + nav watchdog + chunk recovery card ([072](docs/decisions/072-pwa-cold-start-resilience.md))
  - [ ] PLAN.md "Fix the docs" line: Data safety section already corrected in 066 session — verify
  - [ ] npm run check + npm run test pass; security-review subagent before push (RLS/storage-adjacent migration)
 End-of-session: docs/decisions/<next-free>-*.md, PLAN.md refreshed (Data safety pending-items cleared)
@@ -261,10 +262,10 @@ Acceptance:
 
 ## Next up
 
-1. **Ops hardening session** ([066](docs/decisions/066-operational-resilience-review.md)) — weekly cron + projects/profiles dumps + **restore fix & proof** (script fails as written) + REVOKE migration + nav watchdog. See Session prompts. Backups themselves are **live**; essay seed **applied** 2026-07-06 (both former Next-up items done).
+1. **Ops hardening session** ([066](docs/decisions/066-operational-resilience-review.md)) — weekly cron + projects/profiles dumps + **restore fix & proof** (script fails as written) + REVOKE migration. Nav watchdog + cold-start resilience **shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)). See Session prompts.
 2. **Library — writing-session gaps** ([065](docs/decisions/065-writing-workflow-review.md) Q6) — short-form copy + page input + incomplete-citation hint. See Session prompts. Plus owner-commissioned **`work_type` SQL sweep** (Q8) before or with it.
-3. **Owner smokes** — **new review page** (decks / one 10-sprint / Genre Sprint fast lane / a Research-deck accept, [067](docs/decisions/067-library-review-sprint-decks.md)–[068](docs/decisions/068-library-review-ai-research-pass.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 (seed is live); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4 — soft-delete via UI).
-4. **Library — AI research pass, genre slice** ([068](docs/decisions/068-library-review-ai-research-pass.md)) — owner: `ANTHROPIC_API_KEY` into `.env.local`, then `LIBRARY_RESEARCH_CONFIRM=yes npm run library:review-research -- --apply` (585 genre-only books + ~440 remaining ISBN books; 30 OL proposals already live).
+3. **Owner smokes** — **new review page at full-backlog volume** (~673 pending proposals on the Research deck, [070](docs/decisions/070-library-genre-taxonomy-audit.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 (seed is live); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4 — soft-delete via UI).
+4. **Library — genre taxonomy audit fully closed** ([070](docs/decisions/070-library-genre-taxonomy-audit.md)) — nothing left to build. The 45 residual no-genre-signal books (no ISBN/OL match) need manual `/library/review` attention whenever convenient — not urgent, just the tail of the backlog.
 5. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/projects/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now).
 6. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts. **Plus:** drain the "Needs the shelf" review deck (44 books, [067](docs/decisions/067-library-review-sprint-decks.md)).
 7. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).

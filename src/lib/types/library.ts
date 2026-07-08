@@ -9,6 +9,7 @@
  */
 
 export const GENRES = [
+	'Acts and Paul',
 	'Apologetics',
 	'Apostolic Fathers and Ancient Sources',
 	'Applied Theology',
@@ -40,12 +41,15 @@ export const GENRES = [
 	'Music',
 	'New Testament',
 	'Old Testament',
+	'Old Testament Historical Books',
 	'Other',
 	'Other Religions',
-	'Pastoral',
 	'Pastoral Ministry',
+	'Pentateuch',
 	'Philosophy',
 	'Poetry',
+	'Prophets',
+	'Psalms and Wisdom Literature',
 	'Reference',
 	'Science',
 	'Sports',

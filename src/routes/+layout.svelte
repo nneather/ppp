@@ -10,6 +10,7 @@
 	import { cn } from '$lib/utils';
 	import { createClient } from '$lib/supabase/client';
 	import { Button } from '$lib/components/ui/button';
+	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import BookOpen from '@lucide/svelte/icons/book-open';
@@ -52,6 +53,29 @@
 
 	const showNavSkeleton = $derived(navTarget != null && !isLogin);
 
+	const NAV_WATCHDOG_MS = 12_000;
+	let navHang = $state(false);
+
+	$effect(() => {
+		if (!browser || !navTarget || isLogin) {
+			navHang = false;
+			return;
+		}
+		navHang = false;
+		const timer = window.setTimeout(() => {
+			navHang = true;
+		}, NAV_WATCHDOG_MS);
+		return () => {
+			window.clearTimeout(timer);
+			navHang = false;
+		};
+	});
+
+	function retryNavDocument() {
+		const href = navTarget?.url.href;
+		if (href) window.location.assign(href);
+	}
+
 	function preloadNav(href: string) {
 		void preloadData(href);
 	}
@@ -63,6 +87,7 @@
 
 	onMount(() => {
 		if (!browser) return;
+		document.querySelector('[data-ppp-boot]')?.remove();
 		try {
 			const stored = localStorage.getItem(STORAGE_KEY);
 			if (stored === 'true') navCollapsed = true;
@@ -213,6 +238,21 @@
 					</a>
 				{/each}
 			</nav>
+		</div>
+	</div>
+{/if}
+
+{#if navHang && navTarget}
+	<div
+		class="fixed inset-x-0 bottom-tabbar z-[55] mx-auto flex w-full max-w-md flex-col gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm text-card-foreground shadow-lg md:bottom-6"
+		role="alertdialog"
+		aria-live="assertive"
+	>
+		<p class="text-center leading-snug">Still loading — tap to retry</p>
+		<div class="flex justify-center">
+			<Button type="button" variant="default" hotkey="u" onclick={retryNavDocument}>
+				<HotkeyLabel label="Try again" mnemonic="u" />
+			</Button>
 		</div>
 	</div>
 {/if}
