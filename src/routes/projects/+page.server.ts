@@ -15,6 +15,7 @@ import {
 	updateProjectAction,
 	softDeleteProjectAction,
 	undoSoftDeleteProjectAction,
+	setProjectColorAction,
 	createProjectLinkAction,
 	updateProjectLinkAction,
 	deleteProjectLinkAction,
@@ -109,6 +110,12 @@ export const actions: Actions = {
 			return fail(401, { kind: 'undoSoftDeleteProject' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return undoSoftDeleteProjectAction(locals.supabase, fd);
+	},
+	setProjectColor: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'setProjectColor' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return setProjectColorAction(locals.supabase, fd);
 	},
 	createProjectLink: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

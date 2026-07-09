@@ -19,7 +19,7 @@ import {
 const MAX_TREE_DEPTH = 32;
 
 const PROJECT_COLUMNS =
-	'id, parent_id, name, description, lifecycle_status, start_date, end_date, sort_order';
+	'id, parent_id, name, description, lifecycle_status, start_date, end_date, sort_order, color';
 
 const UPDATE_COLUMNS =
 	'id, project_id, week_of, health_status, reason, next_steps, progress_value, progress_max, progress_note';
@@ -41,6 +41,7 @@ function mapProjectRow(row: {
 	start_date: string | null;
 	end_date: string | null;
 	sort_order: number;
+	color: string | null;
 }): ProjectRow | null {
 	if (!isLifecycleStatus(row.lifecycle_status)) return null;
 	return {
@@ -51,7 +52,8 @@ function mapProjectRow(row: {
 		lifecycle_status: row.lifecycle_status,
 		start_date: row.start_date,
 		end_date: row.end_date,
-		sort_order: row.sort_order
+		sort_order: row.sort_order,
+		color: row.color
 	};
 }
 

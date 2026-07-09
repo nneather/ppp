@@ -136,19 +136,22 @@ End-of-session deliverables:
  - `src/lib/library/run-with-concurrency.ts` — `runWithConcurrency` (OCR file pipeline cap).
   - **`supabase/functions/ocr_scripture_refs`** — Library OCR: user JWT via `/auth/v1/user`, service-role storage download from `library-scripture-images`, Anthropic Messages API (vision + PDF `document` block). Secrets: `ANTHROPIC_API_KEY` (+ optional `ANTHROPIC_OCR_MODEL`); see [supabase/README.md](supabase/README.md) + [021](docs/decisions/021-library-session-9-ocr-anthropic-wired.md). Dense index pages: `max_tokens` 64k + short `rawText` prompt; `stop_reason=max_tokens` → HTTP 422 — [026](docs/decisions/026-ocr-density-truncation.md). Post-OCR batch review: compact rows, page-boundary markers, bulk confirm, contiguous page-range prompt — [028](docs/decisions/028-ocr-review-ux-and-accuracy.md). Patristic semicolon section pointers (`VI, 7; VIII, 10`) → one row per pointer — [029](docs/decisions/029-ocr-section-pointer-split.md). Multi-page PDF input (one call per file; `source_page_index` for strip grouping) — [030](docs/decisions/030-ocr-pdf-input.md); bucket allows `application/pdf` up to 25 MiB.
 
-- **Projects helpers** at `src/lib/projects/` (schema: [docs/POS_Schema_v1.md](docs/POS_Schema_v1.md#projects), migrations `20260603170000_ppp_projects_v1.sql`, `20260603200000_projects_add_not_started_lifecycle.sql`, `20260604030000_ppp_project_tasks_myn.sql`, `20260604100000_project_updates_progress.sql`; MYN design: [docs/MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)):
-  - `src/lib/types/projects.ts` — lifecycle/health enums; MYN `TASK_PRIORITIES`, `TASK_ZONE_CAPS`, `ProjectTaskView`, `TaskZoneGroup`, `ProjectLinkRow`.
+- **Projects helpers** at `src/lib/projects/` (schema: [docs/POS_Schema_v1.md](docs/POS_Schema_v1.md#projects), migrations `20260603170000_ppp_projects_v1.sql`, `20260603200000_projects_add_not_started_lifecycle.sql`, `20260604030000_ppp_project_tasks_myn.sql`, `20260604100000_project_updates_progress.sql`, `20260709164016_projects_email_inbox_and_domain_colors.sql`; MYN design: [docs/MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)):
+  - `src/lib/types/projects.ts` — lifecycle/health enums; MYN `TASK_PRIORITIES`, `TASK_ZONE_CAPS`, `ProjectTaskView` (incl. `notes`), `TaskZoneGroup`, `ProjectLinkRow`; `ProjectRow.color`.
   - `src/lib/projects/week.ts` — civil **Chicago Sunday** week start; unit tests: `week.test.ts`.
   - `src/lib/projects/filter.ts` — URL filters, attention set, trend direction; unit tests: `filter.test.ts`.
   - `src/lib/projects/progress.ts` — check-in progress `formatProgressLabel` / `progressPercent` / parsers ([048](docs/decisions/048-projects-checkin-progress.md)); unit tests: `progress.test.ts`.
   - `src/lib/projects/carry-forward.ts` — copies check-in fields (incl. progress) from most recent prior week; unit tests: `carry-forward.test.ts`.
   - `src/lib/projects/health-appearance.ts` — Epic palette tokens (`HEALTH_HEX`, segment/lifecycle classes) ([047b](docs/decisions/047-projects-status-appearance.md)).
+  - `src/lib/projects/project-colors.ts` — curated domain color palette keys + static Tailwind DOT/RAIL/ROW_TINT class maps ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
+  - `src/lib/projects/email-inbound.ts` — Resend inbound helpers (subject clean, allowlist, HTML→text); unit tests: `email-inbound.test.ts` ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
   - `src/lib/projects/server/loaders.ts` — tree, week updates, carry-forward, `loadLatestHealth`.
   - `src/lib/projects/server/task-loaders.ts` — `loadTasks` (zoned MYN + FRESH), `loadLinksByProject`.
-  - `src/lib/projects/server/actions.ts` — check-in + project CRUD + `project_links` CRUD/reorder.
-  - `src/lib/projects/server/task-actions.ts` — MYN task create/update/complete/defer/promote/soft-delete.
-  - `/projects` — tree + metadata sheet (links in edit mode); `depends('app:projects:tree')`.
+  - `src/lib/projects/server/actions.ts` — check-in + project CRUD + `setProjectColorAction` + `project_links` CRUD/reorder.
+  - `src/lib/projects/server/task-actions.ts` — MYN task create/update/complete/defer/promote/soft-delete (incl. `notes`).
+  - `/projects` — tree + metadata sheet (links in edit mode) + domain color picker; `depends('app:projects:tree')`.
   - `/projects/tasks` — MYN task page; `depends('app:projects:tasks')`; Chicago today via `ymdInChicago()`.
+  - **Email → task:** Edge Function `email-inbound-task` (Resend inbound → Email Inbox project); secrets `RESEND_WEBHOOK_SECRET`, `INBOUND_TASK_PROJECT_ID`, `INBOUND_TASK_ALLOWED_SENDERS` — [supabase/README.md](supabase/README.md).
   - **Partial unique upsert:** `project_updates` — PK `id` only ([045](docs/decisions/045-projects-session-1-tree-checkin.md)).
   - **Audit log:** `_PROJECTS_TABLES` includes `project_tasks`; soft-delete revert for `projects`, `project_updates`, `project_tasks`.
 

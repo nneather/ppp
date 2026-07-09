@@ -16,6 +16,7 @@
 	} from '$lib/types/projects';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
@@ -93,7 +94,26 @@
 				/>
 			</form>
 			<div class="min-w-0 flex-1">
-				<p class={cn('text-sm font-medium', completed && 'line-through')}>{task.title}</p>
+				<div class="flex min-w-0 items-start gap-1.5">
+					<p class={cn('min-w-0 flex-1 break-words text-sm font-medium', completed && 'line-through')}>
+						{task.title}
+					</p>
+					{#if task.notes && !completed}
+						<button
+							type="button"
+							class="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+							title="Has notes — edit to read"
+							aria-label="Open task notes"
+							onclick={() => onEdit(task)}
+						>
+							<FileText class="size-3.5" />
+						</button>
+					{:else if task.notes}
+						<span class="mt-0.5 shrink-0 text-muted-foreground" title="Has notes" aria-label="Has notes">
+							<FileText class="size-3.5" />
+						</span>
+					{/if}
+				</div>
 				{#if showProjectLabel}
 					<p class="text-xs text-muted-foreground">{task.project_name}</p>
 				{/if}

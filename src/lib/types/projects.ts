@@ -51,6 +51,8 @@ export type ProjectRow = {
 	start_date: string | null;
 	end_date: string | null;
 	sort_order: number;
+	/** Domain color palette key (e.g. ocean); typically set on roots. */
+	color: string | null;
 };
 
 export type ProjectNode = ProjectRow & {
@@ -136,6 +138,7 @@ export type ProjectTaskRow = {
 	start_date: string;
 	completed_at: string | null;
 	sort_order: number;
+	notes: string | null;
 };
 
 export type ProjectTaskView = ProjectTaskRow & {

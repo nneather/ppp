@@ -7,6 +7,13 @@
 	import { cn } from '$lib/utils';
 	import HealthTrendBadge from '$lib/components/health-trend-badge.svelte';
 	import { trendDirection } from '$lib/projects/filter';
+	import {
+		PROJECT_COLOR_DOT_CLASS,
+		PROJECT_COLOR_RAIL_CLASS,
+		PROJECT_COLOR_ROW_TINT_CLASS,
+		parseProjectColorKey,
+		type ProjectColorKey
+	} from '$lib/projects/project-colors';
 	import type { LatestHealth, ProjectNode } from '$lib/types/projects';
 
 	let {
@@ -68,14 +75,27 @@
 	}
 </script>
 
-{#snippet domainRows(nodes: ProjectNode[], isRoot = false)}
+{#snippet domainRows(
+	nodes: ProjectNode[],
+	isRoot = false,
+	domainColor: ProjectColorKey | null = null
+)}
 	{#each nodes as node (node.id)}
 		{@const latest = latestHealth[node.id]}
 		{@const health = latest?.health_status ?? null}
 		{@const trend = trendDirection(latest)}
 		{@const hasChildren = node.children.length > 0}
 		{@const collapsed = collapsedIds.has(node.id)}
-		<div class={cn('border-b border-border/60 last:border-b-0', !isRoot && 'pl-4 md:pl-6')}>
+		{@const nodeColor = isRoot ? parseProjectColorKey(node.color) : domainColor}
+		{@const childDomainColor = isRoot ? nodeColor : domainColor}
+		<div
+			class={cn(
+				'border-b border-border/60 last:border-b-0',
+				isRoot && nodeColor && PROJECT_COLOR_ROW_TINT_CLASS[nodeColor],
+				!isRoot && 'pl-4 md:pl-6',
+				!isRoot && domainColor && PROJECT_COLOR_RAIL_CLASS[domainColor]
+			)}
+		>
 			<div class="flex min-w-0 items-center gap-2 px-3 py-2.5 md:px-4">
 				{#if hasChildren}
 					<button
@@ -92,6 +112,12 @@
 				{/if}
 
 				{#if isRoot}
+					{#if nodeColor}
+						<span
+							class={cn('size-2.5 shrink-0 rounded-full', PROJECT_COLOR_DOT_CLASS[nodeColor])}
+							aria-hidden="true"
+						></span>
+					{/if}
 					<a
 						href={domainHref(node.name)}
 						class={cn(
@@ -116,7 +142,7 @@
 			</div>
 
 			{#if hasChildren && !collapsed}
-				{@render domainRows(node.children, false)}
+				{@render domainRows(node.children, false, childDomainColor)}
 			{/if}
 		</div>
 	{/each}

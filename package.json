@@ -24,7 +24,7 @@
 		"test:rls:ensure-users": "dotenv -e .env.staging -e .env.staging.local -- tsx scripts/rls-smoke/ensure-test-users.ts",
 		"test:rls": "dotenv -e .env.staging -e .env.staging.local -- tsx scripts/rls-smoke/run.ts",
 		"test:perf": "dotenv -e .env -e .env.local -- tsx scripts/perf-smoke/run.ts",
-		"supabase:deploy-functions": "dotenv -e .env -- bash -c 'supabase functions deploy generate-invoice-pdf --project-ref $SUPABASE_REF && supabase functions deploy send-invoice --project-ref $SUPABASE_REF && supabase functions deploy ocr_scripture_refs --project-ref $SUPABASE_REF'",
+		"supabase:deploy-functions": "dotenv -e .env -- bash -c 'supabase functions deploy generate-invoice-pdf --project-ref $SUPABASE_REF && supabase functions deploy send-invoice --project-ref $SUPABASE_REF && supabase functions deploy ocr_scripture_refs --project-ref $SUPABASE_REF && supabase functions deploy email-inbound-task --project-ref $SUPABASE_REF'",
 		"supabase:gen-types": "dotenv -e .env -- bash -c 'supabase gen types typescript --project-id $SUPABASE_REF --schema public > src/lib/types/database.ts'",
 		"supabase:ship": "npm run check && npm run supabase:db:push:dry && echo '\\nDry run OK. Review above, then run: npm run supabase:ship:apply'",
 		"supabase:ship:apply": "npm run check && npm run supabase:db:push && npm run supabase:deploy-functions",

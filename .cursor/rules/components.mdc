@@ -48,17 +48,19 @@ If you reach for one of these capabilities, use the existing component.
 | AI research proposal panel on review cards (per-field current→proposed, Apply/Apply all fill quick-edit state, Dismiss rejects) | [src/lib/components/review-proposal-panel.svelte](mdc:src/lib/components/review-proposal-panel.svelte) |
 | Dashboard library tile burndown second line (citation-verified / backlog cleared) | [src/lib/components/dashboard-library-tile-footer.svelte](mdc:src/lib/components/dashboard-library-tile-footer.svelte) |
 | Dashboard invoicing tile "Generate last week's invoice" footer (weekly clients with unbilled prior week) | [src/lib/components/dashboard-invoicing-tile-footer.svelte](mdc:src/lib/components/dashboard-invoicing-tile-footer.svelte) |
-| Inline project tree + weekly 5-segment health picker (carry-forward seed uses `untrack` in `$effect`; optional URL filters + latest-health trend badge) | [src/lib/components/project-tree.svelte](mdc:src/lib/components/project-tree.svelte) |
+| Inline project tree + weekly 5-segment health picker (carry-forward seed uses `untrack` in `$effect`; optional URL filters + latest-health trend badge; domain color dot + child left rail) | [src/lib/components/project-tree.svelte](mdc:src/lib/components/project-tree.svelte) |
 | Project metadata create/edit Sheet (~6 fields; cycle-safe parent picker) | [src/lib/components/project-form-sheet.svelte](mdc:src/lib/components/project-form-sheet.svelte) |
+| Domain color swatch dialog (`?/setProjectColor`) for root projects | [src/lib/components/project-color-picker.svelte](mdc:src/lib/components/project-color-picker.svelte) |
 | Epic PR health shape icon (circle / half-circle / inverted triangle / diamonds) | [src/lib/components/health-status-icon.svelte](mdc:src/lib/components/health-status-icon.svelte) |
 | Week-over-week trend triangles (green up / red down) | [src/lib/components/health-trend-arrow.svelte](mdc:src/lib/components/health-trend-arrow.svelte) |
 | Health shape + label + trend (`showStatusIcon` to hide shape on `/projects` tree) | [src/lib/components/health-trend-badge.svelte](mdc:src/lib/components/health-trend-badge.svelte) |
-| Read-only dashboard domain status strip (expand children, deep-link domains) | [src/lib/components/project-status-strip.svelte](mdc:src/lib/components/project-status-strip.svelte) |
+| Read-only dashboard domain status strip (expand children, deep-link domains; domain color dots) | [src/lib/components/project-status-strip.svelte](mdc:src/lib/components/project-status-strip.svelte) |
 | URL-synced lifecycle / health / domain filter bar for `/projects` (collapsed by default; `bind:open`; desktop summary; mobile trigger on page week row) | [src/lib/components/project-filter-bar.svelte](mdc:src/lib/components/project-filter-bar.svelte) |
-| MYN zoned task list (Critical / Opportunity / OTH, defer dialog, promote/complete) | [src/lib/components/project-task-list.svelte](mdc:src/lib/components/project-task-list.svelte) |
-| MYN task create/edit Sheet (project, zone, start date) | [src/lib/components/project-task-sheet.svelte](mdc:src/lib/components/project-task-sheet.svelte) |
+| MYN zoned task list (Critical / Opportunity / OTH, defer dialog, promote/complete; notes icon) | [src/lib/components/project-task-list.svelte](mdc:src/lib/components/project-task-list.svelte) |
+| MYN task create/edit Sheet (project, zone, start date, notes; sticky save bar) | [src/lib/components/project-task-sheet.svelte](mdc:src/lib/components/project-task-sheet.svelte) |
 | Project links inline editor (metadata Sheet, edit mode) | [src/lib/components/project-links-editor.svelte](mdc:src/lib/components/project-links-editor.svelte) |
 | Projects health/lifecycle visual tokens (Epic hex + picker segment classes, lifecycle badge) | [src/lib/projects/health-appearance.ts](mdc:src/lib/projects/health-appearance.ts) |
+| Domain color palette keys + static Tailwind class maps | [src/lib/projects/project-colors.ts](mdc:src/lib/projects/project-colors.ts) |
 
 shadcn primitives (Button, Input, Label, Select, Sheet, Dialog, Badge, Separator) live under `src/lib/components/ui/`. The `Button` accepts a `hotkey` prop (Cmd+letter from the reserved set `s u d e g b`, or the special string `Escape` for Cancel) and an optional `label` prop; together they wire the chord, an underlined-letter label, and a tooltip. **Cancel buttons use `hotkey="Escape"`** (bare Esc; bubble phase, defaults-prevented bail). Anchors (`href`) skip the dev-warn but can still take a hotkey. Full convention: [.cursor/rules/hotkeys.mdc](mdc:.cursor/rules/hotkeys.mdc).
 

@@ -22,6 +22,7 @@ function node(
 		start_date: null,
 		end_date: null,
 		sort_order: 0,
+		color: null,
 		depth: 0,
 		children: [],
 		...overrides

@@ -18,6 +18,7 @@ import {
 	parseProgressMax,
 	parseProgressValue
 } from '$lib/projects/progress';
+import { parseProjectColorKey } from '$lib/projects/project-colors';
 import { parseYmd, sundayContaining } from '$lib/projects/week';
 
 export type ProjectsActionKind =
@@ -26,6 +27,7 @@ export type ProjectsActionKind =
 	| 'updateProject'
 	| 'softDeleteProject'
 	| 'undoSoftDeleteProject'
+	| 'setProjectColor'
 	| 'createProjectLink'
 	| 'updateProjectLink'
 	| 'deleteProjectLink'
@@ -315,6 +317,41 @@ export async function updateProjectAction(supabase: SupabaseClient, fd: FormData
 	}
 
 	return { kind: 'updateProject' as const, projectId: id, success: true as const };
+}
+
+/** Color-only update — used for root domains that are otherwise not editable in the form sheet. */
+export async function setProjectColorAction(supabase: SupabaseClient, fd: FormData) {
+	const id = parseUuid(fd.get('id'));
+	if (!id) {
+		return fail(400, { kind: 'setProjectColor' as const, message: 'Missing project id.' });
+	}
+
+	const raw = String(fd.get('color') ?? '').trim();
+	const color = raw === '' || raw === '__none__' ? null : parseProjectColorKey(raw);
+	if (raw !== '' && raw !== '__none__' && color == null) {
+		return fail(400, {
+			kind: 'setProjectColor' as const,
+			projectId: id,
+			message: 'Invalid color.'
+		});
+	}
+
+	const { error } = await supabase
+		.from('projects')
+		.update({ color } as never)
+		.eq('id', id)
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error('setProjectColorAction', error);
+		return fail(500, {
+			kind: 'setProjectColor' as const,
+			projectId: id,
+			message: error.message ?? 'Could not update color.'
+		});
+	}
+
+	return { kind: 'setProjectColor' as const, projectId: id, success: true as const };
 }
 
 export async function softDeleteProjectAction(supabase: SupabaseClient, fd: FormData) {

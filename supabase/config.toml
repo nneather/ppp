@@ -373,6 +373,10 @@ verify_jwt = false
 [functions.ocr_scripture_refs]
 verify_jwt = false
 
+# Resend inbound webhook — auth via Svix signature (RESEND_WEBHOOK_SECRET), not user JWT.
+[functions.email-inbound-task]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

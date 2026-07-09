@@ -12,7 +12,7 @@ import {
 } from '$lib/types/projects';
 
 const TASK_COLUMNS =
-	'id, project_id, title, priority, start_date, completed_at, sort_order, created_at';
+	'id, project_id, title, priority, start_date, completed_at, sort_order, notes, created_at';
 
 function isTaskPriority(v: string): v is TaskPriority {
 	return (TASK_PRIORITIES as readonly string[]).includes(v);
@@ -33,6 +33,7 @@ function mapTaskRow(raw: {
 	start_date: string;
 	completed_at: string | null;
 	sort_order: number;
+	notes: string | null;
 	projects: { name: string } | { name: string }[] | null;
 }): ProjectTaskView | null {
 	if (!isTaskPriority(raw.priority)) return null;
@@ -47,6 +48,7 @@ function mapTaskRow(raw: {
 		start_date: raw.start_date,
 		completed_at: raw.completed_at,
 		sort_order: raw.sort_order,
+		notes: raw.notes,
 		project_name
 	};
 }
@@ -102,6 +104,7 @@ export async function loadTasks(
 				start_date: string;
 				completed_at: string | null;
 				sort_order: number;
+				notes: string | null;
 				projects: { name: string } | { name: string }[] | null;
 			}
 		);

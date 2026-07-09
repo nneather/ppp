@@ -60,6 +60,14 @@
 		data.tree.filter((n) => n.parent_id == null).map((n) => n.name)
 	);
 
+	const domainColors = $derived.by(() => {
+		const map: Record<string, string | null> = {};
+		for (const n of data.tree) {
+			if (n.parent_id == null) map[n.name] = n.color;
+		}
+		return map;
+	});
+
 	function weekHref(ymd: string): string {
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set('week', ymd);
@@ -242,7 +250,7 @@
 			</form>
 		</div>
 
-		<ProjectFilterBar bind:open={filtersOpen} {domainNames} />
+		<ProjectFilterBar bind:open={filtersOpen} {domainNames} {domainColors} />
 	</section>
 
 	{#if saveError}

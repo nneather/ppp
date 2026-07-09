@@ -42,6 +42,7 @@
 	let projectId = $state('');
 	let priority = $state<TaskPriority>('opportunity_now');
 	let startDate = $state('');
+	let notes = $state('');
 
 	const formAction = $derived(mode === 'create' ? '?/createTask' : '?/updateTask');
 	const sheetTitle = $derived(mode === 'create' ? 'New task' : 'Edit task');
@@ -78,11 +79,13 @@
 			projectId = task.project_id;
 			priority = task.priority;
 			startDate = task.start_date;
+			notes = task.notes ?? '';
 		} else {
 			title = '';
 			projectId = defaultProjectId ?? projectOptions[0]?.id ?? '';
 			priority = 'opportunity_now';
 			startDate = ymdInChicago();
+			notes = '';
 		}
 	});
 
@@ -115,89 +118,109 @@
 			</Sheet.Description>
 		</Sheet.Header>
 
-		<div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-			{#if errorMessage}
-				<p
-					class="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-					role="alert"
-				>
-					{errorMessage}
-				</p>
-			{/if}
-
-			<form method="POST" action={formAction} use:enhance={submitEnhance} class="flex flex-col gap-5">
-				{#if mode === 'edit' && task}
-					<input type="hidden" name="id" value={task.id} />
+		<form
+			method="POST"
+			action={formAction}
+			use:enhance={submitEnhance}
+			class="flex min-h-0 flex-1 flex-col"
+		>
+			<div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+				{#if errorMessage}
+					<p
+						class="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+						role="alert"
+					>
+						{errorMessage}
+					</p>
 				{/if}
 
-				<div class="space-y-2">
-					<Label for="task-title">Title</Label>
-					<Input id="task-title" name="title" type="text" bind:value={title} required maxlength={500} />
-				</div>
+				<div class="flex flex-col gap-5">
+					{#if mode === 'edit' && task}
+						<input type="hidden" name="id" value={task.id} />
+					{/if}
 
-				<div class="space-y-2">
-					<Label>Project</Label>
-					<Select.Root
-						type="single"
-						value={projectId}
-						onValueChange={(v) => {
-							if (v) projectId = v;
-						}}
-					>
-						<Select.Trigger class="w-full">{projectLabel}</Select.Trigger>
-						<Select.Content>
-							{#each projectSelectItems as item (item.value)}
-								<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-					<input type="hidden" name="project_id" value={projectId} />
-				</div>
+					<div class="space-y-2">
+						<Label for="task-title">Title</Label>
+						<Input id="task-title" name="title" type="text" bind:value={title} required maxlength={500} />
+					</div>
 
-				<div class="space-y-2">
-					<Label>Urgency zone</Label>
-					<Select.Root
-						type="single"
-						value={priority}
-						onValueChange={(v) => {
-							if (v && (TASK_PRIORITIES as readonly string[]).includes(v)) {
-								priority = v as TaskPriority;
-							}
-						}}
-					>
-						<Select.Trigger class="w-full">{priorityLabel}</Select.Trigger>
-						<Select.Content>
-							{#each TASK_PRIORITIES as p (p)}
-								<Select.Item value={p} label={TASK_PRIORITY_LABELS[p]}>
-									{TASK_PRIORITY_LABELS[p]}
-								</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-					<input type="hidden" name="priority" value={priority} />
-				</div>
+					<div class="space-y-2">
+						<Label>Project</Label>
+						<Select.Root
+							type="single"
+							value={projectId}
+							onValueChange={(v) => {
+								if (v) projectId = v;
+							}}
+						>
+							<Select.Trigger class="w-full">{projectLabel}</Select.Trigger>
+							<Select.Content>
+								{#each projectSelectItems as item (item.value)}
+									<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="project_id" value={projectId} />
+					</div>
 
-				<div class="space-y-2">
-					<Label for="task-start">Start date</Label>
-					<Input id="task-start" name="start_date" type="date" bind:value={startDate} required />
-					<p class="text-xs text-muted-foreground">
-						Today = top of zone (FRESH). Future date = deferred (hidden until then).
-					</p>
-				</div>
+					<div class="space-y-2">
+						<Label>Urgency zone</Label>
+						<Select.Root
+							type="single"
+							value={priority}
+							onValueChange={(v) => {
+								if (v && (TASK_PRIORITIES as readonly string[]).includes(v)) {
+									priority = v as TaskPriority;
+								}
+							}}
+						>
+							<Select.Trigger class="w-full">{priorityLabel}</Select.Trigger>
+							<Select.Content>
+								{#each TASK_PRIORITIES as p (p)}
+									<Select.Item value={p} label={TASK_PRIORITY_LABELS[p]}>
+										{TASK_PRIORITY_LABELS[p]}
+									</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="priority" value={priority} />
+					</div>
 
-				<div class="flex flex-wrap gap-2 border-t border-border pt-4">
-					<Button type="submit" hotkey={mode === 'create' ? 's' : 'u'} disabled={pending}>
-						{pending ? 'Saving…' : mode === 'create' ? 'Add task' : 'Update task'}
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						hotkey="Escape"
-						label="Cancel"
-						onclick={() => (open = false)}
-					/>
+					<div class="space-y-2">
+						<Label for="task-start">Start date</Label>
+						<Input id="task-start" name="start_date" type="date" bind:value={startDate} required />
+						<p class="text-xs text-muted-foreground">
+							Today = top of zone (FRESH). Future date = deferred (hidden until then).
+						</p>
+					</div>
+
+					<div class="space-y-2">
+						<Label for="task-notes">Notes</Label>
+						<textarea
+							id="task-notes"
+							name="notes"
+							bind:value={notes}
+							rows={4}
+							maxlength={10000}
+							class="flex min-h-24 w-full rounded-lg border border-input bg-background px-3 py-3 text-base shadow-xs outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+							placeholder="Optional details (e.g. forwarded email body)"
+						></textarea>
+					</div>
 				</div>
-			</form>
-		</div>
+			</div>
+
+			<div class="sticky bottom-0 flex flex-wrap gap-2 border-t border-border bg-popover px-4 py-3">
+				<Button type="submit" hotkey={mode === 'create' ? 's' : 'u'} disabled={pending}>
+					{pending ? 'Saving…' : mode === 'create' ? 'Add task' : 'Update task'}
+				</Button>
+				<Button
+					type="button"
+					variant="outline"
+					hotkey="Escape"
+					label="Cancel"
+					onclick={() => (open = false)}
+				/>
+			</div>
+		</form>
 	</Sheet.Content>
 </Sheet.Root>

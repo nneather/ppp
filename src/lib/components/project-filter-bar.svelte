@@ -14,17 +14,24 @@
 	} from '$lib/types/projects';
 	import HealthStatusIcon from '$lib/components/health-status-icon.svelte';
 	import { countActiveProjectFilters, parseProjectFilters } from '$lib/projects/filter';
+	import {
+		PROJECT_COLOR_DOT_CLASS,
+		parseProjectColorKey
+	} from '$lib/projects/project-colors';
 	import { cn } from '$lib/utils';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
 	let {
 		domainNames,
+		domainColors = {},
 		open = $bindable(false),
 		/** When false, omit summary (page provides mobile trigger). Summary still shows from md+ via CSS. */
 		showSummary = true
 	}: {
 		domainNames: string[];
+		/** Map of domain name → palette key for filter chips. */
+		domainColors?: Record<string, string | null>;
 		open?: boolean;
 		showSummary?: boolean;
 	} = $props();
@@ -224,12 +231,34 @@
 						}}
 					>
 						<Select.Trigger id="domain-filter" class="w-full">
-							{domainValue === 'all' ? 'All domains' : domainValue}
+							<span class="inline-flex items-center gap-2">
+								{#if domainValue !== 'all'}
+									{@const dk = parseProjectColorKey(domainColors[domainValue] ?? null)}
+									{#if dk}
+										<span
+											class={cn('size-2.5 shrink-0 rounded-full', PROJECT_COLOR_DOT_CLASS[dk])}
+											aria-hidden="true"
+										></span>
+									{/if}
+								{/if}
+								{domainValue === 'all' ? 'All domains' : domainValue}
+							</span>
 						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="all" label="All domains">All domains</Select.Item>
 							{#each domainNames as name (name)}
-								<Select.Item value={name} label={name}>{name}</Select.Item>
+								{@const dk = parseProjectColorKey(domainColors[name] ?? null)}
+								<Select.Item value={name} label={name}>
+									<span class="inline-flex items-center gap-2">
+										{#if dk}
+											<span
+												class={cn('size-2.5 shrink-0 rounded-full', PROJECT_COLOR_DOT_CLASS[dk])}
+												aria-hidden="true"
+											></span>
+										{/if}
+										{name}
+									</span>
+								</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>

@@ -40,6 +40,15 @@ function trimTitle(raw: FormDataEntryValue | null): string | null {
 	return t;
 }
 
+const NOTES_MAX = 10_000;
+
+function parseNotes(raw: FormDataEntryValue | null): string | null {
+	const t = String(raw ?? '').trim();
+	if (!t) return null;
+	if (t.length > NOTES_MAX) return t.slice(0, NOTES_MAX);
+	return t;
+}
+
 export async function createTaskAction(
 	supabase: SupabaseClient,
 	userId: string,
@@ -57,6 +66,7 @@ export async function createTaskAction(
 
 	const priority = parsePriority(fd.get('priority')) ?? 'opportunity_now';
 	const start_date = parseDateOrNull(fd.get('start_date')) ?? ymdInChicago();
+	const notes = parseNotes(fd.get('notes'));
 
 	const { data, error } = await supabase
 		.from('project_tasks')
@@ -65,6 +75,7 @@ export async function createTaskAction(
 			title,
 			priority,
 			start_date,
+			notes,
 			created_by: userId
 		} as never)
 		.select('id')
@@ -121,13 +132,16 @@ export async function updateTaskAction(supabase: SupabaseClient, fd: FormData) {
 		});
 	}
 
+	const notes = parseNotes(fd.get('notes'));
+
 	const { error } = await supabase
 		.from('project_tasks')
 		.update({
 			title,
 			priority,
 			start_date,
-			project_id
+			project_id,
+			notes
 		} as never)
 		.eq('id', id);
 

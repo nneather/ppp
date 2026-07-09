@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { invalidate } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -13,6 +14,7 @@
 	import { cn } from '$lib/utils';
 	import HealthStatusIcon from '$lib/components/health-status-icon.svelte';
 	import HealthTrendBadge from '$lib/components/health-trend-badge.svelte';
+	import ProjectColorPicker from '$lib/components/project-color-picker.svelte';
 	import { computeVisibleNodeIds, trendDirection } from '$lib/projects/filter';
 	import {
 		DEFAULT_PROGRESS_MAX,
@@ -23,6 +25,13 @@
 		HEALTH_SEGMENT_SELECTED_CLASS,
 		LIFECYCLE_BADGE_CLASS
 	} from '$lib/projects/health-appearance';
+	import {
+		PROJECT_COLOR_DOT_CLASS,
+		PROJECT_COLOR_RAIL_CLASS,
+		PROJECT_COLOR_ROW_TINT_CLASS,
+		parseProjectColorKey,
+		type ProjectColorKey
+	} from '$lib/projects/project-colors';
 	import {
 		HEALTH_STATUS_ORDER,
 		HEALTH_STATUS_LABELS,
@@ -81,6 +90,17 @@
 	let collapsedIds = $state(new Set<string>());
 	let expandedDetailIds = $state(new Set<string>());
 	let collapseDefaultApplied = $state(false);
+	let colorPickerOpen = $state(false);
+	let colorPickerNode = $state<ProjectNode | null>(null);
+
+	function openColorPicker(node: ProjectNode) {
+		colorPickerNode = node;
+		colorPickerOpen = true;
+	}
+
+	async function onColorSaved() {
+		await invalidate('app:projects:tree');
+	}
 
 	function walkTreeFingerprint(nodes: ProjectNode[], parts: string[] = []): string[] {
 		for (const n of nodes) {
@@ -316,7 +336,7 @@
 
 </script>
 
-{#snippet treeRows(nodes: ProjectNode[])}
+{#snippet treeRows(nodes: ProjectNode[], domainColor: ProjectColorKey | null = null)}
 	{#each nodes as node (node.id)}
 		{#if visibleIds.has(node.id)}
 		{@const eligible = isCheckinEligible(node.lifecycle_status)}
@@ -325,11 +345,14 @@
 		{@const collapsed = collapsedIds.has(node.id)}
 		{@const latest = latestHealth[node.id]}
 		{@const trend = trendDirection(latest)}
+		{@const nodeColor = node.depth === 0 ? parseProjectColorKey(node.color) : domainColor}
+		{@const childDomainColor = node.depth === 0 ? nodeColor : domainColor}
 		<div
 			class={cn(
 				'border-b border-border/60',
-				node.depth === 0 && 'bg-muted/30',
-				node.depth > 0 && 'pl-4 md:pl-6'
+				node.depth === 0 && (nodeColor ? PROJECT_COLOR_ROW_TINT_CLASS[nodeColor] : 'bg-muted/30'),
+				node.depth > 0 && 'pl-4 md:pl-6',
+				node.depth > 0 && domainColor && PROJECT_COLOR_RAIL_CLASS[domainColor]
 			)}
 		>
 			<div
@@ -357,6 +380,25 @@
 
 					<div class="min-w-0 flex-1">
 						<div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+							{#if node.depth === 0}
+								<button
+									type="button"
+									class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md hover:bg-muted"
+									aria-label="Set color for {node.name}"
+									title="Set domain color"
+									onclick={() => openColorPicker(node)}
+								>
+									<span
+										class={cn(
+											'size-3.5 rounded-full ring-1 ring-border/80',
+											nodeColor
+												? PROJECT_COLOR_DOT_CLASS[nodeColor]
+												: 'bg-muted-foreground/30'
+										)}
+										aria-hidden="true"
+									></span>
+								</button>
+							{/if}
 							<span
 								class={cn(
 									'font-medium text-foreground',
@@ -614,7 +656,7 @@
 		</div>
 
 		{#if hasChildren && !collapsed}
-			{@render treeRows(node.children)}
+			{@render treeRows(node.children, childDomainColor)}
 		{/if}
 		{/if}
 	{/each}
@@ -643,3 +685,13 @@
 	{/if}
 	{@render treeRows(tree)}
 </div>
+
+{#if colorPickerNode}
+	<ProjectColorPicker
+		bind:open={colorPickerOpen}
+		projectId={colorPickerNode.id}
+		projectName={colorPickerNode.name}
+		color={colorPickerNode.color}
+		onSaved={onColorSaved}
+	/>
+{/if}

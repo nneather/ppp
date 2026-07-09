@@ -1076,9 +1076,11 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          notes: string | null
           priority: string
           project_id: string
           sort_order: number
+          source_email_id: string | null
           start_date: string
           title: string
           updated_at: string
@@ -1089,9 +1091,11 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          notes?: string | null
           priority?: string
           project_id: string
           sort_order?: number
+          source_email_id?: string | null
           start_date: string
           title: string
           updated_at?: string
@@ -1102,9 +1106,11 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          notes?: string | null
           priority?: string
           project_id?: string
           sort_order?: number
+          source_email_id?: string | null
           start_date?: string
           title?: string
           updated_at?: string
@@ -1191,6 +1197,7 @@ export type Database = {
       }
       projects: {
         Row: {
+          color: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -1205,6 +1212,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -1219,6 +1227,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          color?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
