@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-09 — **Ops hardening** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)): weekly R2 backups + profiles/projects dumps; restore-smoke proven green; denorm REVOKE (PUBLIC + anon). Prior: invoice email PDF MIME ([078](docs/decisions/078-invoice-email-pdf-mime.md)).
+**Last updated:** 2026-07-09 — **Ops hardening** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)) pushed (`36de676`): weekly R2 backups + profiles/projects dumps; restore-smoke proven green; denorm REVOKE (PUBLIC + anon). Related docs (055/066/072/AGENTS/review runbook) marked resolved. Prior: invoice email PDF MIME ([078](docs/decisions/078-invoice-email-pdf-mime.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.

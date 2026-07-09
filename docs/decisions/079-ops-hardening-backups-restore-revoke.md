@@ -56,5 +56,6 @@
 - [x] new env vars — none
 - [x] PLAN.md Data safety pending items cleared
 - [x] security-review subagent — no medium+ findings ([review](a48378e9-dfab-4b31-b31d-684ddb63ddbb))
+- [x] Pushed to `main` (`36de676`)
 - [ ] Owner: phone smoke cold-start / nav watchdog / chunk recovery ([072](072-pwa-cold-start-resilience.md))
 - [ ] Owner: after next weekly backup run, confirm three objects in R2 (`invoicing` / `library` / `projects`)

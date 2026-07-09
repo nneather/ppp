@@ -195,9 +195,9 @@ Two files. Both are gitignored.
 
 | Secret | Purpose |
 |---|---|
-| `BACKUP_DATABASE_URL` | Prod **Session Pooler** URI for monthly `pg_dump` (IPv4-safe on GitHub runners) |
+| `BACKUP_DATABASE_URL` | Prod **Session Pooler** URI for weekly `pg_dump` (IPv4-safe on GitHub runners) |
 | `R2_ENDPOINT` | Cloudflare R2 S3 API endpoint |
-| `R2_BUCKET` | Private R2 bucket for monthly dumps |
+| `R2_BUCKET` | Private R2 bucket for weekly dumps |
 | `R2_ACCESS_KEY_ID` | R2 API token access key |
 | `R2_SECRET_ACCESS_KEY` | R2 API token secret |
 

@@ -21,7 +21,7 @@
 
 - **Three layers, not one** — boot shell (works when all JS fails), chunk recovery card (partial load), nav watchdog (in-app `__data.json` hang). SW v6 chunk-retry deferred unless phone smoke proves insufficient.
 - **Keep `registerType: 'prompt'`** — autoUpdate would fix skew faster but removes user control; recovery UI is the safer net.
-- **Nav watchdog ships here** — closes 066 Q14 item; ops hardening session still owns backup/restore/REVOKE.
+- **Nav watchdog ships here** — closes 066 Q14 item; backup/restore/REVOKE closed in [079](079-ops-hardening-backups-restore-revoke.md).
 
 ## Schema changes
 

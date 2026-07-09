@@ -152,7 +152,7 @@ Secondary suspects, considered less likely: `/settings/library/+layout.server.ts
 
 ## OWNER RUNBOOK — backup pipeline
 
-State as of 2026-07-06 23:44 UTC: **steps 1–4 below are DONE and verified** (secrets set, run 28830982000 green, both objects in R2). They are included so this is a complete rebuild-from-zero reference; the live to-do starts at **step 5**.
+State as of 2026-07-09 ([079](../decisions/079-ops-hardening-backups-restore-revoke.md)): **steps 1–5 DONE** — secrets set, first R2 upload green (2026-07-06), weekly cron + profiles/projects dumps shipped, restore-smoke proven green. Steps 1–4 kept as rebuild-from-zero reference.
 
 ### 1. Create the R2 bucket (Cloudflare dashboard) — ✅ done
 
@@ -192,14 +192,14 @@ Cloudflare dashboard → R2 → bucket → confirm `2026/ppp-invoicing-2026-07.d
 AWS_ACCESS_KEY_ID=… AWS_SECRET_ACCESS_KEY=… aws s3 ls "s3://<bucket>/2026/" --endpoint-url "https://<accountid>.r2.cloudflarestorage.com"
 ```
 
-### 5. Local restore smoke — ⚠️ THE REMAINING STEP (and it needs a fix first)
+### 5. Local restore smoke — ✅ done ([079](../decisions/079-ops-hardening-backups-restore-revoke.md))
 
 ```bash
 # Requires Docker Desktop running. Uses BACKUP_DATABASE_URL or LIBRARY_DST_DATABASE_URL from .env.local:
 npx dotenv -e .env.local -- bash scripts/backup-restore-verify/restore-smoke.sh
 ```
 
-**Do not expect this to pass as written** — §3a: line 75 uses `pg_dump --where`, which does not exist in PostgreSQL 17 (definite failure), and the schema-only `profiles` load will likely trip on the `auth.users` FK / trigger functions / RLS policies under `ON_ERROR_STOP=1`. Fix the script in a short session first (D4 proposes folding this into a proper restore-smoke session). Sketch of the minimal fix: replace the `--where` dump with `psql "$DB_URL" -c "\copy (SELECT id, role, … FROM public.profiles WHERE deleted_at IS NULL LIMIT 1) TO '/work/profiles.csv' CSV HEADER"`, load with `\copy` on the scratch side, create the scratch `profiles` table from a hand-trimmed DDL (columns only — no FK to auth, no triggers, no policies), and run `pg_restore` with `--data-only --disable-triggers` against a migrations-built schema *or* keep full-archive restore but add `|| true` guards with explicit row-count assertions after.
+Rewritten in 079: pre-data + data restore (post-data skipped); auto-derives Session Pooler when Direct URI is set; asserts invoicing + library row counts. Proven green 2026-07-09 (2 clients / 1 profile; 1379 books / 1509 book_authors / 555 scripture_references). Current docs: [`scripts/backup-restore-verify/README.md`](../../scripts/backup-restore-verify/README.md).
 
 ### 6. Known failure modes (from scripts/backup-restore-verify/README.md + the 2026-07-06 run history)
 
@@ -216,6 +216,8 @@ npx dotenv -e .env.local -- bash scripts/backup-restore-verify/restore-smoke.sh
 ---
 
 ## Proposed decisions (multiple choice for Parker)
+
+**All answered in [066](../decisions/066-operational-resilience-review.md); Q10–Q13 shipped in [079](../decisions/079-ops-hardening-backups-restore-revoke.md); Q14 nav watchdog in [072](../decisions/072-pwa-cold-start-resilience.md).** Historical options below kept for the review trail.
 
 **D1 — Supabase plan tier / platform backups.** PLAN.md § Data safety says "beyond Supabase Pro's 7-day daily backups"; decision 040 (2026-05-28) says the project is on the **Free plan** (leaked-password protection waived as Pro-only, and that WARN is still firing). Which is true?
 - **(a)** On Pro → platform daily backups exist; R2 is belt-and-suspenders as PLAN.md claims. Also flip on leaked-password protection (Dashboard toggle) and retire the 040 waiver.

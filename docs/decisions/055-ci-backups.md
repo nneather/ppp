@@ -38,7 +38,7 @@ Both reference `profiles` (and some `audit_log`) — excluded from dumps; **load
 ## New components / patterns added
 
 - GitHub Actions CI + backup workflows under `.github/workflows/`.
-- `scripts/backup-restore-verify/restore-smoke.sh` — Docker-based restore verification (profiles schema + data row, then full invoicing `pg_restore`).
+- `scripts/backup-restore-verify/restore-smoke.sh` — Docker-based restore verification (rewritten and proven green in [079](079-ops-hardening-backups-restore-revoke.md)).
 
 ## GitHub Actions secrets (set in repo Settings → Secrets)
 
@@ -54,16 +54,18 @@ Set via `gh secret set <NAME>` (values never committed). See [`scripts/backup-re
 
 ## Restore verification
 
-**Procedure** (documented; run once before trusting backups):
+**Superseded by [079](079-ops-hardening-backups-restore-revoke.md)** — weekly cron, three dumps (invoicing+profiles / library / projects), restore-smoke rewritten (pre-data + data; library asserts) and run green. Current procedure: [`scripts/backup-restore-verify/README.md`](../../scripts/backup-restore-verify/README.md).
+
+**Original procedure** (055 session; kept for history):
 
 1. Set the five GitHub secrets above.
-2. Actions → **Monthly database backup** → **Run workflow** (`workflow_dispatch`).
-3. Confirm `YYYY/ppp-invoicing-YYYY-MM.dump` and `YYYY/ppp-library-YYYY-MM.dump` in R2.
-4. Local smoke (optional, same table sets):  
+2. Actions → **Weekly database backup** (was Monthly) → **Run workflow** (`workflow_dispatch`).
+3. Confirm `YYYY/ppp-invoicing-YYYY-MM.dump`, `YYYY/ppp-library-YYYY-MM.dump`, and `YYYY/ppp-projects-YYYY-MM.dump` in R2.
+4. Local smoke:  
    `npx dotenv -e .env.local -- bash scripts/backup-restore-verify/restore-smoke.sh`  
-   Requires Docker. Seeds `profiles` schema + owner row from prod, then `pg_restore` invoicing dump; asserts live `clients` count > 0.
+   Requires Docker.
 
-**Session note:** Agent session could not execute the live smoke (Docker daemon not running on dev machine). Script + workflow are in place; Parker should run steps 1–4 once secrets and R2 bucket exist.
+**Session note (055):** Agent session could not execute the live smoke (Docker daemon not running). Proven in 079.
 
 **2026-07-06 follow-up (wrong DB URL fix):**
 
@@ -72,7 +74,7 @@ Set via `gh secret set <NAME>` (values never committed). See [`scripts/backup-re
 - **Verified on GitHub Actions run 28829919025:** both `pg_dump` steps green.
 - **2026-07-06 explicit pg_dump path (run 28830741867):** `pg_dump (PostgreSQL) 17.10` in dump step; both dumps green.
 - **R2 upload still blocked:** `InvalidArgument: Credential access key has length 64, should be 32` — Secret Access Key was likely set as `R2_ACCESS_KEY_ID`. Parker: 32-char Access Key ID → `R2_ACCESS_KEY_ID`, 64-char Secret → `R2_SECRET_ACCESS_KEY`, then re-run workflow.
-- **Full E2E verified 2026-07-06** (run [28830982000](https://github.com/nneather/ppp/actions/runs/28830982000)): fresh `workflow_dispatch` on `main` (not Re-run on stale jobs); `pg_dump` 17.10; invoicing + library dumps uploaded to R2 `2026/ppp-invoicing-2026-07.dump` and `2026/ppp-library-2026-07.dump`. Local `restore-smoke.sh` still optional.
+- **Full E2E verified 2026-07-06** (run [28830982000](https://github.com/nneather/ppp/actions/runs/28830982000)): fresh `workflow_dispatch` on `main` (not Re-run on stale jobs); `pg_dump` 17.10; invoicing + library dumps uploaded to R2 `2026/ppp-invoicing-2026-07.dump` and `2026/ppp-library-2026-07.dump`. Local restore smoke later proven in [079](079-ops-hardening-backups-restore-revoke.md).
 
 ## Open questions surfaced
 
