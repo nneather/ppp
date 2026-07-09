@@ -32,7 +32,7 @@
 			icon: BookOpen
 		},
 		{
-			href: '/projects/tasks',
+			href: '/tasks',
 			title: 'Tasks',
 			statLabel: 'Open Critical Now tasks',
 			icon: ListChecks
@@ -52,7 +52,7 @@
 			if (data.unbilledPriorCount == null) return '–';
 			return String(data.unbilledPriorCount);
 		}
-		if (href === '/projects/tasks') {
+		if (href === '/tasks') {
 			if (data.criticalTaskCount == null) return '–';
 			return String(data.criticalTaskCount);
 		}

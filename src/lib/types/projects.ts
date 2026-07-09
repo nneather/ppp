@@ -143,6 +143,8 @@ export type ProjectTaskRow = {
 
 export type ProjectTaskView = ProjectTaskRow & {
 	project_name: string;
+	/** Root domain palette key (inherited via parent_id walk); null if unset. */
+	domain_color: string | null;
 };
 
 export type TaskZoneGroup = {

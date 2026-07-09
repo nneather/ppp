@@ -49,7 +49,8 @@ function mapTaskRow(raw: {
 		completed_at: raw.completed_at,
 		sort_order: raw.sort_order,
 		notes: raw.notes,
-		project_name
+		project_name,
+		domain_color: null
 	};
 }
 
@@ -66,6 +67,26 @@ export type LoadTasksResult = {
 	completed: ProjectTaskView[];
 	todayYmd: string;
 };
+
+/** Attach root-domain palette keys after load (from `buildDomainColorByProjectId`). */
+export function attachTaskDomainColors(
+	result: LoadTasksResult,
+	domainColorByProjectId: Record<string, string | null>
+): LoadTasksResult {
+	const paint = (t: ProjectTaskView): ProjectTaskView => ({
+		...t,
+		domain_color: domainColorByProjectId[t.project_id] ?? null
+	});
+	return {
+		...result,
+		zones: result.zones.map((z) => ({
+			...z,
+			tasks: z.tasks.map(paint)
+		})),
+		deferred: result.deferred.map(paint),
+		completed: result.completed.map(paint)
+	};
+}
 
 export async function loadTasks(
 	supabase: SupabaseClient,

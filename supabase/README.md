@@ -179,7 +179,7 @@ npx dotenv -e .env -- bash -c 'supabase secrets set \
 
 Optional sixth allowlisted address if you also forward from personal domain mail: append `,parker@npneathery.com` to `INBOUND_TASK_ALLOWED_SENDERS`.
 
-5. Forward a test email from an allowlisted mailbox to `tasks@zeneoldai.resend.app`; it should appear under **Opportunity Now** on `/projects/tasks` in the Email Inbox project.
+5. Forward a test email from an allowlisted mailbox to `tasks@zeneoldai.resend.app`; it should appear under **Opportunity Now** on `/tasks` in the Email Inbox project.
 
 ### PDF layout looks unchanged after code changes
 

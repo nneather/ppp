@@ -169,7 +169,7 @@
 {/snippet}
 
 {#snippet projectsActions()}
-	<Button type="button" variant="outline" size="sm" href="/projects/tasks">Tasks</Button>
+	<Button type="button" variant="outline" size="sm" href="/tasks">Tasks</Button>
 {/snippet}
 
 <div class="mx-auto max-w-4xl px-4 py-6 pb-tabbar md:px-6 md:py-8">

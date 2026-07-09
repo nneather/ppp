@@ -36,7 +36,7 @@
 			else params.set(k, v);
 		}
 		const q = params.toString();
-		return `/projects/tasks${q ? `?${q}` : ''}`;
+		return `/tasks${q ? `?${q}` : ''}`;
 	}
 
 	function toggleParam(key: 'deferred' | 'completed') {

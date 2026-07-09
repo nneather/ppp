@@ -91,3 +91,42 @@ export function parseProjectColorKey(raw: string | null | undefined): ProjectCol
 export function isProjectColorKey(v: string): v is ProjectColorKey {
 	return COLOR_SET.has(v);
 }
+
+/**
+ * Map every project id → its root domain's palette key (walk parent_id to root).
+ * Roots with no color (and orphans) map to null.
+ */
+export function buildDomainColorByProjectId(
+	rows: readonly { id: string; parent_id: string | null; color: string | null }[]
+): Record<string, ProjectColorKey | null> {
+	const byId = new Map(rows.map((r) => [r.id, r]));
+	const cache = new Map<string, ProjectColorKey | null>();
+
+	function domainColor(id: string): ProjectColorKey | null {
+		const hit = cache.get(id);
+		if (hit !== undefined) return hit;
+
+		const seen = new Set<string>();
+		let cur: string | null = id;
+		while (cur) {
+			if (seen.has(cur)) break;
+			seen.add(cur);
+			const row = byId.get(cur);
+			if (!row) break;
+			if (row.parent_id == null) {
+				const key = parseProjectColorKey(row.color);
+				cache.set(id, key);
+				return key;
+			}
+			cur = row.parent_id;
+		}
+		cache.set(id, null);
+		return null;
+	}
+
+	const out: Record<string, ProjectColorKey | null> = {};
+	for (const r of rows) {
+		out[r.id] = domainColor(r.id);
+	}
+	return out;
+}

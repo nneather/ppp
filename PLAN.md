@@ -35,7 +35,7 @@ Nearest hard dates:
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 shipped** — latest: `.docx` bibliography export ([063](docs/decisions/063-library-wave2-session4-docx-export.md)). **Next: August shelf QA** (all 20 fixture rows). **Apply essay seed** if not live; owner phone smoke after split; `.docx` Word smoke. |
-| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)). Tree/check-in, dashboard/filters, MYN `/projects/tasks`, links, audit. **Owner:** finish Resend `in.npneathery.com` MX + webhook secrets (see [supabase/README.md](supabase/README.md)). **Viewer access:** owner-only by design. **Backlog:** polish, global Now ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)). |
+| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), links, audit. **Owner:** finish Resend webhook secrets (see [supabase/README.md](supabase/README.md)). **Viewer access:** owner-only by design. **Backlog:** polish, global Now ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)). |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -58,7 +58,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 **Projects (use weekly):**
 - `/projects` — inline tree + weekly check-in (`depends('app:projects:tree')`), optional **progress tracking** per check-in (value / of / note — [048](docs/decisions/048-projects-checkin-progress.md)).
 - `/dashboard` — domain status strip + attention deep link.
-- `/projects/tasks` — MYN zones (Critical / Opportunity / OTH), FRESH sort, defer/promote; `?project=` filter.
+- `/tasks` — MYN zones (Critical / Opportunity / OTH), FRESH sort, defer/promote; `?project=` filter. Legacy `/projects/tasks` 308-redirects here.
 - Edit project Sheet — metadata + **links** (edit mode only).
 - `/settings/audit-log?module=projects` — includes `project_tasks` soft-delete revert.
 
@@ -166,7 +166,7 @@ End-of-session: fixture doc statuses re-confirmed, docs/decisions/<next-free>-*.
 ```
 Goal: Sign off Session 3 tracker row — full flow on phone (PWA if possible).
 Flow: Create project under Work + sub-project → weekly check-in save → /dashboard glance →
-  /projects/tasks (add, zone, defer, promote, complete) → edit project → add link →
+  /tasks (add, zone, defer, promote, complete) → edit project → add link →
   /settings/audit-log?module=projects (task row + soft-delete revert).
 Then: check Session 3 smoke box on docs/POS_Projects_Build_Tracker.md and note date in PLAN.md.
 ```
@@ -267,7 +267,7 @@ Acceptance:
 2. **Library — writing-session gaps** ([065](docs/decisions/065-writing-workflow-review.md) Q6) — short-form copy + page input + incomplete-citation hint. See Session prompts. Plus owner-commissioned **`work_type` SQL sweep** (Q8) before or with it.
 3. **Owner smokes** — **new review page at full-backlog volume** (~673 pending proposals on the Research deck, [070](docs/decisions/070-library-genre-taxonomy-audit.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 (seed is live); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4 — soft-delete via UI).
 4. **Library — genre taxonomy audit fully closed** ([070](docs/decisions/070-library-genre-taxonomy-audit.md)) — nothing left to build. The 45 residual no-genre-signal books (no ISBN/OL match) need manual `/library/review` attention whenever convenient — not urgent, just the tail of the backlog.
-5. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/projects/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now). **Email capture ready** once Resend MX + webhook secrets are set ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
+5. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now). **Email capture ready** once Resend webhook secrets are set ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
 6. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts. **Plus:** drain the "Needs the shelf" review deck (44 books, [067](docs/decisions/067-library-review-sprint-decks.md)).
 7. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
 8. **Invoicing:** first real-client send cadence (owner-driven).

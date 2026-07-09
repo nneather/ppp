@@ -150,7 +150,7 @@ End-of-session deliverables:
   - `src/lib/projects/server/actions.ts` — check-in + project CRUD + `setProjectColorAction` + `project_links` CRUD/reorder.
   - `src/lib/projects/server/task-actions.ts` — MYN task create/update/complete/defer/promote/soft-delete (incl. `notes`).
   - `/projects` — tree + metadata sheet (links in edit mode) + domain color picker; `depends('app:projects:tree')`.
-  - `/projects/tasks` — MYN task page; `depends('app:projects:tasks')`; Chicago today via `ymdInChicago()`.
+  - `/tasks` — MYN task page (legacy `/projects/tasks` 308-redirects here); `depends('app:projects:tasks')`; Chicago today via `ymdInChicago()`.
   - **Email → task:** Edge Function `email-inbound-task` (Resend inbound → Email Inbox project); secrets `RESEND_WEBHOOK_SECRET`, `INBOUND_TASK_PROJECT_ID`, `INBOUND_TASK_ALLOWED_SENDERS` — [supabase/README.md](supabase/README.md).
   - **Partial unique upsert:** `project_updates` — PK `id` only ([045](docs/decisions/045-projects-session-1-tree-checkin.md)).
   - **Audit log:** `_PROJECTS_TABLES` includes `project_tasks`; soft-delete revert for `projects`, `project_updates`, `project_tasks`.

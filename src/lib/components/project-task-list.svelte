@@ -14,6 +14,11 @@
 		type ProjectTaskView,
 		type TaskZoneGroup
 	} from '$lib/types/projects';
+	import {
+		PROJECT_COLOR_DOT_CLASS,
+		PROJECT_COLOR_RAIL_CLASS,
+		parseProjectColorKey
+	} from '$lib/projects/project-colors';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
 	import FileText from '@lucide/svelte/icons/file-text';
@@ -76,9 +81,11 @@
 </script>
 
 {#snippet taskRow(task: ProjectTaskView, completed = false)}
+	{@const domainColor = parseProjectColorKey(task.domain_color)}
 	<li
 		class={cn(
 			'flex flex-col gap-2 border-b border-border/60 px-3 py-2.5 last:border-b-0',
+			domainColor && PROJECT_COLOR_RAIL_CLASS[domainColor],
 			completed && 'opacity-70'
 		)}
 	>
@@ -115,7 +122,15 @@
 					{/if}
 				</div>
 				{#if showProjectLabel}
-					<p class="text-xs text-muted-foreground">{task.project_name}</p>
+					<p class="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+						{#if domainColor}
+							<span
+								class={cn('size-2 shrink-0 rounded-full', PROJECT_COLOR_DOT_CLASS[domainColor])}
+								aria-hidden="true"
+							></span>
+						{/if}
+						{task.project_name}
+					</p>
 				{/if}
 				<p class="text-xs text-muted-foreground">Start {task.start_date}</p>
 			</div>
