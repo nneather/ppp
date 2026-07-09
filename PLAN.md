@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-09 — **Invoice email PDF MIME hardening** ([078](docs/decisions/078-invoice-email-pdf-mime.md)): `send-invoice` sets `content_type: application/pdf` + plain-text body; redeployed. Prior: email-to-task + domain colors ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
+**Last updated:** 2026-07-09 — **Ops hardening** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)): weekly R2 backups + profiles/projects dumps; restore-smoke proven green; denorm REVOKE (PUBLIC + anon). Prior: invoice email PDF MIME ([078](docs/decisions/078-invoice-email-pdf-mime.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,7 @@
 
 ## Current focus
 
-**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)). Still queued: **library writing-session gaps**, **ops hardening** (weekly cron, projects+profiles dumps, restore fix, REVOKE migration). MYN 2-week adoption trial runs through ~2026-07-20.
+**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). Still queued: **library writing-session gaps**. MYN 2-week adoption trial runs through ~2026-07-20.
 
 **Review queue — sprint decks + AI research pass, now full backlog (2026-07-06/07, [067](docs/decisions/067-library-review-sprint-decks.md)+[068](docs/decisions/068-library-review-ai-research-pass.md)+[070](docs/decisions/070-library-genre-taxonomy-audit.md)):** `/library/review` rebuilt around **decks** (Citation Critical, Genre Sprint one-tap, Research, Puzzles, Backlog, Needs the shelf — shelf-bound books excluded everywhere else by default while in Madison), **sprints** (5/10/25 + ring + summary card), **live-ticking burndown + one-time milestones**, shuffle, and `book_metadata_proposals`. **`ANTHROPIC_API_KEY` added to `.env.local`; full-backlog run done** — Research deck now carries **~673 pending proposals** (639 with a genre suggestion) covering the whole prior 716-book null-genre set; only **45 books** remain with zero AI signal (no ISBN/OL match). **Owner:** phone smoke the Research deck accept flow at this new volume; try one 10-sprint; the 45 stragglers need manual attention eventually.
 
@@ -43,9 +43,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [079 — Ops hardening: weekly backups, proven restore, denorm REVOKE](docs/decisions/079-ops-hardening-backups-restore-revoke.md) (2026-07-09) — weekly cron + profiles/projects dumps; restore-smoke green (invoicing + library); REVOKE PUBLIC+anon on denorm helpers. Owner: glance Actions after next Monday cron; phone smoke [072](docs/decisions/072-pwa-cold-start-resilience.md).
 - [078 — Invoice email PDF MIME hardening](docs/decisions/078-invoice-email-pdf-mime.md) (2026-07-09) — `send-invoice` attachment `content_type: application/pdf` + plain-text `text` body; Edge Function redeployed. Owner: test-send + confirm Sarah can open PDF in Gmail.
 - [077 — Email-to-task + domain colors](docs/decisions/077-email-to-task-and-domain-colors.md) (2026-07-09) — Resend inbound (`tasks@zeneoldai.resend.app`) → Email Inbox MYN tasks; `projects.color` curated palette on root domains; task `notes` + sticky sheet save bar.
-- [076 — Review edition + action bar](docs/decisions/076-review-edition-action-bar.md) (2026-07-08) — `editionHintFromNote` + show-on-gap Edition field; live Turabian preview includes parsed edition; fixed 2-row mobile action bar with stable Back spacer.
 - [071 — Review queue authorless + undo](docs/decisions/071-review-queue-authorless-undo.md) (2026-07-08) — work-type chips + editors-only monograph one-tap fix on review cards; role-aware missing preview; 10s Confirm undo (field restore + proposal re-pending); Back button for skipped cards.
 - [069 — Review queue follow-ups](docs/decisions/069-review-queue-follow-ups.md) (2026-07-07) — Turabian `publisher_location` normalization; proposal filter + dismissed-stays-gone; editable Apply on review card; italic citation previews; `books.no_attributed_author` for authorless reference works; `rejectRedundantProposals.ts` cleanup script.
 - [067 — Review queue sprint decks](docs/decisions/067-library-review-sprint-decks.md) (2026-07-06) — deck picker (6 decks, live counts) replaces slice pills; Genre Sprint one-tap fast lane (585 books); 5/10/25 sprints + ring + summary; live-ticking burndown; milestones (25/50/75/100% + per-100 lifetime); shuffle; shelf-bound books excluded by default while away. Shelf marker is the word `shelf`, not the importer prefix.
@@ -72,15 +72,15 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-09** ([078](docs/decisions/078-invoice-email-pdf-mime.md); check **0 errors**; test **223/223** green). Prior: email-to-task + domain colors ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-09** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md); check **0 errors**; test **223/223** green). Prior: invoice email PDF MIME ([078](docs/decisions/078-invoice-email-pdf-mime.md)).
 
-**Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md) — the earlier "Pro 7-day backups" wording here was wrong), so the R2 dumps are the **only** backup. **Pipeline is live** — secrets set + first successful run 2026-07-06 (run 28830982000; both dumps in R2 under `2026/`). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + cron — **bump monthly → weekly `0 8 * * 1` in the ops hardening session**):
+**Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
-- `ppp-invoicing-YYYY-MM.dump` — clients, client_rates, time_entries, invoices, invoice_line_items (+ **`profiles`** per [066](docs/decisions/066-operational-resilience-review.md) Q10 — pending ops session)
+- `ppp-invoicing-YYYY-MM.dump` — **profiles**, clients, client_rates, time_entries, invoices, invoice_line_items
 - `ppp-library-YYYY-MM.dump` — books, people, series, publishers, bible_books, ancient_texts, book_authors, book_bible_coverage, book_ancient_coverage, book_topics, essays, essay_authors, scripture_references
-- `ppp-projects-YYYY-MM.dump` — projects, project_updates, project_tasks, project_links (**pending ops session** — 120 check-ins currently unprotected)
+- `ppp-projects-YYYY-MM.dump` — projects, project_updates, project_tasks, project_links
 
-**Restore is unproven and [`restore-smoke.sh`](scripts/backup-restore-verify/restore-smoke.sh) fails as written** (`pg_dump --where` doesn't exist in PG 17; profiles schema-load trips on auth FK/triggers — [066](docs/decisions/066-operational-resilience-review.md) §3). Fix + extend to a library-scale data-only rehearsal in the ops hardening session. Owner runbook incl. known failure modes: [docs/reviews/2026-07-07-operational-resilience.md](docs/reviews/2026-07-07-operational-resilience.md). PITR add-on intentionally skipped (cost vs. solo value). Retention: keep all for now.
+**Restore smoke green** ([`restore-smoke.sh`](scripts/backup-restore-verify/restore-smoke.sh)): pre-data + data into scratch Postgres 17; invoicing 2 clients / 1 profile; library 1379 books / 1509 book_authors / 555 scripture_references. Owner runbook: [docs/reviews/2026-07-07-operational-resilience.md](docs/reviews/2026-07-07-operational-resilience.md). PITR add-on intentionally skipped. Retention: keep all for now.
 
 ---
 
@@ -118,32 +118,9 @@ End-of-session: tracker row added+ticked, docs/decisions/<next-free>-*.md, PLAN.
 
 Owner follow-up: phone smoke the Research deck accept flow at ~673 pending proposals; the 45 books with no AI signal at all need eventual manual attention.
 
-### Ops hardening — from [066](docs/decisions/066-operational-resilience-review.md) Q10–Q14
+### Ops hardening — from [066](docs/decisions/066-operational-resilience-review.md) Q10–Q14 ✅ done ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md))
 
-```
-Session: cross-module — ops hardening (overnight resilience review 066)
-Read: AGENTS.md, docs/decisions/066-operational-resilience-review.md,
-  docs/reviews/2026-07-07-operational-resilience.md, .github/workflows/backup.yml,
-  scripts/backup-restore-verify/ (README.md + restore-smoke.sh), .cursor/rules/db-changes.mdc,
-  src/service-worker.ts, src/routes/+layout.svelte (nav skeleton)
-Supabase: hosted `db push` only — one REVOKE migration
-Goal: Close remaining resilience decisions: backup coverage, weekly cron, restore fix+proof, REVOKE. (Nav watchdog + cold-start boot shell shipped in [072](docs/decisions/072-pwa-cold-start-resilience.md).)
-Acceptance:
- - [ ] backup.yml: weekly cron (0 8 * * 1); profiles added to invoicing dump; third ppp-projects dump
-       (projects project_updates project_tasks project_links)
- - [ ] restore-smoke.sh fixed (no pg_dump --where; profiles via \copy or data-only whole-table; see 066 §3a)
-       and RUN green with Docker up — invoicing assert passes
- - [ ] Library restore rehearsal: migrations-built scratch schema + pg_restore --data-only --disable-triggers
-       of the real R2 library dump; assert books/book_authors/scripture_references counts > 0
- - [ ] Migration: REVOKE EXECUTE on library_refresh_book_list_denorm(uuid) + _trigger() FROM PUBLIC, anon;
-       GRANT to authenticated (mirror 20260528150000); npm run supabase:gen-types
- - [ ] db-changes.mdc: add "new SECURITY DEFINER fn ⇒ REVOKE PUBLIC" checklist line
- - [x] Nav watchdog — shipped [072](docs/decisions/072-pwa-cold-start-resilience.md) (12s overlay → document nav)
- - [ ] Owner phone smoke: cold-launch boot shell + nav watchdog + chunk recovery card ([072](docs/decisions/072-pwa-cold-start-resilience.md))
- - [ ] PLAN.md "Fix the docs" line: Data safety section already corrected in 066 session — verify
- - [ ] npm run check + npm run test pass; security-review subagent before push (RLS/storage-adjacent migration)
-End-of-session: docs/decisions/<next-free>-*.md, PLAN.md refreshed (Data safety pending-items cleared)
-```
+Owner follow-up: phone smoke cold-start / nav watchdog / chunk recovery ([072](docs/decisions/072-pwa-cold-start-resilience.md)); glance Actions after next Monday 08:00 UTC weekly backup for three R2 objects.
 
 ### Library Wave 2 — August shelf QA (owner + agent)
 
@@ -263,11 +240,10 @@ Acceptance:
 
 ## Next up
 
-1. **Ops hardening session** ([066](docs/decisions/066-operational-resilience-review.md)) — weekly cron + projects/profiles dumps + **restore fix & proof** (script fails as written) + REVOKE migration. Nav watchdog + cold-start resilience **shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)). See Session prompts.
-2. **Library — writing-session gaps** ([065](docs/decisions/065-writing-workflow-review.md) Q6) — short-form copy + page input + incomplete-citation hint. See Session prompts. Plus owner-commissioned **`work_type` SQL sweep** (Q8) before or with it.
-3. **Owner smokes** — **new review page at full-backlog volume** (~673 pending proposals on the Research deck, [070](docs/decisions/070-library-genre-taxonomy-audit.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 (seed is live); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4 — soft-delete via UI).
-4. **Library — genre taxonomy audit fully closed** ([070](docs/decisions/070-library-genre-taxonomy-audit.md)) — nothing left to build. The 45 residual no-genre-signal books (no ISBN/OL match) need manual `/library/review` attention whenever convenient — not urgent, just the tail of the backlog.
-5. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now). **Email capture ready** once Resend webhook secrets are set ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
-6. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts. **Plus:** drain the "Needs the shelf" review deck (44 books, [067](docs/decisions/067-library-review-sprint-decks.md)).
-7. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
+1. **Library — writing-session gaps** ([065](docs/decisions/065-writing-workflow-review.md) Q6) — short-form copy + page input + incomplete-citation hint. See Session prompts. Plus owner-commissioned **`work_type` SQL sweep** (Q8) before or with it.
+2. **Owner smokes** — **new review page at full-backlog volume** (~673 pending proposals on the Research deck, [070](docs/decisions/070-library-genre-taxonomy-audit.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 (seed is live); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4 — soft-delete via UI); **cold-start / nav watchdog / chunk recovery** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); glance Actions after next Monday weekly backup ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)).
+3. **Library — genre taxonomy audit fully closed** ([070](docs/decisions/070-library-genre-taxonomy-audit.md)) — nothing left to build. The 45 residual no-genre-signal books (no ISBN/OL match) need manual `/library/review` attention whenever convenient — not urgent, just the tail of the backlog.
+4. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now). **Email capture ready** once Resend webhook secrets are set ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
+5. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts. **Plus:** drain the "Needs the shelf" review deck (44 books, [067](docs/decisions/067-library-review-sprint-decks.md)).
+6. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
 8. **Invoicing:** first real-client send cadence (owner-driven). **Owner verify [078](docs/decisions/078-invoice-email-pdf-mime.md):** Send test to myself → resend to Sarah → Resend dashboard attachment typed `application/pdf` → Sarah opens in Gmail.

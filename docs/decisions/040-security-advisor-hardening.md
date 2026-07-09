@@ -46,7 +46,7 @@ Optional without Pro: tighten Email provider password rules (min length, charact
 | `authenticated_security_definer_function_executable` | Accepted | `app_is_*` / `app_module_*` in RLS; `library_merge_*` + `generate_invoice_number` + `search_scripture_refs` via `.rpc()`; trigger functions need `authenticated` EXECUTE |
 | `auth_leaked_password_protection` | Waived (Free) | Pro-only feature; not actionable on current plan |
 
-Functions flagged for `authenticated_*` (documented, not bugs): `app_is_owner`, `app_is_viewer_writer`, `app_module_access_level`, `app_has_module_read`, `enforce_books_viewer_columns`, `handle_new_user`, `write_audit_log`, `library_merge_people`, `library_merge_publishers`, `library_merge_ancient_texts`.
+Functions flagged for `authenticated_*` (documented, not bugs): `app_is_owner`, `app_is_viewer_writer`, `app_module_access_level`, `app_has_module_read`, `enforce_books_viewer_columns`, `handle_new_user`, `write_audit_log`, `library_merge_people`, `library_merge_publishers`, `library_merge_ancient_texts`, `library_refresh_book_list_denorm`, `library_refresh_book_list_denorm_trigger` (PUBLIC + anon REVOKE shipped in `20260709222420_*` / `20260709222910_*` — trigger needs `authenticated` EXECUTE).
 
 ## Surprises (read these before the next session)
 

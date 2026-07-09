@@ -1,6 +1,6 @@
-# Monthly backup — restore verification
+# Weekly backup — restore verification
 
-One-time smoke test for the two-file `pg_dump` backup spec ([PLAN.md](../../PLAN.md) › Data safety, [055](../../docs/decisions/055-ci-backups.md)).
+Smoke test for the three-file `pg_dump` backup spec ([PLAN.md](../../PLAN.md) › Data safety, [055](../../docs/decisions/055-ci-backups.md), [066](../../docs/decisions/066-operational-resilience-review.md)).
 
 ## GitHub Actions secrets
 
@@ -22,7 +22,7 @@ gh secret set R2_ACCESS_KEY_ID
 gh secret set R2_SECRET_ACCESS_KEY
 ```
 
-After secrets are set, trigger **Monthly database backup** via Actions → **Run workflow** on `main` (not **Re-run** on an old failed job — that replays stale workflow YAML). Confirm objects appear under `s3://<bucket>/YYYY/`.
+After secrets are set, trigger **Weekly database backup** via Actions → **Run workflow** on `main` (not **Re-run** on an old failed job — that replays stale workflow YAML). Confirm objects appear under `s3://<bucket>/YYYY/`.
 
 ### Wrong URL symptoms
 
@@ -61,16 +61,21 @@ npx dotenv -e .env.local -e .env -- npx tsx scripts/backup-restore-verify/derive
 
 Requires Docker. Uses `LIBRARY_DST_DATABASE_URL` or `BACKUP_DATABASE_URL` from `.env.local`.
 
+If the URL is a **Direct** host (`db.<ref>.supabase.co`), the script auto-derives a Session Pooler URI via [`derive-pooler-url.ts`](derive-pooler-url.ts) — Docker on macOS cannot reach IPv6-only Direct.
+
+Re-dumps the same `-t` lists as [backup.yml](../../.github/workflows/backup.yml) from prod (no R2 credentials needed locally), then restores into a scratch Postgres 17 container.
+
 ```bash
-dotenv -e .env.local -- bash scripts/backup-restore-verify/restore-smoke.sh
+npx dotenv -e .env.local -- bash scripts/backup-restore-verify/restore-smoke.sh
 ```
 
-Steps mirrored from production restore:
+Steps:
 
-1. `pg_dump -F c` invoicing tables only (same `-t` list as [backup.yml](../../.github/workflows/backup.yml)).
+1. `pg_dump -F c` invoicing tables **including `profiles`**, and library tables (same `-t` lists as the workflow).
 2. Scratch Postgres 17 container.
-3. Minimal schema + **profiles row loaded first** (FK parent for `clients.user_id`, etc.).
-4. `pg_restore --data-only --disable-triggers`.
-5. Assert at least one live `clients` row.
+3. For each archive: `pg_restore --section=pre-data` then `--section=data` (`--no-owner --no-privileges`). **Post-data is skipped** (FKs, triggers, RLS, indexes) so the smoke does not need `auth.users` / `write_audit_log` / roles bootstrap — we only assert row counts.
+4. Assert ≥1 live `profiles` + `clients` (invoicing) and ≥1 `books` / `book_authors` / live `scripture_references` (library).
 
-Retention: keep all monthly dumps in R2 for now; revisit pruning later.
+True disaster recovery into a fresh Supabase project still uses migrations for schema, then `pg_restore --data-only --disable-triggers` (superuser) of the R2 archives — this smoke proves the dump shape and data land, not the full migration+FK path.
+
+Retention: keep all weekly dumps in R2 for now; revisit pruning later.

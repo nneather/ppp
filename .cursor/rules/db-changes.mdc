@@ -18,6 +18,7 @@ Every migration must satisfy this list before being committed.
 - [ ] `audit_log_trigger` attached
 - [ ] Indexes for any FK or hot filter column
 - [ ] **PostgREST API grants** on the table (required for projects with auto-expose off; safe everywhere). See [039](mdc:docs/decisions/039-supabase-postgrest-api-grants.md).
+- [ ] **New SECURITY DEFINER function** → `REVOKE EXECUTE … FROM PUBLIC` **and** `FROM anon` (Supabase may grant both), then `GRANT EXECUTE … TO authenticated` (and any other role that actually needs it). See `20260528150000_*` / `20260709222420_*` + recovery `20260709222910_*`.
 
 ```sql
 -- After CREATE TABLE + RLS policies (adjust if table is service-role-only):

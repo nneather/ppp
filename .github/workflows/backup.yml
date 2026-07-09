@@ -1,9 +1,9 @@
-name: Monthly database backup
+name: Weekly database backup
 
 on:
   schedule:
-    # 08:00 UTC on the 1st (~2–3am Chicago)
-    - cron: '0 8 1 * *'
+    # 08:00 UTC Mondays (~2–3am Chicago)
+    - cron: '0 8 * * 1'
   workflow_dispatch:
 
 jobs:
@@ -43,12 +43,15 @@ jobs:
           YEAR=$(date +%Y)
 
           INVOICING_TABLES=(
-            clients client_rates time_entries invoices invoice_line_items
+            profiles clients client_rates time_entries invoices invoice_line_items
           )
           LIBRARY_TABLES=(
             books people series publishers bible_books ancient_texts
             book_authors book_bible_coverage book_ancient_coverage book_topics
             essays essay_authors scripture_references
+          )
+          PROJECTS_TABLES=(
+            projects project_updates project_tasks project_links
           )
 
           invoicing_flags=()
@@ -61,8 +64,14 @@ jobs:
             library_flags+=(-t "public.${t}")
           done
 
+          projects_flags=()
+          for t in "${PROJECTS_TABLES[@]}"; do
+            projects_flags+=(-t "public.${t}")
+          done
+
           "$PG_DUMP" -F c -f "ppp-invoicing-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${invoicing_flags[@]}"
           "$PG_DUMP" -F c -f "ppp-library-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${library_flags[@]}"
+          "$PG_DUMP" -F c -f "ppp-projects-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${projects_flags[@]}"
 
           echo "MONTH=${MONTH}" >> "$GITHUB_ENV"
           echo "YEAR=${YEAR}" >> "$GITHUB_ENV"
@@ -79,4 +88,6 @@ jobs:
           aws s3 cp "ppp-invoicing-${MONTH}.dump" "s3://${R2_BUCKET}/${YEAR}/ppp-invoicing-${MONTH}.dump" \
             --endpoint-url "$R2_ENDPOINT"
           aws s3 cp "ppp-library-${MONTH}.dump" "s3://${R2_BUCKET}/${YEAR}/ppp-library-${MONTH}.dump" \
+            --endpoint-url "$R2_ENDPOINT"
+          aws s3 cp "ppp-projects-${MONTH}.dump" "s3://${R2_BUCKET}/${YEAR}/ppp-projects-${MONTH}.dump" \
             --endpoint-url "$R2_ENDPOINT"
