@@ -172,6 +172,28 @@ function buildEmailHtml(opts: {
 </html>`;
 }
 
+/** Plain-text sibling of buildEmailHtml — multipart/alternative for attachment-friendly MIME. */
+function buildEmailText(opts: {
+	invoiceNumber: string;
+	clientName: string;
+	periodStart: string;
+	periodEnd: string;
+	total: number;
+	customMessage: string;
+}): string {
+	const { invoiceNumber, clientName, periodStart, periodEnd, total, customMessage } = opts;
+	const message = customMessage.trim() || 'Please see the attached invoice.';
+	return [
+		message,
+		'',
+		`Invoice ${invoiceNumber} — ${clientName}`,
+		`Period: ${formatDateYmd(periodStart)} – ${formatDateYmd(periodEnd)}`,
+		`Total: ${money(total)}`,
+		'',
+		'The detailed invoice is attached as a PDF.'
+	].join('\n');
+}
+
 Deno.serve(async (req) => {
 	if (req.method === 'OPTIONS') {
 		return new Response('ok', { headers: corsHeadersFor(req) });
@@ -330,6 +352,14 @@ Deno.serve(async (req) => {
 		total,
 		customMessageHtml
 	});
+	const text = buildEmailText({
+		invoiceNumber: invoice.invoice_number,
+		clientName: client.name,
+		periodStart: invoice.period_start,
+		periodEnd: invoice.period_end,
+		total,
+		customMessage
+	});
 
 	const safeFileBase = invoice.invoice_number.replace(/[^a-zA-Z0-9._-]+/g, '_');
 	const filename = `${safeFileBase || 'invoice'}.pdf`;
@@ -344,7 +374,8 @@ Deno.serve(async (req) => {
 		to: toList,
 		subject: `${subjectPrefix}Invoice ${invoice.invoice_number} — ${client.name}`,
 		html,
-		attachments: [{ filename, content: pdfBase64 }]
+		text,
+		attachments: [{ filename, content: pdfBase64, content_type: 'application/pdf' }]
 	};
 	if (!testRecipient && ccList.length > 0) {
 		resendPayload.cc = ccList;
