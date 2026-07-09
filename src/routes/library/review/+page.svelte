@@ -40,6 +40,7 @@
 		type ReviewDeckKey
 	} from '$lib/library/review-decks';
 	import { hasVisibleProposalFields } from '$lib/library/proposal-filter';
+	import { editionHintFromNote } from '$lib/library/review';
 	import { createReviewSwipe } from '$lib/library/review-swipe';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -125,6 +126,7 @@
 	let editWorkType = $state<WorkType | null>(null);
 	let editNoAttributedAuthor = $state<boolean | null>(null);
 	let editIsbn = $state<string | null>(null);
+	let editEdition = $state<string | null>(null);
 	let pendingSaveId = $state<string | null>(null);
 	let confirmDeleteOpen = $state(false);
 	let confirmDeletePending = $state(false);
@@ -212,7 +214,8 @@
 			publisher_canonical: effectivePublisher(c),
 			publisher_effective_location: effectivePublisherLocation(c),
 			work_type: effectiveWorkType(c),
-			no_attributed_author: effectiveNoAttributedAuthor(c)
+			no_attributed_author: effectiveNoAttributedAuthor(c),
+			edition: effectiveEdition(c)
 		});
 		return {
 			footnote: formatFootnote(input),
@@ -255,6 +258,7 @@
 		editReadingStatus = null;
 		editWorkType = null;
 		editIsbn = null;
+		editEdition = null;
 		confirmDeleteOpen = false;
 		milestone = null;
 		sprintSummary = null;
@@ -272,6 +276,7 @@
 		editWorkType = null;
 		editNoAttributedAuthor = null;
 		editIsbn = null;
+		editEdition = null;
 	}
 
 	function clearUndoToast() {
@@ -785,6 +790,21 @@
 		return (c.needs_review_note?.toLowerCase().includes('isbn') ?? false);
 	}
 
+	function effectiveEdition(c: ReviewCard): string | null {
+		if (editEdition !== null) {
+			const t = editEdition.trim();
+			return t.length > 0 ? t : null;
+		}
+		if (c.edition) return c.edition;
+		return editionHintFromNote(c.needs_review_note);
+	}
+
+	function showEditionRow(c: ReviewCard): boolean {
+		if (editEdition !== null) return true;
+		if (c.edition) return false;
+		return editionHintFromNote(c.needs_review_note) !== null;
+	}
+
 	function hasContributorRole(c: ReviewCard, role: 'author' | 'editor'): boolean {
 		return c.authors.some((a) => a.role === role);
 	}
@@ -1162,6 +1182,60 @@
 						/>
 					{/if}
 
+					{#snippet mobileReviewActions(confirmLabel: string)}
+						<div class="mx-auto flex max-w-md flex-col gap-1 md:hidden">
+							<div class="grid grid-cols-2 gap-1">
+								<Button
+									type="submit"
+									size="sm"
+									hotkey="s"
+									label={pendingSaveId === card.id ? 'Saving…' : confirmLabel}
+									disabled={pendingSaveId !== null}
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									hotkey="Escape"
+									label="Skip"
+									onclick={skipCurrent}
+									disabled={pendingSaveId !== null}
+								/>
+							</div>
+							<div class="grid grid-cols-3 gap-1">
+								<Button
+									type="submit"
+									formaction="?/markNeedsShelf"
+									variant="outline"
+									size="sm"
+									label="Needs shelf"
+									disabled={pendingSaveId !== null}
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									hotkey="e"
+									label="Field wrong"
+									onclick={() => goto(bookEditHref)}
+									disabled={pendingSaveId !== null}
+								/>
+								{#if skippedStack.length > 0}
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										label="Back"
+										onclick={goBackToSkipped}
+										disabled={pendingSaveId !== null}
+									/>
+								{:else}
+									<div class="min-h-8" aria-hidden="true"></div>
+								{/if}
+							</div>
+						</div>
+					{/snippet}
+
 					{#if fastLane}
 						<!-- Genre Sprint: one tap on a chip fills + submits. -->
 						<ReviewGenreChips
@@ -1176,37 +1250,9 @@
 						{/if}
 
 						<div
-							class="sticky bottom-0 z-20 -mx-4 mt-2 border-t border-border bg-background/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:mt-2 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+							class="sticky bottom-0 z-20 -mx-4 mt-2 border-t border-border bg-background/95 px-4 py-1.5 backdrop-blur md:static md:mx-0 md:mt-2 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
 						>
-							<div class="mx-auto flex max-w-md flex-col gap-1.5">
-								<div class="grid grid-cols-2 gap-1.5">
-									<Button
-										type="submit"
-										variant="outline"
-										hotkey="s"
-										class="min-h-9"
-										label={pendingSaveId === card.id ? 'Saving…' : 'Confirm as-is'}
-										disabled={pendingSaveId !== null}
-									/>
-									<Button
-										type="button"
-										variant="outline"
-										hotkey="Escape"
-										class="min-h-9"
-										label="Skip"
-										onclick={skipCurrent}
-										disabled={pendingSaveId !== null}
-									/>
-								</div>
-								<Button
-									type="submit"
-									formaction="?/markNeedsShelf"
-									variant="outline"
-									class="min-h-9 w-full"
-									label="Needs shelf"
-									disabled={pendingSaveId !== null}
-								/>
-							</div>
+							{@render mobileReviewActions('Confirm as-is')}
 						</div>
 					{:else}
 					<!-- Citation-critical text fields -->
@@ -1332,6 +1378,27 @@
 							</label>
 						{:else if card.isbn}
 							<input type="hidden" name="isbn" value={card.isbn} />
+						{/if}
+						{#if showEditionRow(card)}
+							<label class="flex flex-col gap-1 text-xs">
+								<span class="font-medium text-muted-foreground">Edition</span>
+								<Input
+									name="edition"
+									type="text"
+									autocomplete="off"
+									placeholder="e.g. 2nd ed."
+									value={editEdition ??
+										editionHintFromNote(card.needs_review_note) ??
+										card.edition ??
+										''}
+									oninput={(e) =>
+										(editEdition = (e.currentTarget as HTMLInputElement).value)}
+								/>
+							</label>
+						{:else if card.edition}
+							<input type="hidden" name="edition" value={card.edition} />
+						{:else if effectiveEdition(card)}
+							<input type="hidden" name="edition" value={effectiveEdition(card)} />
 						{/if}
 					</div>
 
@@ -1543,54 +1610,10 @@
 					</div>
 
 					<div
-						class="sticky bottom-0 z-20 -mx-4 mt-4 border-t border-border bg-background/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:mt-4 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+						class="sticky bottom-0 z-20 -mx-4 mt-4 border-t border-border bg-background/95 px-4 py-1.5 backdrop-blur md:static md:mx-0 md:mt-4 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
 					>
-						<div class="mx-auto flex max-w-md flex-col gap-1.5">
-							<Button
-								type="submit"
-								hotkey="s"
-								class="min-h-9 w-full md:hidden"
-								label={pendingSaveId === card.id ? 'Saving…' : 'Confirm citation-ready'}
-								disabled={pendingSaveId !== null}
-							/>
-							<Button
-								type="submit"
-								formaction="?/markNeedsShelf"
-								variant="outline"
-								class="min-h-9 w-full md:hidden"
-								label="Needs shelf"
-								disabled={pendingSaveId !== null}
-							/>
-							<div class="grid grid-cols-2 gap-1.5 md:hidden">
-								{#if skippedStack.length > 0}
-									<Button
-										type="button"
-										variant="outline"
-										class="min-h-9"
-										label="Back"
-										onclick={goBackToSkipped}
-										disabled={pendingSaveId !== null}
-									/>
-								{/if}
-								<Button
-									type="button"
-									variant="outline"
-									hotkey="e"
-									class="min-h-9"
-									label="Field wrong"
-									onclick={() => goto(bookEditHref)}
-									disabled={pendingSaveId !== null}
-								/>
-								<Button
-									type="button"
-									variant="outline"
-									hotkey="Escape"
-									class="min-h-9"
-									label="Skip"
-									onclick={skipCurrent}
-									disabled={pendingSaveId !== null}
-								/>
-							</div>
+						<div class="mx-auto max-w-md">
+							{@render mobileReviewActions('Confirm citation-ready')}
 							<div class="hidden flex-wrap items-center gap-1.5 md:flex">
 								<Button
 									type="submit"

@@ -43,6 +43,36 @@ export function ensureShelfMarkerNote(existing: string | null): string {
 	return `${trimmed}\n\n${SHELF_DEFER_LINE}`;
 }
 
+const EDITION_HINT_PATTERNS: RegExp[] = [
+	/\b(\d+(?:st|nd|rd|th)\s+ed\.?)\b/i,
+	/\b(rev\.?\s*ed\.?)\b/i,
+	/\b(revised\s+ed\.?)\b/i
+];
+
+/**
+ * Extract a Turabian-style edition string from free-text `needs_review_note`
+ * when `books.edition` is empty (e.g. "2nd ed. (eds Davie/Grass/…)").
+ */
+export function editionHintFromNote(note: string | null): string | null {
+	if (!note?.trim()) return null;
+	for (const pattern of EDITION_HINT_PATTERNS) {
+		const match = note.match(pattern);
+		if (match?.[1]) {
+			let hint = match[1].trim();
+			// Normalize ordinal editions to include a period (2nd ed.)
+			if (/^\d+(?:st|nd|rd|th)\s+ed\.?$/i.test(hint) && !hint.endsWith('.')) {
+				hint = `${hint}.`;
+			}
+			// Normalize revised-edition abbreviations (rev. ed.)
+			if (/^(?:rev\.?\s*ed|revised\s+ed)\.?$/i.test(hint) && !hint.endsWith('.')) {
+				hint = `${hint}.`;
+			}
+			return hint;
+		}
+	}
+	return null;
+}
+
 export function parseReviewFilters(url: URL): ReviewQueueFilters {
 	const filters: ReviewQueueFilters = {};
 
