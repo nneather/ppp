@@ -1,6 +1,7 @@
 /** Pure helpers for Resend inbound → MYN task capture. Client-safe. */
 
-export const INBOUND_TASK_RECIPIENT = 'tasks@in.npneathery.com';
+/** Default receiving address (Resend free managed domain). Override via Edge secret. */
+export const INBOUND_TASK_RECIPIENT = 'tasks@zeneoldai.resend.app';
 export const TASK_TITLE_MAX = 500;
 export const TASK_NOTES_MAX = 10_000;
 

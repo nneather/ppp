@@ -43,7 +43,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
-- [077 — Email-to-task + domain colors](docs/decisions/077-email-to-task-and-domain-colors.md) (2026-07-09) — Resend inbound `tasks@in.npneathery.com` → Email Inbox MYN tasks; `projects.color` curated palette on root domains; task `notes` + sticky sheet save bar.
+- [077 — Email-to-task + domain colors](docs/decisions/077-email-to-task-and-domain-colors.md) (2026-07-09) — Resend inbound (`tasks@zeneoldai.resend.app`) → Email Inbox MYN tasks; `projects.color` curated palette on root domains; task `notes` + sticky sheet save bar.
 - [076 — Review edition + action bar](docs/decisions/076-review-edition-action-bar.md) (2026-07-08) — `editionHintFromNote` + show-on-gap Edition field; live Turabian preview includes parsed edition; fixed 2-row mobile action bar with stable Back spacer.
 - [075 — Review tab follow-ups](docs/decisions/075-review-tab-follow-ups.md) (2026-07-08) — live-only missing banner (no stale auto-line); role-aware contributor header; slimmer sticky bar; ISBN show-on-gap quick-edit + `reviewSaveAction` validation.
 - [071 — Review queue authorless + undo](docs/decisions/071-review-queue-authorless-undo.md) (2026-07-08) — work-type chips + editors-only monograph one-tap fix on review cards; role-aware missing preview; 10s Confirm undo (field restore + proposal re-pending); Back button for skipped cards.

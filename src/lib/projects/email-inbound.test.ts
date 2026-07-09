@@ -45,9 +45,12 @@ describe('extractEmailAddress / allowlist', () => {
 
 describe('isInboundTaskRecipient', () => {
 	it('matches to / received_for', () => {
-		expect(isInboundTaskRecipient(['tasks@in.npneathery.com'])).toBe(true);
-		expect(isInboundTaskRecipient(['Tasks <tasks@in.npneathery.com>'])).toBe(true);
+		expect(isInboundTaskRecipient(['tasks@zeneoldai.resend.app'])).toBe(true);
+		expect(isInboundTaskRecipient(['Tasks <tasks@zeneoldai.resend.app>'])).toBe(true);
 		expect(isInboundTaskRecipient(['other@example.com'])).toBe(false);
+		expect(
+			isInboundTaskRecipient(['tasks@in.npneathery.com'], 'tasks@in.npneathery.com')
+		).toBe(true);
 	});
 });
 

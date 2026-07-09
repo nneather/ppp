@@ -11,7 +11,8 @@
 - Migration `20260709164016_projects_email_inbox_and_domain_colors.sql` applied to prod; types regenerated; function deployed.
 
 ## Decided
-- Receiving address: `tasks@in.npneathery.com` on subdomain `in.npneathery.com` (MX only on subdomain — root mail untouched).
+- Receiving address: Resend free managed domain `tasks@zeneoldai.resend.app` (no custom-domain upgrade). Configurable via Edge secret `INBOUND_TASK_RECIPIENT` so a branded subdomain can replace it later without code changes.
+- Sender allowlist (`INBOUND_TASK_ALLOWED_SENDERS`): forwarder From addresses — `parker.neathery@gmail.com`, `neal.p.neathery@gmail.com`, `parker.neathery@229project.com`, `parker.neathery89@covenantseminary.edu`, `parker.neathery@covenantseminary.edu` (optional `parker@npneathery.com`). Not “any mail that lands in those inboxes.”
 - Destination: dedicated Email Inbox child project (fixed UUID `a1b2c3d4-e5f6-7890-abcd-ef1234567890`), not nullable `project_id`.
 - Colors: curated palette keys + static Tailwind class maps (not free-form hex — Tailwind cannot compile dynamic arbitrary classes).
 - Root domains stay non-editable in the metadata sheet; color uses a dedicated `setProjectColor` action.
@@ -26,7 +27,7 @@
 - `supabase/functions/email-inbound-task/` — inbound webhook handler.
 
 ## Open questions surfaced
-- Parker must finish Resend DNS + webhook + `supabase secrets set` (manual checklist in supabase/README.md) before forwards create tasks.
+- Parker must finish Resend webhook + `supabase secrets set` (full allowlist in supabase/README.md) before forwards create tasks.
 - Whether Email Inbox should later auto-file by subject tag — deferred.
 
 ## Surprises (read these before the next session)

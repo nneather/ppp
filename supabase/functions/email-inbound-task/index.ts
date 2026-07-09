@@ -5,10 +5,11 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const INBOUND_TASK_RECIPIENT = 'tasks@in.npneathery.com';
 const TASK_TITLE_MAX = 500;
 const TASK_NOTES_MAX = 10_000;
 const SVIX_TOLERANCE_SEC = 300;
+/** Fallback only if secret unset — prefer INBOUND_TASK_RECIPIENT env. */
+const DEFAULT_INBOUND_TASK_RECIPIENT = 'tasks@zeneoldai.resend.app';
 
 function jsonResponse(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
@@ -37,9 +38,10 @@ function isAllowedSender(fromRaw: string | null | undefined, allowlistCsv: strin
 	return allowed.includes(from);
 }
 
-function isInboundTaskRecipient(addresses: unknown): boolean {
+function isInboundTaskRecipient(addresses: unknown, expected: string): boolean {
 	if (!Array.isArray(addresses)) return false;
-	const want = INBOUND_TASK_RECIPIENT.toLowerCase();
+	const want = expected.trim().toLowerCase();
+	if (!want.includes('@')) return false;
 	for (const a of addresses) {
 		if (typeof a !== 'string') continue;
 		const bare = extractEmailAddress(a) ?? a.trim().toLowerCase();
@@ -200,11 +202,18 @@ Deno.serve(async (req) => {
 	const resendKey = Deno.env.get('RESEND_API_KEY')?.trim();
 	const projectId = Deno.env.get('INBOUND_TASK_PROJECT_ID')?.trim();
 	const allowlist = Deno.env.get('INBOUND_TASK_ALLOWED_SENDERS')?.trim() ?? '';
+	const recipient =
+		Deno.env.get('INBOUND_TASK_RECIPIENT')?.trim().toLowerCase() ||
+		DEFAULT_INBOUND_TASK_RECIPIENT;
 	const supabaseUrl = Deno.env.get('SUPABASE_URL')?.trim();
 	const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim();
 
 	if (!webhookSecret || !resendKey || !projectId || !supabaseUrl || !serviceRole) {
 		console.error('email-inbound-task: missing required secrets');
+		return jsonResponse({ error: 'Server misconfigured' }, 500);
+	}
+	if (!recipient.includes('@')) {
+		console.error('email-inbound-task: INBOUND_TASK_RECIPIENT invalid');
 		return jsonResponse({ error: 'Server misconfigured' }, 500);
 	}
 
@@ -232,7 +241,7 @@ Deno.serve(async (req) => {
 	}
 
 	const recipients = [...(data?.to ?? []), ...(data?.received_for ?? [])];
-	if (!isInboundTaskRecipient(recipients)) {
+	if (!isInboundTaskRecipient(recipients, recipient)) {
 		return jsonResponse({ ok: true, skipped: 'wrong_recipient' });
 	}
 
