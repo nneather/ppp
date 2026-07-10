@@ -183,7 +183,7 @@
 						}}
 					>
 						<Select.Trigger class="w-full">{parentLabel}</Select.Trigger>
-						<Select.Content>
+						<Select.Content class="max-h-72">
 							{#each parentSelectItems as item (item.value)}
 								<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
 							{/each}

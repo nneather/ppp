@@ -108,7 +108,7 @@
 				}}
 			>
 				<Select.Trigger class="w-full max-w-md">{projectFilterLabel}</Select.Trigger>
-				<Select.Content>
+				<Select.Content class="max-h-72">
 					{#each projectSelectItems as item (item.value)}
 						<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
 					{/each}

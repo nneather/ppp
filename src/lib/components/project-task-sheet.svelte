@@ -107,11 +107,11 @@
 		side={sheetSide}
 		class={cn(
 			'flex w-full flex-col gap-0 p-0',
-			sheetSide === 'bottom' && 'h-[min(85dvh,640px)] max-h-[85dvh] rounded-t-xl',
+			sheetSide === 'bottom' && 'h-[min(92dvh,720px)] max-h-[92dvh] rounded-t-xl',
 			sheetSide === 'right' && 'max-w-md sm:max-w-md'
 		)}
 	>
-		<Sheet.Header class="border-b border-border px-4 pt-2 pb-4">
+		<Sheet.Header class="shrink-0 border-b border-border px-4 pt-2 pb-4">
 			<Sheet.Title>{sheetTitle}</Sheet.Title>
 			<Sheet.Description class="text-muted-foreground">
 				MYN zones and start date control visibility and sort order.
@@ -124,92 +124,89 @@
 			use:enhance={submitEnhance}
 			class="flex min-h-0 flex-1 flex-col"
 		>
-			<div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+			<div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 py-4">
 				{#if errorMessage}
 					<p
-						class="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+						class="shrink-0 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
 						role="alert"
 					>
 						{errorMessage}
 					</p>
 				{/if}
 
-				<div class="flex flex-col gap-5">
-					{#if mode === 'edit' && task}
-						<input type="hidden" name="id" value={task.id} />
-					{/if}
+				{#if mode === 'edit' && task}
+					<input type="hidden" name="id" value={task.id} />
+				{/if}
 
-					<div class="space-y-2">
-						<Label for="task-title">Title</Label>
-						<Input id="task-title" name="title" type="text" bind:value={title} required maxlength={500} />
-					</div>
+				<div class="shrink-0 space-y-2">
+					<Label for="task-title">Title</Label>
+					<Input id="task-title" name="title" type="text" bind:value={title} required maxlength={500} />
+				</div>
 
-					<div class="space-y-2">
-						<Label>Project</Label>
-						<Select.Root
-							type="single"
-							value={projectId}
-							onValueChange={(v) => {
-								if (v) projectId = v;
-							}}
-						>
-							<Select.Trigger class="w-full">{projectLabel}</Select.Trigger>
-							<Select.Content>
-								{#each projectSelectItems as item (item.value)}
-									<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-						<input type="hidden" name="project_id" value={projectId} />
-					</div>
+				<div class="shrink-0 space-y-2">
+					<Label>Project</Label>
+					<Select.Root
+						type="single"
+						value={projectId}
+						onValueChange={(v) => {
+							if (v) projectId = v;
+						}}
+					>
+						<Select.Trigger class="w-full">{projectLabel}</Select.Trigger>
+						<Select.Content class="max-h-72">
+							{#each projectSelectItems as item (item.value)}
+								<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+					<input type="hidden" name="project_id" value={projectId} />
+				</div>
 
-					<div class="space-y-2">
-						<Label>Urgency zone</Label>
-						<Select.Root
-							type="single"
-							value={priority}
-							onValueChange={(v) => {
-								if (v && (TASK_PRIORITIES as readonly string[]).includes(v)) {
-									priority = v as TaskPriority;
-								}
-							}}
-						>
-							<Select.Trigger class="w-full">{priorityLabel}</Select.Trigger>
-							<Select.Content>
-								{#each TASK_PRIORITIES as p (p)}
-									<Select.Item value={p} label={TASK_PRIORITY_LABELS[p]}>
-										{TASK_PRIORITY_LABELS[p]}
-									</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-						<input type="hidden" name="priority" value={priority} />
-					</div>
+				<div class="shrink-0 space-y-2">
+					<Label>Urgency zone</Label>
+					<Select.Root
+						type="single"
+						value={priority}
+						onValueChange={(v) => {
+							if (v && (TASK_PRIORITIES as readonly string[]).includes(v)) {
+								priority = v as TaskPriority;
+							}
+						}}
+					>
+						<Select.Trigger class="w-full">{priorityLabel}</Select.Trigger>
+						<Select.Content>
+							{#each TASK_PRIORITIES as p (p)}
+								<Select.Item value={p} label={TASK_PRIORITY_LABELS[p]}>
+									{TASK_PRIORITY_LABELS[p]}
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+					<input type="hidden" name="priority" value={priority} />
+				</div>
 
-					<div class="space-y-2">
-						<Label for="task-start">Start date</Label>
-						<Input id="task-start" name="start_date" type="date" bind:value={startDate} required />
-						<p class="text-xs text-muted-foreground">
-							Today = top of zone (FRESH). Future date = deferred (hidden until then).
-						</p>
-					</div>
+				<div class="shrink-0 space-y-2">
+					<Label for="task-start">Start date</Label>
+					<Input id="task-start" name="start_date" type="date" bind:value={startDate} required />
+					<p class="text-xs text-muted-foreground">
+						Today = top of zone (FRESH). Future date = deferred (hidden until then).
+					</p>
+				</div>
 
-					<div class="space-y-2">
-						<Label for="task-notes">Notes</Label>
-						<textarea
-							id="task-notes"
-							name="notes"
-							bind:value={notes}
-							rows={4}
-							maxlength={10000}
-							class="flex min-h-24 w-full rounded-lg border border-input bg-background px-3 py-3 text-base shadow-xs outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-							placeholder="Optional details (e.g. forwarded email body)"
-						></textarea>
-					</div>
+				<div class="flex min-h-48 flex-1 flex-col gap-2">
+					<Label for="task-notes" class="shrink-0">Notes</Label>
+					<textarea
+						id="task-notes"
+						name="notes"
+						bind:value={notes}
+						maxlength={10000}
+						class="min-h-0 w-full flex-1 resize-none rounded-lg border border-input bg-background px-3 py-3 text-base shadow-xs outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+						placeholder="Optional details (e.g. forwarded email body)"
+					></textarea>
 				</div>
 			</div>
 
-			<div class="sticky bottom-0 flex flex-wrap gap-2 border-t border-border bg-popover px-4 py-3">
+			<div class="sticky bottom-0 flex shrink-0 flex-wrap gap-2 border-t border-border bg-popover px-4 py-3">
 				<Button type="submit" hotkey={mode === 'create' ? 's' : 'u'} disabled={pending}>
 					{pending ? 'Saving…' : mode === 'create' ? 'Add task' : 'Update task'}
 				</Button>
