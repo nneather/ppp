@@ -1,8 +1,11 @@
-/** DOM recovery UI for chunk-load / bootstrap failures — no Svelte dependency. */
+/** Chunk-load recovery — auto clear SW/caches + reload; card only if that already failed. */
 
 const RECOVERY_ID = 'ppp-client-recovery';
+const RECOVERY_ATTEMPTED_KEY = 'ppp-chunk-recovery-at';
+/** If a second chunk failure lands within this window, show the manual card (avoid reload loops). */
+const RECOVERY_COOLDOWN_MS = 20_000;
 
-let shown = false;
+let recovering = false;
 
 export function isChunkLoadFailure(message: string, source?: string): boolean {
 	const lower = message.toLowerCase();
@@ -15,9 +18,35 @@ export function isChunkLoadFailure(message: string, source?: string): boolean {
 	);
 }
 
+/** Exported for unit tests — true when a recovery reload already ran in this cooldown window. */
+export function recentlyAttemptedRecovery(
+	now = Date.now(),
+	storage: Pick<Storage, 'getItem'> | null = typeof sessionStorage !== 'undefined'
+		? sessionStorage
+		: null
+): boolean {
+	if (!storage) return false;
+	try {
+		const raw = storage.getItem(RECOVERY_ATTEMPTED_KEY);
+		if (!raw) return false;
+		const at = Number(raw);
+		if (!Number.isFinite(at)) return false;
+		return now - at < RECOVERY_COOLDOWN_MS;
+	} catch {
+		return false;
+	}
+}
+
+function markRecoveryAttempt(): void {
+	try {
+		sessionStorage.setItem(RECOVERY_ATTEMPTED_KEY, String(Date.now()));
+	} catch {
+		/* best-effort */
+	}
+}
+
 function showRecoveryCard(): void {
-	if (shown || document.getElementById(RECOVERY_ID)) return;
-	shown = true;
+	if (document.getElementById(RECOVERY_ID)) return;
 
 	const card = document.createElement('div');
 	card.id = RECOVERY_ID;
@@ -86,19 +115,32 @@ async function clearCacheAndReload(): Promise<void> {
 	window.location.reload();
 }
 
+async function recoverFromChunkFailure(): Promise<void> {
+	if (recovering) return;
+	recovering = true;
+
+	if (recentlyAttemptedRecovery()) {
+		showRecoveryCard();
+		return;
+	}
+
+	markRecoveryAttempt();
+	await clearCacheAndReload();
+}
+
 export function installClientRecovery(): void {
 	if (typeof window === 'undefined') return;
 
 	window.addEventListener('error', (event) => {
 		const message = event.message ?? '';
 		const source = event.filename ?? undefined;
-		if (isChunkLoadFailure(message, source)) showRecoveryCard();
+		if (isChunkLoadFailure(message, source)) void recoverFromChunkFailure();
 	});
 
 	window.addEventListener('unhandledrejection', (event) => {
 		const reason = event.reason;
 		const message =
 			reason instanceof Error ? reason.message : typeof reason === 'string' ? reason : String(reason);
-		if (isChunkLoadFailure(message)) showRecoveryCard();
+		if (isChunkLoadFailure(message)) void recoverFromChunkFailure();
 	});
 }
