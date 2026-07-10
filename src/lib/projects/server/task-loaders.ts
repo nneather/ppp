@@ -55,7 +55,10 @@ function mapTaskRow(raw: {
 }
 
 export type LoadTasksOptions = {
+	/** Exact project_id match. Prefer `projectIds` when filtering a domain + descendants. */
 	projectId?: string | null;
+	/** Match any of these project ids (e.g. domain root + collectDescendantIds). */
+	projectIds?: readonly string[] | null;
 	includeDeferred?: boolean;
 	includeCompleted?: boolean;
 	todayYmd?: string;
@@ -104,7 +107,9 @@ export async function loadTasks(
 		.order('sort_order', { ascending: true })
 		.order('created_at', { ascending: true });
 
-	if (opts.projectId) {
+	if (opts.projectIds != null && opts.projectIds.length > 0) {
+		q = q.in('project_id', [...opts.projectIds]);
+	} else if (opts.projectId) {
 		q = q.eq('project_id', opts.projectId);
 	}
 

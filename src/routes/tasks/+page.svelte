@@ -53,7 +53,7 @@
 		{ value: '__all__', label: 'All projects' },
 		...data.projectOptions.map((o) => ({
 			value: o.id,
-			label: `${'—'.repeat(Math.max(0, o.depth - 1))} ${o.name}`.trim()
+			label: o.name
 		}))
 	]);
 

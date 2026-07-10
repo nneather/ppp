@@ -1,6 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { loadProjectRows, flattenProjectTree, loadProjectTree } from '$lib/projects/server/loaders';
+import {
+	loadProjectRows,
+	flattenProjectTree,
+	loadProjectTree,
+	collectDescendantIds
+} from '$lib/projects/server/loaders';
 import { attachTaskDomainColors, loadTasks } from '$lib/projects/server/task-loaders';
 import { buildDomainColorByProjectId } from '$lib/projects/project-colors';
 import {
@@ -33,13 +38,23 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 
 	const supabase = locals.supabase;
 
-	const [taskData, tree, flatRows] = await Promise.all([
-		loadTasks(supabase, { projectId, includeDeferred, includeCompleted }),
+	const [tree, flatRows] = await Promise.all([
 		loadProjectTree(supabase),
 		loadProjectRows(supabase)
 	]);
 
-	const projectOptions = flattenProjectTree(tree).filter((o) => o.parent_id != null);
+	// Domain roots only (Personal, Education, …) — not leaf children.
+	const projectOptions = flattenProjectTree(tree).filter((o) => o.parent_id == null);
+	const projectIds = projectId
+		? [projectId, ...collectDescendantIds(flatRows, projectId)]
+		: null;
+
+	const taskData = await loadTasks(supabase, {
+		projectIds,
+		includeDeferred,
+		includeCompleted
+	});
+
 	const projectNameById = Object.fromEntries(flatRows.map((r) => [r.id, r.name]));
 	const colored = attachTaskDomainColors(taskData, buildDomainColorByProjectId(flatRows));
 

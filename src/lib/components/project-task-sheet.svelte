@@ -47,15 +47,31 @@
 	const formAction = $derived(mode === 'create' ? '?/createTask' : '?/updateTask');
 	const sheetTitle = $derived(mode === 'create' ? 'New task' : 'Edit task');
 
+	/** Roots for create/filter; keep a child project visible when editing a legacy/email task. */
+	const effectiveProjectOptions = $derived.by(() => {
+		if (mode === 'edit' && task && !projectOptions.some((o) => o.id === task.project_id)) {
+			return [
+				...projectOptions,
+				{
+					id: task.project_id,
+					name: task.project_name,
+					parent_id: null,
+					depth: 0
+				}
+			];
+		}
+		return projectOptions;
+	});
+
 	const projectSelectItems = $derived(
-		projectOptions.map((o) => ({
+		effectiveProjectOptions.map((o) => ({
 			value: o.id,
-			label: `${'—'.repeat(Math.max(0, o.depth - 1))} ${o.name}`.trim()
+			label: o.name
 		}))
 	);
 
 	const projectLabel = $derived.by(() => {
-		const o = projectOptions.find((x) => x.id === projectId);
+		const o = effectiveProjectOptions.find((x) => x.id === projectId);
 		return o?.name ?? 'Select project';
 	});
 
