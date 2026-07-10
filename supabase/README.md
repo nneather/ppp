@@ -153,7 +153,7 @@ supabase secrets set ANTHROPIC_OCR_MODEL=claude-sonnet-4-6
 - **`SENDER_*`** — Used on the PDF letterhead (`generate-invoice-pdf`). Optional lines can be omitted. If unset, defaults match N. P. Neathery Consulting (name, tagline, address, phone). `SENDER_EMAIL` is optional on the PDF. Override **`INVOICE_SERVICE_LABEL`**, **`INVOICE_PAYABLE_TO`**, **`INVOICE_TERMS`**, or **`INVOICE_THANK_YOU`** to customize the “FOR” line and footer text.
 - **`RESEND_WEBHOOK_SECRET`** — Svix signing secret from the Resend webhook for `email.received` → `email-inbound-task`.
 - **`INBOUND_TASK_PROJECT_ID`** — UUID of the seeded **Email Inbox** project (`a1b2c3d4-e5f6-7890-abcd-ef1234567890`).
-- **`INBOUND_TASK_ALLOWED_SENDERS`** — Comma-separated allowlist of **forwarder** From addresses (the mailbox you send the forward from, not the original author). Current set: Gmail ×2, 229, Covenant ×2 (optional: `parker@npneathery.com`).
+- **`INBOUND_TASK_ALLOWED_SENDERS`** — Comma-separated allowlist of **forwarder** From addresses (the mailbox you send the forward from, not the original author). Current set: Gmail ×2, 229, Covenant ×2, `parker@npneathery.com`.
 - **`INBOUND_TASK_RECIPIENT`** — Address you forward to (e.g. `tasks@zeneoldai.resend.app` on Resend’s free managed domain, or a custom domain later).
 - **`SUPABASE_URL`**, **`SUPABASE_ANON_KEY`**, and **`SUPABASE_SERVICE_ROLE_KEY`** are injected automatically in Edge Functions; do not set those keys manually.
 
@@ -162,6 +162,8 @@ supabase secrets set ANTHROPIC_OCR_MODEL=claude-sonnet-4-6
 Uses Resend’s free managed receiving domain (`*.resend.app`) — no custom domain / upgrade required. Optional later: branded subdomain like `tasks@in.npneathery.com` by changing `INBOUND_TASK_RECIPIENT` only.
 
 Only messages you **forward** to the recipient address become tasks. The webhook’s `From` must match an allowlisted mailbox (your Gmail / work / seminary addresses). Mail that merely arrives in those inboxes is not auto-captured.
+
+**`RESEND_API_KEY` must be Full access** (not Sending access) — the function calls `GET /emails/receiving/{id}` to load the body. A send-only key returns `restricted_api_key` and the webhook never creates a task.
 
 1. In Resend → **Emails → Receiving → ⋮ → Receiving address**, note your `*.resend.app` domain (ours: `zeneoldai.resend.app`). Any local-part works; we use `tasks@…`.
 2. Deploy `email-inbound-task` (`npm run supabase:deploy-functions`) — already done for this session.
@@ -172,12 +174,10 @@ Only messages you **forward** to the recipient address become tasks. The webhook
 npx dotenv -e .env -- bash -c 'supabase secrets set \
   RESEND_WEBHOOK_SECRET=whsec_xxxx \
   INBOUND_TASK_PROJECT_ID=a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
-  INBOUND_TASK_ALLOWED_SENDERS=parker.neathery@gmail.com,neal.p.neathery@gmail.com,parker.neathery@229project.com,parker.neathery89@covenantseminary.edu,parker.neathery@covenantseminary.edu \
+  INBOUND_TASK_ALLOWED_SENDERS=parker.neathery@gmail.com,neal.p.neathery@gmail.com,parker.neathery@229project.com,parker.neathery89@covenantseminary.edu,parker.neathery@covenantseminary.edu,parker@npneathery.com \
   INBOUND_TASK_RECIPIENT=tasks@zeneoldai.resend.app \
   --project-ref "$SUPABASE_REF"'
 ```
-
-Optional sixth allowlisted address if you also forward from personal domain mail: append `,parker@npneathery.com` to `INBOUND_TASK_ALLOWED_SENDERS`.
 
 5. Forward a test email from an allowlisted mailbox to `tasks@zeneoldai.resend.app`; it should appear under **Opportunity Now** on `/tasks` in the Email Inbox project.
 

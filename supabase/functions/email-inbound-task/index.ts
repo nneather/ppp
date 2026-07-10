@@ -231,21 +231,43 @@ Deno.serve(async (req) => {
 	}
 
 	if (event.type !== 'email.received') {
+		console.log('email-inbound-task: skipped', {
+			skipped: 'not_email_received',
+			type: event.type ?? null
+		});
 		return jsonResponse({ ok: true, skipped: 'not_email_received' });
 	}
 
 	const data = event.data;
 	const emailId = typeof data?.email_id === 'string' ? data.email_id.trim() : '';
 	if (!emailId) {
+		console.log('email-inbound-task: skipped', {
+			skipped: 'missing_email_id',
+			from: data?.from ?? null,
+			recipients: [...(data?.to ?? []), ...(data?.received_for ?? [])]
+		});
 		return jsonResponse({ ok: true, skipped: 'missing_email_id' });
 	}
 
 	const recipients = [...(data?.to ?? []), ...(data?.received_for ?? [])];
 	if (!isInboundTaskRecipient(recipients, recipient)) {
+		console.log('email-inbound-task: skipped', {
+			skipped: 'wrong_recipient',
+			email_id: emailId,
+			from: data?.from ?? null,
+			recipients,
+			expected_recipient: recipient
+		});
 		return jsonResponse({ ok: true, skipped: 'wrong_recipient' });
 	}
 
 	if (!isAllowedSender(data?.from, allowlist)) {
+		console.log('email-inbound-task: skipped', {
+			skipped: 'sender_not_allowed',
+			email_id: emailId,
+			from: data?.from ?? null,
+			recipients
+		});
 		return jsonResponse({ ok: true, skipped: 'sender_not_allowed' });
 	}
 
@@ -268,6 +290,12 @@ Deno.serve(async (req) => {
 
 	// Re-check allowlist against Receiving API `from` (not only webhook metadata).
 	if (!isAllowedSender(content.from ?? data?.from, allowlist)) {
+		console.log('email-inbound-task: skipped', {
+			skipped: 'sender_not_allowed_after_fetch',
+			email_id: emailId,
+			from: content.from ?? data?.from ?? null,
+			recipients
+		});
 		return jsonResponse({ ok: true, skipped: 'sender_not_allowed_after_fetch' });
 	}
 
