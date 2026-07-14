@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-10 — **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)): chunk-load failure auto clear-cache+reload; waiting SW auto-applies on resume (prompt toast kept mid-session). Prior: domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)).
+**Last updated:** 2026-07-14 — **Invoice PDF email diagnostics** ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)): owner runbook [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) for same-org asymmetric attachment failures after [078](docs/decisions/078-invoice-email-pdf-mime.md). Prior: PWA update auto-recover ([082](docs/decisions/082-pwa-update-auto-recover.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -33,7 +33,7 @@ Nearest hard dates:
 
 | Module | Tracker | State |
 |---|---|---|
-| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)), PDF email MIME harden ([078](docs/decisions/078-invoice-email-pdf-mime.md)). |
+| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)), PDF email MIME harden ([078](docs/decisions/078-invoice-email-pdf-mime.md)), PDF email diagnostics runbook ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 shipped** — latest: `.docx` bibliography export ([063](docs/decisions/063-library-wave2-session4-docx-export.md)). **Next: August shelf QA** (all 20 fixture rows). **Apply essay seed** if not live; owner phone smoke after split; `.docx` Word smoke. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), links, audit. **Owner:** finish Resend webhook secrets (see [supabase/README.md](supabase/README.md)). **Viewer access:** owner-only by design. **Backlog:** polish, global Now ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)). |
 
@@ -43,9 +43,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [083 — Invoice PDF email diagnostics](docs/decisions/083-invoice-pdf-email-diagnostics.md) (2026-07-14) — owner runbook for same-org “one can open PDF / one cannot”; collect Resend + Show original + manual attach A/B before more MIME changes.
 - [082 — PWA update auto-recover](docs/decisions/082-pwa-update-auto-recover.md) (2026-07-10) — chunk-load → auto clear-cache+reload (card only on loop); resume auto-applies waiting SW; keep prompt toast for mid-session updates.
 - [081 — Tasks project options are domain roots](docs/decisions/081-tasks-project-options-domains.md) (2026-07-10) — `/tasks` filter + New task pick Personal/Education/… (roots); domain filter includes descendants; edit keeps child option for email/legacy tasks.
-- [080 — Tasks project select scroll](docs/decisions/080-tasks-project-select-scroll.md) (2026-07-10) — `max-h-72` on New task / Project filter / Parent picker selects; Notes textarea flex-fills remaining sheet height for email bodies.
 - [071 — Review queue authorless + undo](docs/decisions/071-review-queue-authorless-undo.md) (2026-07-08) — work-type chips + editors-only monograph one-tap fix on review cards; role-aware missing preview; 10s Confirm undo (field restore + proposal re-pending); Back button for skipped cards.
 - [069 — Review queue follow-ups](docs/decisions/069-review-queue-follow-ups.md) (2026-07-07) — Turabian `publisher_location` normalization; proposal filter + dismissed-stays-gone; editable Apply on review card; italic citation previews; `books.no_attributed_author` for authorless reference works; `rejectRedundantProposals.ts` cleanup script.
 - [067 — Review queue sprint decks](docs/decisions/067-library-review-sprint-decks.md) (2026-07-06) — deck picker (6 decks, live counts) replaces slice pills; Genre Sprint one-tap fast lane (585 books); 5/10/25 sprints + ring + summary; live-ticking burndown; milestones (25/50/75/100% + per-100 lifetime); shuffle; shelf-bound books excluded by default while away. Shelf marker is the word `shelf`, not the importer prefix.
@@ -72,7 +72,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-10** ([082](docs/decisions/082-pwa-update-auto-recover.md); check **0 errors**; test **226/226** green). Prior: domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-14** ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md); docs-only — check **0 errors**; test **226/226** green). Prior: PWA update auto-recover ([082](docs/decisions/082-pwa-update-auto-recover.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -85,6 +85,20 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ---
 
 ## Session prompts (copy-paste)
+
+### Invoicing — outgoing PDF diagnostics (owner; after [078](docs/decisions/078-invoice-email-pdf-mime.md) / [083](docs/decisions/083-invoice-pdf-email-diagnostics.md))
+
+```
+Goal: Diagnose same-org asymmetric invoice PDF (one recipient opens, one does not).
+Read: docs/invoice-pdf-email-diagnostics.md, docs/decisions/078-invoice-email-pdf-mime.md,
+  docs/decisions/083-invoice-pdf-email-diagnostics.md
+Do NOT change send-invoice MIME until the minimum useful set is collected:
+ - [ ] Resend email id + attachment filename / content_type / size screenshot
+ - [ ] Failing user symptom + client (web/iOS/Android) + screenshot
+ - [ ] Show original from failing mailbox: PDF part present or not
+ - [ ] Manual Gmail attach A/B (download from invoice page → email both people) vs app Resend
+Bring those four into chat; then decide MIME tweak vs org/client fix.
+```
 
 ### Library Wave 2 — Session 2: essays CRUD UI ✅ done ([060](docs/decisions/060-library-wave2-session2-essays-ui.md))
 
@@ -246,4 +260,4 @@ Acceptance:
 4. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now). **Email capture ready** once Resend webhook secrets are set ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
 5. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts. **Plus:** drain the "Needs the shelf" review deck (44 books, [067](docs/decisions/067-library-review-sprint-decks.md)).
 6. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
-8. **Invoicing:** first real-client send cadence (owner-driven). **Owner verify [078](docs/decisions/078-invoice-email-pdf-mime.md):** Send test to myself → resend to Sarah → Resend dashboard attachment typed `application/pdf` → Sarah opens in Gmail.
+8. **Invoicing:** first real-client send cadence (owner-driven). **Owner:** if outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.

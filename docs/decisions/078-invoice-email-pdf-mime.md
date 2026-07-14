@@ -20,7 +20,7 @@
 - None (Edge Function only).
 
 ## Open questions surfaced
-- Owner must **Send test to myself**, then a real/resend to Sarah, and confirm in the Resend dashboard that the attachment is present, ~expected size, and typed `application/pdf`, then confirm Sarah can open it in Gmail.
+- Owner must **Send test to myself**, then a real/resend to Sarah, and confirm in the Resend dashboard that the attachment is present, ~expected size, and typed `application/pdf`, then confirm Sarah can open it in Gmail. If asymmetry persists: follow [`docs/invoice-pdf-email-diagnostics.md`](../invoice-pdf-email-diagnostics.md) ([083](083-invoice-pdf-email-diagnostics.md)) before further MIME changes.
 
 ## Surprises (read these before the next session)
 - Resend docs treat `content_type` as optional (derived from filename); still worth setting for gateway/client edge cases.

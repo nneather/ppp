@@ -163,6 +163,7 @@ _Track anything unresolved that would block a session. Resolve before that sessi
 | 2   | Resend: send from which address? Domain verified?                                           | ✓ Resolved (May 2026) — domain `npneathery.com` verified; `send-invoice` `from` + `reply_to` set in code; deployed |
 | 3   | One-off line items — is `total` sufficient, or do you need `quantity × unit_price` tracked? | ✓ Resolved — one-offs use description + total; schema still supports qty/rate where line items use them |
 | 4   | Rotate Supabase JWT signing secret + Resend API key once the invoicing module is fully in production use | ☐ Open — runbook filed in [`Supabase_deployment_and_go_live.md`](Supabase_deployment_and_go_live.md#key-rotation-runbook). Resend key rotation is independent and ~5 min; Supabase JWT secret rotation invalidates all sessions, so schedule with a deploy window. Execute when convenient; both procedures are now scripted. **Owner:** calendar reminder set for **September 2026**. |
+| 5   | Outgoing PDF missing/unopenable for one same-org recipient (post-[078](decisions/078-invoice-email-pdf-mime.md) MIME harden) | ☐ Open — run [`docs/invoice-pdf-email-diagnostics.md`](invoice-pdf-email-diagnostics.md) ([083](decisions/083-invoice-pdf-email-diagnostics.md)); return minimum useful set before further Edge MIME changes. |
 
 ---
 
@@ -182,6 +183,8 @@ _Use this section as a checklist for a new domain or if you fork the pattern els
 8. **Verify display name on the wire:** after any `from` change, redeploy, send a test, then check **Gmail → Show original** for the `From:` line, **Resend** outbound headers for that message, and **Supabase Edge Function logs** for `[send-invoice] Resend from:` (must match what you intended).
 
 **Resend dashboard (ops habit):** After go-live, skim **weekly** for the first few weeks (delivered / bounced / complaints / domain health), then **monthly** or whenever you change DNS, rotate keys, or see a deliverability issue. Same-day check after any rotation or major DNS change.
+
+**Same-org PDF asymmetry:** If one recipient can open the attachment and another cannot, do not guess MIME next — follow [`docs/invoice-pdf-email-diagnostics.md`](invoice-pdf-email-diagnostics.md) ([083](decisions/083-invoice-pdf-email-diagnostics.md)).
 
 **Not required for August MVP:** custom SMTP, open tracking, marketing-style unsubscribe links (transactional invoices).
 
