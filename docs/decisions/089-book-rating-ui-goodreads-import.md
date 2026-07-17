@@ -38,6 +38,7 @@
 
 - Goodreads ISBN cells are often `="978…"` / `=""` — must strip before normalize.
 - Rating invalidate on detail must not reset a dirty personal-notes draft (sync notes only on book-id change + successful notes save).
+- **`$state(File)` beachballs** after Choose File — Svelte 5 deep-proxies `File`; store with `$state.raw` (fixed same day on Goodreads import page).
 
 ## Carry-forward updates
 

@@ -1,12 +1,16 @@
 <script lang="ts">
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FileUp from '@lucide/svelte/icons/file-up';
+	import Loader2 from '@lucide/svelte/icons/loader-2';
 	import { enhance } from '$app/forms';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import type { PageProps } from './$types';
 	import type { SubmitFunction } from '@sveltejs/kit';
+
+	/** Soft cap — Goodreads exports with long reviews can be large; keep under Vercel body limits. */
+	const MAX_CSV_BYTES = 8 * 1024 * 1024;
 
 	let { form }: PageProps = $props();
 
@@ -16,8 +20,11 @@
 	let applyPending = $state(false);
 	let confirmOpen = $state(false);
 	let applyFormEl = $state<HTMLFormElement | null>(null);
-	let fileInputEl = $state<HTMLInputElement | null>(null);
-	let selectedFile = $state<File | null>(null);
+	let applyFileInputEl = $state<HTMLInputElement | null>(null);
+	let fileError = $state<string | null>(null);
+	/** File must not be deeply proxied — `$state(File)` can beachball the main thread. */
+	let selectedFile = $state.raw<File | null>(null);
+	let selectedFileLabel = $state<string | null>(null);
 
 	const previewOk = $derived(
 		form != null && form.kind === 'previewGoodreads' && 'success' in form && form.success === true
@@ -41,33 +48,77 @@
 		return null;
 	});
 
-	const previewEnhance: SubmitFunction = () => {
+	const previewEnhance: SubmitFunction = ({ formData, cancel }) => {
+		const file = selectedFile;
+		if (!file) {
+			cancel();
+			fileError = 'Choose a Goodreads export CSV first.';
+			return;
+		}
+		if (file.size > MAX_CSV_BYTES) {
+			cancel();
+			fileError = `File is too large (${Math.ceil(file.size / (1024 * 1024))} MB). Max ${MAX_CSV_BYTES / (1024 * 1024)} MB.`;
+			return;
+		}
+		formData.set('csv_file', file);
 		previewPending = true;
+		fileError = null;
 		return async ({ update }) => {
-			await update({ reset: false });
-			previewPending = false;
+			try {
+				await update({ reset: false });
+			} finally {
+				previewPending = false;
+			}
 		};
 	};
 
-	const applyEnhance: SubmitFunction = () => {
+	const applyEnhance: SubmitFunction = ({ formData, cancel }) => {
+		const file = selectedFile;
+		if (!file) {
+			cancel();
+			fileError = 'Choose a Goodreads export CSV first.';
+			return;
+		}
+		formData.set('csv_file', file);
 		applyPending = true;
 		return async ({ update }) => {
-			await update({ reset: false });
-			applyPending = false;
-			confirmOpen = false;
+			try {
+				await update({ reset: false });
+			} finally {
+				applyPending = false;
+				confirmOpen = false;
+			}
 		};
 	};
 
 	function onFileChange(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
-		selectedFile = input.files?.[0] ?? null;
+		const file = input.files?.[0] ?? null;
+		fileError = null;
+		if (!file) {
+			selectedFile = null;
+			selectedFileLabel = null;
+			return;
+		}
+		if (file.size > MAX_CSV_BYTES) {
+			selectedFile = null;
+			selectedFileLabel = null;
+			input.value = '';
+			fileError = `File is too large (${Math.ceil(file.size / (1024 * 1024))} MB). Max ${MAX_CSV_BYTES / (1024 * 1024)} MB.`;
+			return;
+		}
+		selectedFile = file;
+		selectedFileLabel = `${file.name} (${Math.max(1, Math.round(file.size / 1024))} KB)`;
 	}
 
 	function confirmApply() {
-		if (!applyFormEl || !selectedFile || !fileInputEl) return;
-		const dt = new DataTransfer();
-		dt.items.add(selectedFile);
-		fileInputEl.files = dt.files;
+		if (!applyFormEl || !selectedFile) return;
+		// Ensure the apply form's file field is populated for progressive enhancement + no-JS fallback.
+		if (applyFileInputEl) {
+			const dt = new DataTransfer();
+			dt.items.add(selectedFile);
+			applyFileInputEl.files = dt.files;
+		}
 		applyFormEl.requestSubmit();
 	}
 </script>
@@ -86,6 +137,24 @@
 			alone unless you opt to overwrite.
 		</p>
 
+		<!-- File picker outside the form so Choose File cannot submit / proxy through form state. -->
+		<div class="mt-4 space-y-2">
+			<Label for="gr-csv">Goodreads CSV</Label>
+			<input
+				id="gr-csv"
+				type="file"
+				accept=".csv,text/csv,text/plain"
+				class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium"
+				onchange={onFileChange}
+			/>
+			{#if selectedFileLabel}
+				<p class="text-xs text-muted-foreground">Selected: {selectedFileLabel}</p>
+			{/if}
+			{#if fileError}
+				<p class="text-sm text-destructive">{fileError}</p>
+			{/if}
+		</div>
+
 		<form
 			method="POST"
 			action="?/previewGoodreads"
@@ -93,19 +162,6 @@
 			use:enhance={previewEnhance}
 			class="mt-4 flex flex-col gap-4"
 		>
-			<div class="space-y-2">
-				<Label for="gr-csv">Goodreads CSV</Label>
-				<input
-					id="gr-csv"
-					name="csv_file"
-					type="file"
-					accept=".csv,text/csv"
-					required
-					class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium"
-					onchange={onFileChange}
-				/>
-			</div>
-
 			<label class="flex items-start gap-2 text-sm">
 				<input
 					type="checkbox"
@@ -146,11 +202,16 @@
 				type="submit"
 				variant="outline"
 				class="gap-2 self-start"
-				disabled={previewPending || !selectedFile}
-				hotkey="g"
+				disabled={previewPending || selectedFile == null}
+				aria-busy={previewPending}
 			>
-				<FileUp class="size-4" />
-				{previewPending ? 'Previewing…' : 'Preview matches'}
+				{#if previewPending}
+					<Loader2 class="size-4 shrink-0 animate-spin" aria-hidden="true" />
+					Previewing…
+				{:else}
+					<FileUp class="size-4 shrink-0" aria-hidden="true" />
+					Preview matches
+				{/if}
 			</Button>
 		</form>
 	</section>
@@ -201,9 +262,9 @@
 					<input
 						type="file"
 						name="csv_file"
-						accept=".csv,text/csv"
+						accept=".csv,text/csv,text/plain"
 						class="hidden"
-						bind:this={fileInputEl}
+						bind:this={applyFileInputEl}
 					/>
 					{#if overwriteExisting}
 						<input type="hidden" name="overwrite_existing" value="true" />
@@ -228,6 +289,7 @@
 						fillEmptyNotes ? ' and fill empty personal notes where present' : ''
 					}.`}
 					confirmLabel="Apply ratings"
+					pending={applyPending}
 					onConfirm={confirmApply}
 				/>
 			{:else if form.applyCount === 0}
