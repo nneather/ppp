@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-17 — **Review-queue research cleanup** ([087](docs/decisions/087-library-review-queue-research-cleanup.md)): non-shelf `needs_review` → **0**, pending proposals → **0**, **50** Needs-the-shelf remain; new genres (Politics/Leadership/Literary Criticism/Church Fathers/Ancient Biblical Sources/Children's and Young Adult) + `books.copy_count`. Prior: essay visibility + article search ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)).
+**Last updated:** 2026-07-17 — **Commentary bible coverage** ([088](docs/decisions/088-commentary-bible-coverage-cleanup.md)): **203/211** Commentaries tagged; IVP Background → Biblical Reference; NIB Vol X essays (Boring/Wright/Sampley). Prior: review-queue research cleanup ([087](docs/decisions/087-library-review-queue-research-cleanup.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -43,9 +43,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [088 — Commentary Bible coverage cleanup](docs/decisions/088-commentary-bible-coverage-cleanup.md) (2026-07-17) — 363 coverage rows; IVP Background → Biblical Reference; NIB Vol X essays (Boring/Wright/Sampley); 8 intentional untagged (thematic + deuterocanonical).
 - [087 — Library review-queue research cleanup](docs/decisions/087-library-review-queue-research-cleanup.md) (2026-07-17) — non-shelf review + proposals → 0; 50 shelf-bound remain; genre taxonomy + `copy_count`; Church Fathers / Ancient Biblical Sources / Children's and Young Adult.
 - [086 — Essay visibility + article search](docs/decisions/086-essay-visibility-and-search-lanes.md) (2026-07-17) — essays open by default + preview; compact genre filters; single-box `q` + parallel Articles-in-volumes group (not three search lanes).
-- [085 — Library bulk update UX](docs/decisions/085-library-bulk-update-ux.md) (2026-07-17) — multi-select dialog: Don’t-change defaults, no enable checkboxes, Will-apply summary, sticky selection bar.
 - [083 — Invoice PDF email diagnostics](docs/decisions/083-invoice-pdf-email-diagnostics.md) (2026-07-14) — owner runbook for same-org “one can open PDF / one cannot”; collect Resend + Show original + manual attach A/B before more MIME changes.
 - [082 — PWA update auto-recover](docs/decisions/082-pwa-update-auto-recover.md) (2026-07-10) — chunk-load → auto clear-cache+reload (card only on loop); resume auto-applies waiting SW; keep prompt toast for mid-session updates.
 - [081 — Tasks project options are domain roots](docs/decisions/081-tasks-project-options-domains.md) (2026-07-10) — `/tasks` filter + New task pick Personal/Education/… (roots); domain filter includes descendants; edit keeps child option for email/legacy tasks.
@@ -75,7 +75,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-17** ([087](docs/decisions/087-library-review-queue-research-cleanup.md); check **0 errors**, test **229/229**). Prior: essay visibility ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-17** ([088](docs/decisions/088-commentary-bible-coverage-cleanup.md); check **0 errors**, test **229/229**). Prior: review-queue cleanup ([087](docs/decisions/087-library-review-queue-research-cleanup.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
