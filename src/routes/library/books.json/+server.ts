@@ -1,6 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { loadBookListFiltered } from '$lib/library/server/loaders';
+import { loadBookListFiltered, loadEssaySearchHits } from '$lib/library/server/loaders';
 import { parseBookListFilters } from '$lib/library/server/url-params';
 import { LIBRARY_PAGE_SIZE } from '$lib/types/library';
 
@@ -13,11 +13,22 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	const supabase = locals.supabase;
 	const filters = parseBookListFilters(url);
-	// Embedded `people` on book_authors — no layout `loadPeople` refetch per scroll chunk.
-	const { books, filteredCount } = await loadBookListFiltered(supabase, [], filters, {
+	const q = filters.q?.trim() ?? '';
+
+	const booksPromise = loadBookListFiltered(supabase, [], filters, {
 		limit: LIBRARY_PAGE_SIZE,
 		offset
 	});
+	// Essay hits only on the first page of a keyword search (not on infinite-scroll chunks).
+	const essayHitsPromise =
+		offset === 0 && q.length > 0
+			? loadEssaySearchHits(supabase, q)
+			: Promise.resolve([]);
 
-	return json({ books, filteredCount });
+	const [{ books, filteredCount }, essayHits] = await Promise.all([
+		booksPromise,
+		essayHitsPromise
+	]);
+
+	return json({ books, filteredCount, essayHits });
 };

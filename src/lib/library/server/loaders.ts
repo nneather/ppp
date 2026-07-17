@@ -26,7 +26,8 @@ import type {
 	AncientCoverageRow,
 	BookTopicRow,
 	TopicCount,
-	EssayRow
+	EssayRow,
+	EssaySearchHit
 } from '$lib/types/library';
 import {
 	SCRIPTURE_IMAGES_BUCKET,
@@ -766,6 +767,153 @@ export async function loadEssaysForBook(
 			created_at: r.created_at
 		} satisfies EssayRow;
 	});
+}
+
+/** Cap parallel essay hits so keyword search stays cheap beside book FTS. */
+export const ESSAY_SEARCH_HIT_LIMIT = 20;
+
+type RawEssaySearchRow = {
+	id: string;
+	essay_title: string;
+	parent_book_id: string;
+	page_start: number | null;
+	page_end: number | null;
+	books: { title: string | null } | { title: string | null }[] | null;
+	essay_authors:
+		| {
+				sort_order: number;
+				people: {
+					first_name: string | null;
+					middle_name: string | null;
+					last_name: string | null;
+					suffix: string | null;
+				} | null;
+		  }[]
+		| null;
+};
+
+const ESSAY_SEARCH_SELECT = `
+	id,
+	essay_title,
+	parent_book_id,
+	page_start,
+	page_end,
+	books!essays_parent_book_id_fkey ( title ),
+	essay_authors (
+		sort_order,
+		people ( first_name, middle_name, last_name, suffix )
+	)
+`;
+
+function ilikeContainsPattern(q: string): string {
+	// Strip LIKE metacharacters from user input; we wrap with % ourselves.
+	return `%${q.trim().replace(/[%_\\]/g, '')}%`;
+}
+
+function authorsLabelFromEssaySearchEmbed(
+	authors: RawEssaySearchRow['essay_authors']
+): string | null {
+	if (!authors || authors.length === 0) return null;
+	const labels = authors
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.map((a) => {
+			const p = a.people;
+			if (!p) return null;
+			const last = (p.last_name ?? '').trim();
+			if (!last) return null;
+			const first = (p.first_name ?? '').trim();
+			const middle = (p.middle_name ?? '').trim();
+			const middleInitial = middle ? `${middle.charAt(0)}.` : '';
+			const parts = [first, middleInitial, last].filter((s) => s.length > 0);
+			return parts.join(' ');
+		})
+		.filter((s): s is string => Boolean(s && s.trim()));
+	return labels.length > 0 ? labels.join(', ') : null;
+}
+
+function mapEssaySearchRow(raw: RawEssaySearchRow): EssaySearchHit {
+	const parent = Array.isArray(raw.books) ? raw.books[0] : raw.books;
+	return {
+		id: raw.id,
+		essay_title: raw.essay_title,
+		parent_book_id: raw.parent_book_id,
+		parent_book_title: parent?.title ?? null,
+		authors_label: authorsLabelFromEssaySearchEmbed(raw.essay_authors),
+		page_start: raw.page_start,
+		page_end: raw.page_end
+	};
+}
+
+/**
+ * Parallel essay discovery for `/library` keyword search. Does **not** touch
+ * `books.search_vector` — call only when `q` is non-empty. Matches essay title
+ * and essay-author last name; returns at most `ESSAY_SEARCH_HIT_LIMIT` rows.
+ */
+export async function loadEssaySearchHits(
+	supabase: SupabaseClient,
+	qRaw: string,
+	opts: { limit?: number } = {}
+): Promise<EssaySearchHit[]> {
+	const q = qRaw.trim();
+	if (!q) return [];
+	const limit = opts.limit ?? ESSAY_SEARCH_HIT_LIMIT;
+	const pattern = ilikeContainsPattern(q);
+
+	const [titleRes, peopleRes] = await Promise.all([
+		supabase
+			.from('essays')
+			.select(ESSAY_SEARCH_SELECT)
+			.is('deleted_at', null)
+			.ilike('essay_title', pattern)
+			.limit(limit),
+		supabase
+			.from('people')
+			.select('id')
+			.is('deleted_at', null)
+			.ilike('last_name', pattern)
+			.limit(MAX_IN_LIST)
+	]);
+
+	if (titleRes.error) console.error('[loadEssaySearchHits] title', titleRes.error);
+	if (peopleRes.error) console.error('[loadEssaySearchHits] people', peopleRes.error);
+
+	const byId = new Map<string, EssaySearchHit>();
+	for (const raw of titleRes.data ?? []) {
+		const hit = mapEssaySearchRow(raw as unknown as RawEssaySearchRow);
+		byId.set(hit.id, hit);
+	}
+
+	const personIds = (peopleRes.data ?? []).map((p) => (p as { id: string }).id);
+	if (personIds.length > 0 && byId.size < limit) {
+		const { data: junctions, error: jErr } = await supabase
+			.from('essay_authors')
+			.select('essay_id')
+			.in('person_id', personIds);
+		if (jErr) console.error('[loadEssaySearchHits] essay_authors', jErr);
+
+		const essayIds = Array.from(
+			new Set((junctions ?? []).map((j) => (j as { essay_id: string }).essay_id))
+		)
+			.filter((id) => !byId.has(id))
+			.slice(0, MAX_IN_LIST);
+
+		if (essayIds.length > 0) {
+			const { data: authorEssays, error: aErr } = await supabase
+				.from('essays')
+				.select(ESSAY_SEARCH_SELECT)
+				.is('deleted_at', null)
+				.in('id', essayIds)
+				.limit(limit - byId.size);
+			if (aErr) console.error('[loadEssaySearchHits] author essays', aErr);
+			for (const raw of authorEssays ?? []) {
+				const hit = mapEssaySearchRow(raw as unknown as RawEssaySearchRow);
+				if (!byId.has(hit.id)) byId.set(hit.id, hit);
+			}
+		}
+	}
+
+	return Array.from(byId.values()).slice(0, limit);
 }
 
 async function fetchLiveBookCount(

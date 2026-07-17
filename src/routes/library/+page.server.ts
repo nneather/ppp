@@ -2,7 +2,8 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	countLiveBooks,
-	loadBookListFiltered
+	loadBookListFiltered,
+	loadEssaySearchHits
 } from '$lib/library/server/loaders';
 import {
 	createPersonAction,
@@ -35,13 +36,22 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 	const corpusPromise = bookListFiltersAreDefault(filters)
 		? Promise.resolve(null)
 		: locals.perf.measure('db', () => countLiveBooks(supabase));
+	const essayHitsPromise =
+		filters.q && filters.q.trim().length > 0
+			? locals.perf.measure('db', () => loadEssaySearchHits(supabase, filters.q!))
+			: Promise.resolve([]);
 
-	const [{ books, filteredCount }, corpusTotal] = await Promise.all([listPromise, corpusPromise]);
+	const [{ books, filteredCount }, corpusTotal, essayHits] = await Promise.all([
+		listPromise,
+		corpusPromise,
+		essayHitsPromise
+	]);
 	const totalCount = corpusTotal ?? filteredCount;
 
 	return {
 		books,
 		filteredCount,
+		essayHits,
 		pageSize: LIBRARY_PAGE_SIZE,
 		series,
 		bibleBookNames,

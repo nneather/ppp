@@ -457,6 +457,20 @@ export type EssayRow = {
 };
 
 /**
+ * Keyword-search hit for an essay/article on `/library` (parallel to book FTS).
+ * Deep-link: `/library/books/{parent_book_id}#essay-{id}`.
+ */
+export type EssaySearchHit = {
+	id: string;
+	essay_title: string;
+	parent_book_id: string;
+	parent_book_title: string | null;
+	authors_label: string | null;
+	page_start: number | null;
+	page_end: number | null;
+};
+
+/**
  * Scripture reference view-model — what `loadScriptureRefsForBook` returns.
  *
  * `verse_start_abs` / `verse_end_abs` are intentionally omitted: they're

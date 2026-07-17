@@ -35,7 +35,8 @@
 		AUTHOR_ROLE_LABELS,
 		LANGUAGE_LABELS,
 		READING_STATUSES,
-		READING_STATUS_LABELS
+		READING_STATUS_LABELS,
+		WORK_TYPE_LABELS
 	} from '$lib/types/library';
 	import type {
 		AncientTextRow,
@@ -189,6 +190,15 @@
 	async function onEssaySaved() {
 		await invalidateBook();
 	}
+
+	function essayPreviewLabel(essay: EssayRow): string {
+		const author = essay.authors[0]?.person_label?.trim();
+		if (author) return `${essay.essay_title} (${author})`;
+		return essay.essay_title;
+	}
+
+	const essayPreviewRows = $derived(essays.slice(0, 3));
+	const essayPreviewExtra = $derived(Math.max(0, essays.length - essayPreviewRows.length));
 
 	async function copyTurabian(kind: 'footnote' | 'bibliography') {
 		if (!browser) return;
@@ -754,6 +764,14 @@
 
 {#snippet bookEyebrow()}
 	<BookOpen class="size-5 shrink-0" />
+	{#if data.book.work_type !== 'monograph'}
+		<span class="text-xs uppercase tracking-wide text-muted-foreground">
+			{WORK_TYPE_LABELS[data.book.work_type].split(' (')[0]}
+			{#if essays.length > 0}
+				· {essays.length} {essays.length === 1 ? 'article' : 'articles'}
+			{/if}
+		</span>
+	{/if}
 	{#if data.book.genre}
 		<span class="text-xs uppercase tracking-wide">{data.book.genre}</span>
 	{/if}
@@ -931,6 +949,45 @@
 		<p class="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
 			<strong class="font-semibold">Review note:</strong> {data.book.needs_review_note}
 		</p>
+	{/if}
+
+	{#if showEssaysSection && essays.length > 0}
+		<div
+			class="mt-4 rounded-lg border border-border bg-muted/25 px-3 py-2.5 text-sm"
+			aria-label="Articles in this volume"
+		>
+			<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+				Essays &amp; articles
+				<span class="font-normal normal-case tracking-normal">({essays.length})</span>
+			</p>
+			<ul class="mt-1.5 flex flex-col gap-0.5">
+				{#each essayPreviewRows as essay (essay.id)}
+					<li>
+						<a
+							href={`#essay-${essay.id}`}
+							class="text-foreground underline-offset-2 hover:underline"
+						>
+							{essayPreviewLabel(essay)}
+						</a>
+					</li>
+				{/each}
+			</ul>
+			{#if essayPreviewExtra > 0}
+				<a
+					href="#book-essays-heading"
+					class="mt-1 inline-block text-xs text-primary underline-offset-2 hover:underline"
+				>
+					and {essayPreviewExtra} more
+				</a>
+			{:else}
+				<a
+					href="#book-essays-heading"
+					class="mt-1 inline-block text-xs text-muted-foreground underline-offset-2 hover:underline"
+				>
+					View all
+				</a>
+			{/if}
+		</div>
 	{/if}
 
 	<div class="mt-6 md:hidden">

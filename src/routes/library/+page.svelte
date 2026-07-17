@@ -37,9 +37,14 @@
 		BookListFilters,
 		PersonRow,
 		Genre,
-		BookListRow
+		BookListRow,
+		EssaySearchHit
 	} from '$lib/types/library';
 	import { bookListFiltersToSearchParams } from '$lib/library/server/url-params';
+	import {
+		overflowFilterGenres,
+		primaryFilterGenres
+	} from '$lib/library/list-filter-genres';
 	import { LIBRARY_PEOPLE_JSON } from '$lib/library/vocab-cache-paths';
 	import { scorePersonMatch } from '$lib/library/person-search';
 	import type { MultiComboboxItem } from '$lib/components/multi-combobox.svelte';
@@ -64,6 +69,7 @@
 	const filters = $derived<BookListFilters>(clientFilters ?? data.filters);
 
 	let loadedBooks = $state<BookListRow[]>([]);
+	let essayHits = $state<EssaySearchHit[]>([]);
 	let clientFilteredCount = $state<number | null>(null);
 	let loadingMore = $state(false);
 	let loadMoreError = $state<string | null>(null);
@@ -75,8 +81,10 @@
 	$effect(() => {
 		void data.books;
 		void data.filters;
+		void data.essayHits;
 		clientFilters = null;
 		loadedBooks = [...data.books];
+		essayHits = [...(data.essayHits ?? [])];
 		clientFilteredCount = null;
 		loadMoreError = null;
 		listFetchError = null;
@@ -98,12 +106,21 @@
 	async function fetchBooksPage(
 		next: BookListFilters,
 		offset: number
-	): Promise<{ books: BookListRow[]; filteredCount: number }> {
+	): Promise<{ books: BookListRow[]; filteredCount: number; essayHits: EssaySearchHit[] }> {
 		const q = bookListFiltersToSearchParams(next, page.url);
 		if (offset > 0) q.set('offset', String(offset));
 		const res = await fetch(`/library/books.json?${q.toString()}`);
 		if (!res.ok) throw new Error('fetch failed');
-		return (await res.json()) as { books: BookListRow[]; filteredCount: number };
+		const body = (await res.json()) as {
+			books: BookListRow[];
+			filteredCount: number;
+			essayHits?: EssaySearchHit[];
+		};
+		return {
+			books: body.books,
+			filteredCount: body.filteredCount,
+			essayHits: body.essayHits ?? []
+		};
 	}
 
 	/** Client JSON refresh for filters/search; full `goto` only for `?all=true`. */
@@ -123,9 +140,14 @@
 		listFetchPending = true;
 		listFetchError = null;
 		try {
-			const { books, filteredCount: count } = await fetchBooksPage(next, 0);
+			const {
+				books,
+				filteredCount: count,
+				essayHits: nextEssayHits
+			} = await fetchBooksPage(next, 0);
 			if (seq !== listFetchSeq) return;
 			loadedBooks = books;
+			essayHits = nextEssayHits;
 			clientFilteredCount = count;
 			loadMoreError = null;
 		} catch {
@@ -270,6 +292,15 @@
 	// -------------------------------------------------------------------------
 
 	let mobileFilterOpen = $state(false);
+	/** Desktop filters start collapsed so the genre panel is not the first thing you see. */
+	let desktopFiltersOpen = $state(false);
+	let showAllGenres = $state(false);
+
+	const primaryGenres = $derived(primaryFilterGenres(filters.genre));
+	const overflowGenres = $derived(overflowFilterGenres(primaryGenres));
+	const visibleGenres = $derived(
+		showAllGenres ? [...primaryGenres, ...overflowGenres] : primaryGenres
+	);
 
 	let qInput = $state('');
 	$effect(() => {
@@ -309,6 +340,7 @@
 
 	function clearAll() {
 		qInput = '';
+		showAllGenres = false;
 		clearBulkSelection();
 		void applyListFilters({});
 	}
@@ -552,7 +584,7 @@
 				Genre
 			</h3>
 			<div class="flex flex-wrap gap-1">
-				{#each GENRES as g (g)}
+				{#each visibleGenres as g (g)}
 					{@const active = filters.genre?.includes(g) ?? false}
 					<button
 						type="button"
@@ -564,6 +596,17 @@
 					</button>
 				{/each}
 			</div>
+			{#if overflowGenres.length > 0}
+				<button
+					type="button"
+					class="mt-2 text-xs font-medium text-primary underline-offset-2 hover:underline"
+					onclick={() => (showAllGenres = !showAllGenres)}
+				>
+					{showAllGenres
+						? 'Show fewer genres'
+						: `More genres (${overflowGenres.length})`}
+				</button>
+			{/if}
 		</section>
 
 		<section class="sm:col-span-2 lg:col-span-3">
@@ -779,11 +822,11 @@
 			{/if}
 			<Input
 				type="search"
-				placeholder="Search title, subtitle, or authors…"
+				placeholder="Search books, authors, or articles…"
 				value={qInput}
 				oninput={onQInput}
 				class={cn('pl-9', listFetchPending && 'pr-9')}
-				aria-label="Search books"
+				aria-label="Search books and articles"
 				aria-busy={listFetchPending}
 			/>
 		</div>
@@ -806,7 +849,7 @@
 	<!-- Desktop: full-width collapsible filters (mobile uses Sheet below) -->
 	<details
 		class="group mt-4 hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm md:block"
-		open
+		bind:open={desktopFiltersOpen}
 		ontoggle={(e) => {
 			if (e.currentTarget.open) void ensureFacetPeople();
 		}}
@@ -915,7 +958,7 @@
 	{/if}
 
 	<div class="mt-6 min-w-0">
-			{#if data.totalCount === 0 && loadedBooks.length === 0 && !listFetchPending}
+			{#if data.totalCount === 0 && loadedBooks.length === 0 && essayHits.length === 0 && !listFetchPending}
 				<div class="rounded-xl border border-dashed border-border p-8 text-center">
 					<BookOpen class="mx-auto size-8 text-muted-foreground" />
 					<p class="mt-3 text-sm text-muted-foreground">No books yet. Add one to get started.</p>
@@ -923,7 +966,7 @@
 						<Plus class="size-4" /> Add book
 					</Button>
 				</div>
-			{:else if filteredCount === 0 && loadedBooks.length === 0 && !listFetchPending}
+			{:else if filteredCount === 0 && loadedBooks.length === 0 && essayHits.length === 0 && !listFetchPending}
 				<div class="rounded-xl border border-dashed border-border p-8 text-center">
 					<Search class="mx-auto size-8 text-muted-foreground" />
 					<p class="mt-3 text-sm text-muted-foreground">
@@ -934,6 +977,49 @@
 					</Button>
 				</div>
 			{:else}
+				{#if essayHits.length > 0}
+					<section class="mb-6" aria-label="Articles in volumes">
+						<h2 class="text-sm font-semibold tracking-tight text-foreground">
+							Articles in volumes
+							<span class="ml-1 font-normal text-muted-foreground">({essayHits.length})</span>
+						</h2>
+						<ul class="mt-2 flex flex-col gap-2">
+							{#each essayHits as hit (hit.id)}
+								<li>
+									<a
+										href={`/library/books/${hit.parent_book_id}#essay-${hit.id}`}
+										data-sveltekit-preload-data="hover"
+										class="block rounded-xl border border-border bg-card px-3 py-2.5 text-card-foreground transition-colors hover:border-ring/50"
+									>
+										<p class="text-sm font-medium leading-snug text-foreground">
+											{hit.essay_title}
+										</p>
+										{#if hit.authors_label}
+											<p class="mt-0.5 truncate text-xs text-muted-foreground">
+												{hit.authors_label}
+											</p>
+										{/if}
+										<p class="mt-0.5 truncate text-xs text-muted-foreground">
+											in
+											<span class="text-foreground/80">
+												{hit.parent_book_title?.trim() || '(untitled volume)'}
+											</span>
+											{#if hit.page_start != null}
+												<span class="text-muted-foreground">
+													· p.
+													{hit.page_end != null && hit.page_end !== hit.page_start
+														? `${hit.page_start}–${hit.page_end}`
+														: hit.page_start}
+												</span>
+											{/if}
+										</p>
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
+
 				{#if selectedCount > 0}
 					<div
 						class="sticky top-0 z-10 mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-foreground shadow-sm backdrop-blur-sm"
@@ -959,6 +1045,14 @@
 						</div>
 					</div>
 				{/if}
+
+				{#if essayHits.length > 0 && loadedBooks.length > 0}
+					<h2 class="mb-2 text-sm font-semibold tracking-tight text-foreground">Books</h2>
+				{:else if essayHits.length > 0 && loadedBooks.length === 0}
+					<p class="mb-4 text-sm text-muted-foreground">No matching books — articles above.</p>
+				{/if}
+
+				{#if loadedBooks.length > 0}
 				<!-- Mobile cards -->
 				<ul class="flex flex-col gap-2 md:hidden">
 					{#each loadedBooks as b (b.id)}
@@ -1144,6 +1238,7 @@
 						</tbody>
 					</table>
 				</div>
+				{/if}
 				{#if showPagedMore}
 					<div bind:this={loadMoreSentinel} class="h-2 w-full shrink-0" aria-hidden="true"></div>
 					<div class="mt-4 flex justify-center">

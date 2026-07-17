@@ -21,6 +21,7 @@
 		formatEssayBibliography,
 		formatEssayFootnote
 	} from '$lib/library/turabian';
+	import { page } from '$app/state';
 	import type { EssayRow, PersonRow } from '$lib/types/library';
 	import { cn } from '$lib/utils.js';
 
@@ -40,6 +41,9 @@
 		key: string;
 		person_id: string;
 	};
+
+	const ESSAY_HASH_RE =
+		/^#essay-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 	let {
 		essays,
@@ -63,7 +67,10 @@
 		onCopied?: (message: string) => void;
 	} = $props();
 
-	let essaysOpen = $state(false);
+	/** Open by default so articles are visible; user can still collapse. */
+	let essaysOpen = $state(true);
+	let highlightedEssayId = $state<string | null>(null);
+	let highlightTimer: number | null = null;
 	let addOpen = $state(false);
 	let editingId = $state<string | null>(null);
 	let pendingDeleteId = $state<string | null>(null);
@@ -242,11 +249,32 @@
 	const saveLabel = $derived(pending ? 'Saving…' : isEdit ? 'Update essay' : 'Save essay');
 
 	$effect(() => {
-		essaysOpen = essays.length === 0 || addOpen || editingId != null;
+		if (addOpen || editingId != null || essays.length === 0) essaysOpen = true;
 	});
 
 	$effect(() => {
-		if (addOpen || editingId != null) essaysOpen = true;
+		if (!browser) return;
+		const m = page.url.hash.match(ESSAY_HASH_RE);
+		if (!m) return;
+		const id = m[1];
+		const tryScroll = () => {
+			if (!essays.some((e) => e.id === id)) return;
+			essaysOpen = true;
+			const el = document.getElementById(`essay-${id}`);
+			if (!el) return;
+			el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			highlightedEssayId = id;
+			if (highlightTimer != null) clearTimeout(highlightTimer);
+			highlightTimer = window.setTimeout(() => {
+				highlightedEssayId = null;
+				highlightTimer = null;
+			}, 2200);
+		};
+		queueMicrotask(() => {
+			requestAnimationFrame(() => {
+				requestAnimationFrame(tryScroll);
+			});
+		});
 	});
 
 	const scopedMessage = $derived.by(() => {
@@ -313,12 +341,16 @@
 	{#if essays.length > 0}
 		<ul class="mt-4 flex flex-col gap-3">
 			{#each essays as essay (essay.id)}
-				<li>
+				<li id={`essay-${essay.id}`}>
 					{#if editingId === essay.id}
 						<!-- inline edit form rendered below list item slot -->
 					{:else}
 						<article
-							class="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 text-card-foreground sm:flex-row sm:items-start sm:justify-between"
+							class={cn(
+								'flex flex-col gap-3 rounded-lg border border-border bg-card p-3 text-card-foreground sm:flex-row sm:items-start sm:justify-between',
+								highlightedEssayId === essay.id &&
+									'ring-2 ring-primary/60 ring-offset-2 ring-offset-background'
+							)}
 						>
 							<div class="min-w-0 flex-1">
 								<div class="font-medium text-foreground">{essay.essay_title}</div>
