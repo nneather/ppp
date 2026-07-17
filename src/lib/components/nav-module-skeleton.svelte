@@ -2,7 +2,7 @@
 	import { cn } from '$lib/utils.js';
 
 	type Props = {
-		module: 'dashboard' | 'invoicing' | 'library' | 'projects' | 'settings' | 'generic';
+		module: 'dashboard' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'settings' | 'generic';
 		class?: string;
 	};
 

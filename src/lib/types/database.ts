@@ -1461,6 +1461,168 @@ export type Database = {
           },
         ]
       }
+      sermon_passages: {
+        Row: {
+          bible_book: string
+          chapter_end: number | null
+          chapter_start: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          sermon_id: string
+          sort_order: number
+          updated_at: string
+          verse_end: number | null
+          verse_start: number | null
+        }
+        Insert: {
+          bible_book: string
+          chapter_end?: number | null
+          chapter_start?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          sermon_id: string
+          sort_order?: number
+          updated_at?: string
+          verse_end?: number | null
+          verse_start?: number | null
+        }
+        Update: {
+          bible_book?: string
+          chapter_end?: number | null
+          chapter_start?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          sermon_id?: string
+          sort_order?: number
+          updated_at?: string
+          verse_end?: number | null
+          verse_start?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sermon_passages_bible_book_fkey"
+            columns: ["bible_book"]
+            isOneToOne: false
+            referencedRelation: "bible_books"
+            referencedColumns: ["name"]
+          },
+          {
+            foreignKeyName: "sermon_passages_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sermon_passages_sermon_id_fkey"
+            columns: ["sermon_id"]
+            isOneToOne: false
+            referencedRelation: "sermons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sermon_venues: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sermon_venues_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sermons: {
+        Row: {
+          context_type: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          notes: string | null
+          passage_display: string | null
+          preached_on: string
+          topic: string | null
+          updated_at: string
+          venue_id: string | null
+        }
+        Insert: {
+          context_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          notes?: string | null
+          passage_display?: string | null
+          preached_on: string
+          topic?: string | null
+          updated_at?: string
+          venue_id?: string | null
+        }
+        Update: {
+          context_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          notes?: string | null
+          passage_display?: string | null
+          preached_on?: string
+          topic?: string | null
+          updated_at?: string
+          venue_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sermons_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sermons_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "sermon_venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
           billable: boolean

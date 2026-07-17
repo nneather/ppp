@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-17 — **Book rating UI + Goodreads import** ([089](docs/decisions/089-book-rating-ui-goodreads-import.md)): star scale + detail-page rating/notes; `/settings/library/goodreads` CSV ISBN match. Prior: commentary bible coverage ([088](docs/decisions/088-commentary-bible-coverage-cleanup.md)).
+**Last updated:** 2026-07-17 — **Sermons module v1** ([090](docs/decisions/090-sermons-session-0.md), [091](docs/decisions/091-sermons-session-1.md)): `/sermons` list + Sheet CRUD, venues settings, preaching-history seed, library search-passage deep-links. Prior: book rating + Goodreads ([089](docs/decisions/089-book-rating-ui-goodreads-import.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -36,6 +36,7 @@ Nearest hard dates:
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)), PDF email MIME harden ([078](docs/decisions/078-invoice-email-pdf-mime.md)), PDF email diagnostics runbook ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 shipped** — latest: `.docx` bibliography export ([063](docs/decisions/063-library-wave2-session4-docx-export.md)). **Next: August shelf QA** (all 20 fixture rows). **Apply essay seed** if not live; owner phone smoke after split; `.docx` Word smoke. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), links, audit. **Owner:** finish Resend webhook secrets (see [supabase/README.md](supabase/README.md)). **Viewer access:** owner-only by design. **Backlog:** polish, global Now ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)). |
+| Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ **v1 Session 1** ([091](docs/decisions/091-sermons-session-1.md)): `/sermons` + venues settings + seed history + Find-in-library. Migration `20260717190000_ppp_sermons_v1.sql` applied. **Owner:** phone smoke on list + new draft sermon. Optional Session 2 polish. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -43,6 +44,8 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [091 — Sermons Session 1](docs/decisions/091-sermons-session-1.md) (2026-07-17) — `/sermons` CRUD + venues + seed + library deep-link; migration applied.
+- [090 — Sermons Session 0](docs/decisions/090-sermons-session-0.md) (2026-07-17) — Phase 0 structure lock for standalone Sermons module.
 - [089 — Book rating UI + Goodreads import](docs/decisions/089-book-rating-ui-goodreads-import.md) (2026-07-17) — star scale + detail-page rating/notes; Goodreads CSV ISBN match at `/settings/library/goodreads`.
 - [088 — Commentary Bible coverage cleanup](docs/decisions/088-commentary-bible-coverage-cleanup.md) (2026-07-17) — 363 coverage rows; IVP Background → Biblical Reference; NIB Vol X essays (Boring/Wright/Sampley); 8 intentional untagged (thematic + deuterocanonical).
 - [087 — Library review-queue research cleanup](docs/decisions/087-library-review-queue-research-cleanup.md) (2026-07-17) — non-shelf review + proposals → 0; 50 shelf-bound remain; genre taxonomy + `copy_count`; Church Fathers / Ancient Biblical Sources / Children's and Young Adult.
@@ -69,13 +72,15 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Projects migrations (prod):** `20260603170000_ppp_projects_v1.sql`, `20260603200000_projects_add_not_started_lifecycle.sql`, `20260604030000_ppp_project_tasks_myn.sql`, `20260604100000_project_updates_progress.sql`, `20260709164016_projects_email_inbox_and_domain_colors.sql`.
 
+**Sermons:** `/sermons` list + Sheet; `/settings/sermons/venues`; helpers `src/lib/sermons/`; migration `20260717190000_ppp_sermons_v1.sql` ([091](docs/decisions/091-sermons-session-1.md)).
+
 **Invoicing helpers:** `src/lib/invoicing/` — `chicago-date.ts`, `hours.ts`, `consultation-lines.ts` ([050]). Loaders/actions live inline in route `+page.server.ts` files **by design** (see AGENTS.md › Module structure).
 
 **Library (maintenance only):** [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) — complete; viewer §B still deferred without collaborator.
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-17** ([089](docs/decisions/089-book-rating-ui-goodreads-import.md); check **0 errors**, test **236/236**). Prior: commentary coverage ([088](docs/decisions/088-commentary-bible-coverage-cleanup.md)).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-17** ([091](docs/decisions/091-sermons-session-1.md); check **0 errors**, test **248/248**). Prior: Goodreads ([089](docs/decisions/089-book-rating-ui-goodreads-import.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

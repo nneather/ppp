@@ -155,9 +155,17 @@ End-of-session deliverables:
   - `src/lib/projects/server/task-actions.ts` — MYN task create/update/complete/defer/promote/soft-delete (incl. `notes`).
   - `/projects` — tree + metadata sheet (links in edit mode) + domain color picker; `depends('app:projects:tree')`.
   - `/tasks` — MYN task page (legacy `/projects/tasks` 308-redirects here); `depends('app:projects:tasks')`; Chicago today via `ymdInChicago()`.
-  - **Email → task:** Edge Function `email-inbound-task` (Resend inbound → Email Inbox project); secrets `RESEND_WEBHOOK_SECRET`, `INBOUND_TASK_PROJECT_ID`, `INBOUND_TASK_ALLOWED_SENDERS` — [supabase/README.md](supabase/README.md).
-  - **Partial unique upsert:** `project_updates` — PK `id` only ([045](docs/decisions/045-projects-session-1-tree-checkin.md)).
-  - **Audit log:** `_PROJECTS_TABLES` includes `project_tasks`; soft-delete revert for `projects`, `project_updates`, `project_tasks`.
+ - **Email → task:** Edge Function `email-inbound-task` (Resend inbound → Email Inbox project); secrets `RESEND_WEBHOOK_SECRET`, `INBOUND_TASK_PROJECT_ID`, `INBOUND_TASK_ALLOWED_SENDERS` — [supabase/README.md](supabase/README.md).
+ - **Partial unique upsert:** `project_updates` — PK `id` only ([045](docs/decisions/045-projects-session-1-tree-checkin.md)).
+ - **Audit log:** `_PROJECTS_TABLES` includes `project_tasks`; soft-delete revert for `projects`, `project_updates`, `project_tasks`.
+
+- **Sermons helpers** at `src/lib/sermons/` (schema migration `20260717190000_ppp_sermons_v1.sql`; Session 0 [090](docs/decisions/090-sermons-session-0.md), Session 1 [091](docs/decisions/091-sermons-session-1.md)):
+ - `src/lib/types/sermons.ts` — `CONTEXT_TYPES` (`church` | `parachurch` | `academic`), list/venue/passage view-models.
+ - `src/lib/sermons/passage-parse.ts` — `parsePassageDisplay`, `librarySearchHref`, `formatPassageRow`; unit tests `__tests__/passage-parse.test.ts`.
+ - `src/lib/sermons/server/loaders.ts` — `loadSermons`, `loadSermonVenues`, `parseSermonListFilters`.
+ - `src/lib/sermons/server/actions.ts` — sermon + venue CRUD; passage sync; venue soft-delete blocked when live sermons reference.
+ - Routes: `/sermons` (list + Sheet), `/settings/sermons/venues`. Library hook: deep-link to `/library/search-passage`.
+ - Audit: `_SERMONS_TABLES`; soft-delete revert for venues/sermons/passages.
 
 ### Scripts
 

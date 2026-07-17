@@ -82,11 +82,15 @@
 		return qs.length > 0 ? `?${qs}` : '?';
 	}
 
-	const moduleOptions: { value: 'all' | 'invoicing' | 'library' | 'projects'; label: string }[] = [
+	const moduleOptions: {
+		value: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons';
+		label: string;
+	}[] = [
 		{ value: 'all', label: 'All modules' },
 		{ value: 'invoicing', label: 'Invoicing' },
 		{ value: 'library', label: 'Library' },
-		{ value: 'projects', label: 'Projects' }
+		{ value: 'projects', label: 'Projects' },
+		{ value: 'sermons', label: 'Sermons' }
 	];
 
 	let recordIdInput = $state('');

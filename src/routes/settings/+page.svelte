@@ -4,6 +4,7 @@
 	import ScrollText from '@lucide/svelte/icons/scroll-text';
 	import Shield from '@lucide/svelte/icons/shield';
 	import BookOpen from '@lucide/svelte/icons/book-open';
+	import Mic from '@lucide/svelte/icons/mic';
 	import { cn } from '$lib/utils';
 	import type { PageProps } from './$types';
 
@@ -43,6 +44,16 @@
 				icon: BookOpen,
 				summary:
 					data.bookCount != null ? `${data.bookCount} books in library` : 'People · genres · canon'
+			},
+			{
+				href: '/settings/sermons/venues',
+				title: 'Sermons',
+				description: 'Venues and churches where you have preached',
+				icon: Mic,
+				summary:
+					data.sermonVenueCount != null
+						? `${data.sermonVenueCount} venue${data.sermonVenueCount === 1 ? '' : 's'}`
+						: 'Venues'
 			}
 		];
 		if (data.isOwner) {

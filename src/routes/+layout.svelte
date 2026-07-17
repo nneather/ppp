@@ -16,6 +16,7 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import ListTodo from '@lucide/svelte/icons/list-todo';
+	import Mic from '@lucide/svelte/icons/mic';
 	import Settings from '@lucide/svelte/icons/settings';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
@@ -32,6 +33,7 @@
 	const navItems = [
 		{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/tasks', label: 'Tasks', icon: ListTodo },
+		{ href: '/sermons', label: 'Sermons', icon: Mic },
 		{ href: '/invoicing', label: 'Invoicing', icon: Receipt },
 		{ href: '/library', label: 'Library', icon: BookOpen },
 		{ href: '/projects', label: 'Projects', icon: FolderKanban },
@@ -44,10 +46,11 @@
 
 	function skeletonModule(
 		path: string
-	): 'dashboard' | 'invoicing' | 'library' | 'projects' | 'settings' | 'generic' {
+	): 'dashboard' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'settings' | 'generic' {
 		if (path.startsWith('/library')) return 'library';
 		if (path.startsWith('/invoicing')) return 'invoicing';
 		if (path.startsWith('/dashboard')) return 'dashboard';
+		if (path.startsWith('/sermons')) return 'sermons';
 		if (path.startsWith('/tasks')) return 'projects';
 		if (path.startsWith('/projects')) return 'projects';
 		if (path.startsWith('/settings')) return 'settings';

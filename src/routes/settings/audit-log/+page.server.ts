@@ -20,6 +20,8 @@ export const _PROJECTS_TABLES = [
 	'project_tasks'
 ] as const;
 
+export const _SERMONS_TABLES = ['sermon_venues', 'sermons', 'sermon_passages'] as const;
+
 export const _LIBRARY_TABLES = [
 	'ancient_texts',
 	'people',
@@ -69,7 +71,11 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	// projects
 	'projects',
 	'project_updates',
-	'project_tasks'
+	'project_tasks',
+	// sermons
+	'sermon_venues',
+	'sermons',
+	'sermon_passages'
 ]);
 
 // Fields that must not be overwritten by a revert: identity, audit metadata,
@@ -214,6 +220,24 @@ function entityLabelFor(
 			if (title && pri) return `${title} · ${pri.replaceAll('_', ' ')}`;
 			return title;
 		}
+		case 'sermon_venues':
+			return get('name');
+		case 'sermons': {
+			const topic = get('topic');
+			const date = get('preached_on');
+			if (topic && date) return `${date} · ${topic}`;
+			return topic ?? date;
+		}
+		case 'sermon_passages': {
+			const bibleBook = get('bible_book');
+			const cs = data.chapter_start;
+			const vs = data.verse_start;
+			if (!bibleBook) return null;
+			if (cs == null) return bibleBook;
+			let ref = `${bibleBook} ${cs}`;
+			if (vs != null) ref += `:${vs}`;
+			return ref;
+		}
 		case 'essays':
 			return get('essay_title');
 		case 'scripture_references': {
@@ -250,13 +274,13 @@ function entityLabelFor(
 }
 
 export type AuditFilters = {
-	module: 'all' | 'invoicing' | 'library' | 'projects';
+	module: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons';
 	recordId: string;
 	changedBy: string;
 };
 
 function parseModule(v: string | null): AuditFilters['module'] {
-	if (v === 'invoicing' || v === 'library' || v === 'projects') return v;
+	if (v === 'invoicing' || v === 'library' || v === 'projects' || v === 'sermons') return v;
 	return 'all';
 }
 
@@ -325,6 +349,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		q = q.in('table_name', _LIBRARY_TABLES as unknown as string[]);
 	} else if (filters.module === 'projects') {
 		q = q.in('table_name', _PROJECTS_TABLES as unknown as string[]);
+	} else if (filters.module === 'sermons') {
+		q = q.in('table_name', _SERMONS_TABLES as unknown as string[]);
 	}
 	if (filters.recordId.length > 0) q = q.eq('record_id', filters.recordId);
 	if (filters.changedBy.length > 0) q = q.eq('changed_by', filters.changedBy);

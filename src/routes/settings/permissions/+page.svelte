@@ -14,7 +14,8 @@
 		library: 'Library',
 		invoicing: 'Invoicing',
 		calendar: 'Calendar',
-		projects: 'Projects'
+		projects: 'Projects',
+		sermons: 'Sermons'
 	};
 
 	const enhanceRow: SubmitFunction = () => {
