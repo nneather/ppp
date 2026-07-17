@@ -6,6 +6,7 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
@@ -480,10 +481,33 @@
 		selectedIds = [];
 	}
 
-	let bulkLanguage = $state<Language>('english');
-	let bulkReadingStatus = $state<ReadingStatus>('unread');
-	let bulkGenre = $state<Genre>(GENRES[0]!);
+	/** Empty string = leave this field alone on selected books. */
+	let bulkLanguage = $state<Language | ''>('');
+	let bulkReadingStatus = $state<ReadingStatus | ''>('');
+	let bulkGenre = $state<Genre | ''>('');
 	let bulkBibleBook = $state('');
+
+	const bulkApplySummary = $derived.by(() => {
+		const parts: string[] = [];
+		if (bulkLanguage) parts.push(`Language → ${LANGUAGE_LABELS[bulkLanguage]}`);
+		if (bulkReadingStatus) parts.push(`Status → ${READING_STATUS_LABELS[bulkReadingStatus]}`);
+		if (bulkGenre) parts.push(`Genre → ${bulkGenre}`);
+		if (bulkBibleBook) parts.push(`Add coverage → ${bulkBibleBook}`);
+		return parts;
+	});
+	const bulkHasChanges = $derived(bulkApplySummary.length > 0);
+
+	function resetBulkFields() {
+		bulkLanguage = '';
+		bulkReadingStatus = '';
+		bulkGenre = '';
+		bulkBibleBook = '';
+	}
+
+	function openBulkDialog() {
+		resetBulkFields();
+		bulkDialogOpen = true;
+	}
 
 	const bulkFormFeedback = $derived.by(() => {
 		const f = form as { kind?: string; message?: string; success?: boolean } | null | undefined;
@@ -491,7 +515,11 @@
 		return f;
 	});
 
-	const bulkEnhance: SubmitFunction = () => {
+	const bulkEnhance: SubmitFunction = ({ cancel }) => {
+		if (!bulkHasChanges || selectedCount === 0) {
+			cancel();
+			return;
+		}
 		bulkPending = true;
 		return async ({ result, update }) => {
 			bulkPending = false;
@@ -501,6 +529,7 @@
 				if (d?.kind === 'bulkUpdateBooks' && d.success) {
 					selectedIds = [];
 					bulkDialogOpen = false;
+					resetBulkFields();
 					await invalidate('app:library:list');
 				}
 			}
@@ -729,15 +758,6 @@
 		actions={libraryListActions}
 	/>
 
-	{#if bulkFormFeedback?.message}
-		<p
-			class="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-			role="alert"
-		>
-			{bulkFormFeedback.message}
-		</p>
-	{/if}
-
 	{#if listFetchError}
 		<p
 			class="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -916,23 +936,25 @@
 			{:else}
 				{#if selectedCount > 0}
 					<div
-						class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-card-foreground shadow-sm"
+						class="sticky top-0 z-10 mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-foreground shadow-sm backdrop-blur-sm"
 					>
-						<span class="text-muted-foreground">{selectedCount} selected</span>
+						<span class="font-medium">
+							{selectedCount} book{selectedCount === 1 ? '' : 's'} selected
+						</span>
 						<div class="flex flex-wrap gap-2">
-							<Button type="button" variant="outline" size="sm" onclick={clearBulkSelection}>
-								Clear selection
+							<Button type="button" variant="ghost" size="sm" onclick={clearBulkSelection}>
+								Clear
 							</Button>
 							<Button
 								type="button"
 								size="sm"
-								variant="secondary"
+								variant="outline"
 								href={`/library/bibliography?ids=${selectedIds.join(',')}`}
 							>
-								Build bibliography ({selectedCount})
+								Bibliography
 							</Button>
-							<Button type="button" size="sm" onclick={() => (bulkDialogOpen = true)}>
-								Update multiple…
+							<Button type="button" size="sm" onclick={openBulkDialog}>
+								Update…
 							</Button>
 						</div>
 					</div>
@@ -1150,89 +1172,94 @@
 <Dialog.Root bind:open={bulkDialogOpen}>
 	<Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Update multiple books</Dialog.Title>
+			<Dialog.Title>Update {selectedCount} book{selectedCount === 1 ? '' : 's'}</Dialog.Title>
 			<Dialog.Description class="text-muted-foreground text-sm">
-				Applies to {selectedCount} selected book{selectedCount === 1 ? '' : 's'}. Enable each field you want
-				to overwrite.
+				Leave a field on “Don’t change” to keep each book’s current value. Only fields you pick are
+				written.
 			</Dialog.Description>
 		</Dialog.Header>
 		<form method="POST" action="?/bulkUpdateBooks" use:enhance={bulkEnhance} class="flex flex-col gap-4 py-2">
 			<input type="hidden" name="book_ids_json" value={JSON.stringify(selectedIds)} />
-			<div class="space-y-3 rounded-lg border border-border bg-muted/15 p-3">
-				<label class="flex cursor-pointer items-start gap-2 text-sm">
-					<input type="checkbox" name="bulk_apply_language" class="mt-0.5 size-4 shrink-0" />
-					<span>
-						<span class="font-medium text-foreground">Language</span>
-						<span class="mt-1 block text-muted-foreground">
-							<select
-								name="bulk_language"
-								bind:value={bulkLanguage}
-								class="mt-1 w-full max-w-xs rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-							>
-								{#each LANGUAGES as l (l)}
-									<option value={l}>{LANGUAGE_LABELS[l]}</option>
-								{/each}
-							</select>
-						</span>
-					</span>
-				</label>
-				<label class="flex cursor-pointer items-start gap-2 text-sm">
-					<input type="checkbox" name="bulk_apply_reading_status" class="mt-0.5 size-4 shrink-0" />
-					<span>
-						<span class="font-medium text-foreground">Reading status</span>
-						<span class="mt-1 block text-muted-foreground">
-							<select
-								name="bulk_reading_status"
-								bind:value={bulkReadingStatus}
-								class="mt-1 w-full max-w-xs rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-							>
-								{#each READING_STATUSES as s (s)}
-									<option value={s}>{READING_STATUS_LABELS[s]}</option>
-								{/each}
-							</select>
-						</span>
-					</span>
-				</label>
-				<label class="flex cursor-pointer items-start gap-2 text-sm">
-					<input type="checkbox" name="bulk_apply_genre" class="mt-0.5 size-4 shrink-0" />
-					<span>
-						<span class="font-medium text-foreground">Genre</span>
-						<span class="mt-1 block text-muted-foreground">
-							<select
-								name="bulk_genre"
-								bind:value={bulkGenre}
-								class="mt-1 w-full max-w-xs rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-							>
-								{#each GENRES as g (g)}
-									<option value={g}>{g}</option>
-								{/each}
-							</select>
-						</span>
-					</span>
-				</label>
-				<label class="flex cursor-pointer items-start gap-2 text-sm">
-					<input type="checkbox" name="bulk_apply_bible_book" class="mt-0.5 size-4 shrink-0" />
-					<span>
-						<span class="font-medium text-foreground">Bible book (coverage)</span>
-						<span class="mt-1 block text-muted-foreground">
-							Adds this biblical book to commentary coverage for each selected volume (existing
-							coverage unchanged).
-						</span>
-						<span class="mt-1 block text-muted-foreground">
-							<select
-								name="bulk_bible_book"
-								bind:value={bulkBibleBook}
-								class="mt-1 w-full max-w-xs rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-							>
-								<option value="">— Select —</option>
-								{#each data.bibleBookNames as name (name)}
-									<option value={name}>{name}</option>
-								{/each}
-							</select>
-						</span>
-					</span>
-				</label>
+			<div class="space-y-4">
+				<div class="space-y-1.5">
+					<Label for="bulk-language">Language</Label>
+					<select
+						id="bulk-language"
+						name="bulk_language"
+						bind:value={bulkLanguage}
+						class="w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm"
+					>
+						<option value="">Don’t change</option>
+						{#each LANGUAGES as l (l)}
+							<option value={l}>{LANGUAGE_LABELS[l]}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="space-y-1.5">
+					<Label for="bulk-reading-status">Reading status</Label>
+					<select
+						id="bulk-reading-status"
+						name="bulk_reading_status"
+						bind:value={bulkReadingStatus}
+						class="w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm"
+					>
+						<option value="">Don’t change</option>
+						{#each READING_STATUSES as s (s)}
+							<option value={s}>{READING_STATUS_LABELS[s]}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="space-y-1.5">
+					<Label for="bulk-genre">Genre</Label>
+					<select
+						id="bulk-genre"
+						name="bulk_genre"
+						bind:value={bulkGenre}
+						class="w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm"
+					>
+						<option value="">Don’t change</option>
+						{#each GENRES as g (g)}
+							<option value={g}>{g}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="space-y-1.5">
+					<Label for="bulk-bible-book">Bible book coverage</Label>
+					<p class="text-xs text-muted-foreground">
+						Adds this book to commentary coverage on each selected volume. Existing coverage stays.
+					</p>
+					<select
+						id="bulk-bible-book"
+						name="bulk_bible_book"
+						bind:value={bulkBibleBook}
+						class="w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm"
+					>
+						<option value="">Don’t change</option>
+						{#each data.bibleBookNames as name (name)}
+							<option value={name}>{name}</option>
+						{/each}
+					</select>
+				</div>
 			</div>
+
+			{#if bulkHasChanges}
+				<p class="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+					<span class="font-medium text-foreground">Will apply:</span>
+					{bulkApplySummary.join(' · ')}
+				</p>
+			{:else}
+				<p class="text-xs text-muted-foreground">Pick at least one field to enable Update.</p>
+			{/if}
+
+			{#if bulkFormFeedback?.message && !bulkFormFeedback.success}
+				<p
+					class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+					role="alert"
+				>
+					{bulkFormFeedback.message}
+				</p>
+			{/if}
+
 			<Dialog.Footer class="flex-col gap-2 sm:flex-row sm:justify-end">
 				<Button
 					type="button"
@@ -1241,7 +1268,14 @@
 					label="Cancel"
 					onclick={() => (bulkDialogOpen = false)}
 				/>
-				<Button type="submit" disabled={bulkPending || selectedCount === 0} hotkey="u" label={bulkPending ? 'Updating…' : 'Update books'} />
+				<Button
+					type="submit"
+					disabled={bulkPending || selectedCount === 0 || !bulkHasChanges}
+					hotkey="u"
+					label={bulkPending
+						? 'Updating…'
+						: `Update ${selectedCount} book${selectedCount === 1 ? '' : 's'}`}
+				/>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

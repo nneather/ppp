@@ -790,8 +790,8 @@ const BULK_UPDATE_MAX_BOOKS = 150;
 /**
  * Updates `language`, `reading_status`, and/or `genre` on many live books, and
  * optionally adds a `book_bible_coverage` row (bible book commentary coverage)
- * for each selected volume. Each checkbox field in the form must be explicitly
- * enabled (`bulk_apply_*`).
+ * for each selected volume. Empty select values mean "don't change" (UI sends
+ * "" for untouched fields — no `bulk_apply_*` checkboxes).
  */
 export async function bulkUpdateBooksAction(
 	supabase: SupabaseClient,
@@ -824,21 +824,19 @@ export async function bulkUpdateBooksAction(
 		});
 	}
 
-	const applyLanguage = fd.has('bulk_apply_language');
-	const applyStatus = fd.has('bulk_apply_reading_status');
-	const applyGenre = fd.has('bulk_apply_genre');
-	const applyBibleBook = fd.has('bulk_apply_bible_book');
+	const language = String(fd.get('bulk_language') ?? '').trim();
+	const reading_status = String(fd.get('bulk_reading_status') ?? '').trim();
+	const genre = String(fd.get('bulk_genre') ?? '').trim();
+	const bibleBookRaw = String(fd.get('bulk_bible_book') ?? '').trim();
 
 	const patch: Record<string, string> = {};
-	if (applyLanguage) {
-		const language = String(fd.get('bulk_language') ?? '').trim();
+	if (language) {
 		if (!LANGUAGE_SET.has(language)) {
 			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Pick a valid language.' });
 		}
 		patch.language = language;
 	}
-	if (applyStatus) {
-		const reading_status = String(fd.get('bulk_reading_status') ?? '').trim();
+	if (reading_status) {
 		if (!READING_STATUS_SET.has(reading_status)) {
 			return fail(400, {
 				kind: 'bulkUpdateBooks' as const,
@@ -847,8 +845,7 @@ export async function bulkUpdateBooksAction(
 		}
 		patch.reading_status = reading_status;
 	}
-	if (applyGenre) {
-		const genre = String(fd.get('bulk_genre') ?? '').trim();
+	if (genre) {
 		if (!GENRE_SET.has(genre)) {
 			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Pick a valid genre.' });
 		}
@@ -856,14 +853,7 @@ export async function bulkUpdateBooksAction(
 	}
 
 	let bibleBookToAdd: string | null = null;
-	if (applyBibleBook) {
-		const bb = String(fd.get('bulk_bible_book') ?? '').trim();
-		if (!bb) {
-			return fail(400, {
-				kind: 'bulkUpdateBooks' as const,
-				message: 'Select a bible book, or turn off bible book coverage.'
-			});
-		}
+	if (bibleBookRaw) {
 		const { data: bbRows, error: bbListErr } = await supabase.from('bible_books').select('name');
 		if (bbListErr) {
 			console.error(bbListErr);
@@ -873,17 +863,16 @@ export async function bulkUpdateBooksAction(
 			});
 		}
 		const valid = new Set((bbRows ?? []).map((r) => (r as { name: string }).name));
-		if (!valid.has(bb)) {
+		if (!valid.has(bibleBookRaw)) {
 			return fail(400, { kind: 'bulkUpdateBooks' as const, message: 'Pick a valid bible book.' });
 		}
-		bibleBookToAdd = bb;
+		bibleBookToAdd = bibleBookRaw;
 	}
 
 	if (Object.keys(patch).length === 0 && bibleBookToAdd == null) {
 		return fail(400, {
 			kind: 'bulkUpdateBooks' as const,
-			message:
-				'Enable at least one of language, reading status, genre, or bible book coverage to update.'
+			message: 'Choose at least one field to change.'
 		});
 	}
 
