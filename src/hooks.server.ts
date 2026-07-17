@@ -17,7 +17,8 @@ const CONTENT_SECURITY_POLICY = [
 	"style-src 'self' 'unsafe-inline'",
 	`img-src 'self' data: blob: ${supabaseOrigin}`,
 	"font-src 'self' data:",
-	`connect-src 'self' ${supabaseOrigin} ${supabaseWsOrigin}`,
+	// openlibrary.org — browser ISBN prefill (`fetchOpenLibraryPrefill`); blocked → Safari "Load failed"
+	`connect-src 'self' ${supabaseOrigin} ${supabaseWsOrigin} https://openlibrary.org`,
 	"media-src 'self' blob:",
 	"worker-src 'self' blob:"
 ].join('; ');

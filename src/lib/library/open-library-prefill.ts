@@ -413,7 +413,19 @@ export async function fetchOpenLibraryPrefill(
 	}
 
 	const url = `https://openlibrary.org/isbn/${encodeURIComponent(normalized)}.json`;
-	const res = await fetch(url, { signal: olFetchSignal() });
+	let res: Response;
+	try {
+		res = await fetch(url, { signal: olFetchSignal() });
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : '';
+		if (/abort|timeout/i.test(msg)) {
+			throw new Error('Open Library timed out. Check your connection and try again.');
+		}
+		// WebKit CSP / network blocks often surface as bare "Load failed"
+		throw new Error(
+			'Could not reach Open Library (network or browser security). Try again, or enter the book manually.'
+		);
+	}
 	if (res.status === 404) {
 		throw new Error('ISBN not found in Open Library.');
 	}

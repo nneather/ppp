@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-14 — **Invoice PDF email diagnostics** ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)): owner runbook [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) for same-org asymmetric attachment failures after [078](docs/decisions/078-invoice-email-pdf-mime.md). Prior: PWA update auto-recover ([082](docs/decisions/082-pwa-update-auto-recover.md)).
+**Last updated:** 2026-07-17 — **ISBN lookup CSP fix** ([084](docs/decisions/084-isbn-lookup-csp-openlibrary.md)): allowlist `https://openlibrary.org` in `connect-src` (Safari “Load failed” after [052](docs/decisions/052-security-hardening.md)); keep OL as primary free source. Prior: invoice PDF email diagnostics ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -43,6 +43,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [084 — ISBN lookup CSP + Open Library](docs/decisions/084-isbn-lookup-csp-openlibrary.md) (2026-07-17) — `connect-src` allowlist for Open Library; Safari “Load failed” was CSP, not OL downtime; keep OL as primary free ISBN source.
 - [083 — Invoice PDF email diagnostics](docs/decisions/083-invoice-pdf-email-diagnostics.md) (2026-07-14) — owner runbook for same-org “one can open PDF / one cannot”; collect Resend + Show original + manual attach A/B before more MIME changes.
 - [082 — PWA update auto-recover](docs/decisions/082-pwa-update-auto-recover.md) (2026-07-10) — chunk-load → auto clear-cache+reload (card only on loop); resume auto-applies waiting SW; keep prompt toast for mid-session updates.
 - [081 — Tasks project options are domain roots](docs/decisions/081-tasks-project-options-domains.md) (2026-07-10) — `/tasks` filter + New task pick Personal/Education/… (roots); domain filter includes descendants; edit keeps child option for email/legacy tasks.
@@ -72,7 +73,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-14** ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md); docs-only — check **0 errors**; test **226/226** green). Prior: PWA update auto-recover ([082](docs/decisions/082-pwa-update-auto-recover.md)).
+**Repo gate:** `npm run check` re-verified **2026-07-17** ([084](docs/decisions/084-isbn-lookup-csp-openlibrary.md); check **0 errors**). Prior: invoice PDF email diagnostics ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md); test **226/226** green on 2026-07-14).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
