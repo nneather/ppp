@@ -130,12 +130,13 @@
 <div class="flex flex-col gap-6">
 	<section class="rounded-xl border border-border bg-card p-4 text-card-foreground sm:p-5">
 		<h2 class="text-base font-semibold">Import ratings from Goodreads</h2>
-		<p class="mt-1 text-sm text-muted-foreground">
-			Goodreads no longer has a public API. Export your library as CSV on desktop (My Books →
-			Tools → Import and export → Export Library), then preview here. Matching is by ISBN only
-			(ISBN-10/13 twins). Unrated Goodreads rows are skipped. Existing ppp ratings are left
-			alone unless you opt to overwrite.
-		</p>
+			<p class="mt-1 text-sm text-muted-foreground">
+				Goodreads no longer has a public API. Export your library as CSV on desktop (My Books →
+				Tools → Import and export → Export Library), then preview here. Matching tries ISBN
+				first, then a unique title + author last-name (for edition mismatches and missing
+				ISBNs). Unrated Goodreads rows are skipped. Existing ppp ratings are left alone unless
+				you opt to overwrite.
+			</p>
 
 		<!-- File picker outside the form so Choose File cannot submit / proxy through form state. -->
 		<div class="mt-4 space-y-2">
@@ -222,6 +223,9 @@
 			<p class="mt-1 text-sm text-muted-foreground">
 				{form.rowCount} Goodreads rows · {form.applyCount} will update · {form.skipExisting}
 				already rated · {form.unmatched} unmatched (rated) · {form.unrated} unrated skipped
+			</p>
+			<p class="mt-1 text-xs text-muted-foreground">
+				Matched via ISBN: {form.matchedViaIsbn} · via title + author: {form.matchedViaTitleAuthor}
 			</p>
 
 			{#if form.unmatchedSample.length > 0}

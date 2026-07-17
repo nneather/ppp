@@ -37,6 +37,7 @@ export function parseGoodreadsExportCsv(
 		};
 	}
 	const authorIdx = headerIndex(headers, 'Author');
+	const authorLfIdx = headerIndex(headers, 'Author l-f');
 	const isbnIdx = headerIndex(headers, 'ISBN');
 	const isbn13Idx = headerIndex(headers, 'ISBN13');
 	const reviewIdx = headerIndex(headers, 'My Review');
@@ -53,6 +54,7 @@ export function parseGoodreadsExportCsv(
 			line: i + 1,
 			title: cell(row, titleIdx).trim(),
 			author: cell(row, authorIdx).trim(),
+			authorLf: cell(row, authorLfIdx).trim(),
 			isbn: isbn13 ?? isbn10,
 			myRating: parseMyRatingCell(cell(row, ratingIdx)),
 			myReview: trimOrNullText(cell(row, reviewIdx)),
@@ -68,7 +70,7 @@ export async function loadGoodreadsBookCandidates(
 ): Promise<GoodreadsBookCandidate[]> {
 	const { data, error } = await supabase
 		.from('books')
-		.select('id, title, isbn, rating, personal_notes')
+		.select('id, title, subtitle, isbn, author_display, rating, personal_notes')
 		.is('deleted_at', null);
 	if (error) {
 		console.error(error);
@@ -77,7 +79,9 @@ export async function loadGoodreadsBookCandidates(
 	return (data ?? []).map((r) => ({
 		id: r.id as string,
 		title: (r.title as string | null) ?? null,
+		subtitle: (r.subtitle as string | null) ?? null,
 		isbn: (r.isbn as string | null) ?? null,
+		author_display: (r.author_display as string | null) ?? null,
 		rating: (r.rating as number | null) ?? null,
 		personal_notes: (r.personal_notes as string | null) ?? null
 	}));

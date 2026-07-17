@@ -1,14 +1,18 @@
 /**
- * Pure Goodreads export helpers (ISBN cells, rating match).
+ * Pure Goodreads export helpers (ISBN cells, title/author keys, rating match).
  * CSV matrix parsing lives in `server/goodreads-import.ts` (reuses books-csv delimiter parser).
  */
 
 import { isbnMatchKeys, normalizeIsbnDigits } from '$lib/library/isbn';
+import { normalizePersonName } from '$lib/library/match';
+import { stripArticlesForImporterMatchKey } from '$lib/library/title-sort';
 
 export type GoodreadsExportRow = {
 	line: number;
 	title: string;
 	author: string;
+	/** Goodreads "Author l-f" when present (Last, First). */
+	authorLf: string;
 	/** Normalized ISBN digits (10 or 13), prefer ISBN13 column. */
 	isbn: string | null;
 	/** 1–5, or null when unrated (Goodreads uses 0). */
@@ -21,10 +25,15 @@ export type GoodreadsExportRow = {
 export type GoodreadsBookCandidate = {
 	id: string;
 	title: string | null;
+	subtitle: string | null;
 	isbn: string | null;
+	/** Denormalized authors label from `books.author_display`. */
+	author_display: string | null;
 	rating: number | null;
 	personal_notes: string | null;
 };
+
+export type GoodreadsMatchVia = 'isbn' | 'title_author';
 
 export type GoodreadsMatchKind = 'apply' | 'skip_existing' | 'unmatched' | 'unrated';
 
@@ -33,6 +42,8 @@ export type GoodreadsMatchRow = {
 	gr: GoodreadsExportRow;
 	bookId?: string;
 	bookTitle?: string | null;
+	/** How the library row was resolved (apply / skip_existing only). */
+	matchedVia?: GoodreadsMatchVia;
 	/** Rating that would be written (apply only). */
 	rating?: number;
 	/** Notes that would be written when filling empty personal_notes. */
@@ -44,6 +55,8 @@ export type GoodreadsMatchSummary = {
 	skipExisting: GoodreadsMatchRow[];
 	unmatched: GoodreadsMatchRow[];
 	unrated: number;
+	matchedViaIsbn: number;
+	matchedViaTitleAuthor: number;
 };
 
 /** Strip Goodreads `="…"` formula wrapping, then normalize digits. */
@@ -69,7 +82,114 @@ export function combineGoodreadsNotes(
 }
 
 /**
- * Match rated Goodreads rows to library books by ISBN (10/13 twins).
+ * Title key for cross-library matching: lowercased, diacritics stripped,
+ * parenthetical series markers removed, punctuation collapsed, leading articles stripped.
+ */
+export function normalizeGoodreadsTitleKey(title: string): string {
+	let s = title.toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '');
+	s = s.replace(/\s*[\(\[][^)\]]*[\)\]]\s*/g, ' ');
+	s = s.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+	return stripArticlesForImporterMatchKey(s);
+}
+
+/** Same as {@link normalizeGoodreadsTitleKey} but only the text before the first `:`. */
+export function normalizeGoodreadsTitleKeyNoSubtitle(title: string): string {
+	const head = title.split(':')[0] ?? title;
+	return normalizeGoodreadsTitleKey(head);
+}
+
+/** Last-name key from Goodreads Author / Author l-f. */
+export function goodreadsAuthorLastKey(author: string, authorLf: string): string {
+	const lf = authorLf.trim();
+	if (lf.includes(',')) return normalizePersonName(lf.split(',')[0] ?? lf);
+	const a = author.trim();
+	if (a.includes(',')) return normalizePersonName(a.split(',')[0] ?? a);
+	const parts = a.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+	if (parts.length >= 2 && /^(of|von|van|de|da|di)$/i.test(parts[parts.length - 2] ?? '')) {
+		return normalizePersonName(parts.slice(-2).join(' '));
+	}
+	return normalizePersonName(parts[parts.length - 1] ?? a);
+}
+
+/** Last-name keys from `author_display` ("First Last, First Last"). */
+export function authorDisplayLastKeys(authorDisplay: string | null | undefined): string[] {
+	if (!authorDisplay?.trim()) return [];
+	const people = authorDisplay.split(',').map((s) => s.trim()).filter(Boolean);
+	const keys: string[] = [];
+	for (const p of people) {
+		const parts = p.split(/\s+/).filter(Boolean);
+		if (parts.length === 0) continue;
+		if (parts.length >= 2 && /^(of|von|van|de|da|di)$/i.test(parts[parts.length - 2] ?? '')) {
+			keys.push(normalizePersonName(parts.slice(-2).join(' ')));
+		} else {
+			keys.push(normalizePersonName(parts[parts.length - 1] ?? p));
+		}
+	}
+	return keys;
+}
+
+function titleKeysForBook(book: GoodreadsBookCandidate): string[] {
+	const title = book.title?.trim() ?? '';
+	if (!title) return [];
+	const full =
+		book.subtitle?.trim() && book.subtitle.trim().length > 0
+			? `${title}: ${book.subtitle.trim()}`
+			: title;
+	return [
+		...new Set(
+			[
+				normalizeGoodreadsTitleKey(title),
+				normalizeGoodreadsTitleKey(full),
+				normalizeGoodreadsTitleKeyNoSubtitle(title)
+			].filter((k) => k.length > 0)
+		)
+	];
+}
+
+function titleKeysForGr(gr: GoodreadsExportRow): string[] {
+	const t = gr.title.trim();
+	if (!t) return [];
+	return [
+		...new Set(
+			[normalizeGoodreadsTitleKey(t), normalizeGoodreadsTitleKeyNoSubtitle(t)].filter(
+				(k) => k.length > 0
+			)
+		)
+	];
+}
+
+function resolveBook(
+	gr: GoodreadsExportRow,
+	byIsbn: Map<string, GoodreadsBookCandidate>,
+	byTitleAuthor: Map<string, GoodreadsBookCandidate[]>
+): { book: GoodreadsBookCandidate; via: GoodreadsMatchVia } | null {
+	if (gr.isbn) {
+		for (const k of isbnMatchKeys(gr.isbn)) {
+			const book = byIsbn.get(k);
+			if (book) return { book, via: 'isbn' };
+		}
+	}
+
+	const authorKey = goodreadsAuthorLastKey(gr.author, gr.authorLf);
+	if (!authorKey) return null;
+
+	const candidates = new Set<GoodreadsBookCandidate>();
+	for (const tk of titleKeysForGr(gr)) {
+		const list = byTitleAuthor.get(`${tk}|${authorKey}`) ?? [];
+		for (const b of list) candidates.add(b);
+	}
+	if (candidates.size === 1) {
+		return { book: [...candidates][0]!, via: 'title_author' };
+	}
+	return null;
+}
+
+/**
+ * Match rated Goodreads rows to library books.
+ * 1. ISBN (10/13 twins)
+ * 2. Unique title + author last-name (edition mismatches / missing ISBN)
+ *
+ * Title-only matches are intentionally skipped (commentary collisions).
  * Default: do not overwrite an existing `books.rating`.
  */
 export function matchGoodreadsRatings(args: {
@@ -82,12 +202,26 @@ export function matchGoodreadsRatings(args: {
 	const fillNotes = args.fillEmptyNotes === true;
 
 	const byIsbn = new Map<string, GoodreadsBookCandidate>();
+	const byTitleAuthor = new Map<string, GoodreadsBookCandidate[]>();
+
 	for (const book of args.books) {
-		if (!book.isbn) continue;
-		const normalized = normalizeIsbnDigits(book.isbn);
-		if (!normalized) continue;
-		for (const key of isbnMatchKeys(normalized)) {
-			if (!byIsbn.has(key)) byIsbn.set(key, book);
+		if (book.isbn) {
+			const normalized = normalizeIsbnDigits(book.isbn);
+			if (normalized) {
+				for (const key of isbnMatchKeys(normalized)) {
+					if (!byIsbn.has(key)) byIsbn.set(key, book);
+				}
+			}
+		}
+		const authors = authorDisplayLastKeys(book.author_display);
+		if (authors.length === 0) continue;
+		for (const tk of titleKeysForBook(book)) {
+			for (const ak of authors) {
+				const compound = `${tk}|${ak}`;
+				const list = byTitleAuthor.get(compound);
+				if (list) list.push(book);
+				else byTitleAuthor.set(compound, [book]);
+			}
 		}
 	}
 
@@ -95,35 +229,36 @@ export function matchGoodreadsRatings(args: {
 	const skipExisting: GoodreadsMatchRow[] = [];
 	const unmatched: GoodreadsMatchRow[] = [];
 	let unrated = 0;
+	let matchedViaIsbn = 0;
+	let matchedViaTitleAuthor = 0;
 
 	for (const gr of args.grRows) {
 		if (gr.myRating == null) {
 			unrated += 1;
 			continue;
 		}
-		if (!gr.isbn) {
+
+		const resolved = resolveBook(gr, byIsbn, byTitleAuthor);
+		if (!resolved) {
 			unmatched.push({ kind: 'unmatched', gr });
 			continue;
 		}
-		const keys = isbnMatchKeys(gr.isbn);
-		let book: GoodreadsBookCandidate | undefined;
-		for (const k of keys) {
-			book = byIsbn.get(k);
-			if (book) break;
-		}
-		if (!book) {
-			unmatched.push({ kind: 'unmatched', gr });
-			continue;
-		}
+
+		const { book, via } = resolved;
+		if (via === 'isbn') matchedViaIsbn += 1;
+		else matchedViaTitleAuthor += 1;
+
 		if (book.rating != null && !overwrite) {
 			skipExisting.push({
 				kind: 'skip_existing',
 				gr,
 				bookId: book.id,
-				bookTitle: book.title
+				bookTitle: book.title,
+				matchedVia: via
 			});
 			continue;
 		}
+
 		const notesToSet =
 			fillNotes && !book.personal_notes?.trim()
 				? combineGoodreadsNotes(gr.myReview, gr.privateNotes)
@@ -133,12 +268,20 @@ export function matchGoodreadsRatings(args: {
 			gr,
 			bookId: book.id,
 			bookTitle: book.title,
+			matchedVia: via,
 			rating: gr.myRating,
 			notesToSet
 		});
 	}
 
-	return { apply, skipExisting, unmatched, unrated };
+	return {
+		apply,
+		skipExisting,
+		unmatched,
+		unrated,
+		matchedViaIsbn,
+		matchedViaTitleAuthor
+	};
 }
 
 export function headerIndex(headers: string[], ...names: string[]): number {

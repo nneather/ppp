@@ -55,6 +55,8 @@ export const actions = {
 				skipExisting: result.summary.skipExisting.length,
 				unmatched: result.summary.unmatched.length,
 				unrated: result.summary.unrated,
+				matchedViaIsbn: result.summary.matchedViaIsbn,
+				matchedViaTitleAuthor: result.summary.matchedViaTitleAuthor,
 				unmatchedSample,
 				overwriteExisting: opts.overwriteExisting,
 				fillEmptyNotes: opts.fillEmptyNotes
