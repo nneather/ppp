@@ -20,6 +20,7 @@ If you reach for one of these capabilities, use the existing component.
 | "Generate derived record" wizard | [src/lib/components/generate-invoice-sheet.svelte](mdc:src/lib/components/generate-invoice-sheet.svelte) |
 | Audit log row with collapsible JSONB diff | [src/lib/components/audit-row.svelte](mdc:src/lib/components/audit-row.svelte) |
 | Book entity form (create + edit) shell — identity, classification, state, series, save bar; hosts `<BookFormAuthors>` + `<BookFormPublication>` | [src/lib/components/book-form.svelte](mdc:src/lib/components/book-form.svelte) |
+| 1–5 star rating control (`books.rating`); hidden input for forms; optional `onchange` for detail-page auto-save | [src/lib/components/book-rating-scale.svelte](mdc:src/lib/components/book-rating-scale.svelte) |
 | Book form author junction rows + B14 dedup + inline person-create dialog | [src/lib/components/book-form-authors.svelte](mdc:src/lib/components/book-form-authors.svelte) |
 | Book form publication fields — `variant="essentials"` (publisher/year) or `variant="extended"` (edition/reprint/ISBN); `bind:pub` | [src/lib/components/book-form-publication.svelte](mdc:src/lib/components/book-form-publication.svelte) |
 | Scripture mobile Bible book picker sheet | [src/lib/components/scripture-bible-picker-sheet.svelte](mdc:src/lib/components/scripture-bible-picker-sheet.svelte) |

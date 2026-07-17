@@ -795,6 +795,86 @@ export async function updateReadingStatusAction(supabase: SupabaseClient, fd: Fo
 	};
 }
 
+/**
+ * Owner-only patch for `rating` and/or `personal_notes` from the book detail
+ * card (B1/B2). Include a field in FormData only when it should change —
+ * `rating` may be empty string to clear; omit the key to leave unchanged.
+ */
+export async function updateBookPersonalFieldsAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const id = String(fd.get('id') ?? '').trim();
+	if (!id) {
+		return fail(400, { kind: 'updateBookPersonalFields' as const, message: 'Missing book id.' });
+	}
+
+	const { data: profileRow } = await supabase
+		.from('profiles')
+		.select('role')
+		.eq('id', userId)
+		.maybeSingle();
+	if ((profileRow?.role as string | null) !== 'owner') {
+		return fail(403, {
+			kind: 'updateBookPersonalFields' as const,
+			bookId: id,
+			message: 'Only the owner can edit rating and personal notes.'
+		});
+	}
+
+	const patch: { rating?: number | null; personal_notes?: string | null } = {};
+	if (fd.has('rating')) {
+		const raw = String(fd.get('rating') ?? '').trim();
+		if (raw.length === 0) {
+			patch.rating = null;
+		} else {
+			const n = parseRating(fd.get('rating'));
+			if (n == null) {
+				return fail(400, {
+					kind: 'updateBookPersonalFields' as const,
+					bookId: id,
+					message: 'Rating must be 1–5 (or empty to clear).'
+				});
+			}
+			patch.rating = n;
+		}
+	}
+	if (fd.has('personal_notes')) {
+		patch.personal_notes = trimOrNull(fd.get('personal_notes'));
+	}
+	if (Object.keys(patch).length === 0) {
+		return fail(400, {
+			kind: 'updateBookPersonalFields' as const,
+			bookId: id,
+			message: 'Nothing to update.'
+		});
+	}
+
+	const { error } = await supabase
+		.from('books')
+		.update(patch as never)
+		.eq('id', id)
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error(error);
+		return fail(500, {
+			kind: 'updateBookPersonalFields' as const,
+			bookId: id,
+			message: error.message ?? 'Could not update personal fields.'
+		});
+	}
+
+	return {
+		kind: 'updateBookPersonalFields' as const,
+		bookId: id,
+		success: true as const,
+		rating: 'rating' in patch ? (patch.rating ?? null) : undefined,
+		personal_notes: 'personal_notes' in patch ? (patch.personal_notes ?? null) : undefined
+	};
+}
+
 const BULK_UPDATE_MAX_BOOKS = 150;
 
 /**

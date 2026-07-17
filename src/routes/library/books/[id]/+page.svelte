@@ -49,7 +49,9 @@
 	} from '$lib/types/library';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import BookEssaysEditor from '$lib/components/book-essays-editor.svelte';
+	import BookRatingScale from '$lib/components/book-rating-scale.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
+	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import type { PageProps } from './$types';
 	import { cn } from '$lib/utils.js';
@@ -74,10 +76,32 @@
 	let confirmDeleteBookOpen = $state(false);
 	let bookDeleteFormEl = $state<HTMLFormElement | null>(null);
 	let statusOptimistic = $state<ReadingStatus | null>(null);
+	let ratingOptimistic = $state<number | null | undefined>(undefined);
+	let notesDraft = $state('');
+	let notesBaseline = $state('');
+	let notesPending = $state(false);
+	let ratingFormEl = $state<HTMLFormElement | null>(null);
+	let ratingHiddenEl = $state<HTMLInputElement | null>(null);
+	let notesSyncedBookId = $state('');
+
+	$effect(() => {
+		const id = data.book.id;
+		const notes = data.book.personal_notes ?? '';
+		if (id !== notesSyncedBookId) {
+			notesSyncedBookId = id;
+			notesDraft = notes;
+			notesBaseline = notes;
+			ratingOptimistic = undefined;
+		}
+	});
 
 	const effectiveStatus = $derived<ReadingStatus>(
 		statusOptimistic ?? data.book.reading_status
 	);
+	const effectiveRating = $derived<number | null>(
+		ratingOptimistic !== undefined ? ratingOptimistic : data.book.rating
+	);
+	const notesDirty = $derived(notesDraft !== notesBaseline);
 
 	const statusSubmit: SubmitFunction = ({ formData }) => {
 		const next = formData.get('reading_status');
@@ -89,6 +113,34 @@
 			statusOptimistic = null;
 		};
 	};
+
+	const ratingSubmit: SubmitFunction = ({ formData }) => {
+		const raw = String(formData.get('rating') ?? '').trim();
+		ratingOptimistic = raw.length === 0 ? null : Number(raw);
+		return async ({ update }) => {
+			await update({ reset: false });
+			await invalidateBook();
+			ratingOptimistic = undefined;
+		};
+	};
+
+	const notesSubmit: SubmitFunction = () => {
+		notesPending = true;
+		return async ({ update, result }) => {
+			await update({ reset: false });
+			await invalidateBook();
+			notesPending = false;
+			if (result.type === 'success') {
+				notesBaseline = notesDraft;
+			}
+		};
+	};
+
+	function submitRating(next: number | null) {
+		if (!ratingFormEl || !ratingHiddenEl) return;
+		ratingHiddenEl.value = next == null ? '' : String(next);
+		ratingFormEl.requestSubmit();
+	}
 
 	function statusToneClasses(s: ReadingStatus): string {
 		switch (s) {
@@ -869,9 +921,69 @@
 				{/each}
 			</select>
 		</form>
-		{#if data.book.rating}
-			<p class="mt-3 text-xs uppercase tracking-wide text-muted-foreground">Rating</p>
-			<p class="text-lg font-semibold">{data.book.rating} / 5</p>
+
+		{#if data.isOwner}
+			<div class="mt-4 border-t border-border pt-4">
+				<div class="text-xs uppercase tracking-wide text-muted-foreground">Rating</div>
+				<form
+					method="POST"
+					action="?/updateBookPersonalFields"
+					use:enhance={ratingSubmit}
+					bind:this={ratingFormEl}
+					class="mt-2"
+				>
+					<input type="hidden" name="id" value={data.book.id} />
+					<input type="hidden" name="rating" value="" bind:this={ratingHiddenEl} />
+				</form>
+				<BookRatingScale
+					id={`book-rating-${data.book.id}`}
+					name="rating-ui"
+					value={effectiveRating}
+					onchange={submitRating}
+				/>
+			</div>
+
+			<div class="mt-4 border-t border-border pt-4">
+				<Label
+					for={`book-notes-${data.book.id}`}
+					class="text-xs uppercase tracking-wide text-muted-foreground"
+				>
+					Personal notes
+				</Label>
+				<form
+					method="POST"
+					action="?/updateBookPersonalFields"
+					use:enhance={notesSubmit}
+					class="mt-2 flex flex-col gap-2"
+				>
+					<input type="hidden" name="id" value={data.book.id} />
+					<textarea
+						id={`book-notes-${data.book.id}`}
+						name="personal_notes"
+						bind:value={notesDraft}
+						rows={4}
+						class="flex min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+						placeholder="Thoughts, sermon hooks, disagreements…"
+					></textarea>
+					<div class="flex items-center justify-end gap-2">
+						{#if notesDirty}
+							<span class="mr-auto text-xs text-muted-foreground">Unsaved</span>
+						{/if}
+						<Button
+							type="submit"
+							size="sm"
+							hotkey="s"
+							disabled={!notesDirty || notesPending}
+							label={notesPending ? 'Saving…' : 'Save notes'}
+						/>
+					</div>
+				</form>
+			</div>
+		{:else}
+			{#if effectiveRating != null}
+				<p class="mt-3 text-xs uppercase tracking-wide text-muted-foreground">Rating</p>
+				<p class="text-lg font-semibold">{effectiveRating} / 5</p>
+			{/if}
 		{/if}
 	</div>
 {/snippet}
@@ -1064,7 +1176,7 @@
 				{@render readingStatusCard()}
 			</div>
 
-			{#if data.book.personal_notes}
+			{#if !data.isOwner && data.book.personal_notes}
 				<div class="rounded-xl border border-border bg-card p-4 text-card-foreground">
 					<div class="text-xs uppercase tracking-wide text-muted-foreground">Personal notes</div>
 					<p class="mt-2 whitespace-pre-wrap text-sm">{data.book.personal_notes}</p>

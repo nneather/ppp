@@ -12,6 +12,7 @@ import {
 import {
 	softDeleteBookAction,
 	undoSoftDeleteBookAction,
+	updateBookPersonalFieldsAction,
 	updateReadingStatusAction
 } from '$lib/library/server/book-actions';
 import {
@@ -115,6 +116,16 @@ export const actions: Actions = {
 			return fail(401, { kind: 'updateReadingStatus' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return updateReadingStatusAction(locals.supabase, fd);
+	},
+	updateBookPersonalFields: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, {
+				kind: 'updateBookPersonalFields' as const,
+				message: 'Unauthorized'
+			});
+		const fd = await request.formData();
+		return updateBookPersonalFieldsAction(locals.supabase, user.id, fd);
 	},
 	createScriptureRef: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

@@ -16,6 +16,12 @@
 						label: 'CSV export / import',
 						description:
 							'Download all books as CSV for mass edits, then preview and reimport by book id.'
+					} satisfies HubLink,
+					{
+						href: '/settings/library/goodreads',
+						label: 'Goodreads ratings',
+						description:
+							'Import My Rating (and optional reviews) from a Goodreads library CSV via ISBN match.'
 					} satisfies HubLink
 				]
 			: []),

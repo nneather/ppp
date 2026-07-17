@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-17 — **Commentary bible coverage** ([088](docs/decisions/088-commentary-bible-coverage-cleanup.md)): **203/211** Commentaries tagged; IVP Background → Biblical Reference; NIB Vol X essays (Boring/Wright/Sampley). Prior: review-queue research cleanup ([087](docs/decisions/087-library-review-queue-research-cleanup.md)).
+**Last updated:** 2026-07-17 — **Book rating UI + Goodreads import** ([089](docs/decisions/089-book-rating-ui-goodreads-import.md)): star scale + detail-page rating/notes; `/settings/library/goodreads` CSV ISBN match. Prior: commentary bible coverage ([088](docs/decisions/088-commentary-bible-coverage-cleanup.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -43,9 +43,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [089 — Book rating UI + Goodreads import](docs/decisions/089-book-rating-ui-goodreads-import.md) (2026-07-17) — star scale + detail-page rating/notes; Goodreads CSV ISBN match at `/settings/library/goodreads`.
 - [088 — Commentary Bible coverage cleanup](docs/decisions/088-commentary-bible-coverage-cleanup.md) (2026-07-17) — 363 coverage rows; IVP Background → Biblical Reference; NIB Vol X essays (Boring/Wright/Sampley); 8 intentional untagged (thematic + deuterocanonical).
 - [087 — Library review-queue research cleanup](docs/decisions/087-library-review-queue-research-cleanup.md) (2026-07-17) — non-shelf review + proposals → 0; 50 shelf-bound remain; genre taxonomy + `copy_count`; Church Fathers / Ancient Biblical Sources / Children's and Young Adult.
-- [086 — Essay visibility + article search](docs/decisions/086-essay-visibility-and-search-lanes.md) (2026-07-17) — essays open by default + preview; compact genre filters; single-box `q` + parallel Articles-in-volumes group (not three search lanes).
 - [083 — Invoice PDF email diagnostics](docs/decisions/083-invoice-pdf-email-diagnostics.md) (2026-07-14) — owner runbook for same-org “one can open PDF / one cannot”; collect Resend + Show original + manual attach A/B before more MIME changes.
 - [082 — PWA update auto-recover](docs/decisions/082-pwa-update-auto-recover.md) (2026-07-10) — chunk-load → auto clear-cache+reload (card only on loop); resume auto-applies waiting SW; keep prompt toast for mid-session updates.
 - [081 — Tasks project options are domain roots](docs/decisions/081-tasks-project-options-domains.md) (2026-07-10) — `/tasks` filter + New task pick Personal/Education/… (roots); domain filter includes descendants; edit keeps child option for email/legacy tasks.
@@ -75,7 +75,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-17** ([088](docs/decisions/088-commentary-bible-coverage-cleanup.md); check **0 errors**, test **229/229**). Prior: review-queue cleanup ([087](docs/decisions/087-library-review-queue-research-cleanup.md)).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-17** ([089](docs/decisions/089-book-rating-ui-goodreads-import.md); check **0 errors**, test **236/236**). Prior: commentary coverage ([088](docs/decisions/088-commentary-bible-coverage-cleanup.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -276,4 +276,5 @@ Acceptance:
 4. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now). **Email capture ready** once Resend webhook secrets are set ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
 5. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts. **Plus:** drain the "Needs the shelf" review deck (**50** books, [087](docs/decisions/087-library-review-queue-research-cleanup.md)).
 6. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
-7. **Invoicing:** first real-client send cadence (owner-driven). **Owner:** if outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.
+7. **Library — not owned / research stubs** (Parker to plan; sketched under [089](docs/decisions/089-book-rating-ui-goodreads-import.md)) — `owned` flag, hide from `/library` search by default, Goodreads unmatched → selective create, matched ISBN/year/publisher diffs. Import stays ratings-only until that plan ships.
+8. **Invoicing:** first real-client send cadence (owner-driven). **Owner:** if outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.

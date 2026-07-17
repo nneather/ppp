@@ -14,6 +14,7 @@
 	import BookFormPublication, {
 		type BookPublicationFields
 	} from '$lib/components/book-form-publication.svelte';
+	import BookRatingScale from '$lib/components/book-rating-scale.svelte';
 	import {
 		GENRES,
 		LANGUAGES,
@@ -176,7 +177,7 @@
 	let reading_status = $state<ReadingStatus>('unread');
 	let borrowed_to = $state('');
 	let personal_notes = $state('');
-	let rating = $state('');
+	let rating = $state<number | null>(null);
 	let needs_review = $state<boolean>(false);
 	let needs_review_note = $state('');
 	let no_attributed_author = $state(false);
@@ -419,7 +420,7 @@
 			reading_status = book.reading_status;
 			borrowed_to = book.borrowed_to ?? '';
 			personal_notes = book.personal_notes ?? '';
-			rating = book.rating != null ? String(book.rating) : '';
+			rating = book.rating ?? null;
 			needs_review = book.needs_review;
 			needs_review_note = book.needs_review_note ?? '';
 			no_attributed_author = book.no_attributed_author;
@@ -955,16 +956,7 @@
 						</div>
 						<div class="space-y-2">
 							<Label for="bf-rating">Rating (1–5)</Label>
-							<Input
-								id="bf-rating"
-								name="rating"
-								type="number"
-								inputmode="numeric"
-								min="1"
-								max="5"
-								bind:value={rating}
-								class="h-11 text-base tabular-nums"
-							/>
+							<BookRatingScale id="bf-rating" name="rating" bind:value={rating} />
 						</div>
 						<div class="space-y-2">
 							<Label class="block">Needs review</Label>
