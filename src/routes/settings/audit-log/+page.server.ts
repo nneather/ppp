@@ -223,8 +223,11 @@ function entityLabelFor(
 		case 'sermon_venues':
 			return get('name');
 		case 'sermons': {
+			const passage = get('passage_display');
 			const topic = get('topic');
 			const date = get('preached_on');
+			if (passage && date) return `${date} · ${passage}`;
+			if (passage) return passage;
 			if (topic && date) return `${date} · ${topic}`;
 			return topic ?? date;
 		}

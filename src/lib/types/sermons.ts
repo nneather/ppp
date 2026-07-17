@@ -16,6 +16,23 @@ export const CONTEXT_TYPE_SHORT: Record<ContextType, string> = {
 	academic: 'A'
 };
 
+/**
+ * Static Tailwind badge/chip classes for context type.
+ * Church = green, parachurch = yellow, academic = blue.
+ */
+export const CONTEXT_TYPE_BADGE_CLASSES: Record<ContextType, string> = {
+	church: 'border-emerald-600/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+	parachurch: 'border-amber-600/40 bg-amber-500/15 text-amber-900 dark:text-amber-300',
+	academic: 'border-sky-600/40 bg-sky-500/15 text-sky-900 dark:text-sky-300'
+};
+
+/** Selected filter chip variants (stronger fill). */
+export const CONTEXT_TYPE_FILTER_ACTIVE_CLASSES: Record<ContextType, string> = {
+	church: 'border-emerald-700 bg-emerald-600 text-white',
+	parachurch: 'border-amber-700 bg-amber-500 text-amber-950',
+	academic: 'border-sky-700 bg-sky-600 text-white'
+};
+
 export type SermonVenueRow = {
 	id: string;
 	name: string;

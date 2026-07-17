@@ -11,6 +11,8 @@
 		CONTEXT_TYPES,
 		CONTEXT_TYPE_LABELS,
 		CONTEXT_TYPE_SHORT,
+		CONTEXT_TYPE_BADGE_CLASSES,
+		CONTEXT_TYPE_FILTER_ACTIVE_CLASSES,
 		type ContextType,
 		type SermonListRow,
 		type SermonVenueRow
@@ -192,8 +194,8 @@
 				class={cn(
 					'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
 					data.filters.context === ct
-						? 'border-foreground bg-foreground text-background'
-						: 'border-border text-muted-foreground hover:bg-muted/80'
+						? CONTEXT_TYPE_FILTER_ACTIVE_CLASSES[ct]
+						: cn(CONTEXT_TYPE_BADGE_CLASSES[ct], 'hover:opacity-90')
 				)}
 				onclick={() => pushFilters({ context: ct })}
 			>
@@ -250,7 +252,10 @@
 							<time datetime={s.preached_on}>{formatDate(s.preached_on)}</time>
 							{#if s.context_type}
 								<span
-									class="rounded border border-border px-1.5 py-0.5 font-medium text-foreground"
+									class={cn(
+										'rounded border px-1.5 py-0.5 font-medium',
+										CONTEXT_TYPE_BADGE_CLASSES[s.context_type]
+									)}
 									title={CONTEXT_TYPE_LABELS[s.context_type]}
 								>
 									{CONTEXT_TYPE_SHORT[s.context_type]}
@@ -261,10 +266,10 @@
 							{/if}
 						</div>
 						<p class="mt-1 text-sm font-medium tracking-tight">
-							{s.topic?.trim() || 'Untitled sermon'}
+							{s.passage_display?.trim() || 'Passage TBD'}
 						</p>
-						{#if s.passage_display}
-							<p class="mt-0.5 text-sm text-muted-foreground">{s.passage_display}</p>
+						{#if s.topic?.trim()}
+							<p class="mt-0.5 text-sm text-muted-foreground">{s.topic.trim()}</p>
 						{/if}
 						{#if s.notes}
 							<p class="mt-1 line-clamp-2 text-xs text-muted-foreground">{s.notes}</p>
@@ -341,7 +346,7 @@
 		bind:open={deleteOpen}
 		title="Delete sermon?"
 		description={deleteTarget
-			? `Remove “${deleteTarget.topic?.trim() || formatDate(deleteTarget.preached_on)}” from the list? You can restore from the audit log.`
+			? `Remove “${deleteTarget.passage_display?.trim() || deleteTarget.topic?.trim() || formatDate(deleteTarget.preached_on)}” from the list? You can restore from the audit log.`
 			: ''}
 		confirmLabel={deletePending ? 'Deleting…' : 'Delete'}
 		onConfirm={submitDelete}

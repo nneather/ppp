@@ -314,11 +314,6 @@
 			</div>
 
 			<div class="space-y-2">
-				<Label for="topic">Topic</Label>
-				<Input id="topic" name="topic" bind:value={topic} placeholder="Sermon title" />
-			</div>
-
-			<div class="space-y-2">
 				<Label for="passage_display">Passage</Label>
 				<div class="flex gap-2">
 					<Input
@@ -332,6 +327,11 @@
 						Parse
 					</Button>
 				</div>
+			</div>
+
+			<div class="space-y-2">
+				<Label for="topic">Topic</Label>
+				<Input id="topic" name="topic" bind:value={topic} placeholder="Sermon title (optional)" />
 			</div>
 
 			<div class="space-y-2">
