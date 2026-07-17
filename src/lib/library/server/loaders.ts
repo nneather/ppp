@@ -1005,6 +1005,7 @@ type RawBookDetail = {
 	reprint_year: number | null;
 	series_id: string | null;
 	volume_number: string | null;
+	copy_count: number | null;
 	genre: string | null;
 	work_type: string | null;
 	language: string;
@@ -1054,6 +1055,7 @@ export async function loadBookDetail(
 			reprint_year,
 			series_id,
 			volume_number,
+			copy_count,
 			work_type,
 			genre,
 			language,
@@ -1121,6 +1123,7 @@ export async function loadBookDetail(
 		series_name: r.series?.name ?? null,
 		series_abbreviation: r.series?.abbreviation ?? null,
 		volume_number: r.volume_number ?? null,
+		copy_count: r.copy_count != null && r.copy_count >= 1 ? r.copy_count : 1,
 		genre: r.genre ?? null,
 		work_type: parseWorkType(r.work_type),
 		language: (r.language as Language) ?? 'english',

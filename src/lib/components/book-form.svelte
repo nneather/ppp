@@ -168,6 +168,7 @@
 	let pub = $state<BookPublicationFields>(emptyPublicationFields());
 	let series_id = $state<string>('');
 	let volume_number = $state('');
+	let copy_count = $state('1');
 	let genre = $state<Genre | ''>('');
 	let work_type = $state<WorkType>('monograph');
 	let language = $state<Language>('english');
@@ -220,6 +221,7 @@
 			pub,
 			series_id,
 			volume_number,
+			copy_count,
 			genre,
 			work_type,
 			language,
@@ -257,6 +259,7 @@
 			pub.reprint_location,
 			pub.reprint_year,
 			volume_number,
+			copy_count,
 			pub.isbn,
 			barcode,
 			pub.shelving_location,
@@ -408,6 +411,7 @@
 			};
 			series_id = book.series_id ?? '';
 			volume_number = book.volume_number ?? '';
+			copy_count = String(book.copy_count >= 1 ? book.copy_count : 1);
 			genre = (book.genre as Genre | null) ?? '';
 			work_type = book.work_type;
 			language = book.language;
@@ -886,6 +890,18 @@
 								name="volume_number"
 								bind:value={volume_number}
 								placeholder="e.g. IV, 2b"
+								class="h-11 text-base"
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="bf-copies">Copies owned</Label>
+							<Input
+								id="bf-copies"
+								name="copy_count"
+								type="number"
+								min="1"
+								max="99"
+								bind:value={copy_count}
 								class="h-11 text-base"
 							/>
 						</div>

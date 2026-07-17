@@ -67,6 +67,7 @@ export type BookFormPayload = {
 	reprint_year: number | null;
 	series_id: string | null;
 	volume_number: string | null;
+	copy_count: number;
 	genre: Genre | null;
 	work_type: WorkType;
 	language: Language;
@@ -341,6 +342,13 @@ export function parseBookForm(fd: FormData): ParseResult {
 	const reprint_location = trimOrNull(fd.get('reprint_location'));
 	const series_id = trimOrNull(fd.get('series_id'));
 	const volume_number = trimOrNull(fd.get('volume_number'));
+	const copy_count_raw = parseInt0(fd.get('copy_count'));
+	const copy_count =
+		copy_count_raw == null || copy_count_raw < 1
+			? 1
+			: copy_count_raw > 99
+				? 99
+				: copy_count_raw;
 	const isbn = trimOrNull(fd.get('isbn'));
 	const barcode = trimOrNull(fd.get('barcode'));
 	const shelving_location = trimOrNull(fd.get('shelving_location'));
@@ -420,6 +428,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 			reprint_year,
 			series_id,
 			volume_number,
+			copy_count,
 			genre: genre as Genre | null,
 			work_type: work_type as WorkType,
 			language: language as Language,
@@ -456,6 +465,7 @@ function bookColumnsPayload(p: BookFormPayload): Record<string, unknown> {
 		reprint_year: p.reprint_year,
 		series_id: p.series_id,
 		volume_number: p.volume_number,
+		copy_count: p.copy_count,
 		genre: p.genre,
 		work_type: p.work_type,
 		language: p.language,

@@ -410,6 +410,7 @@ export type Database = {
           author_display: string | null
           barcode: string | null
           borrowed_to: string | null
+          copy_count: number
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -451,6 +452,7 @@ export type Database = {
           author_display?: string | null
           barcode?: string | null
           borrowed_to?: string | null
+          copy_count?: number
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -492,6 +494,7 @@ export type Database = {
           author_display?: string | null
           barcode?: string | null
           borrowed_to?: string | null
+          copy_count?: number
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null

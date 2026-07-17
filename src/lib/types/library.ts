@@ -10,17 +10,19 @@
 
 export const GENRES = [
 	'Acts and Paul',
+	'Ancient Biblical Sources',
 	'Apologetics',
-	'Apostolic Fathers and Ancient Sources',
 	'Applied Theology',
 	'Bibles',
 	'Biblical Reference',
 	'Biblical Theology',
 	'Biography',
 	'Business',
+	'Children\'s and Young Adult',
 	'Chinese Language Tools',
 	'Christian Living',
 	'Christology',
+	'Church Fathers',
 	'Church History',
 	'Commentary',
 	'Culture',
@@ -41,6 +43,8 @@ export const GENRES = [
 	'Hymnals and Liturgy',
 	'Language',
 	'Latin Language Tools',
+	'Leadership',
+	'Literary Criticism',
 	'Literature',
 	'Music',
 	'New Testament',
@@ -53,6 +57,7 @@ export const GENRES = [
 	'Philosophy',
 	'Pneumatology',
 	'Poetry',
+	'Politics and Policy',
 	'Prophets',
 	'Psalms and Wisdom Literature',
 	'Reference',
@@ -216,6 +221,8 @@ export type BookDetail = {
 	series_name: string | null;
 	series_abbreviation: string | null;
 	volume_number: string | null;
+	/** Physical copies of this edition (default 1). */
+	copy_count: number;
 	genre: string | null;
 	work_type: WorkType;
 	language: Language;

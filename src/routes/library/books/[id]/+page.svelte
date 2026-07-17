@@ -1004,6 +1004,11 @@
 				<dd>{data.book.edition}</dd>
 			{/if}
 
+			{#if data.book.copy_count > 1}
+				<dt class="font-medium text-muted-foreground">Copies</dt>
+				<dd>{data.book.copy_count}</dd>
+			{/if}
+
 			{#if data.book.total_volumes}
 				<dt class="font-medium text-muted-foreground">Total volumes</dt>
 				<dd>{data.book.total_volumes}</dd>

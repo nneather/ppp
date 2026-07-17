@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-17 — **Essay visibility + article search** ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)): book-detail essays open by default + preview; compact genre filters; single `q` bar keeps book FTS and adds parallel **Articles in volumes** hits (title + essay author). Prior: bulk update UX ([085](docs/decisions/085-library-bulk-update-ux.md)).
+**Last updated:** 2026-07-17 — **Review-queue research cleanup** ([087](docs/decisions/087-library-review-queue-research-cleanup.md)): non-shelf `needs_review` → **0**, pending proposals → **0**, **50** Needs-the-shelf remain; new genres (Politics/Leadership/Literary Criticism/Church Fathers/Ancient Biblical Sources/Children's and Young Adult) + `books.copy_count`. Prior: essay visibility + article search ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -12,7 +12,7 @@
 
 **Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). Still queued: **library writing-session gaps**. MYN 2-week adoption trial runs through ~2026-07-20.
 
-**Review queue — sprint decks + AI research pass, now full backlog (2026-07-06/07, [067](docs/decisions/067-library-review-sprint-decks.md)+[068](docs/decisions/068-library-review-ai-research-pass.md)+[070](docs/decisions/070-library-genre-taxonomy-audit.md)):** `/library/review` rebuilt around **decks** (Citation Critical, Genre Sprint one-tap, Research, Puzzles, Backlog, Needs the shelf — shelf-bound books excluded everywhere else by default while in Madison), **sprints** (5/10/25 + ring + summary card), **live-ticking burndown + one-time milestones**, shuffle, and `book_metadata_proposals`. **`ANTHROPIC_API_KEY` added to `.env.local`; full-backlog run done** — Research deck now carries **~673 pending proposals** (639 with a genre suggestion) covering the whole prior 716-book null-genre set; only **45 books** remain with zero AI signal (no ISBN/OL match). **Owner:** phone smoke the Research deck accept flow at this new volume; try one 10-sprint; the 45 stragglers need manual attention eventually.
+**Review queue — research cleanup done ([087](docs/decisions/087-library-review-queue-research-cleanup.md)):** non-shelf `needs_review` and pending proposals drained to **0**. Remaining: **Needs the shelf** deck (**50** books — ISBN/year/publisher/edition). Decks/sprints/proposals UI from [067](docs/decisions/067-library-review-sprint-decks.md)+[068](docs/decisions/068-library-review-ai-research-pass.md) still the workflow for Madison. Taxonomy: Politics and Policy, Leadership, Literary Criticism, Church Fathers, Ancient Biblical Sources, Children's and Young Adult; `books.copy_count` for multi-copy rows.
 
 **Product review remediation (051):** R1 docs trust + **R2 security hardening** ([052](docs/decisions/052-security-hardening.md)) + **R3 UX safety** ([053](docs/decisions/053-ux-safety.md)) + **R4 invoicing polish** ([054](docs/decisions/054-invoicing-polish.md)) + **R5 CI + backups** ([055](docs/decisions/055-ci-backups.md)) — **complete**. Viewer-readiness items stay in backlog until a collaborator nears.
 
@@ -43,9 +43,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [087 — Library review-queue research cleanup](docs/decisions/087-library-review-queue-research-cleanup.md) (2026-07-17) — non-shelf review + proposals → 0; 50 shelf-bound remain; genre taxonomy + `copy_count`; Church Fathers / Ancient Biblical Sources / Children's and Young Adult.
 - [086 — Essay visibility + article search](docs/decisions/086-essay-visibility-and-search-lanes.md) (2026-07-17) — essays open by default + preview; compact genre filters; single-box `q` + parallel Articles-in-volumes group (not three search lanes).
 - [085 — Library bulk update UX](docs/decisions/085-library-bulk-update-ux.md) (2026-07-17) — multi-select dialog: Don’t-change defaults, no enable checkboxes, Will-apply summary, sticky selection bar.
-- [084 — ISBN lookup CSP + Open Library](docs/decisions/084-isbn-lookup-csp-openlibrary.md) (2026-07-17) — `connect-src` allowlist for Open Library; Safari “Load failed” was CSP, not OL downtime; keep OL as primary free ISBN source.
 - [083 — Invoice PDF email diagnostics](docs/decisions/083-invoice-pdf-email-diagnostics.md) (2026-07-14) — owner runbook for same-org “one can open PDF / one cannot”; collect Resend + Show original + manual attach A/B before more MIME changes.
 - [082 — PWA update auto-recover](docs/decisions/082-pwa-update-auto-recover.md) (2026-07-10) — chunk-load → auto clear-cache+reload (card only on loop); resume auto-applies waiting SW; keep prompt toast for mid-session updates.
 - [081 — Tasks project options are domain roots](docs/decisions/081-tasks-project-options-domains.md) (2026-07-10) — `/tasks` filter + New task pick Personal/Education/… (roots); domain filter includes descendants; edit keeps child option for email/legacy tasks.
@@ -75,7 +75,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-17** ([086](docs/decisions/086-essay-visibility-and-search-lanes.md); check **0 errors**, test **229/229**). Prior: bulk update UX ([085](docs/decisions/085-library-bulk-update-ux.md)).
+**Repo gate:** `npm run check` + `npm run test` re-verified **2026-07-17** ([087](docs/decisions/087-library-review-queue-research-cleanup.md); check **0 errors**, test **229/229**). Prior: essay visibility ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -153,6 +153,17 @@ Also (from 065): validate the 20 EXPECTED STRINGS against the Covenant guide its
   suite — special attention rows 8 + 17 (signed-ABD title duplication in article.ts); verify the work_type
   SQL sweep (Q8) against the shelf's reference works.
 End-of-session: fixture doc statuses re-confirmed, docs/decisions/<next-free>-*.md, tracker August row ticked, PLAN.md refreshed
+```
+
+### Library — Madison Needs the shelf (50 books, [087](docs/decisions/087-library-review-queue-research-cleanup.md))
+
+```
+Session: library — Needs the shelf deck (Madison)
+Read: AGENTS.md, docs/decisions/087-library-review-queue-research-cleanup.md, PLAN.md
+Goal: Clear the 50 shelf-bound needs_review books (ISBN / year / publisher / edition).
+Workflow: /library/review?deck=shelf (or Needs the shelf); confirm title pages; clear needs_review when verified.
+Do not invent ISBNs — leave null when pre-ISBN or binding-ambiguous.
+End-of-session: decision log + PLAN.md; note remaining count.
 ```
 
 ### Library Wave 2 — Session 1: article-level formatters ✅ done ([058](docs/decisions/058-library-wave2-session1-article-formatters.md))
@@ -260,9 +271,9 @@ Acceptance:
 ## Next up
 
 1. **Library — writing-session gaps** ([065](docs/decisions/065-writing-workflow-review.md) Q6) — short-form copy + page input + incomplete-citation hint. See Session prompts. Plus owner-commissioned **`work_type` SQL sweep** (Q8) before or with it.
-2. **Owner smokes** — **new review page at full-backlog volume** (~673 pending proposals on the Research deck, [070](docs/decisions/070-library-genre-taxonomy-audit.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 (seed is live) **+ essay preview / open-by-default + Articles-in-volumes search** ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4 — soft-delete via UI); **cold-start / nav watchdog** ([072](docs/decisions/072-pwa-cold-start-resilience.md)) + **resume auto-update / silent chunk recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)); glance Actions after next Monday weekly backup ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)).
-3. **Library — genre taxonomy audit fully closed** ([070](docs/decisions/070-library-genre-taxonomy-audit.md)) — nothing left to build. The 45 residual no-genre-signal books (no ISBN/OL match) need manual `/library/review` attention whenever convenient — not urgent, just the tail of the backlog.
+2. **Owner smokes** — phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 (seed is live) **+ essay preview / open-by-default + Articles-in-volumes search** ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4 — soft-delete via UI); **cold-start / nav watchdog** ([072](docs/decisions/072-pwa-cold-start-resilience.md)) + **resume auto-update / silent chunk recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)); glance Actions after next Monday weekly backup ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)).
+3. **Library — review queue non-shelf drained** ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) — Research deck empty. Next review work is **Madison Needs the shelf** (50 books).
 4. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now). **Email capture ready** once Resend webhook secrets are set ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
-5. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts. **Plus:** drain the "Needs the shelf" review deck (44 books, [067](docs/decisions/067-library-review-sprint-decks.md)).
+5. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts. **Plus:** drain the "Needs the shelf" review deck (**50** books, [087](docs/decisions/087-library-review-queue-research-cleanup.md)).
 6. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
 7. **Invoicing:** first real-client send cadence (owner-driven). **Owner:** if outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.

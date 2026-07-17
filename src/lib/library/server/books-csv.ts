@@ -44,6 +44,7 @@ export const LIBRARY_BOOKS_IMPORT_HEADERS = [
 	'genre',
 	'series',
 	'volume_number',
+	'copy_count',
 	'publisher',
 	'year',
 	'edition',
@@ -263,6 +264,7 @@ type RawExportBook = {
 	year: number | null;
 	edition: string | null;
 	volume_number: string | null;
+	copy_count: number | null;
 	series:
 		| { id: string; name: string; abbreviation: string | null }
 		| { id: string; name: string; abbreviation: string | null }[]
@@ -298,6 +300,7 @@ async function paginateAllExportBooks(supabase: SupabaseClient): Promise<RawExpo
 				year,
 				edition,
 				volume_number,
+				copy_count,
 				series ( id, name, abbreviation ),
 				book_authors ( person_id, role, sort_order )
 			`
@@ -361,6 +364,7 @@ export async function buildLibraryBooksTsv(supabase: SupabaseClient): Promise<st
 			genre: r.genre ?? '',
 			series: seriesCell,
 			volume_number: r.volume_number ?? '',
+			copy_count: String(r.copy_count != null && r.copy_count >= 1 ? r.copy_count : 1),
 			publisher: r.publisher ?? '',
 			year: r.year != null ? String(r.year) : '',
 			edition: r.edition ?? '',
@@ -439,6 +443,8 @@ function csvRowToFormData(args: {
 	fd.set('year', cell(args.row, 'year'));
 	fd.set('edition', cell(args.row, 'edition'));
 	fd.set('volume_number', cell(args.row, 'volume_number'));
+	const copies = cell(args.row, 'copy_count').trim();
+	fd.set('copy_count', copies.length > 0 ? copies : '1');
 	fd.set('series_id', args.seriesId ?? '');
 	fd.set('authors_json', args.authorsJson);
 	fd.set('publisher_location', '');
