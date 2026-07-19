@@ -98,17 +98,63 @@ export function normalizeGoodreadsTitleKeyNoSubtitle(title: string): string {
 	return normalizeGoodreadsTitleKey(head);
 }
 
+/** Strip Jr./Sr./II/III/(ed) noise before last-name keying. */
+function stripAuthorKeyNoise(raw: string): string {
+	return raw
+		.replace(/\([^)]*\)/g, ' ')
+		// Do not use `\b` after optional `.` — it lets `jr\.?` match "Jr" and leave a stray "."
+		.replace(/(?:^|[\s,])(jr|sr)\.?(?=[\s,]|$)/gi, ' ')
+		.replace(/\b(ii|iii|iv)\b/gi, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+/**
+ * Last-name key tokens from a display name (no comma list).
+ * - `van`/`von`/`de`… particles stay with the surname (`Van Opstal` → `van opstal`)
+ * - bare `of` is a place marker (`Augustine of Hippo` → `augustine`, not `hippo`)
+ * - multi-token / hyphenated surnames also emit segments (`Polich-Short` → `polich short` + `polich` + `short`)
+ */
+function lastNameKeysFromDisplayName(name: string): string[] {
+	const cleaned = stripAuthorKeyNoise(name);
+	if (!cleaned) return [];
+	const parts = cleaned.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+	if (parts.length === 0) return [];
+
+	const particle = parts.length >= 2 ? (parts[parts.length - 2] ?? '') : '';
+	let primary: string;
+	if (/^(von|van|de|da|di|du|la|le)$/i.test(particle)) {
+		primary = normalizePersonName(parts.slice(-2).join(' '));
+	} else if (/^of$/i.test(particle) && parts.length >= 3) {
+		// "Augustine of Hippo" / "Francis of Assisi" → personal name before `of`
+		primary = normalizePersonName(parts[parts.length - 3] ?? parts[0] ?? '');
+	} else {
+		primary = normalizePersonName(parts[parts.length - 1] ?? cleaned);
+	}
+
+	const keys = new Set<string>();
+	if (primary) keys.add(primary);
+	// Hyphen/space compound surnames: also match on each segment
+	for (const seg of primary.split(/\s+/).filter(Boolean)) {
+		keys.add(seg);
+	}
+	return [...keys];
+}
+
 /** Last-name key from Goodreads Author / Author l-f. */
 export function goodreadsAuthorLastKey(author: string, authorLf: string): string {
 	const lf = authorLf.trim();
-	if (lf.includes(',')) return normalizePersonName(lf.split(',')[0] ?? lf);
-	const a = author.trim();
-	if (a.includes(',')) return normalizePersonName(a.split(',')[0] ?? a);
-	const parts = a.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
-	if (parts.length >= 2 && /^(of|von|van|de|da|di)$/i.test(parts[parts.length - 2] ?? '')) {
-		return normalizePersonName(parts.slice(-2).join(' '));
+	if (lf.includes(',')) {
+		const keys = lastNameKeysFromDisplayName(lf.split(',')[0] ?? lf);
+		return keys[0] ?? '';
 	}
-	return normalizePersonName(parts[parts.length - 1] ?? a);
+	const a = author.trim();
+	if (a.includes(',')) {
+		const keys = lastNameKeysFromDisplayName(a.split(',')[0] ?? a);
+		return keys[0] ?? '';
+	}
+	const keys = lastNameKeysFromDisplayName(a);
+	return keys[0] ?? '';
 }
 
 /** Last-name keys from `author_display` ("First Last, First Last"). */
@@ -117,15 +163,9 @@ export function authorDisplayLastKeys(authorDisplay: string | null | undefined):
 	const people = authorDisplay.split(',').map((s) => s.trim()).filter(Boolean);
 	const keys: string[] = [];
 	for (const p of people) {
-		const parts = p.split(/\s+/).filter(Boolean);
-		if (parts.length === 0) continue;
-		if (parts.length >= 2 && /^(of|von|van|de|da|di)$/i.test(parts[parts.length - 2] ?? '')) {
-			keys.push(normalizePersonName(parts.slice(-2).join(' ')));
-		} else {
-			keys.push(normalizePersonName(parts[parts.length - 1] ?? p));
-		}
+		keys.push(...lastNameKeysFromDisplayName(p));
 	}
-	return keys;
+	return [...new Set(keys)];
 }
 
 function titleKeysForBook(book: GoodreadsBookCandidate): string[] {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	authorDisplayLastKeys,
 	combineGoodreadsNotes,
 	goodreadsAuthorLastKey,
 	matchGoodreadsRatings,
@@ -44,8 +45,22 @@ describe('normalizeGoodreadsTitleKey / goodreadsAuthorLastKey', () => {
 		expect(goodreadsAuthorLastKey('J.K. Rowling', 'Rowling, J.K.')).toBe('rowling');
 		expect(goodreadsAuthorLastKey('Michael Scott Horton', 'Horton, Michael Scott')).toBe('horton');
 	});
+
+	it('strips Jr./(ed) and handles of-place / van particles', () => {
+		expect(goodreadsAuthorLastKey('Cornelius Plantinga Jr.', '')).toBe('plantinga');
+		expect(goodreadsAuthorLastKey('Augustine of Hippo', '')).toBe('augustine');
+		expect(goodreadsAuthorLastKey('Sandra Maria Van Opstal', '')).toBe('van opstal');
+	});
 });
 
+describe('authorDisplayLastKeys', () => {
+	it('emits hyphen segments and strips (ed)', () => {
+		expect(authorDisplayLastKeys('Spiros Zodhiates (ed)')).toContain('zodhiates');
+		expect(authorDisplayLastKeys('Laurie Polich-Short')).toEqual(
+			expect.arrayContaining(['polich short', 'polich', 'short'])
+		);
+	});
+});
 describe('parseGoodreadsExportCsv', () => {
 	it('parses a minimal Goodreads export', () => {
 		const csv = [
