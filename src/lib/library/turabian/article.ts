@@ -3,7 +3,8 @@ import {
 	formatAuthorsBibliography,
 	formatAuthorsNote,
 	formatEditorsInlineBibliography,
-	formatEditorsNote
+	formatEditorsNote,
+	parseAuthorAssignment
 } from './names';
 import { formatPublicationFacts, formatTitleWithSubtitle } from './publication';
 import type { BookCitationInput, CitationFormatted, CitationSourceType } from './types';
@@ -17,6 +18,12 @@ export type EssayCitationInput = {
 	page_end?: number | null;
 	/** Article-level authors — Session 1 formatters; optional in Phase 0 fixtures. */
 	authors?: BookAuthorAssignment[];
+};
+
+/** Options for {@link formatEssayFootnote}. Never expose `ibid` in UI (065). */
+export type EssayFormatOptions = {
+	page?: string;
+	shortForm?: 'short';
 };
 
 /** Map a hydrated essay row to formatter input (unsigned when authors empty). */
@@ -160,16 +167,44 @@ function formatChapterFootnote(
 }
 
 /**
+ * Subsequent-note short form for essays/articles.
+ * Signed: `Sanders, "Canon," 836.`
+ * Unsigned / TDNT abbreviated: reuse the already-compact first-reference forms.
+ */
+function formatShortEssayFootnote(
+	essay: EssayCitationInput,
+	volume: BookCitationInput,
+	page: string,
+	sourceType: CitationSourceType
+): CitationFormatted {
+	if (!hasEssayAuthors(essay)) {
+		return formatUnsignedSvFootnote(essay, volume, page, sourceType);
+	}
+	if (volume.work_type === 'reference_work' && volumeUsesAbbreviatedArticleCite(volume)) {
+		return formatAbbreviatedArticleFootnote(essay, volume, page, sourceType);
+	}
+	const article = essay.essay_title.trim();
+	const lastName = parseAuthorAssignment(essay.authors![0]!).last;
+	const plain = `${lastName}, ${quotedTitle(article, 'plain')} ${page}.`;
+	const html = `${escapeHtml(lastName)}, ${quotedTitle(article, 'html')} ${escapeHtml(page)}.`;
+	return { plain, html, sourceType };
+}
+
+/**
  * Turabian dictionary / encyclopedia article or chapter in edited volume.
  * @see Turabian §14.112 (well-known reference works), §17.1.8 (chapters).
  */
 export function formatEssayFootnote(
 	essay: EssayCitationInput,
 	volume: BookCitationInput,
-	opts?: { page?: string }
+	opts?: EssayFormatOptions
 ): CitationFormatted {
 	const page = pageSegment(essay, opts);
 	const sourceType = resolveEssaySourceType(volume);
+
+	if (opts?.shortForm === 'short') {
+		return formatShortEssayFootnote(essay, volume, page, sourceType);
+	}
 
 	if (!hasEssayAuthors(essay)) {
 		return formatUnsignedSvFootnote(essay, volume, page, sourceType);

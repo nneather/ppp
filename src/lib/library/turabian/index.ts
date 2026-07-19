@@ -20,7 +20,8 @@ export {
 	formatEssayFootnote,
 	formatEssayBibliography,
 	essayRowToCitationInput,
-	type EssayCitationInput
+	type EssayCitationInput,
+	type EssayFormatOptions
 } from './article';
 export {
 	sortBibliographyInputs,

@@ -6,6 +6,8 @@
 	import { onMount } from 'svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -27,6 +29,10 @@
 		formatBibliography,
 		formatFootnote
 	} from '$lib/library/turabian';
+	import {
+		computeMissingImportant,
+		incompleteCitationCaption
+	} from '$lib/library/missing-important';
 	import {
 		LIBRARY_ANCIENT_TEXTS_JSON,
 		LIBRARY_TOPIC_COUNTS_JSON
@@ -207,8 +213,30 @@
 	}
 
 	const citationInput = $derived(bookDetailToCitationInput(data.book));
-	const citationFootnote = $derived(formatFootnote(citationInput));
+	/** Page for Turabian note copy; empty → formatter default `[page]`. */
+	let citationPage = $state('');
+	const citationPageOpts = $derived({
+		page: citationPage.trim() || undefined
+	});
+	const citationFootnote = $derived(formatFootnote(citationInput, citationPageOpts));
+	const citationShort = $derived(
+		formatFootnote(citationInput, { ...citationPageOpts, shortForm: 'short' as const })
+	);
 	const citationBibliography = $derived(formatBibliography(citationInput));
+	const citationMissing = $derived(
+		computeMissingImportant({
+			title: data.book.title,
+			genre: data.book.genre,
+			work_type: data.book.work_type,
+			year: data.book.year,
+			publisher: data.book.publisher_canonical,
+			authors: data.book.authors,
+			no_attributed_author: data.book.no_attributed_author
+		})
+	);
+	const citationIncompleteHint = $derived(
+		incompleteCitationCaption(citationMissing, data.book.needs_review)
+	);
 
 	const showEssaysSection = $derived(
 		data.book.work_type === 'reference_work' || data.book.work_type === 'edited_volume'
@@ -252,16 +280,21 @@
 	const essayPreviewRows = $derived(essays.slice(0, 3));
 	const essayPreviewExtra = $derived(Math.max(0, essays.length - essayPreviewRows.length));
 
-	async function copyTurabian(kind: 'footnote' | 'bibliography') {
+	async function copyTurabian(kind: 'footnote' | 'bibliography' | 'short') {
 		if (!browser) return;
-		const citation = kind === 'footnote' ? citationFootnote : citationBibliography;
+		const citation =
+			kind === 'footnote'
+				? citationFootnote
+				: kind === 'short'
+					? citationShort
+					: citationBibliography;
 		if (!citation.plain) {
 			flashCopyToast('Nothing to copy.');
 			return;
 		}
 		try {
 			await copyCitationToClipboard(citation);
-			flashCopyToast(`Copied ${kind}.`);
+			flashCopyToast(kind === 'short' ? 'Copied short form.' : `Copied ${kind}.`);
 		} catch {
 			flashCopyToast('Clipboard unavailable.');
 		}
@@ -750,67 +783,96 @@
 </script>
 
 {#snippet copyDraftButtons()}
-	<div class="mt-2 flex flex-wrap gap-2">
-		<Button
-			type="button"
-			variant="outline"
-			size="sm"
-			class="min-h-10 gap-1.5"
-			disabled={copyAuthorsLine(data.book.authors).length === 0}
-			onclick={() => void copyToClipboard('authors', copyAuthorsLine(data.book.authors))}
-		>
-			<Copy class="size-3.5" /> Authors
-		</Button>
-		<Button
-			type="button"
-			variant="outline"
-			size="sm"
-			class="min-h-10 gap-1.5"
-			disabled={copyTitleLine(data.book).length === 0}
-			onclick={() => void copyToClipboard('title', copyTitleLine(data.book))}
-		>
-			<Copy class="size-3.5" /> Title
-		</Button>
-		<Button
-			type="button"
-			variant="outline"
-			size="sm"
-			class="min-h-10 gap-1.5"
-			disabled={copyPublisherYearLine(data.book).length === 0}
-			onclick={() => void copyToClipboard('publisher and year', copyPublisherYearLine(data.book))}
-		>
-			<Copy class="size-3.5" /> Publisher + year
-		</Button>
-		<Button
-			type="button"
-			variant="outline"
-			size="sm"
-			class="min-h-10 gap-1.5"
-			disabled={copyAllFieldsLine(data.book).length === 0}
-			onclick={() => void copyToClipboard('all fields', copyAllFieldsLine(data.book))}
-		>
-			<Copy class="size-3.5" /> All fields
-		</Button>
-		<Button
-			type="button"
-			variant="outline"
-			size="sm"
-			class="min-h-10 gap-1.5"
-			disabled={!citationFootnote.plain}
-			onclick={() => void copyTurabian('footnote')}
-		>
-			<Copy class="size-3.5" /> Footnote
-		</Button>
-		<Button
-			type="button"
-			variant="outline"
-			size="sm"
-			class="min-h-10 gap-1.5"
-			disabled={!citationBibliography.plain}
-			onclick={() => void copyTurabian('bibliography')}
-		>
-			<Copy class="size-3.5" /> Bibliography
-		</Button>
+	<div class="mt-2 flex flex-col gap-2">
+		<div class="flex flex-wrap items-end gap-2">
+			<div class="space-y-1">
+				<Label for="citation-page" class="text-xs text-muted-foreground">Page</Label>
+				<Input
+					id="citation-page"
+					type="text"
+					inputmode="numeric"
+					placeholder="[page]"
+					bind:value={citationPage}
+					class="h-10 w-24 text-base"
+					autocomplete="off"
+				/>
+			</div>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={!citationFootnote.plain}
+				onclick={() => void copyTurabian('footnote')}
+			>
+				<Copy class="size-3.5" /> Footnote
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={!citationShort.plain}
+				onclick={() => void copyTurabian('short')}
+			>
+				<Copy class="size-3.5" /> Short form
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={!citationBibliography.plain}
+				onclick={() => void copyTurabian('bibliography')}
+			>
+				<Copy class="size-3.5" /> Bibliography
+			</Button>
+		</div>
+		{#if citationIncompleteHint}
+			<p class="text-xs text-amber-800 dark:text-amber-300">{citationIncompleteHint}</p>
+		{/if}
+		<div class="flex flex-wrap gap-2">
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={copyAuthorsLine(data.book.authors).length === 0}
+				onclick={() => void copyToClipboard('authors', copyAuthorsLine(data.book.authors))}
+			>
+				<Copy class="size-3.5" /> Authors
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={copyTitleLine(data.book).length === 0}
+				onclick={() => void copyToClipboard('title', copyTitleLine(data.book))}
+			>
+				<Copy class="size-3.5" /> Title
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={copyPublisherYearLine(data.book).length === 0}
+				onclick={() => void copyToClipboard('publisher and year', copyPublisherYearLine(data.book))}
+			>
+				<Copy class="size-3.5" /> Publisher + year
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="min-h-10 gap-1.5"
+				disabled={copyAllFieldsLine(data.book).length === 0}
+				onclick={() => void copyToClipboard('all fields', copyAllFieldsLine(data.book))}
+			>
+				<Copy class="size-3.5" /> All fields
+			</Button>
+		</div>
 	</div>
 {/snippet}
 

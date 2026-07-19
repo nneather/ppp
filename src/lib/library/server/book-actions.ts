@@ -86,12 +86,16 @@ export type BookFormPayload = {
 };
 
 /**
- * Important fields whose absence triggers auto-flag-for-review. Surfaced in
- * the form's amber preview so the user knows what will be flagged before they
- * Save. The list is the same on both sides.
+ * Important fields / missing-citation helpers — pure module
+ * `$lib/library/missing-important` (client-safe). Re-export for save-time callers.
  */
-export const IMPORTANT_FIELDS = ['title', 'author', 'editor', 'genre', 'year', 'publisher'] as const;
-export type ImportantField = (typeof IMPORTANT_FIELDS)[number];
+export {
+	IMPORTANT_FIELDS,
+	computeMissingImportant,
+	incompleteCitationCaption,
+	type ImportantField,
+	type MissingImportantAuthor
+} from '$lib/library/missing-important';
 
 const GENRE_SET: ReadonlySet<string> = new Set(GENRES);
 const LANGUAGE_SET: ReadonlySet<string> = new Set(LANGUAGES);
@@ -214,34 +218,6 @@ async function resolveAuthorFormEntries(
 }
 
 export type ParseResult = { ok: true; payload: BookFormPayload } | { ok: false; message: string };
-
-/**
- * Compute which IMPORTANT_FIELDS are missing from a parsed payload. Used by
- * both the auto-flag logic at save time and the form's pre-save preview hint.
- */
-export function computeMissingImportant(p: {
-	title: string | null;
-	genre: string | null;
-	work_type: WorkType;
-	year: number | null;
-	publisher: string | null;
-	authors: AuthorFormEntry[];
-	no_attributed_author?: boolean;
-}): ImportantField[] {
-	const out: ImportantField[] = [];
-	if (!p.title) out.push('title');
-	if (!p.no_attributed_author) {
-		if (p.work_type === 'monograph') {
-			if (!p.authors.some((a) => authorEntryPresent(a, 'author'))) out.push('author');
-		} else if (!p.authors.some((a) => authorEntryPresent(a, 'editor'))) {
-			out.push('editor');
-		}
-	}
-	if (!p.genre) out.push('genre');
-	if (p.year == null) out.push('year');
-	if (!p.publisher) out.push('publisher');
-	return out;
-}
 
 /**
  * Merge an auto-generated "Missing: …" review note with whatever the user
