@@ -1,8 +1,8 @@
 # Personal Operations System — Sermons Module Build Tracker
 
-_Last updated: 2026-07-17 | Module: Sermons (4th) | Session 1 complete_
+_Last updated: 2026-07-19 | Module: Sermons (4th) | Session 1 complete; Session 2 grilled_
 
-**Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md`, [090](decisions/090-sermons-session-0.md), [091](decisions/091-sermons-session-1.md).
+**Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md`, [090](decisions/090-sermons-session-0.md), [091](decisions/091-sermons-session-1.md), grill [brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md](../brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md).
 
 ---
 
@@ -11,7 +11,7 @@ _Last updated: 2026-07-17 | Module: Sermons (4th) | Session 1 complete_
 Core value — **log sermons preached (including date-only drafts) and jump to library coverage for the passage**.
 
 - **End of Session 1** = list + Sheet CRUD + venues settings + seed history + Find-in-library links.
-- **Session 2** (thin, optional spill) = filter polish / parse-assist / mobile smoke notes.
+- **Session 2** = `/sermons/by-book` — Bible-book spine: sermons × commentaries (4★+) × Also on shelf (grill locked).
 
 ---
 
@@ -50,7 +50,7 @@ Core value — **log sermons preached (including date-only drafts) and jump to l
 |---|---|---|
 | 0 | ✅ | Phase 0 + tracker + [090](decisions/090-sermons-session-0.md) |
 | 1 | ✅ | Schema + seed + `/sermons` + Sheet + venues settings + library deep-link + nav/audit — [091](decisions/091-sermons-session-1.md) |
-| 2 | ⬜ | Thin polish if needed (optional) |
+| 2 | ⬜ | `/sermons/by-book` commentary × sermon stats — grill [brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md](../brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md); PLAN Session prompt |
 
 ---
 
