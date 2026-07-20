@@ -67,4 +67,66 @@ export type SermonListFilters = {
 	year: number | null;
 	context: ContextType | null;
 	venueId: string | null;
+	/** Distinct sermons with a live passage on this Protestant canon book. */
+	bibleBook: string | null;
+};
+
+/** Sort keys for `/sermons/by-book` (bidirectional via `sortDir`). */
+export const BY_BOOK_SORTS = ['canon', 'sermons', 'commentaries', 'four_star'] as const;
+export type ByBookSort = (typeof BY_BOOK_SORTS)[number];
+
+export const BY_BOOK_SORT_LABELS: Record<ByBookSort, string> = {
+	canon: 'Canon',
+	sermons: 'Sermons',
+	commentaries: 'Commentaries',
+	four_star: '4★+'
+};
+
+export type ByBookSortDir = 'asc' | 'desc';
+
+export type ByBookTestamentFilter = 'ot' | 'nt' | null;
+
+export type ByBookListFilters = {
+	sort: ByBookSort;
+	sortDir: ByBookSortDir;
+	testament: ByBookTestamentFilter;
+	hasSermons: boolean;
+	noCommentaries: boolean;
+	hasFourStar: boolean;
+};
+
+/** Commentary (or Also-on-shelf book) hit for one Bible book. */
+export type ByBookShelfHit = {
+	kind: 'book' | 'essay';
+	/** Book id, or parent book id for essays. */
+	bookId: string;
+	/** Essay id when `kind === 'essay'`. */
+	essayId: string | null;
+	title: string;
+	/** Short author line, or null when unknown / unsigned. */
+	authorShort: string | null;
+	/** 1–5 when rated; null = unrated (commentaries still list). */
+	rating: number | null;
+	genre: string | null;
+	href: string;
+};
+
+export type ByBookRow = {
+	bibleBook: string;
+	canonIndex: number;
+	testament: 'ot' | 'nt';
+	sermonCount: number;
+	commentaryCount: number;
+	fourStarCount: number;
+	commentaries: ByBookShelfHit[];
+	alsoOnShelf: ByBookShelfHit[];
+};
+
+export type ByBookSummary = {
+	/** Distinct live sermons with ≥1 structured passage. */
+	sermonTotal: number;
+	/** Distinct Commentary-genre books with ≥1 bible coverage. */
+	commentaryTotal: number;
+	/** Distinct commentaries rated ≥4. */
+	fourStarTotal: number;
 };

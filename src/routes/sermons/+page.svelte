@@ -4,6 +4,7 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import SermonFormSheet from '$lib/components/sermon-form-sheet.svelte';
+	import SermonsViewToggle from '$lib/components/sermons-view-toggle.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
@@ -22,6 +23,7 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import X from '@lucide/svelte/icons/x';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -102,14 +104,17 @@
 		year?: number | null;
 		context?: ContextType | null;
 		venueId?: string | null;
+		bibleBook?: string | null;
 	}) {
 		const params = new URLSearchParams();
 		const year = next.year !== undefined ? next.year : data.filters.year;
 		const context = next.context !== undefined ? next.context : data.filters.context;
 		const venueId = next.venueId !== undefined ? next.venueId : data.filters.venueId;
+		const bibleBook = next.bibleBook !== undefined ? next.bibleBook : data.filters.bibleBook;
 		if (year != null) params.set('year', String(year));
 		if (context) params.set('context', context);
 		if (venueId) params.set('venue', venueId);
+		if (bibleBook) params.set('bible_book', bibleBook);
 		const qs = params.toString();
 		void goto(`/sermons${qs ? `?${qs}` : ''}`, { keepFocus: true, noScroll: true });
 	}
@@ -133,17 +138,43 @@
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 pb-tabbar">
 	<PageHeader title="Sermons" subtitle="Sermons you have preached — draft with a date, fill in later.">
 		{#snippet actions()}
-			{#if data.isOwner}
-				<Button type="button" class="gap-2" hotkey="b" onclick={openCreate}>
-					<Plus class="size-4" />
-					<HotkeyLabel label="New sermon" mnemonic="b" />
-				</Button>
-			{/if}
+			<div class="flex flex-wrap items-center gap-2">
+				<SermonsViewToggle active="list" />
+				{#if data.isOwner}
+					<Button type="button" class="gap-2" hotkey="b" onclick={openCreate}>
+						<Plus class="size-4" />
+						<HotkeyLabel label="New sermon" mnemonic="b" />
+					</Button>
+				{/if}
+			</div>
 		{/snippet}
 	</PageHeader>
 
 	{#if data.loadError}
 		<p class="mt-4 text-sm text-destructive" role="alert">{data.loadError}</p>
+	{/if}
+
+	{#if data.filters.bibleBook}
+		<div
+			class="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm"
+		>
+			<span class="text-muted-foreground">Bible book:</span>
+			<span class="font-medium">{data.filters.bibleBook}</span>
+			<button
+				type="button"
+				class="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-background hover:text-foreground"
+				onclick={() => pushFilters({ bibleBook: null })}
+			>
+				<X class="size-3" />
+				Clear
+			</button>
+			<a
+				href="/sermons/by-book"
+				class="text-xs text-muted-foreground underline-offset-2 hover:underline"
+			>
+				Back to by-book
+			</a>
+		</div>
 	{/if}
 
 	<div class="mt-4 flex flex-wrap gap-2">

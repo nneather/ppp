@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-19 — **Sermons by-book stats grilled** ([brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md](brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md)); Session 2 prompt filed below. Prior: Goodreads triage ([093](docs/decisions/093-goodreads-triage-execution.md)).
+**Last updated:** 2026-07-19 — **Sermons Session 2** ([095](docs/decisions/095-sermons-by-book-stats.md)): `/sermons/by-book` commentary × sermon spine. Prior: writing-session gaps ([094](docs/decisions/094-library-writing-session-gaps.md)); Goodreads triage ([093](docs/decisions/093-goodreads-triage-execution.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,7 @@
 
 ## Current focus
 
-**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). Still queued: **library writing-session gaps**. MYN 2-week adoption trial runs through ~2026-07-20.
+**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). **Writing-session gaps shipped** ([094](docs/decisions/094-library-writing-session-gaps.md)). MYN 2-week adoption trial runs through ~2026-07-20.
 
 **Review queue — research cleanup done ([087](docs/decisions/087-library-review-queue-research-cleanup.md)):** non-shelf `needs_review` and pending proposals drained to **0**. Remaining: **Needs the shelf** deck (**50** books — ISBN/year/publisher/edition). Decks/sprints/proposals UI from [067](docs/decisions/067-library-review-sprint-decks.md)+[068](docs/decisions/068-library-review-ai-research-pass.md) still the workflow for Madison. Taxonomy: Politics and Policy, Leadership, Literary Criticism, Church Fathers, Ancient Biblical Sources, Children's and Young Adult; `books.copy_count` for multi-copy rows.
 
@@ -34,9 +34,9 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)), PDF email MIME harden ([078](docs/decisions/078-invoice-email-pdf-mime.md)), PDF email diagnostics runbook ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 shipped** — latest: `.docx` bibliography export ([063](docs/decisions/063-library-wave2-session4-docx-export.md)). **Next: August shelf QA** (all 20 fixture rows). **Apply essay seed** if not live; owner phone smoke after split; `.docx` Word smoke. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 + writing-session gaps** ([094](docs/decisions/094-library-writing-session-gaps.md)). **Next: August shelf QA** (all 20 fixture rows). Owner phone smoke of copy row. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), links, audit. **Owner:** finish Resend webhook secrets (see [supabase/README.md](supabase/README.md)). **Viewer access:** owner-only by design. **Backlog:** polish, global Now ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)). |
-| Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ **v1 Session 1** ([091](docs/decisions/091-sermons-session-1.md)): `/sermons` + venues + seed + Find-in-library. **Next: Session 2** — `/sermons/by-book` commentary×sermon stats (grill locked; see Session prompts). **Owner:** phone smoke Session 1 if not done. |
+| Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ **v1 Sessions 1–2** ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md)): `/sermons` + venues + seed + Find-in-library + `/sermons/by-book`. **Owner:** phone smoke list + by-book if not done. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -44,10 +44,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [095 — Sermons by-book stats](docs/decisions/095-sermons-by-book-stats.md) (2026-07-19) — `/sermons/by-book` canon spine: sermons × commentaries (4★+) × Also on shelf; List \| By book toggle; `bible_book` list filter.
+- [094 — Library writing-session gaps](docs/decisions/094-library-writing-session-gaps.md) (2026-07-19) — short-form + page input + incomplete citation hint; essay short form; `work_type` reference sweep.
 - [093 — Goodreads triage execution](docs/decisions/093-goodreads-triage-execution.md) (2026-07-18) — applied unmatched triage (fixes/ratings/essays/owned adds) + matcher polish; not-owned queue file.
-- [092 — Commentary batch (no-ISBN shelf)](docs/decisions/092-commentary-batch-no-isbn.md) (2026-07-18) — 8 commentaries + series BNTC/CCL/IVPNTC; Meyers AB vol 25B; bible coverage attached.
-- [091 — Sermons Session 1](docs/decisions/091-sermons-session-1.md) (2026-07-17) — `/sermons` CRUD + venues + seed + library deep-link; migration applied.
-- [089 — Book rating UI + Goodreads import](docs/decisions/089-book-rating-ui-goodreads-import.md) (2026-07-17) — star scale + detail-page rating/notes; Goodreads CSV ISBN match at `/settings/library/goodreads`.
 - [088 — Commentary Bible coverage cleanup](docs/decisions/088-commentary-bible-coverage-cleanup.md) (2026-07-17) — 363 coverage rows; IVP Background → Biblical Reference; NIB Vol X essays (Boring/Wright/Sampley); 8 intentional untagged (thematic + deuterocanonical).
 - [087 — Library review-queue research cleanup](docs/decisions/087-library-review-queue-research-cleanup.md) (2026-07-17) — non-shelf review + proposals → 0; 50 shelf-bound remain; genre taxonomy + `copy_count`; Church Fathers / Ancient Biblical Sources / Children's and Young Adult.
 - [083 — Invoice PDF email diagnostics](docs/decisions/083-invoice-pdf-email-diagnostics.md) (2026-07-14) — owner runbook for same-org “one can open PDF / one cannot”; collect Resend + Show original + manual attach A/B before more MIME changes.
@@ -73,7 +72,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Projects migrations (prod):** `20260603170000_ppp_projects_v1.sql`, `20260603200000_projects_add_not_started_lifecycle.sql`, `20260604030000_ppp_project_tasks_myn.sql`, `20260604100000_project_updates_progress.sql`, `20260709164016_projects_email_inbox_and_domain_colors.sql`.
 
-**Sermons:** `/sermons` list + Sheet; `/settings/sermons/venues`; helpers `src/lib/sermons/`; migration `20260717190000_ppp_sermons_v1.sql` ([091](docs/decisions/091-sermons-session-1.md)).
+**Sermons:** `/sermons` list + Sheet; `/sermons/by-book` commentary × sermon spine; `/settings/sermons/venues`; helpers `src/lib/sermons/`; migration `20260717190000_ppp_sermons_v1.sql` ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md)).
 
 **Invoicing helpers:** `src/lib/invoicing/` — `chicago-date.ts`, `hours.ts`, `consultation-lines.ts` ([050]). Loaders/actions live inline in route `+page.server.ts` files **by design** (see AGENTS.md › Module structure).
 
@@ -81,7 +80,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` **0 errors** + `npm run test` **250/250** (2026-07-18, [093](docs/decisions/093-goodreads-triage-execution.md)).
+**Repo gate:** `npm run check` **0 errors** + `npm run test` **261/261** (2026-07-19, [095](docs/decisions/095-sermons-by-book-stats.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -95,42 +94,13 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Session prompts (copy-paste)
 
-### Sermons — Session 2: by-book commentary × sermon stats (grill locked)
+### Sermons — Session 2: by-book commentary × sermon stats ✅ done ([095](docs/decisions/095-sermons-by-book-stats.md))
 
 Spec: [brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md](brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md). Tracker: [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md).
 
 ```
 Session: sermons #2 — by-book commentary × sermon stats
-Tracker: docs/POS_Sermons_Build_Tracker.md, Session 2
-Read: AGENTS.md, docs/POS_Sermons_Build_Tracker.md,
-  brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md (grill — source of truth),
-  docs/decisions/090-sermons-session-0.md, docs/decisions/091-sermons-session-1.md,
-  docs/decisions/088-commentary-bible-coverage-cleanup.md, docs/decisions/089-book-rating-ui-goodreads-import.md,
-  src/lib/sermons/, src/lib/library/bible-book-names.ts, src/routes/sermons/,
-  src/routes/library/search-passage/
-Supabase: hosted only — no migration expected (aggregate existing tables)
-Goal: Bible-book spine under Sermons showing sermons preached + commentaries (with 4★+ quality cue)
-  + collapsible Also on shelf; flexible sort/filter; mobile-first.
-Acceptance:
- - [ ] Route `/sermons/by-book` + shared List | By book control with `/sermons`
- - [ ] All Protestant canon rows always (OT→NT); empty = 0 / none
- - [ ] Header summary totals (sermons / commentaries / books with 4★+ — exact copy OK to refine)
- - [ ] Collapsed row: name · sermon count · commentary count · `N · 4★+` only when N>0
- - [ ] Expanded: Commentary genre + book_bible_coverage list (title, author short, stars/—, link to book detail);
-       sort rated high→low then title, unrated last; Biblical Reference excluded from primary
- - [ ] Also on shelf (further collapsed): essays + non-Commentary book_bible_coverage for that bible_book
- - [ ] Sermon count = distinct live sermons with ≥1 live sermon_passages for that bible_book
- - [ ] Sort: Canon | Sermons | Commentaries | 4★+ — each most↔least; filters: OT | NT | Has sermons |
-       No commentaries | Has 4★+; default canon order; no charts
- - [ ] Drill-downs: sermon count → `/sermons?bible_book=…` (add list filter); Find in library →
-       `/library/search-passage?bible_book=…`; commentary → `/library/books/[id]`
- - [ ] Loader in src/lib/sermons/server/ — no new tables; prefetch coverage details
- - [ ] Mobile-first: sticky sort/filter, large taps, one-row expand, compact filters on small screens
- - [ ] Out of scope: chapter/verse-range shelf hits (Bonhoeffer Matt 5–7); OT/NT section headers;
-       expand-state persistence
- - [ ] npm run check + npm run test pass; mobile-width screenshot of by-book list
-End-of-session: tracker Session 2 done, docs/decisions/094-sermons-by-book-stats.md (or next free),
-  PLAN.md + AGENTS.md / components.mdc if new helpers/components, copy-paste commit message
+… (shipped 2026-07-19)
 ```
 
 ### Invoicing — outgoing PDF diagnostics (owner; after [078](docs/decisions/078-invoice-email-pdf-mime.md) / [083](docs/decisions/083-invoice-pdf-email-diagnostics.md))
@@ -155,27 +125,7 @@ Bring those four into chat; then decide MIME tweak vs org/client fix.
 
 ### Library — essay visibility + article discovery in search ✅ done ([086](docs/decisions/086-essay-visibility-and-search-lanes.md))
 
-### Library Wave 2 — writing-session gaps (short form + page input) — from [065](docs/decisions/065-writing-workflow-review.md) Q6
-
-```
-Session: library — writing-session gaps (subsequent footnotes + page numbers)
-Tracker: docs/POS_Library_Build_Tracker.md, Wave 2 (add row)
-Read: AGENTS.md, .cursor/rules/library-module.mdc, docs/reviews/2026-07-07-writing-workflow.md,
-  docs/decisions/065-writing-workflow-review.md, src/lib/library/turabian/ (format.ts shortForm path, article.ts),
-  src/routes/library/books/[id]/+page.svelte (copy buttons)
-Supabase: hosted `db push` only — no migration expected
-Goal: Make the per-footnote flow real-paper-ready: short-form copy + page input + incomplete-citation hint.
-Acceptance:
- - [ ] "Copy short form" beside Footnote/Bibliography on /library/books/[id] and on essay rows;
-       books use formatFootnote({ shortForm: 'short' }); essays get a short-form branch in article.ts
-       (signed: `Sanders, "Canon," 836.`; TDNT abbreviated form already short — reuse)
- - [ ] Page input beside the copy buttons feeds opts.page (books + essays); empty keeps `[page]`
- - [ ] No auto-"Ibid." anywhere — short form is the only subsequent-note affordance (065)
- - [ ] Amber "Citation may be incomplete — missing: …" caption via computeMissingImportant / needs_review
- - [ ] Unit tests: essay short form; fixture row 20 stays green
- - [ ] npm run check + npm run test pass; mobile-width screenshot of the copy row
-End-of-session: tracker row added+ticked, docs/decisions/<next-free>-*.md, PLAN.md refreshed
-```
+### Library Wave 2 — writing-session gaps (subsequent footnotes + page numbers) ✅ done ([094](docs/decisions/094-library-writing-session-gaps.md))
 
 ### Library — review-queue improvement + AI research pass ✅ done, full backlog run ✅ done ([067](docs/decisions/067-library-review-sprint-decks.md) + [068](docs/decisions/068-library-review-ai-research-pass.md) + [070](docs/decisions/070-library-genre-taxonomy-audit.md))
 
@@ -314,12 +264,10 @@ Acceptance:
 
 ## Next up
 
-1. **Sermons — Session 2: by-book stats** — `/sermons/by-book` (grill locked). See Session prompts + [brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md](brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md).
-2. **Library — writing-session gaps** ([065](docs/decisions/065-writing-workflow-review.md) Q6) — short-form copy + page input + incomplete-citation hint. See Session prompts. Plus owner-commissioned **`work_type` SQL sweep** (Q8) before or with it.
-3. **Owner smokes** — phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 (seed is live) **+ essay preview / open-by-default + Articles-in-volumes search** ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4 — soft-delete via UI); **cold-start / nav watchdog** ([072](docs/decisions/072-pwa-cold-start-resilience.md)) + **resume auto-update / silent chunk recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)); glance Actions after next Monday weekly backup ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)); **sermons list phone smoke** ([091](docs/decisions/091-sermons-session-1.md)).
-4. **Library — review queue non-shelf drained** ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) — Research deck empty. Next review work is **Madison Needs the shelf** (50 books).
-5. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now). **Email capture ready** once Resend webhook secrets are set ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
-6. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts. **Plus:** drain the "Needs the shelf" review deck (**50** books, [087](docs/decisions/087-library-review-queue-research-cleanup.md)).
-7. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
-8. **Library — not owned / research stubs** (Parker to plan; [089](docs/decisions/089-book-rating-ui-goodreads-import.md), queue [brainstorms/2026-07-17-goodreads-not-owned-queue.md](brainstorms/2026-07-17-goodreads-not-owned-queue.md)) — `owned` flag, hide from `/library` search by default, selective create from queue, matched ISBN/year/publisher diffs. Also: Harvard Classics full essay breakout ([093](docs/decisions/093-goodreads-triage-execution.md)).
-9. **Invoicing:** first real-client send cadence (owner-driven). **Owner:** if outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.
+1. **Owner smokes** — phone smoke `/sermons/by-book` ([095](docs/decisions/095-sermons-by-book-stats.md)); sermons list ([091](docs/decisions/091-sermons-session-1.md)); writing-session copy row ([094](docs/decisions/094-library-writing-session-gaps.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 **+ essay preview / Articles-in-volumes search** ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4); **cold-start / nav watchdog** ([072](docs/decisions/072-pwa-cold-start-resilience.md)) + **resume auto-update** ([082](docs/decisions/082-pwa-update-auto-recover.md)); glance Actions after next Monday weekly backup ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)).
+2. **Library — review queue non-shelf drained** ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) — Research deck empty. Next review work is **Madison Needs the shelf** (50 books).
+3. **MYN adoption trial** ([064](docs/decisions/064-usage-retrospective-review.md) Q1) — `/tasks` as the only task list through ~2026-07-20, then re-decide (adopted vs. freeze + cancel global-Now). **Email capture ready** once Resend webhook secrets are set ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
+4. **Library Wave 2 — August shelf QA** — 20 fixture rows against the shelf **+ Covenant-guide string validation** ([065](docs/decisions/065-writing-workflow-review.md) Q9). See Session prompts. **Plus:** drain the "Needs the shelf" review deck (**50** books, [087](docs/decisions/087-library-review-queue-research-cleanup.md)).
+5. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
+6. **Library — not owned / research stubs** (Parker to plan; [089](docs/decisions/089-book-rating-ui-goodreads-import.md), queue [brainstorms/2026-07-17-goodreads-not-owned-queue.md](brainstorms/2026-07-17-goodreads-not-owned-queue.md)) — `owned` flag, hide from `/library` search by default, selective create from queue, matched ISBN/year/publisher diffs. Also: Harvard Classics full essay breakout ([093](docs/decisions/093-goodreads-triage-execution.md)).
+7. **Invoicing:** first real-client send cadence (owner-driven). **Owner:** if outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.

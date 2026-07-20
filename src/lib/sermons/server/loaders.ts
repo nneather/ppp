@@ -1,13 +1,28 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { authorsLabelForBook } from '$lib/library/authors-label';
+import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
+import {
+	emptyByBookRows,
+	filterByBookRows,
+	parseByBookListFilters,
+	sortByBookRows,
+	sortShelfHits,
+	summarizeByBookRows
+} from '$lib/sermons/by-book';
+import { librarySearchHref } from '$lib/sermons/passage-parse';
+import type { PersonRow } from '$lib/types/library';
 import {
 	CONTEXT_TYPES,
+	type ByBookListFilters,
+	type ByBookRow,
+	type ByBookShelfHit,
+	type ByBookSummary,
 	type ContextType,
 	type SermonListFilters,
 	type SermonListRow,
 	type SermonPassageRow,
 	type SermonVenueRow
 } from '$lib/types/sermons';
-import { librarySearchHref } from '$lib/sermons/passage-parse';
 
 type VenueDb = {
 	id: string;
@@ -93,8 +108,34 @@ export async function loadSermonVenues(supabase: SupabaseClient): Promise<{
 
 export async function loadSermons(
 	supabase: SupabaseClient,
-	filters: SermonListFilters = { year: null, context: null, venueId: null }
+	filters: SermonListFilters = {
+		year: null,
+		context: null,
+		venueId: null,
+		bibleBook: null
+	}
 ): Promise<{ sermons: SermonListRow[]; error: string | null }> {
+	let sermonIdFilter: string[] | null = null;
+	if (filters.bibleBook) {
+		const passRes = await supabase
+			.from('sermon_passages')
+			.select('sermon_id')
+			.eq('bible_book', filters.bibleBook)
+			.is('deleted_at', null);
+		if (passRes.error) {
+			console.error('[sermons] bible_book passage filter', passRes.error);
+			return { sermons: [], error: passRes.error.message };
+		}
+		sermonIdFilter = [
+			...new Set(
+				((passRes.data ?? []) as { sermon_id: string }[]).map((r) => r.sermon_id)
+			)
+		];
+		if (sermonIdFilter.length === 0) {
+			return { sermons: [], error: null };
+		}
+	}
+
 	let q = supabase
 		.from('sermons')
 		.select('id, preached_on, venue_id, context_type, topic, passage_display, notes')
@@ -111,6 +152,9 @@ export async function loadSermons(
 		q = q
 			.gte('preached_on', `${filters.year}-01-01`)
 			.lte('preached_on', `${filters.year}-12-31`);
+	}
+	if (sermonIdFilter) {
+		q = q.in('id', sermonIdFilter);
 	}
 
 	const sermonsRes = await q;
@@ -206,5 +250,303 @@ export function parseSermonListFilters(url: URL): SermonListFilters {
 			? venueRaw
 			: null;
 
-	return { year, context, venueId };
+	const bibleBookRaw = (url.searchParams.get('bible_book') ?? '').trim();
+	const bibleBook =
+		bibleBookRaw && (BIBLE_BOOK_NAMES as readonly string[]).includes(bibleBookRaw)
+			? bibleBookRaw
+			: null;
+
+	return { year, context, venueId, bibleBook };
 }
+
+// ---------------------------------------------------------------------------
+// By-book commentary × sermon stats
+// ---------------------------------------------------------------------------
+
+type CovBookEmbed = {
+	id: string;
+	title: string | null;
+	genre: string | null;
+	rating: number | null;
+	deleted_at: string | null;
+};
+
+type CovEssayEmbed = {
+	id: string;
+	essay_title: string;
+	deleted_at: string | null;
+	parent_book_id: string;
+	books:
+		| { id: string; title: string | null; deleted_at: string | null }
+		| { id: string; title: string | null; deleted_at: string | null }[]
+		| null;
+};
+
+type CoverageDb = {
+	id: string;
+	bible_book: string;
+	book_id: string | null;
+	essay_id: string | null;
+	books: CovBookEmbed | CovBookEmbed[] | null;
+	essays: CovEssayEmbed | CovEssayEmbed[] | null;
+};
+
+type AuthorJunctionDb = {
+	book_id: string;
+	person_id: string;
+	sort_order: number;
+	role: string;
+};
+
+type EssayAuthorDb = {
+	essay_id: string;
+	person_id: string;
+	sort_order: number;
+	role: string;
+};
+
+type PersonDb = {
+	id: string;
+	first_name: string | null;
+	middle_name: string | null;
+	last_name: string;
+	suffix: string | null;
+	aliases: string[] | null;
+};
+
+function oneEmbed<T>(v: T | T[] | null | undefined): T | null {
+	if (v == null) return null;
+	return Array.isArray(v) ? (v[0] ?? null) : v;
+}
+
+function personFromDb(p: PersonDb): PersonRow {
+	return {
+		id: p.id,
+		first_name: p.first_name,
+		middle_name: p.middle_name,
+		last_name: p.last_name,
+		suffix: p.suffix,
+		aliases: Array.isArray(p.aliases) ? p.aliases : []
+	};
+}
+
+function essayAuthorShort(
+	essayId: string,
+	essayAuthors: EssayAuthorDb[],
+	peopleMap: Map<string, PersonRow>
+): string | null {
+	const rows = essayAuthors
+		.filter((a) => a.essay_id === essayId)
+		.sort((a, b) => a.sort_order - b.sort_order);
+	if (rows.length === 0) return null;
+	return authorsLabelForBook(
+		rows.map((a) => ({ person_id: a.person_id, sort_order: a.sort_order, role: a.role })),
+		peopleMap
+	);
+}
+
+/**
+ * Assemble the Protestant canon spine with sermon counts + Commentary coverage
+ * (and Also on shelf). No new tables — aggregates existing rows.
+ */
+export async function loadByBookStats(
+	supabase: SupabaseClient,
+	filters: ByBookListFilters
+): Promise<{
+	rows: ByBookRow[];
+	summary: ByBookSummary;
+	filters: ByBookListFilters;
+	error: string | null;
+}> {
+	const [passagesRes, coverageRes] = await Promise.all([
+		supabase
+			.from('sermon_passages')
+			.select('sermon_id, bible_book, sermons!inner ( id, deleted_at )')
+			.is('deleted_at', null)
+			.is('sermons.deleted_at', null),
+		supabase.from('book_bible_coverage').select(
+			`
+			id,
+			bible_book,
+			book_id,
+			essay_id,
+			books ( id, title, genre, rating, deleted_at ),
+			essays (
+				id,
+				essay_title,
+				deleted_at,
+				parent_book_id,
+				books!essays_parent_book_id_fkey ( id, title, deleted_at )
+			)
+		`
+		)
+	]);
+
+	if (passagesRes.error) {
+		console.error('[sermons] loadByBookStats passages', passagesRes.error);
+		return {
+			rows: emptyByBookRows(),
+			summary: { sermonTotal: 0, commentaryTotal: 0, fourStarTotal: 0 },
+			filters,
+			error: passagesRes.error.message
+		};
+	}
+	if (coverageRes.error) {
+		console.error('[sermons] loadByBookStats coverage', coverageRes.error);
+		return {
+			rows: emptyByBookRows(),
+			summary: { sermonTotal: 0, commentaryTotal: 0, fourStarTotal: 0 },
+			filters,
+			error: coverageRes.error.message
+		};
+	}
+
+	const sermonIdsByBook = new Map<string, Set<string>>();
+	const allSermonIds = new Set<string>();
+	for (const raw of passagesRes.data ?? []) {
+		const row = raw as {
+			sermon_id: string;
+			bible_book: string;
+		};
+		allSermonIds.add(row.sermon_id);
+		const set = sermonIdsByBook.get(row.bible_book) ?? new Set<string>();
+		set.add(row.sermon_id);
+		sermonIdsByBook.set(row.bible_book, set);
+	}
+
+	const covRows = (coverageRes.data ?? []) as unknown as CoverageDb[];
+	const bookIds = new Set<string>();
+	const essayIds = new Set<string>();
+	for (const c of covRows) {
+		if (c.book_id) bookIds.add(c.book_id);
+		if (c.essay_id) essayIds.add(c.essay_id);
+	}
+
+	const [authorsRes, essayAuthorsRes] = await Promise.all([
+		bookIds.size
+			? supabase
+					.from('book_authors')
+					.select('book_id, person_id, sort_order, role')
+					.in('book_id', [...bookIds])
+			: Promise.resolve({ data: [] as AuthorJunctionDb[], error: null }),
+		essayIds.size
+			? supabase
+					.from('essay_authors')
+					.select('essay_id, person_id, sort_order, role')
+					.in('essay_id', [...essayIds])
+			: Promise.resolve({ data: [] as EssayAuthorDb[], error: null })
+	]);
+
+	if (authorsRes.error) console.error('[sermons] by-book book_authors', authorsRes.error);
+	if (essayAuthorsRes.error) {
+		console.error('[sermons] by-book essay_authors', essayAuthorsRes.error);
+	}
+
+	const authorRows = (authorsRes.data ?? []) as AuthorJunctionDb[];
+	const essayAuthorRows = (essayAuthorsRes.data ?? []) as EssayAuthorDb[];
+	const personIds = [
+		...new Set([
+			...authorRows.map((a) => a.person_id),
+			...essayAuthorRows.map((a) => a.person_id)
+		])
+	];
+
+	const peopleRes = personIds.length
+		? await supabase
+				.from('people')
+				.select('id, first_name, middle_name, last_name, suffix, aliases')
+				.in('id', personIds)
+				.is('deleted_at', null)
+		: { data: [] as PersonDb[], error: null };
+
+	if (peopleRes.error) console.error('[sermons] by-book people', peopleRes.error);
+
+	const peopleMap = new Map<string, PersonRow>();
+	for (const p of (peopleRes.data ?? []) as PersonDb[]) {
+		peopleMap.set(p.id, personFromDb(p));
+	}
+
+	const authorsByBook = new Map<string, AuthorJunctionDb[]>();
+	for (const a of authorRows) {
+		const list = authorsByBook.get(a.book_id) ?? [];
+		list.push(a);
+		authorsByBook.set(a.book_id, list);
+	}
+
+	const commentariesByBook = new Map<string, ByBookShelfHit[]>();
+	const alsoByBook = new Map<string, ByBookShelfHit[]>();
+
+	for (const c of covRows) {
+		if (!(BIBLE_BOOK_NAMES as readonly string[]).includes(c.bible_book)) continue;
+
+		if (c.essay_id) {
+			const essay = oneEmbed(c.essays);
+			if (!essay || essay.deleted_at) continue;
+			const parent = oneEmbed(essay.books);
+			if (!parent || parent.deleted_at) continue;
+			const hit: ByBookShelfHit = {
+				kind: 'essay',
+				bookId: parent.id,
+				essayId: essay.id,
+				title: essay.essay_title,
+				authorShort: essayAuthorShort(essay.id, essayAuthorRows, peopleMap),
+				rating: null,
+				genre: null,
+				href: `/library/books/${parent.id}#essay-${essay.id}`
+			};
+			const list = alsoByBook.get(c.bible_book) ?? [];
+			list.push(hit);
+			alsoByBook.set(c.bible_book, list);
+			continue;
+		}
+
+		const book = oneEmbed(c.books);
+		if (!book || book.deleted_at || !c.book_id) continue;
+
+		const authorShort = authorsLabelForBook(authorsByBook.get(book.id) ?? [], peopleMap);
+		const hit: ByBookShelfHit = {
+			kind: 'book',
+			bookId: book.id,
+			essayId: null,
+			title: (book.title ?? '').trim() || 'Untitled',
+			authorShort,
+			rating: book.rating,
+			genre: book.genre,
+			href: `/library/books/${book.id}`
+		};
+
+		if (book.genre === 'Commentary') {
+			const list = commentariesByBook.get(c.bible_book) ?? [];
+			list.push(hit);
+			commentariesByBook.set(c.bible_book, list);
+		} else {
+			// Biblical Reference + every other genre with coverage
+			const list = alsoByBook.get(c.bible_book) ?? [];
+			list.push(hit);
+			alsoByBook.set(c.bible_book, list);
+		}
+	}
+
+	const assembled = emptyByBookRows().map((row) => {
+		const sermonCount = sermonIdsByBook.get(row.bibleBook)?.size ?? 0;
+		const commentaries = sortShelfHits(commentariesByBook.get(row.bibleBook) ?? []);
+		const alsoOnShelf = sortShelfHits(alsoByBook.get(row.bibleBook) ?? []);
+		const fourStarCount = commentaries.filter((h) => h.rating != null && h.rating >= 4).length;
+		return {
+			...row,
+			sermonCount,
+			commentaryCount: commentaries.length,
+			fourStarCount,
+			commentaries,
+			alsoOnShelf
+		};
+	});
+
+	const summary = summarizeByBookRows(assembled, allSermonIds.size);
+	const filtered = filterByBookRows(assembled, filters);
+	const rows = sortByBookRows(filtered, filters.sort, filters.sortDir);
+
+	return { rows, summary, filters, error: null };
+}
+
+export { parseByBookListFilters };

@@ -60,6 +60,7 @@ If you reach for one of these capabilities, use the existing component.
 | MYN zoned task list (Critical / Opportunity / OTH, defer dialog, promote/complete; notes icon) | [src/lib/components/project-task-list.svelte](mdc:src/lib/components/project-task-list.svelte) |
 | MYN task create/edit Sheet (project, zone, start date, notes; sticky save bar) | [src/lib/components/project-task-sheet.svelte](mdc:src/lib/components/project-task-sheet.svelte) |
 | Sermon create/edit Sheet (date, venue, context C/P/A, topic, passage display + structured rows, notes; inline venue create) | [src/lib/components/sermon-form-sheet.svelte](mdc:src/lib/components/sermon-form-sheet.svelte) |
+| Sermons List \| By book view toggle (shared by `/sermons` + `/sermons/by-book`) | [src/lib/components/sermons-view-toggle.svelte](mdc:src/lib/components/sermons-view-toggle.svelte) |
 | Project links inline editor (metadata Sheet, edit mode) | [src/lib/components/project-links-editor.svelte](mdc:src/lib/components/project-links-editor.svelte) |
 | Projects health/lifecycle visual tokens (Epic hex + picker segment classes, lifecycle badge) | [src/lib/projects/health-appearance.ts](mdc:src/lib/projects/health-appearance.ts) |
 | Domain color palette keys + static Tailwind class maps | [src/lib/projects/project-colors.ts](mdc:src/lib/projects/project-colors.ts) |

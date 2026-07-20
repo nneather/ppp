@@ -17,7 +17,7 @@ Status: **Grill complete** — ready for Session prompt / build
 
 ## Suggested next step
 - [x] Session prompt appended to PLAN.md › Session prompts (2026-07-19).
-- Build when ready: paste that prompt; file `docs/decisions/094-sermons-by-book-stats.md` (or next free) at session end.
+- [x] Built — [095](../docs/decisions/095-sermons-by-book-stats.md) (2026-07-19).
 
 ## Repo context (read before Q1; not user answers)
 - Sermons module v1 just shipped (`/sermons`, [090]/[091]): passages via `sermon_passages.bible_book` + human `passage_display`; library hook is deep-link to `/library/search-passage` only (no FK).
