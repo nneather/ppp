@@ -15,7 +15,7 @@
 >
 > Standards live in those files; the tracker is the plan. Where this tracker would otherwise restate a standard, it links instead.
 
-_Last updated: July 6, 2026 | Module: Library (2nd) | **Trip build: complete** | **Wave 2: Sessions 1–4 complete — August shelf QA next**_
+_Last updated: July 19, 2026 | Module: Library (2nd) | **Trip build: complete** | **Wave 2: Sessions 1–4 + writing-session gaps complete — August shelf QA next**_
 
 **Trip owner QA:** **Signed off 2026-06-03** — library passable for trip / sermon prep; PWA performance tracked separately ([043](decisions/043-library-trip-qa-signoff-projects-handoff.md)). Runbook → [docs/library-trip-qa-runbook.md](library-trip-qa-runbook.md) (historical steps). **Viewer UI smoke (§B):** deferred until collaborator exists. **DB/RPC RLS:** optional `npm run test:rls` on **ppp-staging** ([042](decisions/042-rls-smoke-staging-harness.md)). Repo gate `npm run check` + `npm run test` passed 2026-05-19 ([033](decisions/033-library-pm-review-may-2026.md)).
 
@@ -34,6 +34,7 @@ _Post-trip; do not renumber Sessions 1–9 below._
 | **2** | Essays CRUD UI on book detail; per-essay copy; loaders + audit whitelist | ☑ 2026-07-06 |
 | **3** | Megacomponent split (`scripture-reference-form` → OCR queue + row editor; `book-form` → authors + publication + OL) | ☑ 2026-07-06 |
 | **4** | `.docx` export (hanging indent + italics) — `/library/bibliography/download` endpoint + `buildBibliographyDocx` + `parseCitationHtmlSegments`; reuses `formatBibliographyEntries` ([063](decisions/063-library-wave2-session4-docx-export.md)) | ☑ 2026-07-06 |
+| **Writing-session gaps** | Short-form copy + page input + incomplete-citation hint on book detail + essays; `work_type` reference sweep ([094](decisions/094-library-writing-session-gaps.md)) | ☑ 2026-07-19 |
 | **August** | Physical shelf verification of all 20 rows | ☐ |
 
 | Item | Notes | Decision / skill |

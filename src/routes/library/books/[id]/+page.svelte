@@ -7,7 +7,6 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -229,7 +228,7 @@
 			genre: data.book.genre,
 			work_type: data.book.work_type,
 			year: data.book.year,
-			publisher: data.book.publisher_canonical,
+			publisher: data.book.publisher ?? data.book.publisher_canonical,
 			authors: data.book.authors,
 			no_attributed_author: data.book.no_attributed_author
 		})

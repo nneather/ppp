@@ -87,15 +87,23 @@ export type BookFormPayload = {
 
 /**
  * Important fields / missing-citation helpers — pure module
- * `$lib/library/missing-important` (client-safe). Re-export for save-time callers.
+ * `$lib/library/missing-important` (client-safe).
  */
-export {
+import {
 	IMPORTANT_FIELDS,
 	computeMissingImportant,
 	incompleteCitationCaption,
 	type ImportantField,
 	type MissingImportantAuthor
 } from '$lib/library/missing-important';
+
+export {
+	IMPORTANT_FIELDS,
+	computeMissingImportant,
+	incompleteCitationCaption,
+	type ImportantField,
+	type MissingImportantAuthor
+};
 
 const GENRE_SET: ReadonlySet<string> = new Set(GENRES);
 const LANGUAGE_SET: ReadonlySet<string> = new Set(LANGUAGES);

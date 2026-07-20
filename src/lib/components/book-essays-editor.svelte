@@ -167,6 +167,9 @@
 		return labels.length > 0 ? labels.join(', ') : null;
 	}
 
+	/** Shared page override for essay note copy; empty keeps article range / `[page]`. */
+	let essayCitationPage = $state('');
+
 	function pageLabel(essay: EssayRow): string | null {
 		if (essay.page_start == null) return null;
 		if (essay.page_end != null && essay.page_end !== essay.page_start) {
@@ -179,20 +182,31 @@
 		return essayRowToCitationInput(essay);
 	}
 
-	async function copyEssayCitation(essay: EssayRow, kind: 'footnote' | 'bibliography') {
+	function essayPageOpts(): { page?: string; shortForm?: 'short' } {
+		const page = essayCitationPage.trim();
+		return page ? { page } : {};
+	}
+
+	async function copyEssayCitation(
+		essay: EssayRow,
+		kind: 'footnote' | 'bibliography' | 'short'
+	) {
 		if (!browser) return;
 		const input = essayInput(essay);
+		const opts = essayPageOpts();
 		const citation =
-			kind === 'footnote'
-				? formatEssayFootnote(input, volumeCitation)
-				: formatEssayBibliography(input, volumeCitation);
+			kind === 'bibliography'
+				? formatEssayBibliography(input, volumeCitation)
+				: kind === 'short'
+					? formatEssayFootnote(input, volumeCitation, { ...opts, shortForm: 'short' })
+					: formatEssayFootnote(input, volumeCitation, opts);
 		if (!citation.plain) {
 			onCopied?.('Nothing to copy.');
 			return;
 		}
 		try {
 			await copyCitationToClipboard(citation);
-			onCopied?.(`Copied ${kind}.`);
+			onCopied?.(kind === 'short' ? 'Copied short form.' : `Copied ${kind}.`);
 		} catch {
 			onCopied?.('Clipboard unavailable.');
 		}
@@ -317,6 +331,27 @@
 	</summary>
 
 	<div class="border-t border-border px-4 pb-4 pt-3">
+		{#if essays.length > 0}
+			<div class="mb-3 flex flex-wrap items-end gap-2">
+				<div class="space-y-1">
+					<Label for="essay-citation-page" class="text-xs text-muted-foreground">
+						Page (note copy)
+					</Label>
+					<Input
+						id="essay-citation-page"
+						type="text"
+						inputmode="numeric"
+						placeholder="article range"
+						bind:value={essayCitationPage}
+						class="h-10 w-28 text-base"
+						autocomplete="off"
+					/>
+				</div>
+				<p class="pb-2 text-xs text-muted-foreground">
+					Empty keeps the essay’s page range (or [page]).
+				</p>
+			</div>
+		{/if}
 		{#if isOwner && !addOpen && editingId == null}
 			<div class="mb-3 flex justify-end">
 				<Button type="button" variant="outline" size="sm" onclick={startAdd}>
@@ -369,6 +404,14 @@
 									onclick={() => copyEssayCitation(essay, 'footnote')}
 								>
 									<Copy class="size-4" /> Footnote
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onclick={() => copyEssayCitation(essay, 'short')}
+								>
+									<Copy class="size-4" /> Short form
 								</Button>
 								{#if bibAvailable(essay)}
 									<Button

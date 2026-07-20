@@ -15,6 +15,8 @@ export type MissingImportantAuthor = {
 	name?: string | null;
 	/** Detail rows use `person_label` instead of `name`. */
 	person_label?: string | null;
+	/** Allowed so form AuthorFormEntry objects pass without stripping. */
+	sort_order?: number;
 };
 
 function authorEntryPresent(e: MissingImportantAuthor, role: AuthorRole): boolean {

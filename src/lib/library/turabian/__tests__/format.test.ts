@@ -628,6 +628,24 @@ describe('formatBibliography', () => {
 		expect(fn.plain).toBe(
 			'James A. Sanders, "Canon," in David Noel Freedman, ed., Anchor Bible Dictionary (New York: Doubleday, 1992), s.v. "Canon," 835.'
 		);
+		expect(
+			formatEssayFootnote(
+				{
+					essay_title: 'Canon',
+					page_start: 835,
+					authors: [
+						{
+							person_id: 'a1',
+							person_label: 'James A. Sanders',
+							role: 'author',
+							sort_order: 0
+						}
+					]
+				},
+				volume,
+				{ page: '836', shortForm: 'short' }
+			).plain
+		).toBe('Sanders, "Canon," 836.');
 	});
 
 	it('formats dictionary essay s.v. footnote', () => {
