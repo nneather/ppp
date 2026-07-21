@@ -106,7 +106,7 @@
 
 ### 15 — Bible (footnote only)
 
-- **Footnote:** `Gen. 1:1 (English Standard Version).`
+- **Footnote:** `Gen 1:1 (English Standard Version).`
 - **Bibliography:** _(empty — standard Turabian treatment)_
 
 ### 16 — Unsigned lexicon s.v.

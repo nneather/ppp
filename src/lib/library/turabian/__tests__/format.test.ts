@@ -365,10 +365,10 @@ describe('formatFootnote', () => {
 
 	it('formats bible footnote only', () => {
 		const fn = formatFootnote(book({ genre: 'Bibles' }), {
-			page: 'Gen. 1:1',
+			page: 'Gen 1:1',
 			bibleVersion: 'English Standard Version'
 		});
-		expect(fn.plain).toBe('Gen. 1:1 (English Standard Version).');
+		expect(fn.plain).toBe('Gen 1:1 (English Standard Version).');
 		expect(formatBibliography(book({ genre: 'Bibles' })).plain).toBe('');
 	});
 

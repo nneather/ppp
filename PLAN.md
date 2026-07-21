@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-21 — **Library not-owned Session 1 shipped** ([103](docs/decisions/103-library-not-owned-session-1.md)): `books.owned` + hide defaults + `/settings/library/not-owned`. Prior: August QA Track A ([102](docs/decisions/102-august-qa-covenant-fixtures.md)); Session 0 ([101](docs/decisions/101-library-not-owned-session-0.md)).
+**Last updated:** 2026-07-21 — **SBL series abbr cleanup** ([104](docs/decisions/104-sbl-series-abbr-cleanup.md)): ApOTC / K&D / MHC. Prior: not-owned Session 1 ([103](docs/decisions/103-library-not-owned-session-1.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -44,6 +44,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [104 — SBL series abbreviation cleanup](docs/decisions/104-sbl-series-abbr-cleanup.md) (2026-07-21) — Apollos→ApOTC; K&D off Continental; MHC off Moffatt (MNTC).
 - [103 — Library not-owned Session 1](docs/decisions/103-library-not-owned-session-1.md) (2026-07-21) — `books.owned` + default-hide + `/settings/library/not-owned` create-from-queue.
 - [102 — August QA Covenant fixtures](docs/decisions/102-august-qa-covenant-fixtures.md) (2026-07-21) — Track A: validated 20 expected strings vs Covenant; fixed signed abbrev + title-then-ed chapter form; dropped signed `s.v.` duplication.
 - [101 — Library not-owned Session 0](docs/decisions/101-library-not-owned-session-0.md) (2026-07-21) — Phase 0 lock: `books.owned`, hide defaults, create-from-queue settings page; matched diffs + HC essays deferred.

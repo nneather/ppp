@@ -195,8 +195,11 @@ FROM (VALUES
 	('Evangelisch-Katholischer Kommentar zum Neuen Testament', 'EKK'),
 	('Theological Wordbook of the Old Testament',        'TWOT'),
 	('Anchor Bible',                                     'AB'),
-	('Moffatt New Testament Commentary',                 'MH'),
-	('Continental Commentary',                           'COT')
+	('Moffatt New Testament Commentary',                 'MNTC'),
+	('Continental Commentary',                           'COT'),
+	('Keil and Delitzsch Commentary',                    'K&D'),
+	('Matthew Henry Commentary',                         'MHC'),
+	('Apollos Old Testament Commentary',                 'ApOTC')
 ) AS v(name, abbreviation)
 WHERE NOT EXISTS (
 	SELECT 1 FROM public.series s
