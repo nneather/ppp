@@ -62,16 +62,23 @@
 
 {#if $needRefresh && !suppressToast}
 	<div
-		class="fixed inset-x-0 bottom-tabbar z-[60] mx-auto flex w-full max-w-md flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-card-foreground shadow-lg md:bottom-6"
+		class="fixed inset-x-0 top-[max(0.5rem,env(safe-area-inset-top))] z-[60] mx-auto flex w-full max-w-sm flex-col gap-2 rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-card-foreground shadow-lg"
 		role="status"
 		aria-live="polite"
 	>
-		<p class="text-center leading-snug">New version available — refresh</p>
+		<p class="text-center text-xs leading-snug sm:text-sm">New version available — refresh when ready</p>
 		<div class="flex flex-wrap items-center justify-center gap-2">
-			<Button type="button" variant="default" hotkey="u" onclick={() => void applyUpdate()}>
+			<Button type="button" variant="default" size="sm" hotkey="u" onclick={() => void applyUpdate()}>
 				<HotkeyLabel label="Update now" mnemonic="u" />
 			</Button>
-			<Button type="button" variant="outline" hotkey="Escape" label="Dismiss" onclick={dismiss} />
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				hotkey="Escape"
+				label="Later"
+				onclick={dismiss}
+			/>
 		</div>
 	</div>
 {/if}

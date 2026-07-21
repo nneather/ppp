@@ -6,6 +6,8 @@ const RECOVERY_ATTEMPTED_KEY = 'ppp-chunk-recovery-at';
 const RECOVERY_COOLDOWN_MS = 20_000;
 
 let recovering = false;
+/** Owner dismissed the card — don't re-show until the next full load. */
+let dismissed = false;
 
 export function isChunkLoadFailure(message: string, source?: string): boolean {
 	const lower = message.toLowerCase();
@@ -45,60 +47,75 @@ function markRecoveryAttempt(): void {
 	}
 }
 
+const btnBase =
+	'padding:0.375rem 0.75rem;border:1px solid #e4e4e7;border-radius:0.375rem;font-size:0.8125rem;cursor:pointer;line-height:1.25';
+
 function showRecoveryCard(): void {
-	if (document.getElementById(RECOVERY_ID)) return;
+	if (dismissed || document.getElementById(RECOVERY_ID)) return;
 
 	const card = document.createElement('div');
 	card.id = RECOVERY_ID;
-	card.setAttribute('role', 'alertdialog');
-	card.setAttribute('aria-live', 'assertive');
+	// Non-modal: owner may finish a form (e.g. time entry Save) before clearing cache.
+	card.setAttribute('role', 'status');
+	card.setAttribute('aria-live', 'polite');
 	card.setAttribute(
 		'style',
 		[
 			'position:fixed',
 			'inset-inline:0',
-			'bottom:calc(env(safe-area-inset-bottom,0px) + 4.5rem)',
+			// Top — keep clear of sheet footers / sticky save bars / tab bar.
+			'top:calc(env(safe-area-inset-top,0px) + 0.5rem)',
 			'z-index:9998',
 			'margin:0 auto',
-			'max-width:24rem',
-			'padding:0.75rem 1rem',
+			'max-width:22rem',
+			'padding:0.5rem 0.75rem',
 			'border:1px solid #e4e4e7',
 			'border-radius:0.5rem',
 			'background:#ffffff',
-			'box-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1)',
+			'box-shadow:0 4px 12px -2px rgb(0 0 0 / 0.12)',
 			'font-family:ui-sans-serif,system-ui,-apple-system,sans-serif',
-			'font-size:0.875rem',
-			'line-height:1.5',
+			'font-size:0.8125rem',
+			'line-height:1.4',
 			'color:#18181b'
 		].join(';')
 	);
 
 	const message = document.createElement('p');
-	message.textContent = 'App update failed to load. Reload or clear cached files.';
-	message.setAttribute('style', 'margin:0 0 0.75rem;text-align:center');
+	message.textContent = "App update ready — clear cache when you're done.";
+	message.setAttribute('style', 'margin:0 0 0.5rem;text-align:center');
 
 	const actions = document.createElement('div');
-	actions.setAttribute('style', 'display:flex;flex-wrap:wrap;justify-content:center;gap:0.5rem');
-
-	const reloadBtn = document.createElement('button');
-	reloadBtn.type = 'button';
-	reloadBtn.textContent = 'Reload';
-	reloadBtn.setAttribute(
+	actions.setAttribute(
 		'style',
-		'padding:0.375rem 0.75rem;border:1px solid #e4e4e7;border-radius:0.375rem;background:#18181b;color:#fafafa;font-size:0.875rem;cursor:pointer'
+		'display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:0.375rem'
 	);
-	reloadBtn.onclick = () => window.location.reload();
 
 	const clearBtn = document.createElement('button');
 	clearBtn.type = 'button';
 	clearBtn.textContent = 'Clear cache';
-	clearBtn.setAttribute(
-		'style',
-		'padding:0.375rem 0.75rem;border:1px solid #e4e4e7;border-radius:0.375rem;background:#ffffff;color:#18181b;font-size:0.875rem;cursor:pointer'
-	);
+	clearBtn.setAttribute('style', `${btnBase};background:#18181b;color:#fafafa`);
 	clearBtn.onclick = () => void clearCacheAndReload();
 
-	actions.append(reloadBtn, clearBtn);
+	const reloadBtn = document.createElement('button');
+	reloadBtn.type = 'button';
+	reloadBtn.textContent = 'Reload';
+	reloadBtn.setAttribute('style', `${btnBase};background:#ffffff;color:#18181b`);
+	reloadBtn.onclick = () => window.location.reload();
+
+	const laterBtn = document.createElement('button');
+	laterBtn.type = 'button';
+	laterBtn.textContent = 'Later';
+	laterBtn.setAttribute(
+		'style',
+		`${btnBase};background:transparent;border-color:transparent;color:#71717a;text-decoration:underline;text-underline-offset:2px`
+	);
+	laterBtn.onclick = () => {
+		dismissed = true;
+		recovering = false;
+		card.remove();
+	};
+
+	actions.append(clearBtn, reloadBtn, laterBtn);
 	card.append(message, actions);
 	document.body.append(card);
 }
@@ -116,7 +133,7 @@ async function clearCacheAndReload(): Promise<void> {
 }
 
 async function recoverFromChunkFailure(): Promise<void> {
-	if (recovering) return;
+	if (recovering || dismissed) return;
 	recovering = true;
 
 	if (recentlyAttemptedRecovery()) {
