@@ -69,6 +69,11 @@
 		sheetOpen = true;
 	}
 
+	const editingSeries = $derived.by(() => {
+		if (!editingTask?.series_id) return null;
+		return data.seriesById[editingTask.series_id] ?? null;
+	});
+
 	async function onTaskSaved() {
 		await invalidate('app:projects:tasks');
 	}
@@ -151,6 +156,7 @@
 	bind:open={sheetOpen}
 	mode={sheetMode}
 	task={editingTask}
+	series={editingSeries}
 	projectOptions={data.projectOptions}
 	defaultProjectId={data.projectId}
 	errorMessage={sheetError}

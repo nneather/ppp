@@ -1075,6 +1075,84 @@ export type Database = {
           },
         ]
       }
+      project_task_series: {
+        Row: {
+          bymonthday: number | null
+          byweekday: number[] | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          ends: string
+          ends_count: number | null
+          ends_on: string | null
+          freq: string
+          id: string
+          interval: number
+          notes: string | null
+          occurrence_seq: number
+          priority: string
+          project_id: string
+          stopped_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          bymonthday?: number | null
+          byweekday?: number[] | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          ends?: string
+          ends_count?: number | null
+          ends_on?: string | null
+          freq: string
+          id?: string
+          interval?: number
+          notes?: string | null
+          occurrence_seq?: number
+          priority?: string
+          project_id: string
+          stopped_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          bymonthday?: number | null
+          byweekday?: number[] | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          ends?: string
+          ends_count?: number | null
+          ends_on?: string | null
+          freq?: string
+          id?: string
+          interval?: number
+          notes?: string | null
+          occurrence_seq?: number
+          priority?: string
+          project_id?: string
+          stopped_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_task_series_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_task_series_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_tasks: {
         Row: {
           completed_at: string | null
@@ -1085,6 +1163,8 @@ export type Database = {
           notes: string | null
           priority: string
           project_id: string
+          series_id: string | null
+          series_occurrence: number | null
           sort_order: number
           source_email_id: string | null
           start_date: string
@@ -1100,6 +1180,8 @@ export type Database = {
           notes?: string | null
           priority?: string
           project_id: string
+          series_id?: string | null
+          series_occurrence?: number | null
           sort_order?: number
           source_email_id?: string | null
           start_date: string
@@ -1115,6 +1197,8 @@ export type Database = {
           notes?: string | null
           priority?: string
           project_id?: string
+          series_id?: string | null
+          series_occurrence?: number | null
           sort_order?: number
           source_email_id?: string | null
           start_date?: string
@@ -1134,6 +1218,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "project_task_series"
             referencedColumns: ["id"]
           },
         ]

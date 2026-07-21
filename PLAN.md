@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-21 — **Not-owned polish** ([108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md)): owned books stay out of pending; Letters to Children authors fixed; Goodreads matched-proposal Session 2 abandoned. Prior: inbox dismiss ([107](docs/decisions/107-not-owned-pending-inbox-dismiss.md)).
+**Last updated:** 2026-07-21 — **Tasks active badge + recurrence** ([109](docs/decisions/109-tasks-active-badge-recurrence.md)): dashboard counts all MYN-visible open tasks; Outlook-like weekly/monthly series (complete→spawn next; This/Entire series). Prior: not-owned polish ([108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -35,7 +35,7 @@ Nearest hard dates:
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)), PDF email MIME harden ([078](docs/decisions/078-invoice-email-pdf-mime.md)), PDF email diagnostics runbook ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 + writing-session gaps** ([094](docs/decisions/094-library-writing-session-gaps.md)). **Not-owned Sessions 0–1** ([101](docs/decisions/101-library-not-owned-session-0.md), [103](docs/decisions/103-library-not-owned-session-1.md)) — drain queue via settings. **August QA Track A done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)); Track B (shelf) open. Owner phone smoke of copy row. |
-| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), links, audit. **Inbound live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); Global Now parked until fall. **Viewer access:** owner-only by design. **Backlog:** fall MYN polish ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)). |
+| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)) + **recurring tasks + active badge** ([109](docs/decisions/109-tasks-active-badge-recurrence.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), links, audit. **Inbound live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); Global Now parked until fall. **Viewer access:** owner-only by design. **Backlog:** fall MYN polish ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)). |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ **v1 Sessions 1–2** ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md)): `/sermons` + venues + seed + Find-in-library + `/sermons/by-book`. **Owner:** phone smoke list + by-book if not done. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -44,9 +44,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [109 — Tasks active badge + recurrence](docs/decisions/109-tasks-active-badge-recurrence.md) (2026-07-21) — dashboard all active tasks; weekly/monthly series spawn-on-complete; This/Entire series.
 - [108 — Not-owned owned-reappear + abandon proposals](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md) (2026-07-21) — match any live title; Letters to Children authors; drop Session 2 Goodreads proposals.
 - [107 — Not-owned pending inbox + dismiss](docs/decisions/107-not-owned-pending-inbox-dismiss.md) (2026-07-21) — settings queue shrinks; Don’t create via localStorage; Created/Dismissed archives.
-- [106 — Main admin bypass](docs/decisions/106-main-admin-bypass.md) (2026-07-21) — Include administrators off; solo direct pushes to `main` OK; required `check-and-test` kept.
 - [105 — Solo git/ship agent guidance](docs/decisions/105-solo-git-ship-agent-guidance.md) (2026-07-21) — `main` protection adopted (required `check-and-test`, no PR theater); agents must not invent PRs or pile onto unrelated branches.
 - [104 — SBL series abbreviation cleanup](docs/decisions/104-sbl-series-abbr-cleanup.md) (2026-07-21) — Apollos→ApOTC; K&D off Continental; MHC off Moffatt (MNTC).
 - [103 — Library not-owned Session 1](docs/decisions/103-library-not-owned-session-1.md) (2026-07-21) — `books.owned` + default-hide + `/settings/library/not-owned` create-from-queue.
@@ -90,7 +90,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-21** ([108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md); check **0 errors**). Prior: [107](docs/decisions/107-not-owned-pending-inbox-dismiss.md); `npm run build` exit 0 ([097](docs/decisions/097-vercel-deploy-ci-build-gate.md)).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-21** ([109](docs/decisions/109-tasks-active-badge-recurrence.md); check **0 errors**). Prior: [108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md); `npm run build` exit 0 ([097](docs/decisions/097-vercel-deploy-ci-build-gate.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

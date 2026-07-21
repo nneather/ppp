@@ -139,12 +139,32 @@ export type ProjectTaskRow = {
 	completed_at: string | null;
 	sort_order: number;
 	notes: string | null;
+	series_id: string | null;
+	series_occurrence: number | null;
 };
 
 export type ProjectTaskView = ProjectTaskRow & {
 	project_name: string;
 	/** Root domain palette key (inherited via parent_id walk); null if unset. */
 	domain_color: string | null;
+};
+
+/** Recurring series template fields loaded with an open instance for edit UI. */
+export type ProjectTaskSeriesView = {
+	id: string;
+	project_id: string;
+	title: string;
+	priority: TaskPriority;
+	notes: string | null;
+	freq: 'weekly' | 'monthly';
+	interval: number;
+	byweekday: number[] | null;
+	bymonthday: number | null;
+	ends: 'never' | 'after_count' | 'on_date';
+	ends_count: number | null;
+	ends_on: string | null;
+	occurrence_seq: number;
+	stopped_at: string | null;
 };
 
 export type TaskZoneGroup = {

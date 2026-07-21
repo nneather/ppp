@@ -77,7 +77,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		backlogRemaining,
 		projectTree,
 		latestHealthMap,
-		criticalTasksRes
+		activeTasksRes
 	] = await Promise.all([
 		supabase
 			.from('time_entries')
@@ -100,14 +100,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		supabase
 			.from('project_tasks')
 			.select('id', { count: 'exact', head: true })
-			.eq('priority', 'critical_now')
 			.is('deleted_at', null)
 			.is('completed_at', null)
 			.lte('start_date', today)
 	]);
 
-	const criticalTaskCount = criticalTasksRes.error ? null : (criticalTasksRes.count ?? 0);
-	if (criticalTasksRes.error) console.error(criticalTasksRes.error);
+	const activeTaskCount = activeTasksRes.error ? null : (activeTasksRes.count ?? 0);
+	if (activeTasksRes.error) console.error(activeTasksRes.error);
 
 	const latestHealth = Object.fromEntries(latestHealthMap) as Record<string, LatestHealth>;
 
@@ -132,7 +131,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			libraryBacklogRemaining: backlogRemaining,
 			projectTree,
 			latestHealth,
-			criticalTaskCount,
+			activeTaskCount,
 			dashboardError: 'Could not load unbilled count.' as string | null
 		};
 	}
@@ -145,7 +144,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		libraryBacklogRemaining: backlogRemaining,
 		projectTree,
 		latestHealth,
-		criticalTaskCount,
+		activeTaskCount,
 		dashboardError: null as string | null
 	};
 };

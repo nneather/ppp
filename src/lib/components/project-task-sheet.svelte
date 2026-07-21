@@ -7,6 +7,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as Select from '$lib/components/ui/select';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import { cn } from '$lib/utils';
 	import { ymdInChicago } from '$lib/invoicing/chicago-date';
 	import {
@@ -14,13 +15,36 @@
 		TASK_PRIORITY_LABELS,
 		type TaskPriority,
 		type ProjectTaskView,
+		type ProjectTaskSeriesView,
 		type ProjectFlatOption
 	} from '$lib/types/projects';
+	import {
+		defaultRuleFromStartDate,
+		formatRecurrenceSummary,
+		isoWeekdayFromYmd,
+		monthDayFromYmd,
+		type IsoWeekday,
+		type RecurrenceEnds,
+		type RecurrenceFreq,
+		type RecurrenceRule,
+		type TaskSeriesScope
+	} from '$lib/projects/task-recurrence';
+
+	const WEEKDAY_OPTIONS: { value: IsoWeekday; label: string }[] = [
+		{ value: 1, label: 'Mon' },
+		{ value: 2, label: 'Tue' },
+		{ value: 3, label: 'Wed' },
+		{ value: 4, label: 'Thu' },
+		{ value: 5, label: 'Fri' },
+		{ value: 6, label: 'Sat' },
+		{ value: 7, label: 'Sun' }
+	];
 
 	let {
 		open = $bindable(false),
 		mode,
 		task = null,
+		series = null,
 		projectOptions,
 		defaultProjectId = null,
 		errorMessage = null,
@@ -29,6 +53,7 @@
 		open?: boolean;
 		mode: 'create' | 'edit';
 		task?: ProjectTaskView | null;
+		series?: ProjectTaskSeriesView | null;
 		projectOptions: ProjectFlatOption[];
 		defaultProjectId?: string | null;
 		errorMessage?: string | null;
@@ -44,10 +69,23 @@
 	let startDate = $state('');
 	let notes = $state('');
 
+	let recurring = $state(false);
+	let freq = $state<RecurrenceFreq>('weekly');
+	let interval = $state(1);
+	let byweekday = $state<IsoWeekday[]>([1]);
+	let bymonthday = $state(1);
+	let ends = $state<RecurrenceEnds>('never');
+	let endsCount = $state(10);
+	let endsOn = $state('');
+
+	let scopeDialogOpen = $state(false);
+	let pendingScope = $state<TaskSeriesScope | null>(null);
+	let formEl = $state<HTMLFormElement | null>(null);
+
+	const isSeriesTask = $derived(mode === 'edit' && task?.series_id != null);
 	const formAction = $derived(mode === 'create' ? '?/createTask' : '?/updateTask');
 	const sheetTitle = $derived(mode === 'create' ? 'New task' : 'Edit task');
 
-	/** Roots for create/filter; keep a child project visible when editing a legacy/email task. */
 	const effectiveProjectOptions = $derived.by(() => {
 		if (mode === 'edit' && task && !projectOptions.some((o) => o.id === task.project_id)) {
 			return [
@@ -77,6 +115,20 @@
 
 	const priorityLabel = $derived(TASK_PRIORITY_LABELS[priority]);
 
+	const draftRule = $derived.by((): RecurrenceRule => ({
+		freq,
+		interval: Math.max(1, interval || 1),
+		byweekday: freq === 'weekly' ? byweekday : null,
+		bymonthday: freq === 'monthly' ? bymonthday : null,
+		ends,
+		ends_count: ends === 'after_count' ? endsCount : null,
+		ends_on: ends === 'on_date' ? endsOn || null : null
+	}));
+
+	const recurrenceSummary = $derived(
+		recurring ? formatRecurrenceSummary(draftRule) : 'Does not repeat'
+	);
+
 	$effect(() => {
 		if (!browser) return;
 		const mq = window.matchMedia('(min-width: 768px)');
@@ -96,14 +148,83 @@
 			priority = task.priority;
 			startDate = task.start_date;
 			notes = task.notes ?? '';
+			if (series && task.series_id === series.id) {
+				recurring = true;
+				freq = series.freq;
+				interval = series.interval;
+				byweekday =
+					series.byweekday && series.byweekday.length > 0
+						? (series.byweekday.filter((d) => d >= 1 && d <= 7) as IsoWeekday[])
+						: [isoWeekdayFromYmd(task.start_date) ?? 1];
+				bymonthday = series.bymonthday ?? monthDayFromYmd(task.start_date) ?? 1;
+				ends = series.ends;
+				endsCount = series.ends_count ?? 10;
+				endsOn = series.ends_on ?? '';
+			} else {
+				recurring = false;
+			}
 		} else {
 			title = '';
 			projectId = defaultProjectId ?? projectOptions[0]?.id ?? '';
 			priority = 'opportunity_now';
 			startDate = ymdInChicago();
 			notes = '';
+			recurring = false;
+			const def = defaultRuleFromStartDate(ymdInChicago(), 'weekly');
+			freq = def.freq;
+			interval = def.interval;
+			byweekday = def.byweekday ?? [1];
+			bymonthday = def.bymonthday ?? 1;
+			ends = 'never';
+			endsCount = 10;
+			endsOn = '';
 		}
+		pendingScope = null;
+		scopeDialogOpen = false;
 	});
+
+	function syncDefaultsFromStartDate() {
+		const iso = isoWeekdayFromYmd(startDate);
+		const day = monthDayFromYmd(startDate);
+		if (freq === 'weekly' && iso && byweekday.length === 0) {
+			byweekday = [iso];
+		}
+		if (freq === 'monthly' && day) {
+			bymonthday = day;
+		}
+	}
+
+	function toggleWeekday(day: IsoWeekday) {
+		if (byweekday.includes(day)) {
+			if (byweekday.length === 1) return;
+			byweekday = byweekday.filter((d) => d !== day);
+		} else {
+			byweekday = [...byweekday, day].sort((a, b) => a - b);
+		}
+	}
+
+	function onFreqChange(v: string | undefined) {
+		if (v !== 'weekly' && v !== 'monthly') return;
+		freq = v;
+		if (v === 'weekly') {
+			byweekday = [isoWeekdayFromYmd(startDate) ?? 1];
+		} else {
+			bymonthday = monthDayFromYmd(startDate) ?? 1;
+		}
+	}
+
+	function requestSave(e: SubmitEvent) {
+		if (isSeriesTask && !pendingScope) {
+			e.preventDefault();
+			scopeDialogOpen = true;
+		}
+	}
+
+	function confirmScope(scope: TaskSeriesScope) {
+		pendingScope = scope;
+		scopeDialogOpen = false;
+		queueMicrotask(() => formEl?.requestSubmit());
+	}
 
 	const submitEnhance: SubmitFunction = () => {
 		pending = true;
@@ -112,7 +233,10 @@
 			await update();
 			if (result.type === 'success') {
 				open = false;
+				pendingScope = null;
 				await onSaved?.();
+			} else {
+				pendingScope = null;
 			}
 		};
 	};
@@ -135,11 +259,20 @@
 		</Sheet.Header>
 
 		<form
+			bind:this={formEl}
 			method="POST"
 			action={formAction}
 			use:enhance={submitEnhance}
+			onsubmit={requestSave}
 			class="flex min-h-0 flex-1 flex-col"
 		>
+			{#if mode === 'edit' && task}
+				<input type="hidden" name="id" value={task.id} />
+			{/if}
+			{#if isSeriesTask && pendingScope}
+				<input type="hidden" name="scope" value={pendingScope} />
+			{/if}
+
 			<div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 py-4">
 				{#if errorMessage}
 					<p
@@ -148,10 +281,6 @@
 					>
 						{errorMessage}
 					</p>
-				{/if}
-
-				{#if mode === 'edit' && task}
-					<input type="hidden" name="id" value={task.id} />
 				{/if}
 
 				<div class="shrink-0 space-y-2">
@@ -203,10 +332,135 @@
 
 				<div class="shrink-0 space-y-2">
 					<Label for="task-start">Start date</Label>
-					<Input id="task-start" name="start_date" type="date" bind:value={startDate} required />
+					<Input
+						id="task-start"
+						name="start_date"
+						type="date"
+						bind:value={startDate}
+						required
+						onchange={syncDefaultsFromStartDate}
+					/>
 					<p class="text-xs text-muted-foreground">
 						Today = top of zone (FRESH). Future date = deferred (hidden until then).
 					</p>
+				</div>
+
+				<div class="shrink-0 space-y-3 rounded-lg border border-border p-3">
+					<div class="flex items-center justify-between gap-2">
+						<Label for="task-recurring" class="text-sm font-medium">Make recurring</Label>
+						<input
+							id="task-recurring"
+							type="checkbox"
+							class="size-4 rounded border-border"
+							checked={recurring}
+							disabled={isSeriesTask}
+							onchange={(e) => {
+								recurring = (e.currentTarget as HTMLInputElement).checked;
+								if (recurring) {
+									const def = defaultRuleFromStartDate(startDate || ymdInChicago(), freq);
+									byweekday = def.byweekday ?? byweekday;
+									bymonthday = def.bymonthday ?? bymonthday;
+								}
+							}}
+						/>
+					</div>
+					{#if isSeriesTask}
+						<p class="text-xs text-muted-foreground">
+							Recurrence edits apply only when you choose Entire series on save.
+						</p>
+					{/if}
+					{#if recurring}
+						<input type="hidden" name="recurring" value="1" />
+						<input type="hidden" name="recurrence_freq" value={freq} />
+						<input type="hidden" name="recurrence_interval" value={String(interval)} />
+						<input type="hidden" name="recurrence_byweekday" value={byweekday.join(',')} />
+						<input type="hidden" name="recurrence_bymonthday" value={String(bymonthday)} />
+						<input type="hidden" name="recurrence_ends" value={ends} />
+						{#if ends === 'after_count'}
+							<input type="hidden" name="recurrence_ends_count" value={String(endsCount)} />
+						{/if}
+						{#if ends === 'on_date'}
+							<input type="hidden" name="recurrence_ends_on" value={endsOn} />
+						{/if}
+
+						<div class="space-y-2">
+							<Label>Frequency</Label>
+							<Select.Root type="single" value={freq} onValueChange={onFreqChange}>
+								<Select.Trigger class="w-full">
+									{freq === 'weekly' ? 'Weekly' : 'Monthly'}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="weekly" label="Weekly">Weekly</Select.Item>
+									<Select.Item value="monthly" label="Monthly">Monthly</Select.Item>
+								</Select.Content>
+							</Select.Root>
+						</div>
+
+						<div class="space-y-2">
+							<Label for="task-interval">
+								Every {interval}
+								{freq === 'weekly' ? (interval === 1 ? 'week' : 'weeks') : interval === 1 ? 'month' : 'months'}
+							</Label>
+							<Input
+								id="task-interval"
+								type="number"
+								min="1"
+								max="99"
+								bind:value={interval}
+							/>
+						</div>
+
+						{#if freq === 'weekly'}
+							<div class="space-y-2">
+								<Label>On days</Label>
+								<div class="flex flex-wrap gap-1.5">
+									{#each WEEKDAY_OPTIONS as day (day.value)}
+										<button
+											type="button"
+											class={cn(
+												'rounded-md border px-2.5 py-1 text-xs font-medium',
+												byweekday.includes(day.value)
+													? 'border-primary bg-primary text-primary-foreground'
+													: 'border-border bg-background text-muted-foreground hover:bg-muted'
+											)}
+											onclick={() => toggleWeekday(day.value)}
+										>
+											{day.label}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{:else}
+							<p class="text-sm text-muted-foreground">On day {bymonthday} of the month</p>
+						{/if}
+
+						<div class="space-y-2">
+							<Label>Ends</Label>
+							<Select.Root
+								type="single"
+								value={ends}
+								onValueChange={(v) => {
+									if (v === 'never' || v === 'after_count' || v === 'on_date') ends = v;
+								}}
+							>
+								<Select.Trigger class="w-full">
+									{ends === 'never' ? 'Never' : ends === 'after_count' ? 'After N occurrences' : 'On date'}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="never" label="Never">Never</Select.Item>
+									<Select.Item value="after_count" label="After N occurrences">After N occurrences</Select.Item>
+									<Select.Item value="on_date" label="On date">On date</Select.Item>
+								</Select.Content>
+							</Select.Root>
+							{#if ends === 'after_count'}
+								<Input type="number" min="1" max="999" bind:value={endsCount} aria-label="Occurrence count" />
+							{:else if ends === 'on_date'}
+								<Input type="date" bind:value={endsOn} required aria-label="End date" />
+							{/if}
+						</div>
+
+						<p class="text-xs text-muted-foreground">{recurrenceSummary}</p>
+					{/if}
 				</div>
 
 				<div class="flex min-h-48 flex-1 flex-col gap-2">
@@ -237,3 +491,36 @@
 		</form>
 	</Sheet.Content>
 </Sheet.Root>
+
+<Dialog.Root bind:open={scopeDialogOpen}>
+	<Dialog.Content class="max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Update recurring task</Dialog.Title>
+			<Dialog.Description>
+				Apply changes to this occurrence only, or to the entire series (template + future
+				occurrences).
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer class="flex flex-col gap-2 sm:flex-col">
+			<Button type="button" hotkey="s" label="This task" onclick={() => confirmScope('this')}>
+				This task
+			</Button>
+			<Button
+				type="button"
+				variant="secondary"
+				onclick={() => confirmScope('series')}
+			>
+				Entire series
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				hotkey="Escape"
+				label="Cancel"
+				onclick={() => (scopeDialogOpen = false)}
+			>
+				Cancel
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

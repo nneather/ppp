@@ -34,7 +34,7 @@
 		{
 			href: '/tasks',
 			title: 'Tasks',
-			statLabel: 'Open Critical Now tasks',
+			statLabel: 'Open active tasks',
 			icon: ListChecks
 		}
 	];
@@ -53,8 +53,8 @@
 			return String(data.unbilledPriorCount);
 		}
 		if (href === '/tasks') {
-			if (data.criticalTaskCount == null) return '–';
-			return String(data.criticalTaskCount);
+			if (data.activeTaskCount == null) return '–';
+			return String(data.activeTaskCount);
 		}
 		return '–';
 	}

@@ -6,7 +6,7 @@ import {
 	loadProjectTree,
 	collectDescendantIds
 } from '$lib/projects/server/loaders';
-import { attachTaskDomainColors, loadTasks } from '$lib/projects/server/task-loaders';
+import { attachTaskDomainColors, loadTasks, loadTaskSeriesByIds } from '$lib/projects/server/task-loaders';
 import { buildDomainColorByProjectId } from '$lib/projects/project-colors';
 import {
 	createTaskAction,
@@ -58,8 +58,18 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const projectNameById = Object.fromEntries(flatRows.map((r) => [r.id, r.name]));
 	const colored = attachTaskDomainColors(taskData, buildDomainColorByProjectId(flatRows));
 
+	const seriesIds = [
+		...new Set(
+			[...colored.zones.flatMap((z) => z.tasks), ...colored.deferred, ...colored.completed]
+				.map((t) => t.series_id)
+				.filter((id): id is string => id != null)
+		)
+	];
+	const seriesById = await loadTaskSeriesByIds(supabase, seriesIds);
+
 	return {
 		...colored,
+		seriesById,
 		projectId,
 		includeDeferred,
 		includeCompleted,

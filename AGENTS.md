@@ -154,14 +154,15 @@ End-of-session deliverables:
   - `src/lib/projects/project-colors.ts` — curated domain color palette keys + static Tailwind DOT/RAIL/ROW_TINT class maps ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
   - `src/lib/projects/email-inbound.ts` — Resend inbound helpers (subject clean, allowlist, HTML→text); unit tests: `email-inbound.test.ts` ([077](docs/decisions/077-email-to-task-and-domain-colors.md)).
   - `src/lib/projects/server/loaders.ts` — tree, week updates, carry-forward, `loadLatestHealth`.
-  - `src/lib/projects/server/task-loaders.ts` — `loadTasks` (zoned MYN + FRESH), `loadLinksByProject`.
+  - `src/lib/projects/server/task-loaders.ts` — `loadTasks` (zoned MYN + FRESH), `loadTaskSeriesByIds`, `loadLinksByProject`.
+  - `src/lib/projects/task-recurrence.ts` — weekly/monthly rule math + FormData parse ([109](docs/decisions/109-tasks-active-badge-recurrence.md)); unit tests `__tests__/task-recurrence.test.ts`.
   - `src/lib/projects/server/actions.ts` — check-in + project CRUD + `setProjectColorAction` + `project_links` CRUD/reorder.
-  - `src/lib/projects/server/task-actions.ts` — MYN task create/update/complete/defer/promote/soft-delete (incl. `notes`).
+  - `src/lib/projects/server/task-actions.ts` — MYN task create/update/complete/defer/promote/soft-delete (incl. `notes`) + series spawn/scope ([109](docs/decisions/109-tasks-active-badge-recurrence.md)).
   - `/projects` — tree + metadata sheet (links in edit mode) + domain color picker; `depends('app:projects:tree')`.
   - `/tasks` — MYN task page (legacy `/projects/tasks` 308-redirects here); `depends('app:projects:tasks')`; Chicago today via `ymdInChicago()`.
  - **Email → task:** Edge Function `email-inbound-task` (Resend inbound → Email Inbox project); secrets `RESEND_WEBHOOK_SECRET`, `INBOUND_TASK_PROJECT_ID`, `INBOUND_TASK_ALLOWED_SENDERS` — [supabase/README.md](supabase/README.md).
  - **Partial unique upsert:** `project_updates` — PK `id` only ([045](docs/decisions/045-projects-session-1-tree-checkin.md)).
- - **Audit log:** `_PROJECTS_TABLES` includes `project_tasks`; soft-delete revert for `projects`, `project_updates`, `project_tasks`.
+ - **Audit log:** `_PROJECTS_TABLES` includes `project_tasks` + `project_task_series`; soft-delete revert for `projects`, `project_updates`, `project_tasks`, `project_task_series`.
 
 - **Sermons helpers** at `src/lib/sermons/` (schema migration `20260717190000_ppp_sermons_v1.sql`; Session 0 [090](docs/decisions/090-sermons-session-0.md), Session 1 [091](docs/decisions/091-sermons-session-1.md), Session 2 [095](docs/decisions/095-sermons-by-book-stats.md)):
  - `src/lib/types/sermons.ts` — `CONTEXT_TYPES`, list/venue/passage view-models, `ByBookRow` / `ByBookListFilters` / `ByBookSummary`.

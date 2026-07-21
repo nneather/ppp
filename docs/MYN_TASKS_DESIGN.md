@@ -45,6 +45,13 @@ No separate `due_date` column — deadlines are not part of v1 MYN.
 
 See migration `20260604030000_ppp_project_tasks_myn.sql`. Every task **requires** `project_id` (v1).
 
+### Recurrence ([109](decisions/109-tasks-active-badge-recurrence.md))
+
+- Template table `project_task_series` (weekly/monthly rule + ends + `stopped_at`).
+- Instances link via `project_tasks.series_id` / `series_occurrence`.
+- **Complete** (or delete-this-occurrence) spawns the next open instance from the series template; no pre-generated window.
+- Edit/delete prompts: **This task** vs **Entire series**.
+
 ---
 
 ## Code map
@@ -52,11 +59,12 @@ See migration `20260604030000_ppp_project_tasks_myn.sql`. Every task **requires*
 | Concern | Location |
 |---|---|
 | Types / zone caps | `src/lib/types/projects.ts` |
+| Recurrence math | `src/lib/projects/task-recurrence.ts` |
 | Load + group | `src/lib/projects/server/task-loaders.ts` |
 | Actions | `src/lib/projects/server/task-actions.ts` |
 | UI list | `src/lib/components/project-task-list.svelte` |
 | UI sheet | `src/lib/components/project-task-sheet.svelte` |
-| Route | `src/routes/projects/tasks/` |
+| Route | `src/routes/tasks/` (legacy `/projects/tasks` redirects) |
 
 ---
 

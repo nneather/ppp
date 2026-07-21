@@ -7,12 +7,13 @@ import {
 	TASK_PRIORITY_ORDER,
 	type TaskPriority,
 	type ProjectTaskView,
+	type ProjectTaskSeriesView,
 	type TaskZoneGroup,
 	type ProjectLinkRow
 } from '$lib/types/projects';
 
 const TASK_COLUMNS =
-	'id, project_id, title, priority, start_date, completed_at, sort_order, notes, created_at';
+	'id, project_id, title, priority, start_date, completed_at, sort_order, notes, series_id, series_occurrence, created_at';
 
 function isTaskPriority(v: string): v is TaskPriority {
 	return (TASK_PRIORITIES as readonly string[]).includes(v);
@@ -34,6 +35,8 @@ function mapTaskRow(raw: {
 	completed_at: string | null;
 	sort_order: number;
 	notes: string | null;
+	series_id: string | null;
+	series_occurrence: number | null;
 	projects: { name: string } | { name: string }[] | null;
 }): ProjectTaskView | null {
 	if (!isTaskPriority(raw.priority)) return null;
@@ -49,6 +52,8 @@ function mapTaskRow(raw: {
 		completed_at: raw.completed_at,
 		sort_order: raw.sort_order,
 		notes: raw.notes,
+		series_id: raw.series_id,
+		series_occurrence: raw.series_occurrence,
 		project_name,
 		domain_color: null
 	};
@@ -131,6 +136,8 @@ export async function loadTasks(
 				completed_at: string | null;
 				sort_order: number;
 				notes: string | null;
+				series_id: string | null;
+				series_occurrence: number | null;
 				projects: { name: string } | { name: string }[] | null;
 			}
 		);
@@ -246,6 +253,50 @@ export async function loadLinksByProject(
 		const list = map[row.project_id];
 		if (list) list.push(row);
 		else map[row.project_id] = [row];
+	}
+	return map;
+}
+
+const SERIES_COLUMNS =
+	'id, project_id, title, priority, notes, freq, interval, byweekday, bymonthday, ends, ends_count, ends_on, occurrence_seq, stopped_at';
+
+export async function loadTaskSeriesByIds(
+	supabase: SupabaseClient,
+	ids: readonly string[]
+): Promise<Record<string, ProjectTaskSeriesView>> {
+	if (ids.length === 0) return {};
+	const { data, error } = await supabase
+		.from('project_task_series')
+		.select(SERIES_COLUMNS)
+		.in('id', [...ids])
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error('loadTaskSeriesByIds', error);
+		return {};
+	}
+
+	const map: Record<string, ProjectTaskSeriesView> = {};
+	for (const row of data ?? []) {
+		if (!isTaskPriority(row.priority)) continue;
+		if (row.freq !== 'weekly' && row.freq !== 'monthly') continue;
+		if (row.ends !== 'never' && row.ends !== 'after_count' && row.ends !== 'on_date') continue;
+		map[row.id] = {
+			id: row.id,
+			project_id: row.project_id,
+			title: row.title,
+			priority: row.priority,
+			notes: row.notes,
+			freq: row.freq,
+			interval: row.interval,
+			byweekday: row.byweekday,
+			bymonthday: row.bymonthday,
+			ends: row.ends,
+			ends_count: row.ends_count,
+			ends_on: row.ends_on,
+			occurrence_seq: row.occurrence_seq,
+			stopped_at: row.stopped_at
+		};
 	}
 	return map;
 }

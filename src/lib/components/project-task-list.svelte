@@ -19,10 +19,12 @@
 		PROJECT_COLOR_RAIL_CLASS,
 		parseProjectColorKey
 	} from '$lib/projects/project-colors';
+	import type { TaskSeriesScope } from '$lib/projects/task-recurrence';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Pencil from '@lucide/svelte/icons/pencil';
+	import Repeat from '@lucide/svelte/icons/repeat';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	let {
@@ -48,6 +50,11 @@
 	let deferPriority = $state<TaskPriority>('over_horizon');
 	let deferDate = $state('');
 
+	let deleteOpen = $state(false);
+	let deleteTask = $state<ProjectTaskView | null>(null);
+	let deleteFormEl = $state<HTMLFormElement | null>(null);
+	let deleteScope = $state<TaskSeriesScope | null>(null);
+
 	const deferPriorityLabel = $derived(TASK_PRIORITY_LABELS[deferPriority]);
 
 	function openDefer(task: ProjectTaskView) {
@@ -62,12 +69,34 @@
 		deferOpen = true;
 	}
 
+	function openDelete(task: ProjectTaskView) {
+		deleteTask = task;
+		deleteScope = null;
+		if (task.series_id) {
+			deleteOpen = true;
+		} else {
+			queueMicrotask(() => {
+				deleteScope = null;
+				deleteFormEl?.requestSubmit();
+			});
+		}
+	}
+
+	function confirmDeleteScope(scope: TaskSeriesScope) {
+		deleteScope = scope;
+		deleteOpen = false;
+		queueMicrotask(() => deleteFormEl?.requestSubmit());
+	}
+
 	const actionEnhance: SubmitFunction = () => {
 		return async ({ result, update }) => {
 			await update();
 			if (result.type === 'success') {
 				deferOpen = false;
 				deferTask = null;
+				deleteOpen = false;
+				deleteTask = null;
+				deleteScope = null;
 				await onInvalidate?.();
 			}
 		};
@@ -80,32 +109,45 @@
 	};
 </script>
 
-{#snippet taskRow(task: ProjectTaskView, completed = false)}
+{#snippet taskRow(task: ProjectTaskView, isCompleted = false)}
 	{@const domainColor = parseProjectColorKey(task.domain_color)}
 	<li
 		class={cn(
 			'flex flex-col gap-2 border-b border-border/60 px-3 py-2.5 last:border-b-0',
 			domainColor && PROJECT_COLOR_RAIL_CLASS[domainColor],
-			completed && 'opacity-70'
+			isCompleted && 'opacity-70'
 		)}
 	>
 		<div class="flex min-w-0 items-start gap-2">
-			<form method="POST" action={completed ? '?/uncompleteTask' : '?/completeTask'} use:enhance={actionEnhance}>
+			<form
+				method="POST"
+				action={isCompleted ? '?/uncompleteTask' : '?/completeTask'}
+				use:enhance={actionEnhance}
+			>
 				<input type="hidden" name="id" value={task.id} />
 				<input
 					type="checkbox"
 					class="mt-1 size-4 shrink-0 rounded border-border"
-					checked={completed}
-					aria-label={completed ? 'Mark incomplete' : 'Mark complete'}
+					checked={isCompleted}
+					aria-label={isCompleted ? 'Mark incomplete' : 'Mark complete'}
 					onchange={(e) => (e.currentTarget as HTMLInputElement).form?.requestSubmit()}
 				/>
 			</form>
 			<div class="min-w-0 flex-1">
 				<div class="flex min-w-0 items-start gap-1.5">
-					<p class={cn('min-w-0 flex-1 break-words text-sm font-medium', completed && 'line-through')}>
+					<p class={cn('min-w-0 flex-1 break-words text-sm font-medium', isCompleted && 'line-through')}>
 						{task.title}
 					</p>
-					{#if task.notes && !completed}
+					{#if task.series_id}
+						<span
+							class="mt-0.5 shrink-0 text-muted-foreground"
+							title="Recurring task"
+							aria-label="Recurring task"
+						>
+							<Repeat class="size-3.5" />
+						</span>
+					{/if}
+					{#if task.notes && !isCompleted}
 						<button
 							type="button"
 							class="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -134,7 +176,7 @@
 				{/if}
 				<p class="text-xs text-muted-foreground">Start {task.start_date}</p>
 			</div>
-			{#if !completed}
+			{#if !isCompleted}
 				<div class="flex shrink-0 flex-wrap justify-end gap-0.5">
 					<form method="POST" action="?/promoteTask" use:enhance={actionEnhance}>
 						<input type="hidden" name="id" value={task.id} />
@@ -167,32 +209,28 @@
 					>
 						<Pencil class="size-4" />
 					</Button>
-					<form method="POST" action="?/softDeleteTask" use:enhance={actionEnhance}>
-						<input type="hidden" name="id" value={task.id} />
-						<Button
-							type="submit"
-							variant="ghost"
-							size="icon-sm"
-							class="text-destructive hover:text-destructive"
-							aria-label="Delete task"
-						>
-							<Trash2 class="size-4" />
-						</Button>
-					</form>
-				</div>
-			{:else}
-				<form method="POST" action="?/softDeleteTask" use:enhance={actionEnhance}>
-					<input type="hidden" name="id" value={task.id} />
 					<Button
-						type="submit"
+						type="button"
 						variant="ghost"
 						size="icon-sm"
 						class="text-destructive hover:text-destructive"
 						aria-label="Delete task"
+						onclick={() => openDelete(task)}
 					>
 						<Trash2 class="size-4" />
 					</Button>
-				</form>
+				</div>
+			{:else}
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon-sm"
+					class="text-destructive hover:text-destructive"
+					aria-label="Delete task"
+					onclick={() => openDelete(task)}
+				>
+					<Trash2 class="size-4" />
+				</Button>
 			{/if}
 		</div>
 	</li>
@@ -248,6 +286,21 @@
 	</section>
 {/if}
 
+<form
+	bind:this={deleteFormEl}
+	method="POST"
+	action="?/softDeleteTask"
+	use:enhance={actionEnhance}
+	class="hidden"
+>
+	{#if deleteTask}
+		<input type="hidden" name="id" value={deleteTask.id} />
+		{#if deleteScope}
+			<input type="hidden" name="scope" value={deleteScope} />
+		{/if}
+	{/if}
+</form>
+
 <Dialog.Root bind:open={deferOpen}>
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
@@ -297,5 +350,36 @@
 				</Dialog.Footer>
 			</form>
 		{/if}
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={deleteOpen}>
+	<Dialog.Content class="max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Delete recurring task</Dialog.Title>
+			<Dialog.Description>
+				{#if deleteTask}
+					Delete “{deleteTask.title}” — this occurrence only (series continues), or stop the entire
+					series.
+				{/if}
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer class="flex flex-col gap-2 sm:flex-col">
+			<Button type="button" variant="destructive" hotkey="d" label="This task" onclick={() => confirmDeleteScope('this')}>
+				This task
+			</Button>
+			<Button type="button" variant="secondary" onclick={() => confirmDeleteScope('series')}>
+				Entire series
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				hotkey="Escape"
+				label="Cancel"
+				onclick={() => (deleteOpen = false)}
+			>
+				Cancel
+			</Button>
+		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

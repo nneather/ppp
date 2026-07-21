@@ -17,7 +17,8 @@ export const _PROJECTS_TABLES = [
 	'projects',
 	'project_updates',
 	'project_links',
-	'project_tasks'
+	'project_tasks',
+	'project_task_series'
 ] as const;
 
 export const _SERMONS_TABLES = ['sermon_venues', 'sermons', 'sermon_passages'] as const;
@@ -72,6 +73,7 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'projects',
 	'project_updates',
 	'project_tasks',
+	'project_task_series',
 	// sermons
 	'sermon_venues',
 	'sermons',
@@ -218,6 +220,12 @@ function entityLabelFor(
 			const title = get('title');
 			const pri = get('priority');
 			if (title && pri) return `${title} · ${pri.replaceAll('_', ' ')}`;
+			return title;
+		}
+		case 'project_task_series': {
+			const title = get('title');
+			const freq = get('freq');
+			if (title && freq) return `${title} · ${freq}`;
 			return title;
 		}
 		case 'sermon_venues':
