@@ -55,6 +55,8 @@ export function parseBookListFilters(url: URL): BookListFilters {
 
 	if (url.searchParams.get('needs_review') === 'true') filters.needs_review = true;
 
+	if (url.searchParams.get('include_unowned') === 'true') filters.includeUnowned = true;
+
 	const q = (url.searchParams.get('q') ?? '').trim();
 	if (q.length > 0) filters.q = q;
 
@@ -72,6 +74,7 @@ export function bookListFiltersAreDefault(filters: BookListFilters): boolean {
 		!filters.language?.length &&
 		!filters.reading_status?.length &&
 		filters.needs_review !== true &&
+		filters.includeUnowned !== true &&
 		!(filters.q && filters.q.trim().length > 0) &&
 		filters.all !== true
 	);
@@ -100,6 +103,7 @@ export function bookListFiltersToSearchParams(
 	setMulti('language', filters.language);
 	setMulti('reading_status', filters.reading_status);
 	if (filters.needs_review === true) keep.set('needs_review', 'true');
+	if (filters.includeUnowned === true) keep.set('include_unowned', 'true');
 	if (filters.q && filters.q.length > 0) keep.set('q', filters.q);
 	if (filters.all === true) keep.set('all', 'true');
 	return keep;

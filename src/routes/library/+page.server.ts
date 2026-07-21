@@ -35,10 +35,16 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 	);
 	const corpusPromise = bookListFiltersAreDefault(filters)
 		? Promise.resolve(null)
-		: locals.perf.measure('db', () => countLiveBooks(supabase));
+		: locals.perf.measure('db', () =>
+				countLiveBooks(supabase, { includeUnowned: filters.includeUnowned === true })
+			);
 	const essayHitsPromise =
 		filters.q && filters.q.trim().length > 0
-			? locals.perf.measure('db', () => loadEssaySearchHits(supabase, filters.q!))
+			? locals.perf.measure('db', () =>
+					loadEssaySearchHits(supabase, filters.q!, {
+						includeUnowned: filters.includeUnowned === true
+					})
+				)
 			: Promise.resolve([]);
 
 	const [{ books, filteredCount }, corpusTotal, essayHits] = await Promise.all([

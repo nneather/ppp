@@ -22,6 +22,12 @@
 						label: 'Goodreads ratings',
 						description:
 							'Import My Rating (and optional reviews) from a Goodreads library CSV via ISBN match.'
+					} satisfies HubLink,
+					{
+						href: '/settings/library/not-owned',
+						label: 'Not owned',
+						description:
+							'Create research stubs from the curated Goodreads queue (hidden from list until owned).'
 					} satisfies HubLink
 				]
 			: []),

@@ -338,6 +338,13 @@
 		});
 	}
 
+	function toggleIncludeUnowned() {
+		void applyListFilters({
+			...filters,
+			includeUnowned: filters.includeUnowned ? undefined : true
+		});
+	}
+
 	function clearAll() {
 		qInput = '';
 		showAllGenres = false;
@@ -353,6 +360,7 @@
 				(filters.language?.length ?? 0) > 0 ||
 				(filters.reading_status?.length ?? 0) > 0 ||
 				filters.needs_review === true ||
+				filters.includeUnowned === true ||
 				(filters.q && filters.q.length > 0)
 		)
 	);
@@ -363,7 +371,8 @@
 			(filters.author_id?.length ?? 0) +
 			(filters.language?.length ?? 0) +
 			(filters.reading_status?.length ?? 0) +
-			(filters.needs_review === true ? 1 : 0)
+			(filters.needs_review === true ? 1 : 0) +
+			(filters.includeUnowned === true ? 1 : 0)
 	);
 
 	function chipBaseClasses(active: boolean): string {
@@ -686,14 +695,24 @@
 
 		<section class="sm:col-span-2 lg:col-span-6">
 			<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Flags</h3>
-			<button
-				type="button"
-				class={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] leading-tight transition-colors ${chipBaseClasses(filters.needs_review === true)}`}
-				onclick={toggleNeedsReview}
-				aria-pressed={filters.needs_review === true}
-			>
-				<AlertCircle class="size-3.5" /> Needs review
-			</button>
+			<div class="flex flex-wrap gap-1.5">
+				<button
+					type="button"
+					class={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] leading-tight transition-colors ${chipBaseClasses(filters.needs_review === true)}`}
+					onclick={toggleNeedsReview}
+					aria-pressed={filters.needs_review === true}
+				>
+					<AlertCircle class="size-3.5" /> Needs review
+				</button>
+				<button
+					type="button"
+					class={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] leading-tight transition-colors ${chipBaseClasses(filters.includeUnowned === true)}`}
+					onclick={toggleIncludeUnowned}
+					aria-pressed={filters.includeUnowned === true}
+				>
+					Include unowned
+				</button>
+			</div>
 		</section>
 	</div>
 {/snippet}
@@ -933,6 +952,15 @@
 					onclick={toggleNeedsReview}
 				>
 					<AlertCircle class="size-3" /> Needs review <X class="size-3" />
+				</button>
+			{/if}
+			{#if filters.includeUnowned === true}
+				<button
+					type="button"
+					class="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-2 py-0.5 text-xs text-primary transition-colors hover:bg-primary/15"
+					onclick={toggleIncludeUnowned}
+				>
+					Include unowned <X class="size-3" />
 				</button>
 			{/if}
 			{#if filters.q}

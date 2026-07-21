@@ -21,6 +21,7 @@ export async function fetchLiveBookCountsBySeriesId(
 			.from('books')
 			.select('series_id')
 			.is('deleted_at', null)
+			.eq('owned', true)
 			.not('series_id', 'is', null)
 			.in('series_id', chunk);
 

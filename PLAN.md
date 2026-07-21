@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-21 — **August QA Track A** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)): Covenant fixture validation + signed/chapter formatter fix. Prior: PWA update banners non-blocking ([100](docs/decisions/100-pwa-update-banner-nonblocking.md)).
+**Last updated:** 2026-07-21 — **Library not-owned Session 1 shipped** ([103](docs/decisions/103-library-not-owned-session-1.md)): `books.owned` + hide defaults + `/settings/library/not-owned`. Prior: August QA Track A ([102](docs/decisions/102-august-qa-covenant-fixtures.md)); Session 0 ([101](docs/decisions/101-library-not-owned-session-0.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)), PDF email MIME harden ([078](docs/decisions/078-invoice-email-pdf-mime.md)), PDF email diagnostics runbook ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 + writing-session gaps** ([094](docs/decisions/094-library-writing-session-gaps.md)). **August QA Track A done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)); Track B (shelf) open. Owner phone smoke of copy row. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 + writing-session gaps** ([094](docs/decisions/094-library-writing-session-gaps.md)). **Not-owned Sessions 0–1** ([101](docs/decisions/101-library-not-owned-session-0.md), [103](docs/decisions/103-library-not-owned-session-1.md)) — drain queue via settings. **August QA Track A done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)); Track B (shelf) open. Owner phone smoke of copy row. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), links, audit. **Inbound live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); Global Now parked until fall. **Viewer access:** owner-only by design. **Backlog:** fall MYN polish ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)). |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ **v1 Sessions 1–2** ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md)): `/sermons` + venues + seed + Find-in-library + `/sermons/by-book`. **Owner:** phone smoke list + by-book if not done. |
 
@@ -44,7 +44,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [103 — Library not-owned Session 1](docs/decisions/103-library-not-owned-session-1.md) (2026-07-21) — `books.owned` + default-hide + `/settings/library/not-owned` create-from-queue.
 - [102 — August QA Covenant fixtures](docs/decisions/102-august-qa-covenant-fixtures.md) (2026-07-21) — Track A: validated 20 expected strings vs Covenant; fixed signed abbrev + title-then-ed chapter form; dropped signed `s.v.` duplication.
+- [101 — Library not-owned Session 0](docs/decisions/101-library-not-owned-session-0.md) (2026-07-21) — Phase 0 lock: `books.owned`, hide defaults, create-from-queue settings page; matched diffs + HC essays deferred.
 - [100 — PWA update banner non-blocking](docs/decisions/100-pwa-update-banner-nonblocking.md) (2026-07-21) — top-anchored recovery + update banners; Clear cache primary; Later dismiss so forms stay usable.
 - [099 — MYN trial adopted](docs/decisions/099-myn-trial-adopted.md) (2026-07-21) — keep `/tasks`; fall refinements OK; Global Now parked until then.
 - [098 — Resend inbound webhook secrets](docs/decisions/098-resend-inbound-webhook-secrets.md) (2026-07-21) — Edge secrets refreshed from live Resend webhook; owner smoke confirmed email→task.
@@ -83,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` (pwa recovery) **2026-07-21** ([100](docs/decisions/100-pwa-update-banner-nonblocking.md); check **0 errors**). Prior: `npm run build` exit 0 ([097](docs/decisions/097-vercel-deploy-ci-build-gate.md)).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-21** ([103](docs/decisions/103-library-not-owned-session-1.md); check **0 errors**, 263 tests). Prior: [100](docs/decisions/100-pwa-update-banner-nonblocking.md); `npm run build` exit 0 ([097](docs/decisions/097-vercel-deploy-ci-build-gate.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -129,6 +131,14 @@ Bring those four into chat; then decide MIME tweak vs org/client fix.
 ### Library — essay visibility + article discovery in search ✅ done ([086](docs/decisions/086-essay-visibility-and-search-lanes.md))
 
 ### Library Wave 2 — writing-session gaps (subsequent footnotes + page numbers) ✅ done ([094](docs/decisions/094-library-writing-session-gaps.md))
+
+### Library — not-owned / research stubs Session 0 ✅ done ([101](docs/decisions/101-library-not-owned-session-0.md))
+
+Capture: [brainstorms/2026-07-21-library-not-owned-session-0.md](brainstorms/2026-07-21-library-not-owned-session-0.md). Queue: [brainstorms/2026-07-17-goodreads-not-owned-queue.md](brainstorms/2026-07-17-goodreads-not-owned-queue.md).
+
+### Library — not-owned Session 1: `owned` + hide + create-from-queue ✅ done ([103](docs/decisions/103-library-not-owned-session-1.md))
+
+Owner follow-up: drain curated queue via `/settings/library/not-owned` (Create stub); mark physical copies owned when they arrive. Session 2+: matched year/publisher → proposals.
 
 ### Library — review-queue improvement + AI research pass ✅ done, full backlog run ✅ done ([067](docs/decisions/067-library-review-sprint-decks.md) + [068](docs/decisions/068-library-review-ai-research-pass.md) + [070](docs/decisions/070-library-genre-taxonomy-audit.md))
 
@@ -273,5 +283,6 @@ Acceptance:
 4. **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)) — keep `/tasks`; fall polish as needed. Global Now parked until fall. **Email → task live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)).
 5. **Library Wave 2 — August shelf QA** — **Track A done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)): Covenant string validation + formatter fix. **Track B** (physical shelf of all 20 rows) waits for Madison. **Plus:** drain the "Needs the shelf" review deck (prior **50** + Goodreads leftovers from [096](docs/decisions/096-goodreads-owned-adds-enrichment.md)).
 6. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
-7. **Library — not owned / research stubs** (Parker to plan; [089](docs/decisions/089-book-rating-ui-goodreads-import.md), queue [brainstorms/2026-07-17-goodreads-not-owned-queue.md](brainstorms/2026-07-17-goodreads-not-owned-queue.md)) — `owned` flag, hide from `/library` search by default, selective create from queue, matched ISBN/year/publisher diffs. Also: Harvard Classics full essay breakout ([093](docs/decisions/093-goodreads-triage-execution.md)).
-8. **Invoicing:** first real-client send cadence (owner-driven). **Owner:** if outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.
+7. **Library — not-owned Session 2+** ([103](docs/decisions/103-library-not-owned-session-1.md)) — matched Goodreads year/publisher → `book_metadata_proposals` (ISBN info-only); bibliography stub UX polish. Owner: drain queue via `/settings/library/not-owned` first.
+8. **Backlog — Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — deferred; orthogonal to owned.
+9. **Invoicing:** first real-client send cadence (owner-driven). **Owner:** if outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.

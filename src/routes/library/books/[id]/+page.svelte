@@ -82,11 +82,14 @@
 	let bookDeleteFormEl = $state<HTMLFormElement | null>(null);
 	let statusOptimistic = $state<ReadingStatus | null>(null);
 	let ratingOptimistic = $state<number | null | undefined>(undefined);
+	let ownedOptimistic = $state<boolean | undefined>(undefined);
 	let notesDraft = $state('');
 	let notesBaseline = $state('');
 	let notesPending = $state(false);
 	let ratingFormEl = $state<HTMLFormElement | null>(null);
 	let ratingHiddenEl = $state<HTMLInputElement | null>(null);
+	let ownedFormEl = $state<HTMLFormElement | null>(null);
+	let ownedHiddenEl = $state<HTMLInputElement | null>(null);
 	let notesSyncedBookId = $state('');
 
 	$effect(() => {
@@ -97,6 +100,7 @@
 			notesDraft = notes;
 			notesBaseline = notes;
 			ratingOptimistic = undefined;
+			ownedOptimistic = undefined;
 		}
 	});
 
@@ -105,6 +109,9 @@
 	);
 	const effectiveRating = $derived<number | null>(
 		ratingOptimistic !== undefined ? ratingOptimistic : data.book.rating
+	);
+	const effectiveOwned = $derived<boolean>(
+		ownedOptimistic !== undefined ? ownedOptimistic : data.book.owned
 	);
 	const notesDirty = $derived(notesDraft !== notesBaseline);
 
@@ -129,6 +136,15 @@
 		};
 	};
 
+	const ownedSubmit: SubmitFunction = ({ formData }) => {
+		ownedOptimistic = String(formData.get('owned') ?? '') === 'true';
+		return async ({ update }) => {
+			await update({ reset: false });
+			await invalidateBook();
+			ownedOptimistic = undefined;
+		};
+	};
+
 	const notesSubmit: SubmitFunction = () => {
 		notesPending = true;
 		return async ({ update, result }) => {
@@ -145,6 +161,12 @@
 		if (!ratingFormEl || !ratingHiddenEl) return;
 		ratingHiddenEl.value = next == null ? '' : String(next);
 		ratingFormEl.requestSubmit();
+	}
+
+	function submitOwned(next: boolean) {
+		if (!ownedFormEl || !ownedHiddenEl) return;
+		ownedHiddenEl.value = next ? 'true' : 'false';
+		ownedFormEl.requestSubmit();
 	}
 
 	function statusToneClasses(s: ReadingStatus): string {
@@ -984,6 +1006,34 @@
 		</form>
 
 		{#if data.isOwner}
+			<div class="mt-4 border-t border-border pt-4">
+				<div class="text-xs uppercase tracking-wide text-muted-foreground">Library</div>
+				<form
+					method="POST"
+					action="?/updateBookPersonalFields"
+					use:enhance={ownedSubmit}
+					bind:this={ownedFormEl}
+					class="hidden"
+				>
+					<input type="hidden" name="id" value={data.book.id} />
+					<input type="hidden" name="owned" value="" bind:this={ownedHiddenEl} />
+				</form>
+				<label class="mt-2 flex items-center gap-2">
+					<input
+						type="checkbox"
+						class="size-4"
+						checked={effectiveOwned}
+						onchange={(e) => submitOwned(e.currentTarget.checked)}
+					/>
+					<span class="text-sm">In physical library</span>
+				</label>
+				{#if !effectiveOwned}
+					<p class="mt-1 text-xs text-muted-foreground">
+						Research stub — hidden from list/search unless Include unowned.
+					</p>
+				{/if}
+			</div>
+
 			<div class="mt-4 border-t border-border pt-4">
 				<div class="text-xs uppercase tracking-wide text-muted-foreground">Rating</div>
 				<form

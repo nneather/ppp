@@ -1,6 +1,6 @@
 # Goodreads — not-owned but read queue
 
-Deferred until `books.owned` (or equivalent) ships. Do **not** create library rows yet.
+Deferred until `books.owned` ships — **Session 1 shipped** ([103](../docs/decisions/103-library-not-owned-session-1.md)). Drain via `/settings/library/not-owned` (do not invent ISBNs).
 
 Source: [2026-07-17-goodreads-unmatched-triage.md](./2026-07-17-goodreads-unmatched-triage.md)
 

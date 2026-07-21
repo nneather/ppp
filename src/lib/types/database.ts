@@ -424,6 +424,7 @@ export type Database = {
           needs_review_note: string | null
           no_attributed_author: boolean
           original_year: number | null
+          owned: boolean
           page_count: number | null
           personal_notes: string | null
           publisher: string | null
@@ -466,6 +467,7 @@ export type Database = {
           needs_review_note?: string | null
           no_attributed_author?: boolean
           original_year?: number | null
+          owned?: boolean
           page_count?: number | null
           personal_notes?: string | null
           publisher?: string | null
@@ -508,6 +510,7 @@ export type Database = {
           needs_review_note?: string | null
           no_attributed_author?: boolean
           original_year?: number | null
+          owned?: boolean
           page_count?: number | null
           personal_notes?: string | null
           publisher?: string | null

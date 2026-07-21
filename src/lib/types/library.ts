@@ -223,6 +223,8 @@ export type BookDetail = {
 	volume_number: string | null;
 	/** Physical copies of this edition (default 1). */
 	copy_count: number;
+	/** False = research/not-owned stub; hidden from list/search by default ([101]). */
+	owned: boolean;
 	genre: string | null;
 	work_type: WorkType;
 	language: Language;
@@ -276,6 +278,11 @@ export type BookListFilters = {
 	language?: Language[];
 	reading_status?: ReadingStatus[];
 	needs_review?: boolean;
+	/**
+	 * When true, include research/not-owned stubs (`owned=false`).
+	 * Default omit/false → list/search hide unowned ([101]).
+	 */
+	includeUnowned?: boolean;
 	q?: string;
 	/** When true, skip pagination and return the full filtered list. */
 	all?: boolean;

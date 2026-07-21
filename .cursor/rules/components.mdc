@@ -19,7 +19,7 @@ If you reach for one of these capabilities, use the existing component.
 | Single sheet shared by create + edit | [src/lib/components/time-entry-sheet.svelte](mdc:src/lib/components/time-entry-sheet.svelte) |
 | "Generate derived record" wizard | [src/lib/components/generate-invoice-sheet.svelte](mdc:src/lib/components/generate-invoice-sheet.svelte) |
 | Audit log row with collapsible JSONB diff | [src/lib/components/audit-row.svelte](mdc:src/lib/components/audit-row.svelte) |
-| Book entity form (create + edit) shell — identity, classification, state, series, save bar; hosts `<BookFormAuthors>` + `<BookFormPublication>` | [src/lib/components/book-form.svelte](mdc:src/lib/components/book-form.svelte) |
+| Book entity form (create + edit) shell — identity, classification, state, series, save bar; hosts `<BookFormAuthors>` + `<BookFormPublication>`; **In physical library** (`owned`) checkbox ([103](mdc:docs/decisions/103-library-not-owned-session-1.md)) | [src/lib/components/book-form.svelte](mdc:src/lib/components/book-form.svelte) |
 | 1–5 star rating control (`books.rating`); hidden input for forms; optional `onchange` for detail-page auto-save | [src/lib/components/book-rating-scale.svelte](mdc:src/lib/components/book-rating-scale.svelte) |
 | Book form author junction rows + B14 dedup + inline person-create dialog | [src/lib/components/book-form-authors.svelte](mdc:src/lib/components/book-form-authors.svelte) |
 | Book form publication fields — `variant="essentials"` (publisher/year) or `variant="extended"` (edition/reprint/ISBN); `bind:pub` | [src/lib/components/book-form-publication.svelte](mdc:src/lib/components/book-form-publication.svelte) |

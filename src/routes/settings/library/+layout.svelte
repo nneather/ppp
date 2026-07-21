@@ -18,6 +18,7 @@
 			t.push({ href: '/settings/library/people/merge', label: 'Merge' });
 			t.push({ href: '/settings/library/export', label: 'Export / import' });
 			t.push({ href: '/settings/library/goodreads', label: 'Goodreads' });
+			t.push({ href: '/settings/library/not-owned', label: 'Not owned' });
 		}
 		t.push(
 			{ href: '/settings/library/series', label: 'Series' },
@@ -39,6 +40,9 @@
 		}
 		if (hrefPath === '/settings/library/goodreads') {
 			return path.startsWith('/settings/library/goodreads');
+		}
+		if (hrefPath === '/settings/library/not-owned') {
+			return path.startsWith('/settings/library/not-owned');
 		}
 		if (hrefPath === '/settings/library/people/merge') {
 			return path.startsWith('/settings/library/people/merge');
