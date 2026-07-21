@@ -74,6 +74,7 @@
 	"dependencies": {
 		"@supabase/ssr": "^0.10.0",
 		"@supabase/supabase-js": "^2.102.1",
+		"@vercel/speed-insights": "^2.0.0",
 		"@zxing/browser": "^0.1.5",
 		"docx": "^9.7.1",
 		"pdfjs-dist": "^4.10.38"
