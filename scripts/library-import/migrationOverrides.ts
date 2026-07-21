@@ -502,7 +502,7 @@ export const PER_BOOK_OVERRIDES: PerBookOverride[] = [
 	},
 
 	// =======================================================================
-	// CMT — Keil & Delitzsch (10 vols, COT)
+	// CMT — Keil & Delitzsch (10 vols, K&D — not Continental Commentary / COT)
 	// =======================================================================
 	...(() => {
 		const KD: OverrideAuthor[] = [
@@ -525,14 +525,14 @@ export const PER_BOOK_OVERRIDES: PerBookOverride[] = [
 			(v): PerBookOverride => ({
 				// Source authors are "Keil and Delitzsch" — parsed → last_name='Keil' (and 'Delitzsch')
 				match: { author_surname: 'Keil', title_contains: v.titleContains },
-				edit: { series_abbrev: 'COT', volume_number: v.vol, authors: KD },
+				edit: { series_abbrev: 'K&D', volume_number: v.vol, authors: KD },
 				source_ref: `CMT K&D vol ${v.vol}`
 			})
 		);
 	})(),
 
 	// =======================================================================
-	// CMT — Matthew Henry (6 vols, MH)
+	// CMT — Matthew Henry (6 vols, MHC — not Moffatt / MH)
 	// =======================================================================
 	...(() => {
 		const MH: OverrideAuthor[] = [{ last_name: 'Henry', first_name: 'Matthew', role: 'author', sort_order: 1 }];
@@ -547,8 +547,8 @@ export const PER_BOOK_OVERRIDES: PerBookOverride[] = [
 		return vols.map(
 			(v): PerBookOverride => ({
 				match: { author_surname: 'Henry', title_contains: v.titleContains },
-				edit: { series_abbrev: 'MH', volume_number: v.vol, authors: MH },
-				source_ref: `CMT MH vol ${v.vol}`
+				edit: { series_abbrev: 'MHC', volume_number: v.vol, authors: MH },
+				source_ref: `CMT MHC vol ${v.vol}`
 			})
 		);
 	})(),

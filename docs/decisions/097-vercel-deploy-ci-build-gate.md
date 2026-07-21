@@ -26,17 +26,17 @@
 
 ## Open questions surfaced
 
-- **Owner:** Enable GitHub branch protection on `main` — require status check `check-and-test` (or whatever the CI job is named after this change) before merge/push. Optional: dismiss stale approvals; no force-push. Agent cannot set this without repo admin via UI/`gh api`.
-- **Owner:** After this lands, confirm the next Vercel Production deploy stays Ready when CI is green.
+- **Owner — done:** Branch protection on `main` — require `check-and-test`, no force-push / no deletions, include administrators. Reviews left off (solo). Closed out in [105](105-solo-git-ship-agent-guidance.md).
+- **Owner (optional smoke):** Confirm a later Vercel Production deploy stays Ready when CI is green.
 
 ## Surprises (read these before the next session)
 
 - The writing-session citation UX commit (`2ca5353`) added a second `Label` import without noticing the existing one lower in the script — classic megacomponent import drift.
-- CI red on `main` is currently advisory only; Vercel does not wait for Actions.
+- ~~CI red on `main` is currently advisory only; Vercel does not wait for Actions.~~ **Superseded:** protection now requires `check-and-test` before landing on `main` ([105](105-solo-git-ship-agent-guidance.md)).
 
 ## Carry-forward updates
 
 - [x] AGENTS.md inventory updated (scripts)
 - [x] workflow.mdc end-of-session note
 - [x] CI workflow includes `npm run build`
-- [ ] Parker: branch protection on `main` (recommended)
+- [x] Parker: branch protection on `main` (required check `check-and-test`; no PR theater — [105](105-solo-git-ship-agent-guidance.md))

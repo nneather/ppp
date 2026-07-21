@@ -7,7 +7,7 @@ This is the single entry point for any AI assistant working on this repo. Read t
 The Cursor rules in `.cursor/rules/*.mdc` are loaded automatically by Cursor; if you are running outside Cursor, read them manually:
 
 - [.cursor/rules/always.mdc](.cursor/rules/always.mdc) — stack, conventions, non-negotiables
-- [.cursor/rules/workflow.mdc](.cursor/rules/workflow.mdc) — session types, end-of-session file gate, task-to-agent routing
+- [.cursor/rules/workflow.mdc](.cursor/rules/workflow.mdc) — session types, end-of-session file gate, solo Git / ship, task-to-agent routing
 - [.cursor/rules/db-changes.mdc](.cursor/rules/db-changes.mdc) — migration checklist
 - [.cursor/rules/sveltekit-routes.mdc](.cursor/rules/sveltekit-routes.mdc) — page server / form action shape
 - [.cursor/rules/edge-functions.mdc](.cursor/rules/edge-functions.mdc) — Edge Function conventions
@@ -188,6 +188,15 @@ End-of-session deliverables:
 - **`npm run ship-library`** / **`ship-library:apply`** — library schema gate: `check` → `db:push:dry` (or full push + `gen-types` + `test` + `deploy-functions` on apply). Use after any library migration or OCR Edge change.
 - **`library:language-audit`** — dry-run / optional `--apply` English→German hints; uses `LIBRARY_AUDIT_DATABASE_URL` or **`LIBRARY_DST_DATABASE_URL`** / `LIBRARY_SRC_DATABASE_URL` (same migrate vars). See [`scripts/library-language-audit/README.md`](scripts/library-language-audit/README.md).
 - **`library:review-research`** — AI research pass ([068](docs/decisions/068-library-review-ai-research-pass.md)): OL + optional Anthropic genre proposals into `book_metadata_proposals` (pending; owner confirms on `/library/review`). Dry-run default; `LIBRARY_RESEARCH_CONFIRM=yes … --apply`. IPv4 networks need the **Session Pooler** URI (`LIBRARY_RESEARCH_DATABASE_URL`; derive via `scripts/backup-restore-verify/derive-pooler-url.ts`) — the Direct host is IPv6-only. See [`scripts/library-review-research/README.md`](scripts/library-review-research/README.md).
+
+## Git / ship (solo)
+
+Personal repo, one primary owner. **Branch protection on `main` requires green CI (`check-and-test`) — it does not require pull-request theater.** Full rules: [.cursor/rules/workflow.mdc](.cursor/rules/workflow.mdc) › Git / ship. Summary:
+
+- Default end-of-session: **copy-paste commit message**; Parker commits/pushes unless he explicitly asks the agent to.
+- **Do not invent PRs** just because `main` is protected. Open a PR only when Parker asks, or when a push is blocked and a **short-lived, session-named** branch is the least friction path to get CI green.
+- **Never reuse** an open feature branch / PR for unrelated work. Never `git reset --hard` to “fix” a protected-main push without checking for other WIP.
+- Decision: [105](docs/decisions/105-solo-git-ship-agent-guidance.md). Protection origin: [097](docs/decisions/097-vercel-deploy-ci-build-gate.md).
 
 ## Commit messages (library)
 

@@ -381,8 +381,8 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 		sourceType: 'bible',
 		status: 'pass',
 		book: book({ genre: 'Bibles', title: 'English Standard Version', authors: [] }),
-		page: 'Gen. 1:1',
-		expectedFootnote: 'Gen. 1:1 (English Standard Version).',
+		page: 'Gen 1:1',
+		expectedFootnote: 'Gen 1:1 (English Standard Version).',
 		expectedBibliography: ''
 	},
 	{

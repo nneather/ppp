@@ -1,5 +1,5 @@
 ---
-description: How Parker works — session types, end-of-session file gate, and task-to-agent routing. Always applied.
+description: How Parker works — session types, end-of-session file gate, solo Git / ship, and task-to-agent routing. Always applied.
 alwaysApply: true
 ---
 
@@ -21,7 +21,20 @@ Work in this repo **builds into files**, not chat history. A session that doesn'
 2. **PLAN.md refreshed** — last-updated line, Recent decisions, Next up
 3. AGENTS.md inventory + [components.mdc](mdc:.cursor/rules/components.mdc) updated if helpers/components were added
 4. `npm run check` + `npm run test` pass (note the date in PLAN.md › Repo gate). Prefer waiting for GitHub Actions **CI** green on `main` before assuming Vercel will succeed — CI now also runs `npm run build` (same compile path as Vercel).
-5. **Provide a copy-paste commit message** for the session's changes (scoped to this session's files if the working tree mixes sessions), then **explicitly confirm we're good to close out** — Parker commits/pushes himself.
+5. **Provide a copy-paste commit message** for the session's changes (scoped to this session's files if the working tree mixes sessions), then **explicitly confirm we're good to close out** — Parker commits/pushes himself unless he explicitly asks the agent to commit/push.
+
+## Git / ship (solo — read before opening a PR)
+
+`main` is protected: required status check **`check-and-test`**, no force-push, admins enforced. **Reviews are not required.** This stops red CI from reaching Vercel ([097](mdc:docs/decisions/097-vercel-deploy-ci-build-gate.md), [105](mdc:docs/decisions/105-solo-git-ship-agent-guidance.md)). It is **not** a mandate to run every change through a pull request.
+
+| Do | Don't |
+|---|---|
+| Prefer working on **`main`** for solo sessions when the tree is clean | Invent a PR solely because `main` is protected |
+| End with a **copy-paste commit message**; push only when Parker asks (or via his commit-and-push UI action) | Reuse an open feature branch / PR for **unrelated** work from another chat |
+| If a push to `main` is blocked and a branch is needed for CI: create a **short-lived, session-named** branch (e.g. `pwa-100-banner`), push, tell Parker to merge when green | `git reset --hard` / rewrite history to “fix” a blocked push without checking for other WIP |
+| Open a PR only when Parker asks, or when that short-lived branch is the least friction path to land CI | Treat Cursor’s commit-and-push “current branch” as permission to pile onto someone else’s PR |
+
+**Why this exists:** An agent once opened PR #1 after hitting protection; later chats (Speed Insights, etc.) inherited `library-add-books-skill` via the commit-and-push UI and stacked unrelated commits onto the same PR. Protection was correct; inventing PR theater was not.
 
 ## Task-to-agent routing
 
