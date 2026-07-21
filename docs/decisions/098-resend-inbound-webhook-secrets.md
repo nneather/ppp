@@ -23,7 +23,7 @@
 - None
 
 ## Open questions surfaced
-- Owner smoke: forward one message from an allowlisted mailbox to `tasks@zeneoldai.resend.app` and confirm a task under Email Inbox / Opportunity Now on `/tasks`.
+- ~~Owner smoke: forward one message from an allowlisted mailbox to `tasks@zeneoldai.resend.app` and confirm a task under Email Inbox / Opportunity Now on `/tasks`.~~ — **confirmed working** 2026-07-21.
 
 ## Surprises (read these before the next session)
 - Resend `GET /webhooks/{id}` returns `signing_secret` — no Dashboard copy step required when the API key has webhook read access.
