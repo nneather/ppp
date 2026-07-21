@@ -429,6 +429,7 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 			work_type: 'reference_work',
 			genre: 'Biblical Reference',
 			title: 'Anchor Bible Dictionary',
+			series_abbreviation: 'ABD',
 			volume_number: '1',
 			total_volumes: 6,
 			authors: [
@@ -451,8 +452,7 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 			]
 		},
 		page: '835',
-		expectedFootnote:
-			'James A. Sanders, "Canon," in David Noel Freedman, ed., Anchor Bible Dictionary (New York: Doubleday, 1992), s.v. "Canon," 835.',
+		expectedFootnote: 'James A. Sanders, "Canon," in ABD, 1:835.',
 		expectedBibliography:
 			'Sanders, James A. "Canon." In Anchor Bible Dictionary, edited by David Noel Freedman. New York: Doubleday, 1992.'
 	},
@@ -485,7 +485,7 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 			]
 		},
 		page: '100',
-		expectedFootnote: 'Gerhard Kittel, "λέγω," TDNT 4:100.'
+		expectedFootnote: 'Gerhard Kittel, "λέγω," in TDNT, 4:100.'
 	},
 	{
 		id: 19,
@@ -513,7 +513,7 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 		},
 		page: '123',
 		expectedFootnote:
-			'John Piper, "The Perseverance of the Saints," in David G. Peterson and David F. Wells, eds., The Glory of the Atonement (Grand Rapids, MI: Baker Academic, 2004), 123.',
+			'John Piper, "The Perseverance of the Saints," in The Glory of the Atonement, eds. David G. Peterson and David F. Wells (Grand Rapids, MI: Baker Academic, 2004), 123.',
 		expectedBibliography:
 			'Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells, 123. Grand Rapids, MI: Baker Academic, 2004.'
 	},

@@ -2,8 +2,8 @@ import type { BookAuthorAssignment } from '$lib/types/library';
 import {
 	formatAuthorsBibliography,
 	formatAuthorsNote,
+	formatEditorsCreditNote,
 	formatEditorsInlineBibliography,
-	formatEditorsNote,
 	parseAuthorAssignment
 } from './names';
 import { formatPublicationFacts, formatTitleWithSubtitle } from './publication';
@@ -68,11 +68,13 @@ function hasEssayAuthors(essay: EssayCitationInput): boolean {
 	return (essay.authors?.length ?? 0) > 0;
 }
 
-/** TDNT-style `Author, "Article," ABBR vol:page.` — not full signed-dictionary `in editor, ed., … s.v.` */
+/**
+ * Signed article in a well-known abbreviated reference (Covenant §17.9.1 note 2):
+ * `Author, "Entry," in ABD, 1:835.` / `… in TDNT, 4:100.`
+ * Gate is series_abbreviation only — translator no longer required (065 gap).
+ */
 function volumeUsesAbbreviatedArticleCite(volume: BookCitationInput): boolean {
-	const abbr = (volume.series_abbreviation ?? '').trim();
-	if (!abbr) return false;
-	return volume.authors.some((a) => a.role === 'translator');
+	return (volume.series_abbreviation ?? '').trim().length > 0;
 }
 
 function volumeLabelPlain(volume: BookCitationInput): string {
@@ -107,7 +109,7 @@ function formatUnsignedSvFootnote(
 	return { plain, html, sourceType };
 }
 
-/** TDNT-style abbreviated article: `Kittel, "λέγω," TDNT 4:100.` */
+/** Abbreviated signed article: `Wright, "אֶרֶץ," in NIDOTTE, 1:520.` (Covenant §17.9.1). */
 function formatAbbreviatedArticleFootnote(
 	essay: EssayCitationInput,
 	volume: BookCitationInput,
@@ -119,13 +121,18 @@ function formatAbbreviatedArticleFootnote(
 	const abbr = (volume.series_abbreviation ?? '').trim();
 	const vol = (volume.volume_number ?? '').trim();
 	const volPage = vol ? `${vol}:${page}` : page;
-	const plain = `${author}, ${quotedTitle(article, 'plain')} ${abbr} ${volPage}.`;
-	const html = `${escapeHtml(author)}, ${quotedTitle(article, 'html')} ${escapeHtml(abbr)} ${escapeHtml(volPage)}.`;
+	const plain = `${author}, ${quotedTitle(article, 'plain')} in ${abbr}, ${volPage}.`;
+	const html = `${escapeHtml(author)}, ${quotedTitle(article, 'html')} in ${escapeHtml(abbr)}, ${escapeHtml(volPage)}.`;
 	return { plain, html, sourceType };
 }
 
-/** Signed dictionary article (ABD): author + in editor ed. + volume + s.v. */
-function formatSignedDictionaryFootnote(
+/**
+ * Signed dictionary without series abbreviation — essay-in-book form (no s.v.).
+ * Covenant: `…, "Title," in Encyclopedia…, ed. Name (Place: Pub, year), vol:page.`
+ *
+ * Chapter in edited volume uses the same shape (Covenant §17.1.8).
+ */
+function formatEssayInBookFootnote(
 	essay: EssayCitationInput,
 	volume: BookCitationInput,
 	page: string,
@@ -133,36 +140,17 @@ function formatSignedDictionaryFootnote(
 ): CitationFormatted {
 	const article = essay.essay_title.trim();
 	const author = formatAuthorsNote(essay.authors!);
-	const editors = formatEditorsNote(volume.authors);
+	const edCredit = formatEditorsCreditNote(volume.authors);
 	const volTitle = formatTitleWithSubtitle(volume, 'plain');
 	const volTitleHtml = formatTitleWithSubtitle(volume, 'html');
 	const pub = formatPublicationFacts(volume, 'note');
-	const inLead = [editors, volTitle].filter(Boolean).join(', ');
+	const vol = (volume.volume_number ?? '').trim();
+	const loc = vol ? `${vol}:${page}` : page;
+	const edPart = edCredit ? `, ${edCredit}` : '';
 	const pubPart = pub.plain ? ` ${pub.plain}` : '';
-	const plain = `${author}, ${quotedTitle(article, 'plain')} in ${inLead}${pubPart}, s.v. ${quotedTitle(article, 'plain')} ${page}.`;
-	const htmlInLead = editors ? `${escapeHtml(editors)}, ${volTitleHtml}` : volTitleHtml;
-	const html = `${escapeHtml(author)}, ${quotedTitle(article, 'html')} in ${htmlInLead}${pub.html ? ` ${pub.html}` : ''}, s.v. ${quotedTitle(article, 'html')} ${escapeHtml(page)}.`;
-	return { plain, html, sourceType };
-}
-
-/** Chapter in edited volume: author + in editors eds. + volume (pub), page. */
-function formatChapterFootnote(
-	essay: EssayCitationInput,
-	volume: BookCitationInput,
-	page: string,
-	sourceType: CitationSourceType
-): CitationFormatted {
-	const article = essay.essay_title.trim();
-	const author = formatAuthorsNote(essay.authors!);
-	const editors = formatEditorsNote(volume.authors);
-	const volTitle = formatTitleWithSubtitle(volume, 'plain');
-	const pub = formatPublicationFacts(volume, 'note');
-	const inLead = [editors, volTitle].filter(Boolean).join(', ');
-	const pubPart = pub.plain ? ` ${pub.plain}` : '';
-	const plain = `${author}, ${quotedTitle(article, 'plain')} in ${inLead}${pubPart}, ${page}.`;
-	const volTitleHtml = formatTitleWithSubtitle(volume, 'html');
-	const inPrefix = editors ? `${escapeHtml(editors)}, ` : '';
-	const html = `${escapeHtml(author)}, ${quotedTitle(article, 'html')} in ${inPrefix}${volTitleHtml}${pub.html ? ` ${pub.html}` : ''}, ${escapeHtml(page)}.`;
+	const plain = `${author}, ${quotedTitle(article, 'plain')} in ${volTitle}${edPart}${pubPart}, ${loc}.`;
+	const htmlEd = edCredit ? `, ${escapeHtml(edCredit)}` : '';
+	const html = `${escapeHtml(author)}, ${quotedTitle(article, 'html')} in ${volTitleHtml}${htmlEd}${pub.html ? ` ${pub.html}` : ''}, ${escapeHtml(loc)}.`;
 	return { plain, html, sourceType };
 }
 
@@ -214,11 +202,8 @@ export function formatEssayFootnote(
 		return formatAbbreviatedArticleFootnote(essay, volume, page, sourceType);
 	}
 
-	if (volume.work_type === 'reference_work') {
-		return formatSignedDictionaryFootnote(essay, volume, page, sourceType);
-	}
-
-	return formatChapterFootnote(essay, volume, page, sourceType);
+	// Signed dictionary (no abbr) + chapter in edited volume — Covenant essay-in-book shape.
+	return formatEssayInBookFootnote(essay, volume, page, sourceType);
 }
 
 /**
