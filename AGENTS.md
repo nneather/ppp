@@ -117,6 +117,7 @@ End-of-session deliverables:
   - `src/lib/library/server/books-csv.ts` — TSV/CSV export + import headers, row caps, delete-on-import notes (`/settings/library/export`).
   - `src/lib/library/server/url-params.ts` — `parseBookListFilters` / `bookListFiltersToSearchParams` (URL is source of truth for `/library` filters; `include_unowned` → `includeUnowned` — [103](docs/decisions/103-library-not-owned-session-1.md)).
   - `src/lib/library/not-owned-queue.ts` — curated Goodreads not-owned queue const + title normalize ([103](docs/decisions/103-library-not-owned-session-1.md)).
+  - `src/lib/library/not-owned-dismiss.ts` — localStorage dismiss set for `/settings/library/not-owned` pending inbox ([107](docs/decisions/107-not-owned-pending-inbox-dismiss.md)).
   - `src/lib/library/server/not-owned-actions.ts` — `createNotOwnedStubAction` (owner; `owned=false`; `needs_review=false`) for `/settings/library/not-owned`.
   - `src/lib/library/server/publishers-settings-book-counts.ts` — `fetchLiveBookIdsByPublisherId` for publisher settings counts (owned-only — [103](docs/decisions/103-library-not-owned-session-1.md)).
  - `src/lib/library/book-copy-text.ts` — plain-text strings for book-detail clipboard helpers (Session 6 raw-field copy; coexists with Turabian).
