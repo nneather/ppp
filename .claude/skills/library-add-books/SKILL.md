@@ -77,7 +77,7 @@ For each new book, gather:
 - **Publisher** string + Turabian **location** (match sibling rows in that series)
 - **year** / **original_year** / reprint story
 - **ISBN** when confident — **checksum-validate** (prefer ISBN-13); leave null if uncertain
-- **genre** (usually `Commentary`), **work_type** (`monograph` default), **language**, **reading_status** (`reference` for commentaries)
+- **genre** (usually `Commentary`; for anything else, or if unsure, use [library-recommend-genre](../library-recommend-genre/SKILL.md)), **work_type** (`monograph` default), **language**, **reading_status** (`reference` for commentaries)
 - **bible coverage** — every Protestant book in the title range ([088](../../docs/decisions/088-commentary-bible-coverage-cleanup.md)); names from `BIBLE_BOOK_NAMES` / `bible_books`
 
 ### People naming
