@@ -25,7 +25,7 @@ description: Turabian citation QA for the library module. Use when changing form
 | Jr./Sr. suffix | `Robert L. Hubbard Jr.` bib sort = Hubbard |
 | 4+ authors | Note uses et al.; bib lists all (current behavior) |
 | Reprint | Footnote `(orig; repr., …)` when `original_year` + `reprint_*` set |
-| Dictionary article | `formatEssayFootnote` includes `s.v.` |
+| Dictionary article | Signed: abbreviated `in ABD, vol:page` or full essay-in-book (no `s.v.`); unsigned: `s.v.` |
 | Short footnote | `formatFootnote(b, { shortForm: 'ibid', page })` |
 
 ## Do not

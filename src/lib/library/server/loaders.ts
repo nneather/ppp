@@ -208,7 +208,8 @@ export async function loadPublisherBookCounts(
 	const { data, error } = await supabase
 		.from('books')
 		.select('publisher_id, reprint_publisher_id')
-		.is('deleted_at', null);
+		.is('deleted_at', null)
+		.eq('owned', true);
 	if (error) {
 		console.error('[loadPublisherBookCounts]', error);
 		return out;
@@ -253,8 +254,9 @@ export async function loadPersonBookCounts(
 		([from, to]) =>
 			supabase
 				.from('book_authors')
-				.select('person_id, book_id, books!inner(deleted_at)')
+				.select('person_id, book_id, books!inner(deleted_at, owned)')
 				.is('books.deleted_at', null)
+				.eq('books.owned', true)
 				.range(from, to),
 		'loadPersonBookCounts'
 	);
@@ -481,6 +483,9 @@ function applyBookListFilters(
 	ctx: BookListFilterContext
 ) {
 	let q = query.is('deleted_at', null);
+	if (filters.includeUnowned !== true) {
+		q = q.eq('owned', true);
+	}
 	if (filters.genre && filters.genre.length > 0) {
 		q = q.in('genre', filters.genre);
 	}
@@ -805,6 +810,20 @@ const ESSAY_SEARCH_SELECT = `
 	)
 `;
 
+/** Inner-join parent book so unowned stubs drop out of essay search ([101]). */
+const ESSAY_SEARCH_SELECT_OWNED = `
+	id,
+	essay_title,
+	parent_book_id,
+	page_start,
+	page_end,
+	books!essays_parent_book_id_fkey!inner ( title, owned, deleted_at ),
+	essay_authors (
+		sort_order,
+		people ( first_name, middle_name, last_name, suffix )
+	)
+`;
+
 function ilikeContainsPattern(q: string): string {
 	// Strip LIKE metacharacters from user input; we wrap with % ourselves.
 	return `%${q.trim().replace(/[%_\\]/g, '')}%`;
@@ -853,20 +872,28 @@ function mapEssaySearchRow(raw: RawEssaySearchRow): EssaySearchHit {
 export async function loadEssaySearchHits(
 	supabase: SupabaseClient,
 	qRaw: string,
-	opts: { limit?: number } = {}
+	opts: { limit?: number; includeUnowned?: boolean } = {}
 ): Promise<EssaySearchHit[]> {
 	const q = qRaw.trim();
 	if (!q) return [];
 	const limit = opts.limit ?? ESSAY_SEARCH_HIT_LIMIT;
 	const pattern = ilikeContainsPattern(q);
+	const includeUnowned = opts.includeUnowned === true;
+	const select = includeUnowned ? ESSAY_SEARCH_SELECT : ESSAY_SEARCH_SELECT_OWNED;
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let titleQuery: any = supabase
+		.from('essays')
+		.select(select)
+		.is('deleted_at', null)
+		.ilike('essay_title', pattern)
+		.limit(limit);
+	if (!includeUnowned) {
+		titleQuery = titleQuery.is('books.deleted_at', null).eq('books.owned', true);
+	}
 
 	const [titleRes, peopleRes] = await Promise.all([
-		supabase
-			.from('essays')
-			.select(ESSAY_SEARCH_SELECT)
-			.is('deleted_at', null)
-			.ilike('essay_title', pattern)
-			.limit(limit),
+		titleQuery,
 		supabase
 			.from('people')
 			.select('id')
@@ -899,12 +926,17 @@ export async function loadEssaySearchHits(
 			.slice(0, MAX_IN_LIST);
 
 		if (essayIds.length > 0) {
-			const { data: authorEssays, error: aErr } = await supabase
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			let authorQuery: any = supabase
 				.from('essays')
-				.select(ESSAY_SEARCH_SELECT)
+				.select(select)
 				.is('deleted_at', null)
 				.in('id', essayIds)
 				.limit(limit - byId.size);
+			if (!includeUnowned) {
+				authorQuery = authorQuery.is('books.deleted_at', null).eq('books.owned', true);
+			}
+			const { data: authorEssays, error: aErr } = await authorQuery;
 			if (aErr) console.error('[loadEssaySearchHits] author essays', aErr);
 			for (const raw of authorEssays ?? []) {
 				const hit = mapEssaySearchRow(raw as unknown as RawEssaySearchRow);
@@ -918,12 +950,16 @@ export async function loadEssaySearchHits(
 
 async function fetchLiveBookCount(
 	supabase: SupabaseClient,
-	needsReviewOnly: boolean
+	needsReviewOnly: boolean,
+	opts: { includeUnowned?: boolean } = {}
 ): Promise<number | null> {
 	let q = supabase
 		.from('books')
 		.select('id', { count: 'estimated', head: true })
 		.is('deleted_at', null);
+	if (opts.includeUnowned !== true) {
+		q = q.eq('owned', true);
+	}
 	if (needsReviewOnly) q = q.eq('needs_review', true);
 	const { count, error } = await q;
 	if (error) {
@@ -935,13 +971,16 @@ async function fetchLiveBookCount(
 
 /**
  * Cheap unfiltered count via `head: true` — drives the "Showing N of M"
- * indicator on the list page header.
+ * indicator on the list page header. Defaults to owned-only ([101]).
  */
-export async function countLiveBooks(supabase: SupabaseClient): Promise<number> {
-	return (await fetchLiveBookCount(supabase, false)) ?? 0;
+export async function countLiveBooks(
+	supabase: SupabaseClient,
+	opts: { includeUnowned?: boolean } = {}
+): Promise<number> {
+	return (await fetchLiveBookCount(supabase, false, opts)) ?? 0;
 }
 
-/** Live books with `needs_review = true` — dashboard tile. `null` if query failed. */
+/** Live owned books with `needs_review = true` — dashboard tile. `null` if query failed. */
 export async function countBooksNeedingReview(
 	supabase: SupabaseClient
 ): Promise<number | null> {
@@ -1006,6 +1045,7 @@ type RawBookDetail = {
 	series_id: string | null;
 	volume_number: string | null;
 	copy_count: number | null;
+	owned: boolean | null;
 	genre: string | null;
 	work_type: string | null;
 	language: string;
@@ -1056,6 +1096,7 @@ export async function loadBookDetail(
 			series_id,
 			volume_number,
 			copy_count,
+			owned,
 			work_type,
 			genre,
 			language,
@@ -1124,6 +1165,7 @@ export async function loadBookDetail(
 		series_abbreviation: r.series?.abbreviation ?? null,
 		volume_number: r.volume_number ?? null,
 		copy_count: r.copy_count != null && r.copy_count >= 1 ? r.copy_count : 1,
+		owned: r.owned !== false,
 		genre: r.genre ?? null,
 		work_type: parseWorkType(r.work_type),
 		language: (r.language as Language) ?? 'english',
@@ -1241,7 +1283,10 @@ function applyReviewQueueFilters<T extends ReviewQueueQuery>(
 	queryIn: T,
 	filters: ReviewQueueFilters
 ): T {
-	let query: ReviewQueueQuery = queryIn.is('deleted_at', null).eq('needs_review', true);
+	let query: ReviewQueueQuery = queryIn
+		.is('deleted_at', null)
+		.eq('needs_review', true)
+		.eq('owned', true);
 
 	query = applyReviewSliceGenreFilter(query, filters.slice);
 	query = applyReviewDeckFilters(query, filters);

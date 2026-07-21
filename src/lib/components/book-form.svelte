@@ -170,6 +170,7 @@
 	let series_id = $state<string>('');
 	let volume_number = $state('');
 	let copy_count = $state('1');
+	let owned = $state(true);
 	let genre = $state<Genre | ''>('');
 	let work_type = $state<WorkType>('monograph');
 	let language = $state<Language>('english');
@@ -223,6 +224,7 @@
 			series_id,
 			volume_number,
 			copy_count,
+			owned,
 			genre,
 			work_type,
 			language,
@@ -413,6 +415,7 @@
 			series_id = book.series_id ?? '';
 			volume_number = book.volume_number ?? '';
 			copy_count = String(book.copy_count >= 1 ? book.copy_count : 1);
+			owned = book.owned !== false;
 			genre = (book.genre as Genre | null) ?? '';
 			work_type = book.work_type;
 			language = book.language;
@@ -905,6 +908,25 @@
 								bind:value={copy_count}
 								class="h-11 text-base"
 							/>
+						</div>
+						<div class="space-y-2 sm:col-span-2">
+							<label class="flex items-center gap-2">
+								<input
+									type="hidden"
+									name="owned"
+									value={owned ? 'true' : 'false'}
+								/>
+								<input
+									id="bf-owned"
+									type="checkbox"
+									bind:checked={owned}
+									class="size-4"
+								/>
+								<span class="text-sm">In physical library</span>
+							</label>
+							<p class="text-xs text-muted-foreground">
+								Off = research stub (hidden from list/search by default).
+							</p>
 						</div>
 					</div>
 				</section>

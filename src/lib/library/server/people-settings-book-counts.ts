@@ -19,8 +19,9 @@ export async function fetchLiveBookIdsByPersonId(
 		const chunk = personIds.slice(i, i + PERSON_ID_IN_CHUNK);
 		const { data, error: qErr } = await supabase
 			.from('book_authors')
-			.select('person_id, book_id, books!inner(deleted_at)')
+			.select('person_id, book_id, books!inner(deleted_at, owned)')
 			.is('books.deleted_at', null)
+			.eq('books.owned', true)
 			.in('person_id', chunk);
 
 		if (qErr) {

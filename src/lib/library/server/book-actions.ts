@@ -68,6 +68,7 @@ export type BookFormPayload = {
 	series_id: string | null;
 	volume_number: string | null;
 	copy_count: number;
+	owned: boolean;
 	genre: Genre | null;
 	work_type: WorkType;
 	language: Language;
@@ -333,6 +334,9 @@ export function parseBookForm(fd: FormData): ParseResult {
 			: copy_count_raw > 99
 				? 99
 				: copy_count_raw;
+	// Absent → owned (physical add default). Explicit false/true from form/stub create.
+	const ownedRaw = fd.get('owned');
+	const owned = ownedRaw === null ? true : parseBoolean(ownedRaw);
 	const isbn = trimOrNull(fd.get('isbn'));
 	const barcode = trimOrNull(fd.get('barcode'));
 	const shelving_location = trimOrNull(fd.get('shelving_location'));
@@ -413,6 +417,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 			series_id,
 			volume_number,
 			copy_count,
+			owned,
 			genre: genre as Genre | null,
 			work_type: work_type as WorkType,
 			language: language as Language,
@@ -450,6 +455,7 @@ function bookColumnsPayload(p: BookFormPayload): Record<string, unknown> {
 		series_id: p.series_id,
 		volume_number: p.volume_number,
 		copy_count: p.copy_count,
+		owned: p.owned,
 		genre: p.genre,
 		work_type: p.work_type,
 		language: p.language,
@@ -780,9 +786,10 @@ export async function updateReadingStatusAction(supabase: SupabaseClient, fd: Fo
 }
 
 /**
- * Owner-only patch for `rating` and/or `personal_notes` from the book detail
- * card (B1/B2). Include a field in FormData only when it should change —
- * `rating` may be empty string to clear; omit the key to leave unchanged.
+ * Owner-only patch for `rating`, `personal_notes`, and/or `owned` from the
+ * book detail card (B1/B2). Include a field in FormData only when it should
+ * change — `rating` may be empty string to clear; omit the key to leave
+ * unchanged.
  */
 export async function updateBookPersonalFieldsAction(
 	supabase: SupabaseClient,
@@ -803,11 +810,15 @@ export async function updateBookPersonalFieldsAction(
 		return fail(403, {
 			kind: 'updateBookPersonalFields' as const,
 			bookId: id,
-			message: 'Only the owner can edit rating and personal notes.'
+			message: 'Only the owner can edit rating, personal notes, and owned.'
 		});
 	}
 
-	const patch: { rating?: number | null; personal_notes?: string | null } = {};
+	const patch: {
+		rating?: number | null;
+		personal_notes?: string | null;
+		owned?: boolean;
+	} = {};
 	if (fd.has('rating')) {
 		const raw = String(fd.get('rating') ?? '').trim();
 		if (raw.length === 0) {
@@ -826,6 +837,9 @@ export async function updateBookPersonalFieldsAction(
 	}
 	if (fd.has('personal_notes')) {
 		patch.personal_notes = trimOrNull(fd.get('personal_notes'));
+	}
+	if (fd.has('owned')) {
+		patch.owned = parseBoolean(fd.get('owned'));
 	}
 	if (Object.keys(patch).length === 0) {
 		return fail(400, {
@@ -855,7 +869,8 @@ export async function updateBookPersonalFieldsAction(
 		bookId: id,
 		success: true as const,
 		rating: 'rating' in patch ? (patch.rating ?? null) : undefined,
-		personal_notes: 'personal_notes' in patch ? (patch.personal_notes ?? null) : undefined
+		personal_notes: 'personal_notes' in patch ? (patch.personal_notes ?? null) : undefined,
+		owned: 'owned' in patch ? patch.owned : undefined
 	};
 }
 

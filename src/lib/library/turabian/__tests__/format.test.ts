@@ -594,7 +594,7 @@ describe('formatBibliography', () => {
 		expect(bib).toContain('Hawthorne, Gerald F., and Ralph P. Martin, eds.');
 	});
 
-	it('formats signed ABD article with series abbreviation as full dictionary cite', () => {
+	it('formats signed ABD article with series abbreviation (Covenant abbreviated)', () => {
 		const volume = book({
 			work_type: 'reference_work',
 			genre: 'Biblical Reference',
@@ -625,9 +625,8 @@ describe('formatBibliography', () => {
 			volume,
 			{ page: '835' }
 		);
-		expect(fn.plain).toBe(
-			'James A. Sanders, "Canon," in David Noel Freedman, ed., Anchor Bible Dictionary (New York: Doubleday, 1992), s.v. "Canon," 835.'
-		);
+		expect(fn.plain).toBe('James A. Sanders, "Canon," in ABD, 1:835.');
+		// Subsequent notes reuse the already-compact abbreviated first form (094).
 		expect(
 			formatEssayFootnote(
 				{
@@ -645,7 +644,64 @@ describe('formatBibliography', () => {
 				volume,
 				{ page: '836', shortForm: 'short' }
 			).plain
-		).toBe('Sanders, "Canon," 836.');
+		).toBe('James A. Sanders, "Canon," in ABD, 1:836.');
+	});
+
+	it('formats signed dictionary without abbreviation as essay-in-book (no s.v.)', () => {
+		const volume = book({
+			work_type: 'reference_work',
+			title: 'Encyclopedia of Applied Ethics',
+			volume_number: '3',
+			authors: [
+				{ person_id: 'e1', person_label: 'Ruth Chadwick', role: 'editor', sort_order: 0 }
+			],
+			publisher: 'Academic Press',
+			publisher_location: 'San Diego',
+			year: 1998
+		});
+		const fn = formatEssayFootnote(
+			{
+				essay_title: 'Property Rights',
+				page_start: 689,
+				authors: [
+					{ person_id: 'a1', person_label: 'John Christman', role: 'author', sort_order: 0 }
+				]
+			},
+			volume,
+			{ page: '689' }
+		);
+		expect(fn.plain).toBe(
+			'John Christman, "Property Rights," in Encyclopedia of Applied Ethics, ed. Ruth Chadwick (San Diego: Academic Press, 1998), 3:689.'
+		);
+	});
+
+	it('formats chapter in edited volume with Covenant title-then-ed order', () => {
+		const volume = book({
+			work_type: 'edited_volume',
+			title: 'The Glory of the Atonement',
+			authors: [
+				{ person_id: 'e1', person_label: 'David G. Peterson', role: 'editor', sort_order: 0 },
+				{ person_id: 'e2', person_label: 'David F. Wells', role: 'editor', sort_order: 1 }
+			],
+			publisher: 'Baker Academic',
+			publisher_location: 'Grand Rapids, MI',
+			year: 2004
+		});
+		expect(
+			formatEssayFootnote(
+				{
+					essay_title: 'The Perseverance of the Saints',
+					page_start: 123,
+					authors: [
+						{ person_id: 'a1', person_label: 'John Piper', role: 'author', sort_order: 0 }
+					]
+				},
+				volume,
+				{ page: '123' }
+			).plain
+		).toBe(
+			'John Piper, "The Perseverance of the Saints," in The Glory of the Atonement, eds. David G. Peterson and David F. Wells (Grand Rapids, MI: Baker Academic, 2004), 123.'
+		);
 	});
 
 	it('formats dictionary essay s.v. footnote', () => {

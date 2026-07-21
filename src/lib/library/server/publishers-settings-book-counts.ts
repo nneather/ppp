@@ -11,7 +11,8 @@ export async function fetchLiveBookIdsByPublisherId(
 	const { data, error } = await supabase
 		.from('books')
 		.select('publisher_id, reprint_publisher_id')
-		.is('deleted_at', null);
+		.is('deleted_at', null)
+		.eq('owned', true);
 
 	if (error) {
 		console.error(error);

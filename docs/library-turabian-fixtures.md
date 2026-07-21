@@ -2,7 +2,8 @@
 
 **Locked:** 2026-07-06 (Phase 0)  
 **Reference:** Covenant Seminary Turabian guide §17.1; executable mirror in `src/lib/library/turabian/__tests__/fixtures.ts`  
-**Gap rows:** all 20 pass as of Wave 2 Session 1 ([058](decisions/058-library-wave2-session1-article-formatters.md)).
+**Gap rows:** all 20 pass as of Wave 2 Session 1 ([058](decisions/058-library-wave2-session1-article-formatters.md)).  
+**Covenant Track A:** validated 2026-07-21 ([102](decisions/102-august-qa-covenant-fixtures.md)) — rows 17–19 strings updated to Covenant abbreviated / title-then-`ed.` forms.
 
 | # | Slug | Source type | Shelf example | Footnote | Bib | Status |
 |---|------|-------------|---------------|----------|-----|--------|
@@ -115,17 +116,17 @@
 
 ### 17 — Signed dictionary article
 
-- **Footnote:** `James A. Sanders, "Canon," in David Noel Freedman, ed., Anchor Bible Dictionary (New York: Doubleday, 1992), s.v. "Canon," 835.`
+- **Footnote:** `James A. Sanders, "Canon," in ABD, 1:835.` (Covenant §17.9.1 abbreviated; requires `series_abbreviation = 'ABD'`)
 - **Bibliography:** `Sanders, James A. "Canon." In Anchor Bible Dictionary, edited by David Noel Freedman. New York: Doubleday, 1992.`
 
 ### 18 — TDNT signed article
 
-- **Footnote:** `Gerhard Kittel, "λέγω," TDNT 4:100.`
-- **Carrier:** parent `series_abbreviation = 'TDNT'` + `volume_number` for abbreviated vol:page form.
+- **Footnote:** `Gerhard Kittel, "λέγω," in TDNT, 4:100.`
+- **Carrier:** parent `series_abbreviation = 'TDNT'` + `volume_number` for abbreviated `in ABBR, vol:page` form.
 
 ### 19 — Chapter in edited volume
 
-- **Footnote:** `John Piper, "The Perseverance of the Saints," in David G. Peterson and David F. Wells, eds., The Glory of the Atonement (Grand Rapids, MI: Baker Academic, 2004), 123.`
+- **Footnote:** `John Piper, "The Perseverance of the Saints," in The Glory of the Atonement, eds. David G. Peterson and David F. Wells (Grand Rapids, MI: Baker Academic, 2004), 123.`
 - **Bibliography:** `Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells, 123. Grand Rapids, MI: Baker Academic, 2004.`
 
 ### 20 — Short footnote
@@ -142,4 +143,4 @@
 | **2** | Essays CRUD UI on book detail; per-essay copy buttons; loaders | ☑ 2026-07-06 |
 | **3** | Megacomponent split (`scripture-reference-form`, `book-form`) | ☑ 2026-07-06 |
 | **4** | `.docx` export (hanging indent + italics) — [063](decisions/063-library-wave2-session4-docx-export.md) | ☑ 2026-07-06 |
-| **August** | Physical shelf verification of all 20 rows | ☐ |
+| **August** | Physical shelf verification of all 20 rows (Track B). Track A Covenant strings ☑ [102](decisions/102-august-qa-covenant-fixtures.md) | ☐ Track B |
