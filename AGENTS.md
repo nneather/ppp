@@ -173,6 +173,7 @@ End-of-session deliverables:
 
 - **Supabase workflow:** one hosted project. Do **not** use `supabase start` or a local Docker stack for this repo; apply migrations with `npm run supabase:db:push` to the linked project. See [supabase/README.md](supabase/README.md).
 - `npm run check` — svelte-check
+- `npm run build` — production Vite build (same path as Vercel). GitHub Actions CI runs check + test + **build** ([097](docs/decisions/097-vercel-deploy-ci-build-gate.md)). Prefer green CI on `main` before trusting a deploy.
 - **`PPP_BUNDLE_VIZ=1 npm run build`** — client treemap at `.bundle-viz/treemap.html` (gitignored; `rollup-plugin-visualizer` in [vite.config.ts](vite.config.ts)). See [docs/decisions/025-library-bundle-split.md](docs/decisions/025-library-bundle-split.md).
 - `npm run supabase:db:push:dry` — review migration diff before applying
 - `npm run supabase:db:push` — apply migrations to prod

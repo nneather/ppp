@@ -23,3 +23,6 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run test
+      # Same compile path as Vercel (`vite build`). Catches parse/bundle errors that
+      # can still reach production when main has no required status checks.
+      - run: npm run build
