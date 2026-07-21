@@ -27,7 +27,7 @@
 - `supabase/functions/email-inbound-task/` — inbound webhook handler.
 
 ## Open questions surfaced
-- Parker must finish Resend webhook + `supabase secrets set` (full allowlist in supabase/README.md) before forwards create tasks.
+- ~~Parker must finish Resend webhook + `supabase secrets set`~~ — done [098](098-resend-inbound-webhook-secrets.md).
 - Whether Email Inbox should later auto-file by subject tag — deferred.
 
 ## Surprises (read these before the next session)
