@@ -10,7 +10,7 @@
 
 ## Decided
 
-- **`main` branch protection adopted** (owner): require status check `check-and-test`, no force-push / no deletions, include administrators. Reviews / “must use PRs” stay **off** — solo personal project.
+- **`main` branch protection adopted** (owner): require status check `check-and-test`, no force-push / no deletions. Reviews / “must use PRs” stay **off** — solo personal project. **Amended same day:** Include administrators turned **off** so Parker can push straight to `main` ([106](106-main-admin-bypass.md)); initial adoption had admins enforced.
 - **Problem was real** ([097](097-vercel-deploy-ci-build-gate.md)): red CI still reached Vercel before protection. Remedy is required checks, not a PR culture.
 - **Agents must not invent PRs** when a push to `main` is blocked. Prefer: copy-paste commit message for Parker; if a branch is needed for CI, use a **short-lived, session-named** branch — never reuse an open feature branch for unrelated work.
 - **Trigger for this note:** Speed Insights work landed on [PR #1](https://github.com/nneather/ppp/pull/1) only because an earlier skill chat opened that PR after hitting protection, and later chats inherited `library-add-books-skill`. The Insights chat did not create the PR.

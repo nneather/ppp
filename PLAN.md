@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-21 — **Solo git/ship + main protection close-out** ([105](docs/decisions/105-solo-git-ship-agent-guidance.md)). Prior: SBL abbr cleanup ([104](docs/decisions/104-sbl-series-abbr-cleanup.md)).
+**Last updated:** 2026-07-21 — **Main admin bypass** ([106](docs/decisions/106-main-admin-bypass.md)): Parker can push straight to `main`; required `check-and-test` stays. Prior: solo git/ship ([105](docs/decisions/105-solo-git-ship-agent-guidance.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -44,6 +44,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [106 — Main admin bypass](docs/decisions/106-main-admin-bypass.md) (2026-07-21) — Include administrators off; solo direct pushes to `main` OK; required `check-and-test` kept.
 - [105 — Solo git/ship agent guidance](docs/decisions/105-solo-git-ship-agent-guidance.md) (2026-07-21) — `main` protection adopted (required `check-and-test`, no PR theater); agents must not invent PRs or pile onto unrelated branches.
 - [104 — SBL series abbreviation cleanup](docs/decisions/104-sbl-series-abbr-cleanup.md) (2026-07-21) — Apollos→ApOTC; K&D off Continental; MHC off Moffatt (MNTC).
 - [103 — Library not-owned Session 1](docs/decisions/103-library-not-owned-session-1.md) (2026-07-21) — `books.owned` + default-hide + `/settings/library/not-owned` create-from-queue.

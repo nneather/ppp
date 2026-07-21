@@ -26,7 +26,7 @@
 
 ## Open questions surfaced
 
-- **Owner — done:** Branch protection on `main` — require `check-and-test`, no force-push / no deletions, include administrators. Reviews left off (solo). Closed out in [105](105-solo-git-ship-agent-guidance.md).
+- **Owner — done:** Branch protection on `main` — require `check-and-test`, no force-push / no deletions. Reviews left off (solo). Closed out in [105](105-solo-git-ship-agent-guidance.md). **Admin bypass on** (Include administrators unchecked) — [106](106-main-admin-bypass.md).
 - **Owner (optional smoke):** Confirm a later Vercel Production deploy stays Ready when CI is green.
 
 ## Surprises (read these before the next session)
@@ -39,4 +39,4 @@
 - [x] AGENTS.md inventory updated (scripts)
 - [x] workflow.mdc end-of-session note
 - [x] CI workflow includes `npm run build`
-- [x] Parker: branch protection on `main` (required check `check-and-test`; no PR theater — [105](105-solo-git-ship-agent-guidance.md))
+- [x] Parker: branch protection on `main` (required check `check-and-test`; no PR theater — [105](105-solo-git-ship-agent-guidance.md); admin bypass — [106](106-main-admin-bypass.md))

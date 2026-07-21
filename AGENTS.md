@@ -191,12 +191,12 @@ End-of-session deliverables:
 
 ## Git / ship (solo)
 
-Personal repo, one primary owner. **Branch protection on `main` requires green CI (`check-and-test`) — it does not require pull-request theater.** Full rules: [.cursor/rules/workflow.mdc](.cursor/rules/workflow.mdc) › Git / ship. Summary:
+Personal repo, one primary owner. **`main` requires `check-and-test` for non-admin lands; Parker (admin) may push straight to `main` — no PR theater.** Full rules: [.cursor/rules/workflow.mdc](.cursor/rules/workflow.mdc) › Git / ship. Summary:
 
-- Default end-of-session: **copy-paste commit message**; Parker commits/pushes unless he explicitly asks the agent to.
-- **Do not invent PRs** just because `main` is protected. Open a PR only when Parker asks, or when a push is blocked and a **short-lived, session-named** branch is the least friction path to get CI green.
-- **Never reuse** an open feature branch / PR for unrelated work. Never `git reset --hard` to “fix” a protected-main push without checking for other WIP.
-- Decision: [105](docs/decisions/105-solo-git-ship-agent-guidance.md). Protection origin: [097](docs/decisions/097-vercel-deploy-ci-build-gate.md).
+- Default end-of-session: **copy-paste commit message**; when Parker asks the agent to commit/push, prefer **`main`** (admin bypass — [106](docs/decisions/106-main-admin-bypass.md)).
+- **Do not invent PRs.** Open one only when Parker asks, or if a push is blocked without bypass.
+- **Never reuse** an open feature branch / PR for unrelated work. Never `git reset --hard` without checking for other WIP.
+- Decisions: [105](docs/decisions/105-solo-git-ship-agent-guidance.md), [106](docs/decisions/106-main-admin-bypass.md). Protection origin: [097](docs/decisions/097-vercel-deploy-ci-build-gate.md).
 
 ## Commit messages (library)
 

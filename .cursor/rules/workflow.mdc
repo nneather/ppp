@@ -25,16 +25,16 @@ Work in this repo **builds into files**, not chat history. A session that doesn'
 
 ## Git / ship (solo — read before opening a PR)
 
-`main` is protected: required status check **`check-and-test`**, no force-push, admins enforced. **Reviews are not required.** This stops red CI from reaching Vercel ([097](mdc:docs/decisions/097-vercel-deploy-ci-build-gate.md), [105](mdc:docs/decisions/105-solo-git-ship-agent-guidance.md)). It is **not** a mandate to run every change through a pull request.
+`main` is protected: required status check **`check-and-test`**, no force-push. **Admin bypass is on** (Include administrators / “Do not allow bypassing…” is **unchecked**) so Parker can push straight to `main` without a PR ([106](mdc:docs/decisions/106-main-admin-bypass.md)). **Reviews are not required.** Required checks still stop casual/non-admin broken landings ([097](mdc:docs/decisions/097-vercel-deploy-ci-build-gate.md), [105](mdc:docs/decisions/105-solo-git-ship-agent-guidance.md)). This is **not** a mandate to run every change through a pull request.
 
 | Do | Don't |
 |---|---|
 | Prefer working on **`main`** for solo sessions when the tree is clean | Invent a PR solely because `main` is protected |
-| End with a **copy-paste commit message**; push only when Parker asks (or via his commit-and-push UI action) | Reuse an open feature branch / PR for **unrelated** work from another chat |
-| If a push to `main` is blocked and a branch is needed for CI: create a **short-lived, session-named** branch (e.g. `pwa-100-banner`), push, tell Parker to merge when green | `git reset --hard` / rewrite history to “fix” a blocked push without checking for other WIP |
-| Open a PR only when Parker asks, or when that short-lived branch is the least friction path to land CI | Treat Cursor’s commit-and-push “current branch” as permission to pile onto someone else’s PR |
+| End with a **copy-paste commit message**; when Parker asks to commit/push, **push to `main`** (admin bypass) | Reuse an open feature branch / PR for **unrelated** work from another chat |
+| Open a PR only when Parker asks, or if a push is blocked for a non-bypass path | `git reset --hard` / rewrite history to “fix” a push without checking for other WIP |
+| Keep local `npm run check` (+ `test` / `build` when touching ship paths) before pushing to `main` | Treat Cursor’s commit-and-push “current branch” as permission to pile onto someone else’s PR |
 
-**Why this exists:** An agent once opened PR #1 after hitting protection; later chats (Speed Insights, etc.) inherited `library-add-books-skill` via the commit-and-push UI and stacked unrelated commits onto the same PR. Protection was correct; inventing PR theater was not.
+**Why this exists:** An agent once opened PR #1 after hitting protection; later chats stacked onto the same branch. Admins-enforced made every land a PR (#2–#3); owner turned that off for solo friction ([106](mdc:docs/decisions/106-main-admin-bypass.md)).
 
 ## Task-to-agent routing
 
