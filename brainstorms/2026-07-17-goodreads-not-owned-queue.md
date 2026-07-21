@@ -15,7 +15,7 @@ Source: [2026-07-17-goodreads-unmatched-triage.md](./2026-07-17-goodreads-unmatc
 | 5 | Paul’s Concept of Inheritance | James D. Hester | |
 | 5 | Redeemer Church Planting Manual | Thompson & Keller | |
 | 5 | The Incarnation of God | John C. Clark | |
-| 5 | Letters to Children | Lyle Dorsett | |
+| 5 | Letters to Children | C.S. Lewis | Ed. Lyle Dorsett |
 | 5 | How to Read a Book | Mortimer J. Adler | |
 | 4 | Anxious | Amy Simpson | |
 | 4 | Bruchko | Bruce Olson | |

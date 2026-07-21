@@ -40,14 +40,13 @@ export async function createNotOwnedStubAction(
 		.from('books')
 		.select('id, title')
 		.is('deleted_at', null)
-		.eq('owned', false)
-		.limit(500);
+		.limit(5000);
 	if (existErr) {
 		console.error(existErr);
 		return fail(500, {
 			kind: 'createNotOwnedStub' as const,
 			queueKey,
-			message: existErr.message ?? 'Could not check existing stubs.'
+			message: existErr.message ?? 'Could not check existing books.'
 		});
 	}
 	const already = (existing ?? []).find(

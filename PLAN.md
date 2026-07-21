@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-21 — **Not-owned settings inbox** ([107](docs/decisions/107-not-owned-pending-inbox-dismiss.md)): pending-only list + Don’t create (localStorage) + Created/Dismissed archives. Prior: main admin bypass ([106](docs/decisions/106-main-admin-bypass.md)).
+**Last updated:** 2026-07-21 — **Not-owned polish** ([108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md)): owned books stay out of pending; Letters to Children authors fixed; Goodreads matched-proposal Session 2 abandoned. Prior: inbox dismiss ([107](docs/decisions/107-not-owned-pending-inbox-dismiss.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -44,6 +44,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [108 — Not-owned owned-reappear + abandon proposals](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md) (2026-07-21) — match any live title; Letters to Children authors; drop Session 2 Goodreads proposals.
 - [107 — Not-owned pending inbox + dismiss](docs/decisions/107-not-owned-pending-inbox-dismiss.md) (2026-07-21) — settings queue shrinks; Don’t create via localStorage; Created/Dismissed archives.
 - [106 — Main admin bypass](docs/decisions/106-main-admin-bypass.md) (2026-07-21) — Include administrators off; solo direct pushes to `main` OK; required `check-and-test` kept.
 - [105 — Solo git/ship agent guidance](docs/decisions/105-solo-git-ship-agent-guidance.md) (2026-07-21) — `main` protection adopted (required `check-and-test`, no PR theater); agents must not invent PRs or pile onto unrelated branches.
@@ -89,7 +90,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-21** ([107](docs/decisions/107-not-owned-pending-inbox-dismiss.md); check **0 errors**, 266 tests). Prior: [103](docs/decisions/103-library-not-owned-session-1.md); `npm run build` exit 0 ([097](docs/decisions/097-vercel-deploy-ci-build-gate.md)).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-21** ([108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md); check **0 errors**). Prior: [107](docs/decisions/107-not-owned-pending-inbox-dismiss.md); `npm run build` exit 0 ([097](docs/decisions/097-vercel-deploy-ci-build-gate.md)).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -142,9 +143,11 @@ Capture: [brainstorms/2026-07-21-library-not-owned-session-0.md](brainstorms/202
 
 ### Library — not-owned Session 1: `owned` + hide + create-from-queue ✅ done ([103](docs/decisions/103-library-not-owned-session-1.md))
 
-Owner follow-up: drain curated queue via `/settings/library/not-owned` (Create stub or Don’t create); mark physical copies owned when they arrive. Inbox UX: [107](docs/decisions/107-not-owned-pending-inbox-dismiss.md). Session 2+: matched year/publisher → proposals.
+Owner follow-up: drain curated queue via `/settings/library/not-owned` (Create stub or Don’t create); mark physical copies owned when they arrive. Inbox UX: [107](docs/decisions/107-not-owned-pending-inbox-dismiss.md). Owned reappear fix + Session 2 abandoned: [108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md).
 
 ### Library — not-owned settings pending inbox + dismiss ✅ done ([107](docs/decisions/107-not-owned-pending-inbox-dismiss.md))
+
+### Library — not-owned owned-reappear + abandon Goodreads proposals ✅ done ([108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md))
 
 ### Library — review-queue improvement + AI research pass ✅ done, full backlog run ✅ done ([067](docs/decisions/067-library-review-sprint-decks.md) + [068](docs/decisions/068-library-review-ai-research-pass.md) + [070](docs/decisions/070-library-genre-taxonomy-audit.md))
 
@@ -288,6 +291,5 @@ Acceptance:
 3. **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)) — keep `/tasks`; fall polish as needed. Global Now parked until fall. **Email → task live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)).
 4. **Library Wave 2 — August shelf QA** — **Track A done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)): Covenant string validation + formatter fix. **Track B** (physical shelf of all 20 rows) waits for Madison. **Plus:** drain the "Needs the shelf" review deck (prior **50** + Goodreads leftovers from [096](docs/decisions/096-goodreads-owned-adds-enrichment.md)).
 5. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
-6. **Library — not-owned Session 2+** ([103](docs/decisions/103-library-not-owned-session-1.md)) — matched Goodreads year/publisher → `book_metadata_proposals` (ISBN info-only); bibliography stub UX polish. Owner: drain queue via `/settings/library/not-owned` first.
-7. **Backlog — Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — deferred; orthogonal to owned.
-8. **Invoicing:** first real-client send cadence (owner-driven). **Owner:** if outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.
+6. **Backlog — Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — deferred; orthogonal to owned.
+7. **Invoicing:** first real-client send cadence (owner-driven). **Owner:** if outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.

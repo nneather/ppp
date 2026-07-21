@@ -74,9 +74,9 @@ export const NOT_OWNED_QUEUE: readonly NotOwnedQueueItem[] = [
 	{
 		key: keyFor('Letters to Children'),
 		title: 'Letters to Children',
-		author: 'Lyle Dorsett',
+		author: 'C.S. Lewis',
 		rating: 5,
-		notes: null
+		notes: 'Ed. Lyle Dorsett'
 	},
 	{
 		key: keyFor('How to Read a Book'),

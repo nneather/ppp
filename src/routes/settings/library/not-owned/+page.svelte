@@ -173,7 +173,7 @@
 				aria-expanded={createdOpen}
 			>
 				<span>
-					Created
+					In library
 					<span class="font-normal text-muted-foreground">({createdRows.length})</span>
 				</span>
 				<ChevronDown
@@ -186,7 +186,14 @@
 						<li
 							class="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
 						>
-							{@render rowMeta(row)}
+							<div class="min-w-0">
+								{@render rowMeta(row)}
+								{#if row.existingOwned === true}
+									<p class="mt-0.5 text-xs text-muted-foreground">Marked owned</p>
+								{:else if row.existingOwned === false}
+									<p class="mt-0.5 text-xs text-muted-foreground">Unowned stub</p>
+								{/if}
+							</div>
 							{#if row.existingBookId}
 								<Button
 									href={`/library/books/${row.existingBookId}`}
@@ -194,7 +201,7 @@
 									size="sm"
 									class="h-9 shrink-0"
 								>
-									Open stub
+									Open book
 								</Button>
 							{/if}
 						</li>

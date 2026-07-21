@@ -9,6 +9,8 @@ import { createNotOwnedStubAction } from '$lib/library/server/not-owned-actions'
 
 export type NotOwnedSettingsRow = NotOwnedQueueItem & {
 	existingBookId: string | null;
+	/** True when the matched live book is owned (still leaves pending). */
+	existingOwned: boolean | null;
 };
 
 export const load: PageServerLoad = async ({ locals, parent, depends }) => {
@@ -19,34 +21,43 @@ export const load: PageServerLoad = async ({ locals, parent, depends }) => {
 
 	depends('app:library:not-owned');
 
+	// Match any live book by title — owned stubs must not reappear as pending ([107] follow-up).
 	const { data, error } = await locals.supabase
 		.from('books')
-		.select('id, title')
+		.select('id, title, owned')
 		.is('deleted_at', null)
-		.eq('owned', false)
-		.limit(500);
+		.limit(5000);
 
 	if (error) {
 		console.error(error);
 		return {
 			rows: NOT_OWNED_QUEUE.map(
-				(q): NotOwnedSettingsRow => ({ ...q, existingBookId: null })
+				(q): NotOwnedSettingsRow => ({
+					...q,
+					existingBookId: null,
+					existingOwned: null
+				})
 			),
-			loadError: 'Could not load existing stubs.'
+			loadError: 'Could not load existing books.'
 		};
 	}
 
-	const byTitle = new Map<string, string>();
+	const byTitle = new Map<string, { id: string; owned: boolean }>();
 	for (const r of data ?? []) {
-		const row = r as { id: string; title: string | null };
+		const row = r as { id: string; title: string | null; owned: boolean };
 		const k = normalizeTitleKey(row.title ?? '');
-		if (k && !byTitle.has(k)) byTitle.set(k, row.id);
+		if (!k || byTitle.has(k)) continue;
+		byTitle.set(k, { id: row.id, owned: row.owned !== false });
 	}
 
-	const rows: NotOwnedSettingsRow[] = NOT_OWNED_QUEUE.map((q) => ({
-		...q,
-		existingBookId: byTitle.get(normalizeTitleKey(q.title)) ?? null
-	}));
+	const rows: NotOwnedSettingsRow[] = NOT_OWNED_QUEUE.map((q) => {
+		const hit = byTitle.get(normalizeTitleKey(q.title));
+		return {
+			...q,
+			existingBookId: hit?.id ?? null,
+			existingOwned: hit != null ? hit.owned : null
+		};
+	});
 
 	return { rows, loadError: null as string | null };
 };
