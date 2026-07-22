@@ -246,7 +246,7 @@
 	<Sheet.Content
 		side={sheetSide}
 		class={cn(
-			'flex w-full flex-col gap-0 p-0',
+			'flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0',
 			sheetSide === 'bottom' && 'h-[min(92dvh,720px)] max-h-[92dvh] rounded-t-xl',
 			sheetSide === 'right' && 'max-w-md sm:max-w-md'
 		)}
@@ -264,7 +264,7 @@
 			action={formAction}
 			use:enhance={submitEnhance}
 			onsubmit={requestSave}
-			class="flex min-h-0 flex-1 flex-col"
+			class="flex min-h-0 min-w-0 flex-1 flex-col"
 		>
 			{#if mode === 'edit' && task}
 				<input type="hidden" name="id" value={task.id} />
@@ -273,7 +273,7 @@
 				<input type="hidden" name="scope" value={pendingScope} />
 			{/if}
 
-			<div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 py-4">
+			<div class="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-x-hidden overflow-y-auto px-4 py-4">
 				{#if errorMessage}
 					<p
 						class="shrink-0 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -283,12 +283,12 @@
 					</p>
 				{/if}
 
-				<div class="shrink-0 space-y-2">
+				<div class="min-w-0 shrink-0 space-y-2">
 					<Label for="task-title">Title</Label>
 					<Input id="task-title" name="title" type="text" bind:value={title} required maxlength={500} />
 				</div>
 
-				<div class="shrink-0 space-y-2">
+				<div class="min-w-0 shrink-0 space-y-2">
 					<Label>Project</Label>
 					<Select.Root
 						type="single"
@@ -307,7 +307,7 @@
 					<input type="hidden" name="project_id" value={projectId} />
 				</div>
 
-				<div class="shrink-0 space-y-2">
+				<div class="min-w-0 shrink-0 space-y-2">
 					<Label>Urgency zone</Label>
 					<Select.Root
 						type="single"
@@ -330,22 +330,24 @@
 					<input type="hidden" name="priority" value={priority} />
 				</div>
 
-				<div class="shrink-0 space-y-2">
+				<div class="min-w-0 shrink-0 space-y-2">
 					<Label for="task-start">Start date</Label>
-					<Input
-						id="task-start"
-						name="start_date"
-						type="date"
-						bind:value={startDate}
-						required
-						onchange={syncDefaultsFromStartDate}
-					/>
+					<div class="min-w-0 overflow-hidden">
+						<Input
+							id="task-start"
+							name="start_date"
+							type="date"
+							bind:value={startDate}
+							required
+							onchange={syncDefaultsFromStartDate}
+						/>
+					</div>
 					<p class="text-xs text-muted-foreground">
 						Today = top of zone (FRESH). Future date = deferred (hidden until then).
 					</p>
 				</div>
 
-				<div class="shrink-0 space-y-3 rounded-lg border border-border p-3">
+				<div class="min-w-0 shrink-0 space-y-3 rounded-lg border border-border p-3">
 					<div class="flex items-center justify-between gap-2">
 						<Label for="task-recurring" class="text-sm font-medium">Make recurring</Label>
 						<input
@@ -455,7 +457,9 @@
 							{#if ends === 'after_count'}
 								<Input type="number" min="1" max="999" bind:value={endsCount} aria-label="Occurrence count" />
 							{:else if ends === 'on_date'}
-								<Input type="date" bind:value={endsOn} required aria-label="End date" />
+								<div class="min-w-0 overflow-hidden">
+									<Input type="date" bind:value={endsOn} required aria-label="End date" />
+								</div>
 							{/if}
 						</div>
 

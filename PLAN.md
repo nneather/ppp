@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-22 — PWA resume auto-apply harden ([111](docs/decisions/111-pwa-resume-auto-apply-harden.md)). Prior: sermons owner-smoke UX ([110](docs/decisions/110-sermons-owner-smoke-ux.md)).
+**Last updated:** 2026-07-22 — Task sheet date overflow ([112](docs/decisions/112-task-sheet-date-overflow.md)). Prior: PWA resume harden ([111](docs/decisions/111-pwa-resume-auto-apply-harden.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -44,9 +44,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [112 — Task sheet date field overflow](docs/decisions/112-task-sheet-date-overflow.md) (2026-07-22) — WebKit date width + sheet overflow-x; Projects E2E smoke otherwise OK.
 - [111 — PWA resume auto-apply harden](docs/decisions/111-pwa-resume-auto-apply-harden.md) (2026-07-22) — apply `registration.waiting` on foreground; pageshow/focus fallbacks after owner smoke miss.
 - [110 — Sermons owner-smoke UX polish](docs/decisions/110-sermons-owner-smoke-ux.md) (2026-07-22) — venue dropdown; Find-in-library verse ranges + returnTo; by-book icon counts (book/star + mic on right); drop No commentaries; `search_scripture_refs` end bounds.
-- [109 — Tasks active badge + recurrence](docs/decisions/109-tasks-active-badge-recurrence.md) (2026-07-21) — dashboard all active tasks; weekly/monthly series spawn-on-complete; This/Entire series.
 - [105 — Solo git/ship agent guidance](docs/decisions/105-solo-git-ship-agent-guidance.md) (2026-07-21) — `main` protection adopted (required `check-and-test`, no PR theater); agents must not invent PRs or pile onto unrelated branches.
 - [104 — SBL series abbreviation cleanup](docs/decisions/104-sbl-series-abbr-cleanup.md) (2026-07-21) — Apollos→ApOTC; K&D off Continental; MHC off Moffatt (MNTC).
 - [103 — Library not-owned Session 1](docs/decisions/103-library-not-owned-session-1.md) (2026-07-21) — `books.owned` + default-hide + `/settings/library/not-owned` create-from-queue.
@@ -90,7 +90,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` **2026-07-22** ([111](docs/decisions/111-pwa-resume-auto-apply-harden.md); **0 errors**). Prior: [110](docs/decisions/110-sermons-owner-smoke-ux.md) check + **276** tests.
+**Repo gate:** `npm run check` **2026-07-22** ([112](docs/decisions/112-task-sheet-date-overflow.md); **0 errors**). Prior: [111](docs/decisions/111-pwa-resume-auto-apply-harden.md).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
