@@ -6,11 +6,14 @@
 
 ## Built
 
-- Stop horizontal scroll in `<ProjectTaskSheet>`: `overflow-x-hidden` + `min-w-0` on sheet/form/scroll body; wrap Start date / Ends-on date in `overflow-hidden`.
-- `<Input>`: `max-w-full` on all inputs; `display:block` for WebKit date/time types (intrinsic width was wider than Title/Project/Zone).
+- Stop horizontal scroll in `<ProjectTaskSheet>`: `overflow-x-hidden` + `min-w-0` on sheet/form/scroll body.
+- Date fields: CSS **grid** wrapper (`grid-cols-1`) constrains WebKit intrinsic width **without** clipping the right border (overflow-hidden made the control look open-ended).
+- Sticky footer: `pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))]` so Add/Cancel sit above the iOS home indicator.
+- `<Input>`: `max-w-full` on all inputs; `display:block` for WebKit date/time types.
 
 ## Decided
 
+- Prefer grid containment over `overflow-hidden` for date inputs — keeps a full rounded border matching Title/Project/Zone.
 - Fix at shared Input + sheet shell (not a custom date picker) — same Safari intrinsic-width issue can hit other sheets.
 
 ## Schema changes
@@ -28,6 +31,7 @@
 ## Surprises
 
 - Projects E2E smoke otherwise passed; only Start date overhang caused sideways scroll.
+- First containment pass used `overflow-hidden` and clipped the date’s right border — looked “open-ended”; switched to grid.
 
 ## Carry-forward updates
 

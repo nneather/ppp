@@ -332,11 +332,13 @@
 
 				<div class="min-w-0 shrink-0 space-y-2">
 					<Label for="task-start">Start date</Label>
-					<div class="min-w-0 overflow-hidden">
+					<!-- CSS grid constrains WebKit date intrinsic width without clipping the border. -->
+					<div class="grid w-full min-w-0 grid-cols-1">
 						<Input
 							id="task-start"
 							name="start_date"
 							type="date"
+							class="w-full max-w-full"
 							bind:value={startDate}
 							required
 							onchange={syncDefaultsFromStartDate}
@@ -457,8 +459,14 @@
 							{#if ends === 'after_count'}
 								<Input type="number" min="1" max="999" bind:value={endsCount} aria-label="Occurrence count" />
 							{:else if ends === 'on_date'}
-								<div class="min-w-0 overflow-hidden">
-									<Input type="date" bind:value={endsOn} required aria-label="End date" />
+								<div class="grid w-full min-w-0 grid-cols-1">
+									<Input
+										type="date"
+										class="w-full max-w-full"
+										bind:value={endsOn}
+										required
+										aria-label="End date"
+									/>
 								</div>
 							{/if}
 						</div>
@@ -480,7 +488,9 @@
 				</div>
 			</div>
 
-			<div class="sticky bottom-0 flex shrink-0 flex-wrap gap-2 border-t border-border bg-popover px-4 py-3">
+			<div
+				class="sticky bottom-0 flex shrink-0 flex-wrap gap-2 border-t border-border bg-popover px-4 pt-3 pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))]"
+			>
 				<Button type="submit" hotkey={mode === 'create' ? 's' : 'u'} disabled={pending}>
 					{pending ? 'Saving…' : mode === 'create' ? 'Add task' : 'Update task'}
 				</Button>
