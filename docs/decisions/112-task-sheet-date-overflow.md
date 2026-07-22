@@ -35,5 +35,5 @@
 
 ## Carry-forward updates
 
-- [x] PLAN.md — note in Recent / Next up if needed
+- [x] PLAN.md — Recent / Next up / module rows / Done recently refreshed (2026-07-22)
 - [ ] components.mdc — N/A
