@@ -77,7 +77,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		backlogRemaining,
 		projectTree,
 		latestHealthMap,
-		activeTasksRes
+		criticalNowTasksRes,
+		opportunityNowTasksRes
 	] = await Promise.all([
 		supabase
 			.from('time_entries')
@@ -100,13 +101,27 @@ export const load: PageServerLoad = async ({ locals }) => {
 		supabase
 			.from('project_tasks')
 			.select('id', { count: 'exact', head: true })
+			.eq('priority', 'critical_now')
+			.is('deleted_at', null)
+			.is('completed_at', null)
+			.lte('start_date', today),
+		supabase
+			.from('project_tasks')
+			.select('id', { count: 'exact', head: true })
+			.eq('priority', 'opportunity_now')
 			.is('deleted_at', null)
 			.is('completed_at', null)
 			.lte('start_date', today)
 	]);
 
-	const activeTaskCount = activeTasksRes.error ? null : (activeTasksRes.count ?? 0);
-	if (activeTasksRes.error) console.error(activeTasksRes.error);
+	const criticalNowTaskCount = criticalNowTasksRes.error
+		? null
+		: (criticalNowTasksRes.count ?? 0);
+	const opportunityNowTaskCount = opportunityNowTasksRes.error
+		? null
+		: (opportunityNowTasksRes.count ?? 0);
+	if (criticalNowTasksRes.error) console.error(criticalNowTasksRes.error);
+	if (opportunityNowTasksRes.error) console.error(opportunityNowTasksRes.error);
 
 	const latestHealth = Object.fromEntries(latestHealthMap) as Record<string, LatestHealth>;
 
@@ -131,7 +146,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			libraryBacklogRemaining: backlogRemaining,
 			projectTree,
 			latestHealth,
-			activeTaskCount,
+			criticalNowTaskCount,
+			opportunityNowTaskCount,
 			dashboardError: 'Could not load unbilled count.' as string | null
 		};
 	}
@@ -144,7 +160,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		libraryBacklogRemaining: backlogRemaining,
 		projectTree,
 		latestHealth,
-		activeTaskCount,
+		criticalNowTaskCount,
+		opportunityNowTaskCount,
 		dashboardError: null as string | null
 	};
 };

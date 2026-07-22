@@ -6,7 +6,7 @@
 
 ## Built
 
-- Dashboard Tasks tile counts **all MYN-visible open tasks** (`deleted_at`/`completed_at` null, `start_date ≤ today`), not only Critical Now. Field renamed `activeTaskCount`; label “Open active tasks”.
+- Dashboard Tasks tile shows **Critical** and **Opportunity** open counts only (MYN-visible: `start_date ≤ today`); zones with 0 are omitted; Over the Horizon is never shown.
 - Recurring tasks (Outlook-like weekly/monthly) on `/tasks` create sheet: frequency, interval, weekday chips / month day, end never / after N / on date.
 - Schema: `project_task_series` template + `project_tasks.series_id` / `series_occurrence`.
 - **Complete → spawn next** occurrence from series template (one open instance; next may be deferred).

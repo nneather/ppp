@@ -34,7 +34,7 @@
 		{
 			href: '/tasks',
 			title: 'Tasks',
-			statLabel: 'Open active tasks',
+			statLabel: 'Open now',
 			icon: ListChecks
 		}
 	];
@@ -47,14 +47,26 @@
 		'flex flex-1 flex-col rounded-t-xl p-5 outline-none focus-visible:ring-2 focus-visible:ring-ring'
 	);
 
+	const taskCountsLoaded = $derived(
+		data.criticalNowTaskCount != null && data.opportunityNowTaskCount != null
+	);
+
+	const taskBreakdown = $derived.by(() => {
+		if (!taskCountsLoaded) return null;
+		const parts: { label: string; count: number; tone: 'critical' | 'opportunity' }[] = [];
+		const critical = data.criticalNowTaskCount ?? 0;
+		const opportunity = data.opportunityNowTaskCount ?? 0;
+		if (critical > 0) parts.push({ label: 'Critical', count: critical, tone: 'critical' });
+		if (opportunity > 0) {
+			parts.push({ label: 'Opportunity', count: opportunity, tone: 'opportunity' });
+		}
+		return parts;
+	});
+
 	function tileStat(href: string): string {
 		if (href === '/invoicing') {
 			if (data.unbilledPriorCount == null) return '–';
 			return String(data.unbilledPriorCount);
-		}
-		if (href === '/tasks') {
-			if (data.activeTaskCount == null) return '–';
-			return String(data.activeTaskCount);
 		}
 		return '–';
 	}
@@ -132,8 +144,77 @@
 							<DashboardInvoicingTileFooter candidates={data.lastWeekInvoiceCandidates} />
 						{/if}
 					</div>
+				{:else if href === '/tasks'}
+					<a
+						{href}
+						class={cn(
+							cardClass,
+							'p-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
+						)}
+					>
+						<div class="mb-4 flex items-center gap-2 text-muted-foreground">
+							<Icon class="size-5 shrink-0" />
+							<span class="text-base font-semibold tracking-tight text-foreground">{title}</span>
+						</div>
+						<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+							{statLabel}
+						</p>
+						{#if !taskCountsLoaded}
+							<p class="mt-2 text-3xl font-semibold text-foreground tabular-nums" aria-live="polite">
+								–
+							</p>
+						{:else if taskBreakdown && taskBreakdown.length === 0}
+							<p class="mt-2 text-3xl font-semibold text-foreground tabular-nums" aria-live="polite">
+								0
+							</p>
+							<p class="mt-1 text-sm text-muted-foreground">No open Critical or Opportunity tasks</p>
+						{:else if taskBreakdown && taskBreakdown.length === 1}
+							{@const only = taskBreakdown[0]}
+							<p
+								class={cn(
+									'mt-2 text-3xl font-semibold tabular-nums',
+									only.tone === 'critical'
+										? 'text-red-700 dark:text-red-400'
+										: 'text-amber-800 dark:text-amber-400'
+								)}
+								aria-live="polite"
+							>
+								{only.count}
+								<span class="ml-1.5 text-base font-medium tracking-normal">{only.label}</span>
+							</p>
+						{:else if taskBreakdown}
+							<div
+								class="mt-3 flex flex-wrap items-end gap-x-6 gap-y-2"
+								aria-live="polite"
+							>
+								{#each taskBreakdown as part (part.tone)}
+									<div class="min-w-0">
+										<p
+											class={cn(
+												'text-3xl font-semibold tabular-nums',
+												part.tone === 'critical'
+													? 'text-red-700 dark:text-red-400'
+													: 'text-amber-800 dark:text-amber-400'
+											)}
+										>
+											{part.count}
+										</p>
+										<p class="mt-0.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+											{part.label}
+										</p>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</a>
 				{:else}
-					<a {href} class={cn(cardClass, 'p-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none')}>
+					<a
+						{href}
+						class={cn(
+							cardClass,
+							'p-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
+						)}
+					>
 						<div class="mb-4 flex items-center gap-2 text-muted-foreground">
 							<Icon class="size-5 shrink-0" />
 							<span class="text-base font-semibold tracking-tight text-foreground">{title}</span>
