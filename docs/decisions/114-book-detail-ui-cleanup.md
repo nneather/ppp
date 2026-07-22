@@ -31,7 +31,7 @@
 
 ## Surprises
 
-- None.
+- Border-only cite strip felt floaty — restored card + denser facts in [118](118-book-detail-cite-card-spacing.md).
 
 ## Carry-forward updates
 

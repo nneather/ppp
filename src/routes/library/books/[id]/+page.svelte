@@ -1086,21 +1086,21 @@
 	</Sheet.Root>
 
 	<details
-		class="mt-4 border-b border-border pb-3 md:hidden"
+		class="mt-4 rounded-lg border border-border bg-muted/25 md:hidden"
 		aria-label="Copy citations for drafts"
 	>
 		<summary
-			class="cursor-pointer list-none py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden"
+			class="cursor-pointer list-none px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden"
 		>
 			Cite
 		</summary>
-		<div class="pt-2">
+		<div class="border-t border-border/60 px-3 pb-2.5 pt-2">
 			{@render copyDraftButtons()}
 		</div>
 	</details>
 
 	<section
-		class="mt-4 hidden border-b border-border pb-3 md:block"
+		class="mt-4 hidden rounded-lg border border-border bg-muted/25 px-3 py-2.5 md:block"
 		aria-label="Copy citations for drafts"
 	>
 		<p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Cite</p>
@@ -1152,10 +1152,8 @@
 		</div>
 	{/if}
 
-	<div class="mt-6 grid gap-6 md:grid-cols-3">
-		<dl
-			class="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-2 text-sm sm:grid-cols-[7.5rem_1fr] md:col-span-2"
-		>
+	<div class="mt-4 grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_17.5rem]">
+		<dl class="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5 text-sm leading-snug sm:grid-cols-[7.5rem_1fr]">
 			<dt class="font-medium text-muted-foreground">Publication</dt>
 			<dd class="min-w-0 text-foreground">{fmtYearChunk() || '—'}</dd>
 
