@@ -17,12 +17,6 @@
 	import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
 	import Copy from '@lucide/svelte/icons/copy';
 	import {
-		copyAllFieldsLine,
-		copyAuthorsLine,
-		copyPublisherYearLine,
-		copyTitleLine
-	} from '$lib/library/book-copy-text';
-	import {
 		bookDetailToCitationInput,
 		copyCitationToClipboard,
 		formatBibliography,
@@ -32,6 +26,7 @@
 		computeMissingImportant,
 		incompleteCitationCaption
 	} from '$lib/library/missing-important';
+	import { copyPublisherYearLine } from '$lib/library/book-copy-text';
 	import {
 		LIBRARY_ANCIENT_TEXTS_JSON,
 		LIBRARY_TOPIC_COUNTS_JSON
@@ -216,21 +211,6 @@
 			copyToast = null;
 			copyToastTimer = null;
 		}, 2500);
-	}
-
-	async function copyToClipboard(label: string, text: string) {
-		if (!browser) return;
-		const t = text.trim();
-		if (!t) {
-			flashCopyToast('Nothing to copy.');
-			return;
-		}
-		try {
-			await navigator.clipboard.writeText(t);
-			flashCopyToast(`Copied ${label}.`);
-		} catch {
-			flashCopyToast('Clipboard unavailable.');
-		}
 	}
 
 	const citationInput = $derived(bookDetailToCitationInput(data.book));
@@ -804,7 +784,7 @@
 </script>
 
 {#snippet copyDraftButtons()}
-	<div class="mt-2 flex flex-col gap-2">
+	<div class="flex flex-col gap-1.5">
 		<div class="flex flex-wrap items-end gap-2">
 			<div class="space-y-1">
 				<Label for="citation-page" class="text-xs text-muted-foreground">Page</Label>
@@ -814,7 +794,7 @@
 					inputmode="numeric"
 					placeholder="[page]"
 					bind:value={citationPage}
-					class="h-10 w-24 text-base"
+					class="h-9 w-20 text-sm"
 					autocomplete="off"
 				/>
 			</div>
@@ -822,7 +802,7 @@
 				type="button"
 				variant="outline"
 				size="sm"
-				class="min-h-10 gap-1.5"
+				class="h-9 gap-1.5"
 				disabled={!citationFootnote.plain}
 				onclick={() => void copyTurabian('footnote')}
 			>
@@ -832,7 +812,7 @@
 				type="button"
 				variant="outline"
 				size="sm"
-				class="min-h-10 gap-1.5"
+				class="h-9 gap-1.5"
 				disabled={!citationShort.plain}
 				onclick={() => void copyTurabian('short')}
 			>
@@ -842,7 +822,7 @@
 				type="button"
 				variant="outline"
 				size="sm"
-				class="min-h-10 gap-1.5"
+				class="h-9 gap-1.5"
 				disabled={!citationBibliography.plain}
 				onclick={() => void copyTurabian('bibliography')}
 			>
@@ -852,48 +832,6 @@
 		{#if citationIncompleteHint}
 			<p class="text-xs text-amber-800 dark:text-amber-300">{citationIncompleteHint}</p>
 		{/if}
-		<div class="flex flex-wrap gap-2">
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				class="min-h-10 gap-1.5"
-				disabled={copyAuthorsLine(data.book.authors).length === 0}
-				onclick={() => void copyToClipboard('authors', copyAuthorsLine(data.book.authors))}
-			>
-				<Copy class="size-3.5" /> Authors
-			</Button>
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				class="min-h-10 gap-1.5"
-				disabled={copyTitleLine(data.book).length === 0}
-				onclick={() => void copyToClipboard('title', copyTitleLine(data.book))}
-			>
-				<Copy class="size-3.5" /> Title
-			</Button>
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				class="min-h-10 gap-1.5"
-				disabled={copyPublisherYearLine(data.book).length === 0}
-				onclick={() => void copyToClipboard('publisher and year', copyPublisherYearLine(data.book))}
-			>
-				<Copy class="size-3.5" /> Publisher + year
-			</Button>
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				class="min-h-10 gap-1.5"
-				disabled={copyAllFieldsLine(data.book).length === 0}
-				onclick={() => void copyToClipboard('all fields', copyAllFieldsLine(data.book))}
-			>
-				<Copy class="size-3.5" /> All fields
-			</Button>
-		</div>
 	</div>
 {/snippet}
 
@@ -983,13 +921,15 @@
 {/snippet}
 
 {#snippet readingStatusCard()}
-	<div class="rounded-xl border border-border bg-card p-4 text-card-foreground">
-		<div class="text-xs uppercase tracking-wide text-muted-foreground">Reading status</div>
+	<div class="rounded-lg border border-border/70 bg-card p-3.5 text-card-foreground">
+		<div class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+			Reading status
+		</div>
 		<form
 			method="POST"
 			action="?/updateReadingStatus"
 			use:enhance={statusSubmit}
-			class="mt-2"
+			class="mt-1.5"
 		>
 			<input type="hidden" name="id" value={data.book.id} />
 			<select
@@ -1006,95 +946,99 @@
 		</form>
 
 		{#if data.isOwner}
-			<div class="mt-4 border-t border-border pt-4">
-				<div class="text-xs uppercase tracking-wide text-muted-foreground">Library</div>
-				<form
-					method="POST"
-					action="?/updateBookPersonalFields"
-					use:enhance={ownedSubmit}
-					bind:this={ownedFormEl}
-					class="hidden"
-				>
-					<input type="hidden" name="id" value={data.book.id} />
-					<input type="hidden" name="owned" value="" bind:this={ownedHiddenEl} />
-				</form>
-				<label class="mt-2 flex items-center gap-2">
-					<input
-						type="checkbox"
-						class="size-4"
-						checked={effectiveOwned}
-						onchange={(e) => submitOwned(e.currentTarget.checked)}
-					/>
-					<span class="text-sm">In physical library</span>
-				</label>
-				{#if !effectiveOwned}
-					<p class="mt-1 text-xs text-muted-foreground">
-						Research stub — hidden from list/search unless Include unowned.
-					</p>
-				{/if}
-			</div>
-
-			<div class="mt-4 border-t border-border pt-4">
-				<div class="text-xs uppercase tracking-wide text-muted-foreground">Rating</div>
-				<form
-					method="POST"
-					action="?/updateBookPersonalFields"
-					use:enhance={ratingSubmit}
-					bind:this={ratingFormEl}
-					class="mt-2"
-				>
-					<input type="hidden" name="id" value={data.book.id} />
-					<input type="hidden" name="rating" value="" bind:this={ratingHiddenEl} />
-				</form>
-				<BookRatingScale
-					id={`book-rating-${data.book.id}`}
-					name="rating-ui"
-					value={effectiveRating}
-					onchange={submitRating}
-				/>
-			</div>
-
-			<div class="mt-4 border-t border-border pt-4">
-				<Label
-					for={`book-notes-${data.book.id}`}
-					class="text-xs uppercase tracking-wide text-muted-foreground"
-				>
-					Personal notes
-				</Label>
-				<form
-					method="POST"
-					action="?/updateBookPersonalFields"
-					use:enhance={notesSubmit}
-					class="mt-2 flex flex-col gap-2"
-				>
-					<input type="hidden" name="id" value={data.book.id} />
-					<textarea
-						id={`book-notes-${data.book.id}`}
-						name="personal_notes"
-						bind:value={notesDraft}
-						rows={4}
-						class="flex min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-						placeholder="Thoughts, sermon hooks, disagreements…"
-					></textarea>
-					<div class="flex items-center justify-end gap-2">
-						{#if notesDirty}
-							<span class="mr-auto text-xs text-muted-foreground">Unsaved</span>
-						{/if}
-						<Button
-							type="submit"
-							size="sm"
-							hotkey="s"
-							disabled={!notesDirty || notesPending}
-							label={notesPending ? 'Saving…' : 'Save notes'}
-						/>
+			<div class="mt-3.5 space-y-3.5">
+				<div>
+					<div class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+						Library
 					</div>
-				</form>
+					<form
+						method="POST"
+						action="?/updateBookPersonalFields"
+						use:enhance={ownedSubmit}
+						bind:this={ownedFormEl}
+						class="hidden"
+					>
+						<input type="hidden" name="id" value={data.book.id} />
+						<input type="hidden" name="owned" value="" bind:this={ownedHiddenEl} />
+					</form>
+					<label class="mt-1.5 flex items-center gap-2">
+						<input
+							type="checkbox"
+							class="size-4"
+							checked={effectiveOwned}
+							onchange={(e) => submitOwned(e.currentTarget.checked)}
+						/>
+						<span class="text-sm">In physical library</span>
+					</label>
+					{#if !effectiveOwned}
+						<p class="mt-1 text-xs text-muted-foreground">
+							Research stub — hidden from list/search unless Include unowned.
+						</p>
+					{/if}
+				</div>
+
+				<div>
+					<div class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+						Rating
+					</div>
+					<form
+						method="POST"
+						action="?/updateBookPersonalFields"
+						use:enhance={ratingSubmit}
+						bind:this={ratingFormEl}
+						class="mt-1.5"
+					>
+						<input type="hidden" name="id" value={data.book.id} />
+						<input type="hidden" name="rating" value="" bind:this={ratingHiddenEl} />
+					</form>
+					<BookRatingScale
+						id={`book-rating-${data.book.id}`}
+						name="rating-ui"
+						value={effectiveRating}
+						onchange={submitRating}
+					/>
+				</div>
+
+				<div>
+					<Label
+						for={`book-notes-${data.book.id}`}
+						class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+					>
+						Personal notes
+					</Label>
+					<form
+						method="POST"
+						action="?/updateBookPersonalFields"
+						use:enhance={notesSubmit}
+						class="mt-1.5 flex flex-col gap-2"
+					>
+						<input type="hidden" name="id" value={data.book.id} />
+						<textarea
+							id={`book-notes-${data.book.id}`}
+							name="personal_notes"
+							bind:value={notesDraft}
+							rows={4}
+							class="flex min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+							placeholder="Thoughts, sermon hooks, disagreements…"
+						></textarea>
+						<div class="flex items-center justify-end gap-2">
+							{#if notesDirty}
+								<span class="mr-auto text-xs text-muted-foreground">Unsaved</span>
+							{/if}
+							<Button
+								type="submit"
+								size="sm"
+								hotkey="s"
+								disabled={!notesDirty || notesPending}
+								label={notesPending ? 'Saving…' : 'Save notes'}
+							/>
+						</div>
+					</form>
+				</div>
 			</div>
-		{:else}
-			{#if effectiveRating != null}
-				<p class="mt-3 text-xs uppercase tracking-wide text-muted-foreground">Rating</p>
-				<p class="text-lg font-semibold">{effectiveRating} / 5</p>
-			{/if}
+		{:else if effectiveRating != null}
+			<p class="mt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Rating</p>
+			<p class="text-lg font-semibold">{effectiveRating} / 5</p>
 		{/if}
 	</div>
 {/snippet}
@@ -1147,24 +1091,24 @@
 	</Sheet.Root>
 
 	<details
-		class="mt-4 rounded-lg border border-border bg-muted/25 md:hidden"
-		aria-label="Copy raw fields for citations"
+		class="mt-4 border-b border-border pb-3 md:hidden"
+		aria-label="Copy citations for drafts"
 	>
 		<summary
-			class="cursor-pointer list-none px-3 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden"
+			class="cursor-pointer list-none py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden"
 		>
-			Copy for drafts
+			Cite
 		</summary>
-		<div class="border-t border-border px-3 pb-3 pt-1">
+		<div class="pt-2">
 			{@render copyDraftButtons()}
 		</div>
 	</details>
 
 	<section
-		class="mt-4 hidden rounded-lg border border-border bg-muted/25 px-3 py-3 md:block"
-		aria-label="Copy raw fields for citations"
+		class="mt-4 hidden border-b border-border pb-3 md:block"
+		aria-label="Copy citations for drafts"
 	>
-		<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Copy for drafts</p>
+		<p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Cite</p>
 		{@render copyDraftButtons()}
 	</section>
 
@@ -1213,33 +1157,31 @@
 		</div>
 	{/if}
 
-	<div class="mt-6 md:hidden">
-		{@render readingStatusCard()}
-	</div>
-
 	<div class="mt-6 grid gap-6 md:grid-cols-3">
-		<dl class="md:col-span-2 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
+		<dl
+			class="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-2 text-sm sm:grid-cols-[7.5rem_1fr] md:col-span-2"
+		>
 			<dt class="font-medium text-muted-foreground">Publication</dt>
-			<dd>{fmtYearChunk() || '—'}</dd>
+			<dd class="min-w-0 text-foreground">{fmtYearChunk() || '—'}</dd>
 
 			{#if data.book.edition}
 				<dt class="font-medium text-muted-foreground">Edition</dt>
-				<dd>{data.book.edition}</dd>
+				<dd class="min-w-0 text-foreground">{data.book.edition}</dd>
 			{/if}
 
 			{#if data.book.copy_count > 1}
 				<dt class="font-medium text-muted-foreground">Copies</dt>
-				<dd>{data.book.copy_count}</dd>
+				<dd class="min-w-0 text-foreground">{data.book.copy_count}</dd>
 			{/if}
 
 			{#if data.book.total_volumes}
 				<dt class="font-medium text-muted-foreground">Total volumes</dt>
-				<dd>{data.book.total_volumes}</dd>
+				<dd class="min-w-0 text-foreground">{data.book.total_volumes}</dd>
 			{/if}
 
 			{#if data.book.original_year || data.book.reprint_year || data.book.reprint_publisher || data.book.reprint_location}
 				<dt class="font-medium text-muted-foreground">Reprint</dt>
-				<dd>
+				<dd class="min-w-0 text-foreground">
 					{#if data.book.original_year}orig. {data.book.original_year}; {/if}
 					{[data.book.reprint_location, data.book.reprint_publisher, data.book.reprint_year]
 						.filter((s): s is string | number => s != null && String(s).length > 0)
@@ -1249,12 +1191,12 @@
 
 			{#if data.book.page_count}
 				<dt class="font-medium text-muted-foreground">Pages</dt>
-				<dd>{data.book.page_count}</dd>
+				<dd class="min-w-0 text-foreground">{data.book.page_count}</dd>
 			{/if}
 
 			{#if data.book.series_name}
 				<dt class="font-medium text-muted-foreground">Series</dt>
-				<dd>
+				<dd class="min-w-0 text-foreground">
 					{data.book.series_abbreviation
 						? `${data.book.series_abbreviation} — ${data.book.series_name}`
 						: data.book.series_name}
@@ -1262,35 +1204,35 @@
 			{/if}
 
 			<dt class="font-medium text-muted-foreground">Language</dt>
-			<dd>{LANGUAGE_LABELS[data.book.language]}</dd>
+			<dd class="min-w-0 text-foreground">{LANGUAGE_LABELS[data.book.language]}</dd>
 
 			{#if data.book.isbn}
 				<dt class="font-medium text-muted-foreground">ISBN</dt>
-				<dd class="font-mono text-xs">{data.book.isbn}</dd>
+				<dd class="min-w-0 font-mono text-xs text-foreground">{data.book.isbn}</dd>
 			{/if}
 			{#if data.book.barcode}
 				<dt class="font-medium text-muted-foreground">Barcode</dt>
-				<dd class="font-mono text-xs">{data.book.barcode}</dd>
+				<dd class="min-w-0 font-mono text-xs text-foreground">{data.book.barcode}</dd>
 			{/if}
 			{#if data.book.shelving_location}
 				<dt class="font-medium text-muted-foreground">Shelf</dt>
-				<dd>{data.book.shelving_location}</dd>
+				<dd class="min-w-0 text-foreground">{data.book.shelving_location}</dd>
 			{/if}
 			{#if data.book.borrowed_to}
 				<dt class="font-medium text-muted-foreground">On loan to</dt>
-				<dd>{data.book.borrowed_to}</dd>
+				<dd class="min-w-0 text-foreground">{data.book.borrowed_to}</dd>
 			{/if}
 		</dl>
 
 		<aside class="flex flex-col gap-3">
-			<div class="hidden md:block">
-				{@render readingStatusCard()}
-			</div>
+			{@render readingStatusCard()}
 
 			{#if !data.isOwner && data.book.personal_notes}
-				<div class="rounded-xl border border-border bg-card p-4 text-card-foreground">
-					<div class="text-xs uppercase tracking-wide text-muted-foreground">Personal notes</div>
-					<p class="mt-2 whitespace-pre-wrap text-sm">{data.book.personal_notes}</p>
+				<div class="rounded-lg border border-border/70 bg-card p-3.5 text-card-foreground">
+					<div class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+						Personal notes
+					</div>
+					<p class="mt-1.5 whitespace-pre-wrap text-sm">{data.book.personal_notes}</p>
 				</div>
 			{/if}
 		</aside>
