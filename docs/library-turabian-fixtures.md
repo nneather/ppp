@@ -98,6 +98,7 @@
 
 - **Footnote:** `Stephen S. Smalley, 1, 2, 3 John, WBC (Waco, TX: Word Books, 1984), 82.`
 - **Bibliography:** `Smalley, Stephen S. 1, 2, 3 John. Word Biblical Commentary. Waco, TX: Word Books, 1984.`
+- **Series enumeration:** do **not** emit `Vol. N.` for commentary-in-series (e.g. Interpretation 27 / Achtemeier). Covenant treats that as optional bare series number after the series title; we omit. Keep `Vol. N.` for multi-volume works (Keener) and `N vols.` for multi-vol sets in a series (Zimmerli / Lechler). See [113](decisions/113-commentary-series-volume-omit.md).
 
 ### 14 — German commentary + reprint
 

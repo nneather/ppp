@@ -1,3 +1,4 @@
+import { resolveCitationSourceType } from './dispatch';
 import type { BookCitationInput } from './types';
 
 export function formatTitleWithSubtitle(book: BookCitationInput, mode: 'html' | 'plain'): string {
@@ -96,8 +97,12 @@ export function formatSeriesSegment(
 	if (!name && !abbr) return '';
 	const seriesLabel = mode === 'note' && abbr ? abbr : name || abbr;
 	let out = seriesLabel;
+	// Commentary series: volume_number is series enumeration — omit (Covenant optional; France/Wenham/Smalley omit).
+	if (resolveCitationSourceType(book) === 'commentary-in-series') {
+		return out;
+	}
 	if (vol && /^\d+$/.test(vol) && name && name !== abbr) {
-		// Series number in name e.g. "SBL Dissertation Series 153"
+		// Series number in name e.g. "SBL Dissertation Series 153" / Parsons "Texts and Studies in Religion 106"
 		if (!out.includes(vol)) out = `${out} ${vol}`;
 	} else if (vol && mode === 'bib') {
 		out = `${out} ${vol}`;
@@ -108,14 +113,25 @@ export function formatSeriesSegment(
 export function formatVolumePageNote(book: BookCitationInput, page?: string): string {
 	const vol = (book.volume_number ?? '').trim();
 	const pagePart = (page ?? '[page]').trim();
-	if (vol && pagePart) return `${vol}:${pagePart.replace(/^p\.?\s*/i, '')}`;
-	if (pagePart) return pagePart.replace(/^p\.?\s*/i, '');
+	const pageClean = pagePart.replace(/^p\.?\s*/i, '');
+	// Series-only commentary volumes: page alone (not "27:12" for Interpretation 27).
+	// Multi-vol work inside a series (Zimmerli): keep vol:page when total_volumes > 1.
+	const isSeriesOnly =
+		resolveCitationSourceType(book) === 'commentary-in-series' &&
+		!(book.total_volumes != null && book.total_volumes > 1);
+	if (vol && pageClean && !isSeriesOnly) return `${vol}:${pageClean}`;
+	if (pageClean) return pageClean;
 	return '';
 }
 
 export function formatVolumeBibliography(book: BookCitationInput): string {
 	const vol = (book.volume_number ?? '').trim();
 	const total = book.total_volumes;
+	// Commentary-in-series: never emit "Vol. N." for series enumeration; allow "N vols." for sets.
+	if (resolveCitationSourceType(book) === 'commentary-in-series') {
+		if (total != null && total > 1) return `${total} vols.`;
+		return '';
+	}
 	if (vol) return `Vol. ${vol}.`;
 	if (total != null && total > 1) return `${total} vols.`;
 	return '';

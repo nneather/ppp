@@ -551,6 +551,72 @@ describe('formatBibliography', () => {
 		expect(bib).toContain('Edinburgh: T. & T. Clark, 1869.');
 	});
 
+	it('omits Vol. N and series enumeration for commentary-in-series (Achtemeier / Interpretation)', () => {
+		const b = book({
+			genre: 'Commentary',
+			title: 'Nahum–Malachi',
+			authors: [
+				{
+					person_id: 'a1',
+					person_label: 'Elizabeth Rice Achtemeier',
+					role: 'author',
+					sort_order: 0
+				}
+			],
+			series_name: 'Interpretation: A Bible Commentary for Teaching and Preaching',
+			volume_number: '27',
+			publisher: 'John Knox Press',
+			publisher_location: 'Atlanta',
+			year: 1986
+		});
+		const bib = formatBibliography(b).plain;
+		expect(bib).toBe(
+			'Achtemeier, Elizabeth Rice. Nahum–Malachi. Interpretation: A Bible Commentary for Teaching and Preaching. Atlanta: John Knox Press, 1986.'
+		);
+		expect(bib).not.toMatch(/Vol\.\s*27/);
+		expect(bib).not.toMatch(/Preaching 27/);
+		expect(formatFootnote(b, { page: '42' }).plain).toBe(
+			'Elizabeth Rice Achtemeier, Nahum–Malachi, Interpretation: A Bible Commentary for Teaching and Preaching (Atlanta: John Knox Press, 1986), 42.'
+		);
+		expect(formatFootnote(b, { page: '42' }).plain).not.toContain('27:42');
+	});
+
+	it('keeps vol:page for multi-vol commentary-in-series (Zimmerli-style)', () => {
+		const b = book({
+			genre: 'Commentary',
+			title: 'Ezekiel: A Commentary on the Book of the Prophet Ezekiel',
+			authors: [
+				{ person_id: 'a1', person_label: 'Walther Zimmerli', role: 'author', sort_order: 0 },
+				{ person_id: 't1', person_label: 'Ronald E. Clements', role: 'translator', sort_order: 1 }
+			],
+			volume_number: '1',
+			total_volumes: 2,
+			series_name: 'Hermeneia',
+			publisher: 'Fortress Press',
+			publisher_location: 'Philadelphia',
+			year: 1979
+		});
+		expect(formatBibliography(b).plain).toContain('2 vols.');
+		expect(formatBibliography(b).plain).not.toMatch(/Vol\.\s*1/);
+		expect(formatFootnote(b, { page: '142' }).plain).toContain('1:142');
+	});
+
+	it('keeps Vol. N for standalone multi-volume commentary (Keener-style)', () => {
+		const b = book({
+			genre: 'Commentary',
+			title: 'Acts: An Exegetical Commentary',
+			authors: [{ person_id: 'a1', person_label: 'Craig S. Keener', role: 'author', sort_order: 0 }],
+			volume_number: '3',
+			publisher: 'Baker Academic',
+			publisher_location: 'Grand Rapids, MI',
+			year: 2014
+		});
+		expect(formatBibliography(b).plain).toBe(
+			'Keener, Craig S. Acts: An Exegetical Commentary. Vol. 3. Grand Rapids, MI: Baker Academic, 2014.'
+		);
+		expect(formatFootnote(b, { page: '1692' }).plain).toContain('3:1692');
+	});
+
 	it('formats four-author bibliography with all names', () => {
 		const b = book({
 			title: 'Communicating for Life',
