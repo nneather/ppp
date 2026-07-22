@@ -44,7 +44,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
-- [113 — Commentary series volume omit](docs/decisions/113-commentary-series-volume-omit.md) (2026-07-22) — no `Vol. N.` for commentary-in-series (Covenant book-in-a-series); keep `N vols.` / Keener `Vol. N.`; `.docx` smoke passed.
+- [113 — Commentary series volume omit](docs/decisions/113-commentary-series-volume-omit.md) (2026-07-22) — no `Vol. N.` for commentary-in-series; bare series digit after series title; keep `N vols.` / Keener `Vol. N.`; `.docx` smoke passed.
 - [112 — Task sheet date field overflow](docs/decisions/112-task-sheet-date-overflow.md) (2026-07-22) — WebKit date width via CSS grid (full border); sheet overflow-x; safe-area footer padding; Projects E2E smoke otherwise OK.
 - [111 — PWA resume auto-apply harden](docs/decisions/111-pwa-resume-auto-apply-harden.md) (2026-07-22) — apply `registration.waiting` on foreground; pageshow/focus fallbacks after owner smoke miss.
 - [105 — Solo git/ship agent guidance](docs/decisions/105-solo-git-ship-agent-guidance.md) (2026-07-21) — `main` protection adopted (required `check-and-test`, no PR theater); agents must not invent PRs or pile onto unrelated branches.

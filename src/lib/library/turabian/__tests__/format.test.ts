@@ -551,7 +551,7 @@ describe('formatBibliography', () => {
 		expect(bib).toContain('Edinburgh: T. & T. Clark, 1869.');
 	});
 
-	it('omits Vol. N and series enumeration for commentary-in-series (Achtemeier / Interpretation)', () => {
+	it('omits Vol. N but appends bare series number for commentary-in-series (Achtemeier / Interpretation)', () => {
 		const b = book({
 			genre: 'Commentary',
 			title: 'Nahum–Malachi',
@@ -571,14 +571,34 @@ describe('formatBibliography', () => {
 		});
 		const bib = formatBibliography(b).plain;
 		expect(bib).toBe(
-			'Achtemeier, Elizabeth Rice. Nahum–Malachi. Interpretation: A Bible Commentary for Teaching and Preaching. Atlanta: John Knox Press, 1986.'
+			'Achtemeier, Elizabeth Rice. Nahum–Malachi. Interpretation: A Bible Commentary for Teaching and Preaching 27. Atlanta: John Knox Press, 1986.'
 		);
 		expect(bib).not.toMatch(/Vol\.\s*27/);
-		expect(bib).not.toMatch(/Preaching 27/);
 		expect(formatFootnote(b, { page: '42' }).plain).toBe(
-			'Elizabeth Rice Achtemeier, Nahum–Malachi, Interpretation: A Bible Commentary for Teaching and Preaching (Atlanta: John Knox Press, 1986), 42.'
+			'Elizabeth Rice Achtemeier, Nahum–Malachi, Interpretation: A Bible Commentary for Teaching and Preaching 27 (Atlanta: John Knox Press, 1986), 42.'
 		);
 		expect(formatFootnote(b, { page: '42' }).plain).not.toContain('27:42');
+	});
+
+	it('appends bare series number for ESV Expository Commentary–style (no Vol. N.)', () => {
+		const b = book({
+			genre: 'Commentary',
+			title: '1 Samuel–2 Chronicles',
+			authors: [
+				{ person_id: '1', person_label: 'Iain M. Duguid', role: 'editor', sort_order: 0 },
+				{ person_id: '2', person_label: 'James M. Hamilton Jr.', role: 'editor', sort_order: 1 },
+				{ person_id: '3', person_label: 'Jay Sklar', role: 'editor', sort_order: 2 }
+			],
+			series_name: 'ESV Expository Commentary',
+			volume_number: '3',
+			publisher: 'Crossway',
+			publisher_location: 'Wheaton, IL',
+			year: 2019
+		});
+		const bib = formatBibliography(b).plain;
+		expect(bib).toContain('ESV Expository Commentary 3.');
+		expect(bib).not.toMatch(/Vol\.\s*3/);
+		expect(bib).toContain('Wheaton, IL: Crossway, 2019.');
 	});
 
 	it('keeps vol:page for multi-vol commentary-in-series (Zimmerli-style)', () => {
@@ -598,7 +618,9 @@ describe('formatBibliography', () => {
 		});
 		expect(formatBibliography(b).plain).toContain('2 vols.');
 		expect(formatBibliography(b).plain).not.toMatch(/Vol\.\s*1/);
+		expect(formatBibliography(b).plain).not.toMatch(/Hermeneia 1/);
 		expect(formatFootnote(b, { page: '142' }).plain).toContain('1:142');
+		expect(formatFootnote(b, { page: '142' }).plain).not.toMatch(/Hermeneia 1/);
 	});
 
 	it('keeps Vol. N for standalone multi-volume commentary (Keener-style)', () => {

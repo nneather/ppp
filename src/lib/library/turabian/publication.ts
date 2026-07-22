@@ -97,12 +97,14 @@ export function formatSeriesSegment(
 	if (!name && !abbr) return '';
 	const seriesLabel = mode === 'note' && abbr ? abbr : name || abbr;
 	let out = seriesLabel;
-	// Commentary series: volume_number is series enumeration — omit (Covenant optional; France/Wenham/Smalley omit).
-	if (resolveCitationSourceType(book) === 'commentary-in-series') {
-		return out;
-	}
+	// Multi-vol set in a series (Zimmerli): volume_number is the cited vol, not series enumeration.
+	const commentaryMultiVolSet =
+		resolveCitationSourceType(book) === 'commentary-in-series' &&
+		book.total_volumes != null &&
+		book.total_volumes > 1;
+	if (commentaryMultiVolSet) return out;
 	if (vol && /^\d+$/.test(vol) && name && name !== abbr) {
-		// Series number in name e.g. "SBL Dissertation Series 153" / Parsons "Texts and Studies in Religion 106"
+		// Series number e.g. "ESV Expository Commentary 3" / Parsons "Texts and Studies in Religion 106"
 		if (!out.includes(vol)) out = `${out} ${vol}`;
 	} else if (vol && mode === 'bib') {
 		out = `${out} ${vol}`;
