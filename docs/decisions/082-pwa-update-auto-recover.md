@@ -26,7 +26,7 @@
 
 ## Open questions surfaced
 
-- Owner phone smoke after next deploy: background PWA → push → reopen should refresh without the recovery card; mid-session toast should still appear if an update is found while foregrounded.
+- ~~Owner phone smoke after next deploy: background PWA → push → reopen should refresh without the recovery card; mid-session toast should still appear if an update is found while foregrounded.~~ — resume path failed smoke 2026-07-22; hardened in [111](111-pwa-resume-auto-apply-harden.md).
 
 ## Surprises
 

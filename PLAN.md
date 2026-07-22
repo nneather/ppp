@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-22 — Sermons owner-smoke UX polish ([110](docs/decisions/110-sermons-owner-smoke-ux.md)): venue select, Find-in-library ranges + back-to-sermons, by-book count labels, drop No commentaries. Prior: priorities refresh (not-owned drain done; Sarah invoicing; HC → Madison).
+**Last updated:** 2026-07-22 — PWA resume auto-apply harden ([111](docs/decisions/111-pwa-resume-auto-apply-harden.md)). Prior: sermons owner-smoke UX ([110](docs/decisions/110-sermons-owner-smoke-ux.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -44,9 +44,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [111 — PWA resume auto-apply harden](docs/decisions/111-pwa-resume-auto-apply-harden.md) (2026-07-22) — apply `registration.waiting` on foreground; pageshow/focus fallbacks after owner smoke miss.
 - [110 — Sermons owner-smoke UX polish](docs/decisions/110-sermons-owner-smoke-ux.md) (2026-07-22) — venue dropdown; Find-in-library verse ranges + returnTo; by-book icon counts (book/star + mic on right); drop No commentaries; `search_scripture_refs` end bounds.
 - [109 — Tasks active badge + recurrence](docs/decisions/109-tasks-active-badge-recurrence.md) (2026-07-21) — dashboard all active tasks; weekly/monthly series spawn-on-complete; This/Entire series.
-- [108 — Not-owned owned-reappear + abandon proposals](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md) (2026-07-21) — match any live title; Letters to Children authors; drop Session 2 Goodreads proposals.
 - [105 — Solo git/ship agent guidance](docs/decisions/105-solo-git-ship-agent-guidance.md) (2026-07-21) — `main` protection adopted (required `check-and-test`, no PR theater); agents must not invent PRs or pile onto unrelated branches.
 - [104 — SBL series abbreviation cleanup](docs/decisions/104-sbl-series-abbr-cleanup.md) (2026-07-21) — Apollos→ApOTC; K&D off Continental; MHC off Moffatt (MNTC).
 - [103 — Library not-owned Session 1](docs/decisions/103-library-not-owned-session-1.md) (2026-07-21) — `books.owned` + default-hide + `/settings/library/not-owned` create-from-queue.
@@ -90,7 +90,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-22** ([110](docs/decisions/110-sermons-owner-smoke-ux.md); check **0 errors**, **276** tests). Prior: [109](docs/decisions/109-tasks-active-badge-recurrence.md); `npm run build` exit 0 ([097](docs/decisions/097-vercel-deploy-ci-build-gate.md)).
+**Repo gate:** `npm run check` **2026-07-22** ([111](docs/decisions/111-pwa-resume-auto-apply-harden.md); **0 errors**). Prior: [110](docs/decisions/110-sermons-owner-smoke-ux.md) check + **276** tests.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -296,7 +296,7 @@ Acceptance:
 ## Next up
 
 ### Do now
-1. **Owner smokes** — sermons list + by-book **mostly passed**; re-smoke after [110](docs/decisions/110-sermons-owner-smoke-ux.md) (ranged Find-in-library, venue select, count labels). Still open: writing-session copy row ([094](docs/decisions/094-library-writing-session-gaps.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 **+ essay preview / Articles-in-volumes search** ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4); **cold-start / nav watchdog** ([072](docs/decisions/072-pwa-cold-start-resilience.md)) + **resume auto-update** ([082](docs/decisions/082-pwa-update-auto-recover.md)); glance Actions after next Monday weekly backup ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)); optional Projects E2E.
+1. **Owner smokes** — sermons list + by-book **mostly passed**; re-smoke after [110](docs/decisions/110-sermons-owner-smoke-ux.md) (ranged Find-in-library, venue select, count labels). Still open: writing-session copy row ([094](docs/decisions/094-library-writing-session-gaps.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 **+ essay preview / Articles-in-volumes search** ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4); **re-smoke resume auto-update** after [111](docs/decisions/111-pwa-resume-auto-apply-harden.md) (nav watchdog skip); glance Actions after next Monday weekly backup ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)); optional Projects E2E.
 2. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
 3. **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)) — keep `/tasks`; fall polish as needed. Global Now parked until fall. **Email → task live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). Recurrence + dashboard active badge shipped ([109](docs/decisions/109-tasks-active-badge-recurrence.md)).
 

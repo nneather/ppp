@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { get } from 'svelte/store';
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
@@ -9,6 +10,9 @@
 	/** After background → foreground, auto-apply a waiting update instead of waiting for a tap. */
 	let autoApplyOnResume = $state(false);
 	let suppressToast = $state(false);
+	let applying = $state(false);
+	/** True after the document was hidden — gates window `focus` so we don't treat in-page focus as resume. */
+	let wasBackgrounded = $state(false);
 
 	const { needRefresh, updateServiceWorker, offlineReady } = useRegisterSW({
 		onRegisterError(error) {
@@ -27,19 +31,55 @@
 			if (navigator.onLine) void registration.update();
 		};
 
-		const intervalId = window.setInterval(checkForUpdate, SW_UPDATE_INTERVAL_MS);
-		const onVisibilityChange = () => {
-			if (document.visibilityState !== 'visible') return;
-			// Flag so a waiting (or soon-detected) update applies without a tap.
+		/**
+		 * Resume path (082/111): apply immediately when a worker is already waiting
+		 * (Later-dismissed toast or iOS missed needRefresh), otherwise poll for a new SW
+		 * and auto-apply when needRefresh flips.
+		 */
+		const onResume = () => {
 			autoApplyOnResume = true;
+			if (registration.waiting || get(needRefresh)) {
+				void applyUpdate();
+				return;
+			}
 			checkForUpdate();
 		};
 
+		const intervalId = window.setInterval(checkForUpdate, SW_UPDATE_INTERVAL_MS);
+
+		const onVisibilityChange = () => {
+			if (document.visibilityState === 'hidden') {
+				wasBackgrounded = true;
+				return;
+			}
+			if (document.visibilityState !== 'visible') return;
+			if (wasBackgrounded) {
+				wasBackgrounded = false;
+				onResume();
+			}
+		};
+
+		// iOS standalone sometimes restores from bfcache without a clean visibility flip.
+		const onPageShow = (event: PageTransitionEvent) => {
+			if (event.persisted) onResume();
+		};
+
+		// Fallback when visibilitychange is flaky after app-switcher return.
+		const onWindowFocus = () => {
+			if (document.visibilityState !== 'visible' || !wasBackgrounded) return;
+			wasBackgrounded = false;
+			onResume();
+		};
+
 		document.addEventListener('visibilitychange', onVisibilityChange);
+		window.addEventListener('pageshow', onPageShow);
+		window.addEventListener('focus', onWindowFocus);
 
 		return () => {
 			window.clearInterval(intervalId);
 			document.removeEventListener('visibilitychange', onVisibilityChange);
+			window.removeEventListener('pageshow', onPageShow);
+			window.removeEventListener('focus', onWindowFocus);
 		};
 	});
 
@@ -55,8 +95,15 @@
 	}
 
 	async function applyUpdate() {
+		if (applying) return;
+		applying = true;
 		suppressToast = true;
-		await updateServiceWorker(true);
+		try {
+			await updateServiceWorker(true);
+		} finally {
+			// Page should reload; reset if skipWaiting/reload does not run (iOS edge cases).
+			applying = false;
+		}
 	}
 </script>
 
