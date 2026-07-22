@@ -17,11 +17,18 @@
 	let bibleBook = $state('');
 	let chapter = $state('');
 	let verse = $state('');
+	let verseEnd = $state('');
 	$effect(() => {
 		bibleBook = data.query.bible_book ?? '';
 		chapter = data.query.chapter != null ? String(data.query.chapter) : '';
 		verse = data.query.verse != null ? String(data.query.verse) : '';
+		verseEnd = data.query.verse_end != null ? String(data.query.verse_end) : '';
 	});
+
+	const backHref = $derived(data.returnTo ?? '/library');
+	const backLabel = $derived(
+		data.returnTo?.startsWith('/sermons') ? 'Sermons' : 'Library'
+	);
 
 	function onSubmit(e: SubmitEvent) {
 		e.preventDefault();
@@ -29,6 +36,11 @@
 		if (bibleBook) params.set('bible_book', bibleBook);
 		if (chapter.trim()) params.set('chapter', chapter.trim());
 		if (verse.trim()) params.set('verse', verse.trim());
+		if (verseEnd.trim()) params.set('verse_end', verseEnd.trim());
+		if (data.query.chapter_end != null) {
+			params.set('chapter_end', String(data.query.chapter_end));
+		}
+		if (data.returnTo) params.set('returnTo', data.returnTo);
 		const qs = params.toString();
 		goto('/library/search-passage' + (qs ? `?${qs}` : ''), {
 			replaceState: false,
@@ -69,12 +81,20 @@
 	const queryLabel = $derived.by(() => {
 		const q = data.query;
 		if (!q.bible_book) return '';
-		const parts = [q.bible_book];
-		if (q.chapter != null) {
-			parts.push(' ' + String(q.chapter));
-			if (q.verse != null) parts.push(':' + String(q.verse));
+		if (q.chapter == null) return q.bible_book;
+		if (q.verse == null) {
+			if (q.chapter_end != null && q.chapter_end !== q.chapter) {
+				return `${q.bible_book} ${q.chapter}–${q.chapter_end}`;
+			}
+			return `${q.bible_book} ${q.chapter}`;
 		}
-		return parts.join('');
+		let s = `${q.bible_book} ${q.chapter}:${q.verse}`;
+		if (q.verse_end != null && (q.chapter_end == null || q.chapter_end === q.chapter)) {
+			if (q.verse_end !== q.verse) s += `–${q.verse_end}`;
+		} else if (q.chapter_end != null && q.verse_end != null) {
+			s += `–${q.chapter_end}:${q.verse_end}`;
+		}
+		return s;
 	});
 </script>
 
@@ -95,7 +115,7 @@
 
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
 	<PageHeader
-		back={{ href: '/library', label: 'Library' }}
+		back={{ href: backHref, label: backLabel }}
 		title="Search passage"
 		lead={searchPassageLead}
 		meta={searchPassageMeta}
@@ -104,7 +124,7 @@
 
 	<form
 		onsubmit={onSubmit}
-		class="mt-5 flex flex-col gap-4 sm:grid sm:grid-cols-[1fr_5.5rem_5.5rem_auto] sm:gap-3"
+		class="mt-5 flex flex-col gap-4 sm:grid sm:grid-cols-[1fr_5rem_5rem_5rem_auto] sm:gap-3"
 	>
 		<div class="min-w-0">
 			<label
@@ -155,6 +175,23 @@
 				inputmode="numeric"
 				min="1"
 				bind:value={verse}
+				placeholder="—"
+				class="h-12 min-h-11 text-base tabular-nums sm:h-10 sm:text-sm"
+			/>
+		</div>
+		<div>
+			<label
+				for="verse_end"
+				class="mb-1.5 block text-sm font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs"
+			>
+				End
+			</label>
+			<Input
+				id="verse_end"
+				type="number"
+				inputmode="numeric"
+				min="1"
+				bind:value={verseEnd}
 				placeholder="—"
 				class="h-12 min-h-11 text-base tabular-nums sm:h-10 sm:text-sm"
 			/>

@@ -45,4 +45,4 @@
 - [x] PLAN.md refreshed
 - [x] tracker Session 2 marked done
 - [ ] new env vars — none
-- [ ] Owner: mobile-width smoke of by-book list
+- [ ] Owner: re-smoke by-book labels + ranged Find-in-library after [110](110-sermons-owner-smoke-ux.md)

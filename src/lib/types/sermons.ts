@@ -91,7 +91,6 @@ export type ByBookListFilters = {
 	sortDir: ByBookSortDir;
 	testament: ByBookTestamentFilter;
 	hasSermons: boolean;
-	noCommentaries: boolean;
 	hasFourStar: boolean;
 };
 

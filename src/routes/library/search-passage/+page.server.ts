@@ -8,6 +8,15 @@ function parseIntOrNull(v: string | null): number | null {
 	return Number.isFinite(n) ? n : null;
 }
 
+/** Allow only same-origin relative paths we deep-link from. */
+function parseReturnTo(raw: string | null): string | null {
+	if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null;
+	if (raw === '/sermons' || raw.startsWith('/sermons?')) return raw;
+	if (raw === '/sermons/by-book' || raw.startsWith('/sermons/by-book?')) return raw;
+	if (raw === '/library' || raw.startsWith('/library?')) return raw;
+	return null;
+}
+
 type RefRpcRow = {
 	ref_id: string;
 	book_id: string | null;
@@ -49,6 +58,9 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		bibleBookParam && bibleBookNames.includes(bibleBookParam) ? bibleBookParam : null;
 	const chapter = parseIntOrNull(url.searchParams.get('chapter'));
 	const verse = parseIntOrNull(url.searchParams.get('verse'));
+	const chapter_end = parseIntOrNull(url.searchParams.get('chapter_end'));
+	const verse_end = parseIntOrNull(url.searchParams.get('verse_end'));
+	const returnTo = parseReturnTo(url.searchParams.get('returnTo'));
 
 	let results: PassageResult[] = [];
 	let queryError: string | null = null;
@@ -62,7 +74,9 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			supabase.rpc('search_scripture_refs', {
 				p_bible_book: bible_book,
 				p_chapter: chapter ?? undefined,
-				p_verse: verse ?? undefined
+				p_verse: verse ?? undefined,
+				p_chapter_end: chapter_end ?? undefined,
+				p_verse_end: verse_end ?? undefined
 			}),
 			supabase
 				.from('book_bible_coverage')
@@ -145,7 +159,8 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	return {
 		bibleBookNames,
 		results,
-		query: { bible_book, chapter, verse },
+		query: { bible_book, chapter, verse, chapter_end, verse_end },
+		returnTo,
 		queryError
 	};
 };

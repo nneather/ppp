@@ -32,7 +32,6 @@ function baseFilters(over: Partial<ByBookListFilters> = {}): ByBookListFilters {
 		sortDir: 'asc',
 		testament: null,
 		hasSermons: false,
-		noCommentaries: false,
 		hasFourStar: false,
 		...over
 	};
@@ -101,17 +100,12 @@ describe('filter + sort', () => {
 		return r;
 	});
 
-	it('filters OT / has sermons / no commentaries / has 4★+', () => {
+	it('filters OT / has sermons / has 4★+', () => {
 		expect(filterByBookRows(rows, baseFilters({ testament: 'ot' })).every((r) => r.testament === 'ot'))
 			.toBe(true);
 		expect(filterByBookRows(rows, baseFilters({ hasSermons: true })).map((r) => r.bibleBook)).toEqual(
 			['Genesis', 'Romans']
 		);
-		expect(
-			filterByBookRows(rows, baseFilters({ noCommentaries: true, testament: 'nt' })).some(
-				(r) => r.bibleBook === 'Matthew'
-			)
-		).toBe(true);
 		expect(
 			filterByBookRows(rows, baseFilters({ hasFourStar: true })).map((r) => r.bibleBook)
 		).toEqual(['Genesis']);
@@ -133,7 +127,7 @@ describe('filter + sort', () => {
 describe('URL filters', () => {
 	it('parses and round-trips non-default params', () => {
 		const url = new URL(
-			'https://example.test/sermons/by-book?sort=sermons&dir=asc&testament=nt&has_sermons=1&no_commentaries=1&has_4star=1'
+			'https://example.test/sermons/by-book?sort=sermons&dir=asc&testament=nt&has_sermons=1&has_4star=1'
 		);
 		const f = parseByBookListFilters(url);
 		expect(f).toEqual({
@@ -141,12 +135,19 @@ describe('URL filters', () => {
 			sortDir: 'asc',
 			testament: 'nt',
 			hasSermons: true,
-			noCommentaries: true,
 			hasFourStar: true
 		});
 		expect(byBookFiltersToSearchParams(f).toString()).toBe(
-			'sort=sermons&dir=asc&testament=nt&has_sermons=1&no_commentaries=1&has_4star=1'
+			'sort=sermons&dir=asc&testament=nt&has_sermons=1&has_4star=1'
 		);
+	});
+
+	it('ignores legacy no_commentaries param', () => {
+		const f = parseByBookListFilters(
+			new URL('https://example.test/sermons/by-book?no_commentaries=1')
+		);
+		expect(f).not.toHaveProperty('noCommentaries');
+		expect(byBookFiltersToSearchParams(f).toString()).toBe('');
 	});
 
 	it('defaults metric sort dir to desc and canon to asc', () => {

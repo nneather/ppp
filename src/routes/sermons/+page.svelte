@@ -236,33 +236,22 @@
 	</div>
 
 	{#if venues.length}
-		<div class="mt-2 flex flex-wrap gap-2">
-			<button
-				type="button"
-				class={cn(
-					'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
-					data.filters.venueId == null
-						? 'border-foreground bg-foreground text-background'
-						: 'border-border text-muted-foreground hover:bg-muted/80'
-				)}
-				onclick={() => pushFilters({ venueId: null })}
+		<div class="mt-2">
+			<label for="sermon-venue-filter" class="sr-only">Venue</label>
+			<select
+				id="sermon-venue-filter"
+				class="h-9 max-w-full rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground"
+				value={data.filters.venueId ?? ''}
+				onchange={(e) => {
+					const v = (e.currentTarget as HTMLSelectElement).value;
+					pushFilters({ venueId: v || null });
+				}}
 			>
-				All venues
-			</button>
-			{#each venues as v (v.id)}
-				<button
-					type="button"
-					class={cn(
-						'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
-						data.filters.venueId === v.id
-							? 'border-foreground bg-foreground text-background'
-							: 'border-border text-muted-foreground hover:bg-muted/80'
-					)}
-					onclick={() => pushFilters({ venueId: v.id })}
-				>
-					{v.name}
-				</button>
-			{/each}
+				<option value="">All venues</option>
+				{#each venues as v (v.id)}
+					<option value={v.id}>{v.name}</option>
+				{/each}
+			</select>
 		</div>
 	{/if}
 

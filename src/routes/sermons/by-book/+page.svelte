@@ -20,6 +20,7 @@
 	import { cn } from '$lib/utils';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Mic from '@lucide/svelte/icons/mic';
 	import Star from '@lucide/svelte/icons/star';
 	import type { PageProps } from './$types';
 
@@ -87,7 +88,7 @@
 	<p class="mt-4 text-sm text-muted-foreground">
 		{data.summary.sermonTotal} sermon{data.summary.sermonTotal === 1 ? '' : 's'}
 		· {data.summary.commentaryTotal} commentar{data.summary.commentaryTotal === 1 ? 'y' : 'ies'}
-		· {data.summary.fourStarTotal} · 4★+
+		· {data.summary.fourStarTotal} at 4★+
 	</p>
 
 	<div
@@ -162,19 +163,6 @@
 				type="button"
 				class={cn(
 					'rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-					data.filters.noCommentaries
-						? 'border-foreground bg-foreground text-background'
-						: 'border-border text-muted-foreground hover:bg-muted/80'
-				)}
-				onclick={() => pushFilters({ noCommentaries: !data.filters.noCommentaries })}
-				aria-pressed={data.filters.noCommentaries}
-			>
-				No commentaries
-			</button>
-			<button
-				type="button"
-				class={cn(
-					'rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
 					data.filters.hasFourStar
 						? 'border-foreground bg-foreground text-background'
 						: 'border-border text-muted-foreground hover:bg-muted/80'
@@ -212,15 +200,25 @@
 						<span class="min-w-0 flex-1 truncate text-sm font-medium tracking-tight">
 							{row.bibleBook}
 						</span>
-						<span class="shrink-0 tabular-nums text-xs text-muted-foreground">
-							{row.sermonCount}
-							<span class="mx-1 opacity-40">·</span>
-							{row.commentaryCount}
+						<span
+							class="flex shrink-0 items-center gap-2.5 text-xs tabular-nums text-muted-foreground"
+							aria-label={`${row.commentaryCount} commentaries${row.fourStarCount > 0 ? `, ${row.fourStarCount} at 4 stars or higher` : ''}`}
+						>
+							<span class="inline-flex items-center gap-1" title="Commentaries">
+								<BookOpen class="size-3.5 shrink-0 opacity-70" aria-hidden="true" />
+								{row.commentaryCount}
+							</span>
 							{#if row.fourStarCount > 0}
-								<span class="mx-1 opacity-40">·</span>
-								<span class="text-amber-700 dark:text-amber-300"
-									>{row.fourStarCount} · 4★+</span
+								<span
+									class="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300"
+									title="4★+ commentaries"
 								>
+									<Star
+										class="size-3.5 shrink-0 fill-amber-500 text-amber-600 dark:text-amber-400"
+										aria-hidden="true"
+									/>
+									{row.fourStarCount}
+								</span>
 							{/if}
 						</span>
 					</button>
@@ -228,12 +226,14 @@
 						{#if row.sermonCount > 0}
 							<Button
 								variant="ghost"
-								size="icon-sm"
+								size="sm"
 								href={sermonsListByBookHref(row.bibleBook)}
-								aria-label={`Sermons on ${row.bibleBook}`}
+								aria-label={`${row.sermonCount} sermons on ${row.bibleBook}`}
 								title="Sermons list"
+								class="h-8 gap-1 px-2 text-muted-foreground"
 							>
-								<span class="text-[10px] font-semibold tabular-nums">{row.sermonCount}</span>
+								<Mic class="size-3.5 shrink-0" aria-hidden="true" />
+								<span class="text-xs font-semibold tabular-nums">{row.sermonCount}</span>
 							</Button>
 						{/if}
 						<Button

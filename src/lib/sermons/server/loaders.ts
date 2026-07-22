@@ -216,13 +216,16 @@ export async function loadSermons(
 			notes: s.notes,
 			passages,
 			library_search_href: first
-				? librarySearchHref({
-						bible_book: first.bible_book,
-						chapter_start: first.chapter_start,
-						verse_start: first.verse_start,
-						chapter_end: first.chapter_end,
-						verse_end: first.verse_end
-					})
+				? librarySearchHref(
+						{
+							bible_book: first.bible_book,
+							chapter_start: first.chapter_start,
+							verse_start: first.verse_start,
+							chapter_end: first.chapter_end,
+							verse_end: first.verse_end
+						},
+						{ returnTo: '/sermons' }
+					)
 				: null
 		};
 	});

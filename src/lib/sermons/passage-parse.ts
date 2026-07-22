@@ -120,12 +120,26 @@ export function parsePassageDisplay(input: string): ParsedSermonPassage[] {
 }
 
 /** Build `/library/search-passage` query from the first structured passage. */
-export function librarySearchHref(p: ParsedSermonPassage | null | undefined): string | null {
+export function librarySearchHref(
+	p: ParsedSermonPassage | null | undefined,
+	opts?: { returnTo?: string }
+): string | null {
 	if (!p?.bible_book) return null;
 	const params = new URLSearchParams();
 	params.set('bible_book', p.bible_book);
 	if (p.chapter_start != null) params.set('chapter', String(p.chapter_start));
 	if (p.verse_start != null) params.set('verse', String(p.verse_start));
+	if (p.chapter_end != null && p.chapter_end !== p.chapter_start) {
+		params.set('chapter_end', String(p.chapter_end));
+	}
+	if (
+		p.verse_end != null &&
+		(p.verse_end !== p.verse_start ||
+			(p.chapter_end != null && p.chapter_end !== p.chapter_start))
+	) {
+		params.set('verse_end', String(p.verse_end));
+	}
+	if (opts?.returnTo) params.set('returnTo', opts.returnTo);
 	return `/library/search-passage?${params.toString()}`;
 }
 

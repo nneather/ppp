@@ -1862,7 +1862,13 @@ export type Database = {
       }
       normalize_publisher_text: { Args: { raw: string }; Returns: string }
       search_scripture_refs: {
-        Args: { p_bible_book: string; p_chapter?: number; p_verse?: number }
+        Args: {
+          p_bible_book: string
+          p_chapter?: number
+          p_chapter_end?: number
+          p_verse?: number
+          p_verse_end?: number
+        }
         Returns: {
           bible_book: string
           book_id: string

@@ -72,7 +72,6 @@ export function filterByBookRows(rows: ByBookRow[], filters: ByBookListFilters):
 		if (filters.testament === 'ot' && row.testament !== 'ot') return false;
 		if (filters.testament === 'nt' && row.testament !== 'nt') return false;
 		if (filters.hasSermons && row.sermonCount === 0) return false;
-		if (filters.noCommentaries && row.commentaryCount > 0) return false;
 		if (filters.hasFourStar && row.fourStarCount === 0) return false;
 		return true;
 	});
@@ -136,7 +135,6 @@ export function parseByBookListFilters(url: URL): ByBookListFilters {
 		sortDir,
 		testament,
 		hasSermons: url.searchParams.get('has_sermons') === '1',
-		noCommentaries: url.searchParams.get('no_commentaries') === '1',
 		hasFourStar: url.searchParams.get('has_4star') === '1'
 	};
 }
@@ -148,13 +146,15 @@ export function byBookFiltersToSearchParams(filters: ByBookListFilters): URLSear
 	if (filters.sortDir !== def) params.set('dir', filters.sortDir);
 	if (filters.testament) params.set('testament', filters.testament);
 	if (filters.hasSermons) params.set('has_sermons', '1');
-	if (filters.noCommentaries) params.set('no_commentaries', '1');
 	if (filters.hasFourStar) params.set('has_4star', '1');
 	return params;
 }
 
 export function librarySearchPassageHref(bibleBook: string): string {
-	const params = new URLSearchParams({ bible_book: bibleBook });
+	const params = new URLSearchParams({
+		bible_book: bibleBook,
+		returnTo: '/sermons/by-book'
+	});
 	return `/library/search-passage?${params.toString()}`;
 }
 

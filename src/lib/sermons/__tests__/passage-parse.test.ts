@@ -51,16 +51,33 @@ describe('parsePassageDisplay', () => {
 });
 
 describe('librarySearchHref', () => {
-	it('builds search-passage URL', () => {
+	it('builds search-passage URL with verse range and returnTo', () => {
+		expect(
+			librarySearchHref(
+				{
+					bible_book: 'Mark',
+					chapter_start: 1,
+					verse_start: 16,
+					chapter_end: 1,
+					verse_end: 34
+				},
+				{ returnTo: '/sermons' }
+			)
+		).toBe(
+			'/library/search-passage?bible_book=Mark&chapter=1&verse=16&verse_end=34&returnTo=%2Fsermons'
+		);
+	});
+
+	it('omits verse_end for a single verse', () => {
 		expect(
 			librarySearchHref({
-				bible_book: 'Mark',
-				chapter_start: 1,
-				verse_start: 16,
-				chapter_end: 1,
-				verse_end: 34
+				bible_book: 'Matthew',
+				chapter_start: 6,
+				verse_start: 25,
+				chapter_end: null,
+				verse_end: null
 			})
-		).toBe('/library/search-passage?bible_book=Mark&chapter=1&verse=16');
+		).toBe('/library/search-passage?bible_book=Matthew&chapter=6&verse=25');
 	});
 });
 
