@@ -14,7 +14,7 @@
 - **Q1 — MYN tasks: 2-week adoption trial** (through ~2026-07-20) as the only task list, then re-decide. If it fails, drop to freeze (no global-Now build on an unused base). Rejected: freeze now; remove nav entry.
 - **Q2 — Check-in progress/reason/next_steps: leave as-is** (0/120 usage accepted as optional-field cost). Rejected: hide from form (recommended), drop columns. No work scheduled.
 - **Q3 — Review backlog (799 books): improve the queue, don't bulk-accept.** Parker wants `/library/review` made more useful for steady burndown over time, **plus an AI research pass** (agent proposes metadata fixes for `needs_review` books; owner confirms — never auto-clears). Session prompt added to PLAN.md. Rejected: bulk-accept non-critical genres; leave until organic.
-- **Q4 — Fountain of Life client: archive** (soft-delete) until real billing exists. Owner quick action.
+- **Q4 — Fountain of Life client: archive** (soft-delete) until real billing exists. Owner quick action. ~~Open~~ — **done 2026-07-22** (owner soft-deleted).
 - **Q5 — Check-in nudge: none.** 5/6 coverage with active health edits is a working ritual; occasional missed weeks accepted.
 
 ## Schema changes

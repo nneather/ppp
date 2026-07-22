@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-22 — Task sheet date overflow ([112](docs/decisions/112-task-sheet-date-overflow.md)). Prior: PWA resume harden ([111](docs/decisions/111-pwa-resume-auto-apply-harden.md)).
+**Last updated:** 2026-07-22 — Fountain of Life archived ([064](docs/decisions/064-usage-retrospective-review.md) Q4); tasks tile Critical+Opportunity only ([109](docs/decisions/109-tasks-active-badge-recurrence.md)). Prior: task sheet date overflow ([112](docs/decisions/112-task-sheet-date-overflow.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -90,7 +90,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` **2026-07-22** ([112](docs/decisions/112-task-sheet-date-overflow.md); **0 errors**). Prior: [111](docs/decisions/111-pwa-resume-auto-apply-harden.md).
+**Repo gate:** `npm run check` **2026-07-22** ([109](docs/decisions/109-tasks-active-badge-recurrence.md) tile breakdown; **0 errors**). Prior: [112](docs/decisions/112-task-sheet-date-overflow.md).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -296,7 +296,7 @@ Acceptance:
 ## Next up
 
 ### Do now
-1. **Owner smokes** — sermons list + by-book **mostly passed**; re-smoke after [110](docs/decisions/110-sermons-owner-smoke-ux.md) (ranged Find-in-library, venue select, count labels). Still open: writing-session copy row ([094](docs/decisions/094-library-writing-session-gaps.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 **+ essay preview / Articles-in-volumes search** ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)); **archive Fountain of Life client** ([064](docs/decisions/064-usage-retrospective-review.md) Q4); **re-smoke resume auto-update** after [111](docs/decisions/111-pwa-resume-auto-apply-harden.md) (nav watchdog skip); glance Actions after next Monday weekly backup ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)); optional Projects E2E.
+1. **Owner smokes** — sermons list + by-book **mostly passed** ([110](docs/decisions/110-sermons-owner-smoke-ux.md)); Projects E2E **passed** (+ date overflow fix [112](docs/decisions/112-task-sheet-date-overflow.md)); **Fountain of Life archived** ([064](docs/decisions/064-usage-retrospective-review.md) Q4). Still open: writing-session copy row ([094](docs/decisions/094-library-writing-session-gaps.md)); phone smoke after megacomponent split ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md), `.claude/skills/library-owner-smoke/`); `.docx` Word smoke ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); essays smoke on ABD vol 1 **+ essay preview / Articles-in-volumes search** ([086](docs/decisions/086-essay-visibility-and-search-lanes.md)); **re-smoke resume auto-update** after [111](docs/decisions/111-pwa-resume-auto-apply-harden.md) (nav watchdog skip); glance Actions after next Monday weekly backup ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)).
 2. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
 3. **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)) — keep `/tasks`; fall polish as needed. Global Now parked until fall. **Email → task live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). Recurrence + dashboard active badge shipped ([109](docs/decisions/109-tasks-active-badge-recurrence.md)).
 
