@@ -6,6 +6,7 @@ import { findOrCreatePerson, parseTypedName } from '$lib/library/server/people-a
 import { markProposalResolved, markProposalPending } from '$lib/library/server/proposal-actions';
 import { ensureShelfMarkerNote } from '$lib/library/review';
 import { parseIsbnWithChecksum } from '$lib/library/isbn';
+import { normalizePublisherLocationOrNull } from '$lib/library/publisher-location';
 
 /**
  * Server-side helpers for the books vertical slice. Both `/library` (list) and
@@ -121,6 +122,10 @@ function parseUuidOrNull(raw: FormDataEntryValue | null): string | null {
 function trimOrNull(raw: FormDataEntryValue | null): string | null {
 	const t = String(raw ?? '').trim();
 	return t.length > 0 ? t : null;
+}
+
+function locationOrNull(raw: FormDataEntryValue | null): string | null {
+	return normalizePublisherLocationOrNull(trimOrNull(raw));
 }
 
 function parseInt0(raw: FormDataEntryValue | null): number | null {
@@ -319,12 +324,12 @@ export function parseBookForm(fd: FormData): ParseResult {
 
 	const subtitle = trimOrNull(fd.get('subtitle'));
 	const publisher = trimOrNull(fd.get('publisher'));
-	const publisher_location = trimOrNull(fd.get('publisher_location'));
+	const publisher_location = locationOrNull(fd.get('publisher_location'));
 	const publisher_id = parseUuidOrNull(fd.get('publisher_id'));
 	const reprint_publisher_id = parseUuidOrNull(fd.get('reprint_publisher_id'));
 	const edition = trimOrNull(fd.get('edition'));
 	const reprint_publisher = trimOrNull(fd.get('reprint_publisher'));
-	const reprint_location = trimOrNull(fd.get('reprint_location'));
+	const reprint_location = locationOrNull(fd.get('reprint_location'));
 	const series_id = trimOrNull(fd.get('series_id'));
 	const volume_number = trimOrNull(fd.get('volume_number'));
 	const copy_count_raw = parseInt0(fd.get('copy_count'));
@@ -1147,8 +1152,8 @@ export async function reviewSaveAction(supabase: SupabaseClient, userId: string,
 	const publisher = trimOrNull(fd.get('publisher')) ?? ex.publisher;
 	const publisher_location =
 		fd.get('publisher_location') !== null
-			? trimOrNull(fd.get('publisher_location'))
-			: ex.publisher_location;
+			? locationOrNull(fd.get('publisher_location'))
+			: normalizePublisherLocationOrNull(ex.publisher_location);
 	const publisher_id =
 		fd.get('publisher_id') !== null ? parseUuidOrNull(fd.get('publisher_id')) : ex.publisher_id;
 	const yearRaw = fd.get('year');
@@ -1404,7 +1409,7 @@ export async function undoReviewSaveAction(supabase: SupabaseClient, fd: FormDat
 
 	const title = trimOrNull(fd.get('title'));
 	const publisher = trimOrNull(fd.get('publisher'));
-	const publisher_location = trimOrNull(fd.get('publisher_location'));
+	const publisher_location = locationOrNull(fd.get('publisher_location'));
 	const publisher_id = parseUuidOrNull(fd.get('publisher_id'));
 
 	const yearRaw = fd.get('year');

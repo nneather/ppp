@@ -1,3 +1,4 @@
+import { normalizePublisherLocationTurabian } from '$lib/library/publisher-location';
 import type { BookAuthorAssignment, BookDetail } from '$lib/types/library';
 
 /** "Last, First …" from a `personDisplayLong`-style label when possible. */
@@ -30,7 +31,11 @@ export function copyTitleLine(book: BookDetail): string {
 
 export function copyPublisherYearLine(book: BookDetail): string {
 	const parts: string[] = [];
-	if (book.publisher_location?.trim()) parts.push(book.publisher_location.trim());
+	const locRaw = book.publisher_effective_location ?? book.publisher_location;
+	const loc = locRaw?.trim()
+		? normalizePublisherLocationTurabian(locRaw)
+		: '';
+	if (loc) parts.push(loc);
 	if (book.publisher?.trim()) parts.push(book.publisher.trim());
 	const head = parts.join(': ');
 	const yearStr = book.year != null ? String(book.year) : '';

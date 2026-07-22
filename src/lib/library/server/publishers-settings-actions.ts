@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { loadProfileRole } from '$lib/library/server/people-settings-actions';
 import { fetchLiveBookIdsByPublisherId } from '$lib/library/server/publishers-settings-book-counts';
+import { normalizePublisherLocationOrNull } from '$lib/library/publisher-location';
 
 export type PublishersSettingsActionKind =
 	| 'createPublisher'
@@ -56,7 +57,7 @@ export async function createPublisherSettingsAction(
 		});
 	}
 
-	const default_location = trimOrNull(fd.get('default_location'));
+	const default_location = normalizePublisherLocationOrNull(trimOrNull(fd.get('default_location')));
 	const aliases = readAliases(fd);
 	const notes = trimOrNull(fd.get('notes'));
 	const parent_id = parseParentId(fd);
@@ -142,7 +143,7 @@ export async function updatePublisherSettingsAction(
 		});
 	}
 
-	const default_location = trimOrNull(fd.get('default_location'));
+	const default_location = normalizePublisherLocationOrNull(trimOrNull(fd.get('default_location')));
 	const aliases = readAliases(fd);
 	const notes = trimOrNull(fd.get('notes'));
 	const parent_id = parseParentId(fd);

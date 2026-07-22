@@ -6,6 +6,7 @@
  * - Well-known cities stand alone (New York, London, Tübingen).
  * - Ambiguous or lesser-known US cities: City, ST (postal abbreviation).
  * - Foreign cities: City, Country when not well-known; strip redundant USA suffixes.
+ * - US states always use postal abbreviations (MI), never traditional (Mich.) or full names.
  */
 
 const US_STATE_ABBREV: Record<string, string> = {
@@ -60,6 +61,68 @@ const US_STATE_ABBREV: Record<string, string> = {
 	'west virginia': 'WV',
 	wisconsin: 'WI',
 	wyoming: 'WY'
+};
+
+const US_POSTAL = new Set(Object.values(US_STATE_ABBREV));
+
+/**
+ * Traditional / Chicago bibliographic abbreviations → postal.
+ * Keys are lowercase with periods stripped (Mich. → mich, N.Y. → ny).
+ */
+const US_STATE_TRADITIONAL: Record<string, string> = {
+	ala: 'AL',
+	ariz: 'AZ',
+	ark: 'AR',
+	calif: 'CA',
+	colo: 'CO',
+	conn: 'CT',
+	del: 'DE',
+	dc: 'DC',
+	fla: 'FL',
+	ga: 'GA',
+	ill: 'IL',
+	ind: 'IN',
+	kans: 'KS',
+	kan: 'KS',
+	ky: 'KY',
+	la: 'LA',
+	md: 'MD',
+	mass: 'MA',
+	mich: 'MI',
+	minn: 'MN',
+	miss: 'MS',
+	mo: 'MO',
+	mont: 'MT',
+	nebr: 'NE',
+	neb: 'NE',
+	nev: 'NV',
+	nh: 'NH',
+	nj: 'NJ',
+	nmex: 'NM',
+	nm: 'NM',
+	ny: 'NY',
+	nc: 'NC',
+	ndak: 'ND',
+	nd: 'ND',
+	okla: 'OK',
+	ore: 'OR',
+	oreg: 'OR',
+	pa: 'PA',
+	penn: 'PA',
+	penna: 'PA',
+	ri: 'RI',
+	sc: 'SC',
+	sdak: 'SD',
+	sd: 'SD',
+	tenn: 'TN',
+	tex: 'TX',
+	vt: 'VT',
+	va: 'VA',
+	wash: 'WA',
+	wva: 'WV',
+	wis: 'WI',
+	wisc: 'WI',
+	wyo: 'WY'
 };
 
 /** Cities that need no state/country suffix in theological citation practice. */
@@ -129,8 +192,25 @@ function normalizeKey(s: string): string {
 	return s.trim().toLowerCase();
 }
 
-function isUsStateAbbrev(token: string): boolean {
-	return /^[A-Z]{2}$/.test(token.trim());
+/** Lowercase key with periods removed for traditional abbrev lookup. */
+function stateCompactKey(s: string): string {
+	return normalizeKey(s).replace(/\./g, '');
+}
+
+/**
+ * Resolve a US state token (full name, traditional abbrev, or postal) to postal.
+ * Returns null when the segment is not a recognized US state.
+ */
+export function resolveUsStatePostal(segment: string): string | null {
+	const trimmed = segment.trim();
+	if (!trimmed) return null;
+	if (/^[A-Za-z]{2}$/.test(trimmed)) {
+		const upper = trimmed.toUpperCase();
+		if (US_POSTAL.has(upper)) return upper;
+	}
+	const full = US_STATE_ABBREV[normalizeKey(trimmed)];
+	if (full) return full;
+	return US_STATE_TRADITIONAL[stateCompactKey(trimmed)] ?? null;
 }
 
 function parseSegments(raw: string): string[] {
@@ -147,11 +227,13 @@ function stripUsaSuffix(segments: string[]): string[] {
 	return segments;
 }
 
-function abbreviateUsState(segment: string): string {
-	const key = normalizeKey(segment);
-	if (isUsStateAbbrev(segment)) return segment.trim().toUpperCase();
-	const abbrev = US_STATE_ABBREV[key];
-	return abbrev ?? segment.trim();
+/** Null-safe wrapper for form / DB columns. */
+export function normalizePublisherLocationOrNull(
+	raw: string | null | undefined
+): string | null {
+	if (raw == null) return null;
+	const n = normalizePublisherLocationTurabian(raw);
+	return n || null;
 }
 
 /**
@@ -162,7 +244,7 @@ export function normalizePublisherLocationTurabian(raw: string): string {
 	const trimmed = raw.trim();
 	if (!trimmed) return '';
 
-	let segments = stripUsaSuffix(parseSegments(trimmed));
+	const segments = stripUsaSuffix(parseSegments(trimmed));
 	if (segments.length === 0) return '';
 
 	if (segments.length === 1) {
@@ -174,19 +256,12 @@ export function normalizePublisherLocationTurabian(raw: string): string {
 	if (segments.length === 2) {
 		const [cityRaw, secondRaw] = segments;
 		const city = cityRaw!.trim();
-		const secondKey = normalizeKey(secondRaw!);
+		const statePostal = resolveUsStatePostal(secondRaw!);
 
 		// US state suffix: well-known cities stand alone; ambiguous ones keep City, ST.
-		if (US_STATE_ABBREV[secondKey] || isUsStateAbbrev(secondRaw!)) {
+		if (statePostal) {
 			if (STANDALONE_CITIES.has(normalizeKey(city))) return city;
-			return `${city}, ${abbreviateUsState(secondRaw!)}`;
-		}
-
-		// "Grand Rapids, Michigan" → "Grand Rapids, MI"
-		const stateAbbrev = US_STATE_ABBREV[secondKey];
-		if (stateAbbrev) {
-			if (STANDALONE_CITIES.has(normalizeKey(city))) return city;
-			return `${city}, ${stateAbbrev}`;
+			return `${city}, ${statePostal}`;
 		}
 
 		// Well-known city + redundant country (e.g. "London, England") → city alone
@@ -199,11 +274,11 @@ export function normalizePublisherLocationTurabian(raw: string): string {
 	// Three+ segments: take city + last meaningful segment (often state before USA was stripped)
 	const city = segments[0]!.trim();
 	const tail = segments[segments.length - 1]!.trim();
-	const tailKey = normalizeKey(tail);
+	const statePostal = resolveUsStatePostal(tail);
 
-	if (US_STATE_ABBREV[tailKey] || isUsStateAbbrev(tail)) {
+	if (statePostal) {
 		if (STANDALONE_CITIES.has(normalizeKey(city))) return city;
-		return `${city}, ${abbreviateUsState(tail)}`;
+		return `${city}, ${statePostal}`;
 	}
 
 	if (STANDALONE_CITIES.has(normalizeKey(city))) return city;

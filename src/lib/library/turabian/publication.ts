@@ -1,3 +1,4 @@
+import { normalizePublisherLocationTurabian } from '$lib/library/publisher-location';
 import { resolveCitationSourceType } from './dispatch';
 import type { BookCitationInput } from './types';
 
@@ -40,13 +41,13 @@ export function formatPublicationFacts(
 		book.original_year != null &&
 		(book.reprint_year != null || book.reprint_publisher != null || book.reprint_location != null);
 
-	const loc = (book.publisher_location ?? '').trim();
+	const loc = normalizePublisherLocationTurabian(book.publisher_location ?? '');
 	const pub = (book.publisher ?? '').trim();
 	const year = book.year;
 
 	if (isReprint) {
 		const orig = book.original_year != null ? String(book.original_year) : '';
-		const rLoc = (book.reprint_location ?? loc).trim();
+		const rLoc = normalizePublisherLocationTurabian(book.reprint_location ?? loc);
 		const rPub = (book.reprint_publisher ?? pub).trim();
 		const rYear = book.reprint_year ?? year;
 		const placePub = [rLoc, rPub].filter(Boolean).join(': ');

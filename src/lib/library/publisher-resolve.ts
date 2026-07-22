@@ -1,3 +1,4 @@
+import { normalizePublisherLocationOrNull } from '$lib/library/publisher-location';
 import type { PublisherRow } from '$lib/types/library';
 
 /** Join shape from Supabase nested `publishers` select. */
@@ -18,17 +19,17 @@ export function publisherJoinFromRow(pub: PublisherRow | null | undefined): Publ
 	};
 }
 
-/** Per-book override → imprint default → parent default. */
+/** Per-book override → imprint default → parent default. Always postal US states. */
 export function publisherEffectiveLocation(
 	bookLocation: string | null | undefined,
 	pub: PublisherJoin | null | undefined
 ): string | null {
 	const trimmed = bookLocation?.trim();
-	if (trimmed) return trimmed;
+	if (trimmed) return normalizePublisherLocationOrNull(trimmed);
 	const self = pub?.default_location?.trim();
-	if (self) return self;
+	if (self) return normalizePublisherLocationOrNull(self);
 	const parent = pub?.parent?.default_location?.trim();
-	if (parent) return parent;
+	if (parent) return normalizePublisherLocationOrNull(parent);
 	return null;
 }
 
@@ -45,8 +46,8 @@ export function publisherCanonicalText(
 
 export function publisherDefaultLocationForRow(row: PublisherRow): string | null {
 	const self = row.default_location?.trim();
-	if (self) return self;
+	if (self) return normalizePublisherLocationOrNull(self);
 	const parent = row.parent_default_location?.trim();
-	if (parent) return parent;
+	if (parent) return normalizePublisherLocationOrNull(parent);
 	return null;
 }

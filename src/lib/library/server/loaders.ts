@@ -4,6 +4,7 @@ import {
 	publisherEffectiveLocation,
 	type PublisherJoin
 } from '$lib/library/publisher-resolve';
+import { normalizePublisherLocationOrNull } from '$lib/library/publisher-location';
 import type {
 	BookListFilters,
 	BookListRow,
@@ -553,7 +554,9 @@ function mapBookListRowsFromDenorm(data: unknown[]): BookListRow[] {
 			authors_label: r.author_display ?? null,
 			publisher_id: r.publisher_id ?? null,
 			publisher_canonical: r.publisher_canonical_display ?? null,
-			publisher_effective_location: r.publisher_location_display ?? null
+			publisher_effective_location: normalizePublisherLocationOrNull(
+				r.publisher_location_display ?? null
+			)
 		} satisfies BookListRow;
 	});
 	rows.sort((a, b) =>
@@ -1148,7 +1151,7 @@ export async function loadBookDetail(
 		title: r.title ?? null,
 		subtitle: r.subtitle ?? null,
 		publisher: r.publisher ?? null,
-		publisher_location: r.publisher_location ?? null,
+		publisher_location: normalizePublisherLocationOrNull(r.publisher_location ?? null),
 		publisher_id: pubFields.publisher_id,
 		reprint_publisher_id: r.reprint_publisher_id ?? null,
 		publisher_canonical: pubFields.publisher_canonical,
@@ -1158,7 +1161,7 @@ export async function loadBookDetail(
 		total_volumes: r.total_volumes ?? null,
 		original_year: r.original_year ?? null,
 		reprint_publisher: r.reprint_publisher ?? null,
-		reprint_location: r.reprint_location ?? null,
+		reprint_location: normalizePublisherLocationOrNull(r.reprint_location ?? null),
 		reprint_year: r.reprint_year ?? null,
 		series_id: r.series_id ?? null,
 		series_name: r.series?.name ?? null,
@@ -1448,12 +1451,12 @@ export async function loadReviewQueue(
 			...pubFields,
 			year: r.year ?? null,
 			publisher: r.publisher ?? null,
-			publisher_location: r.publisher_location ?? null,
+			publisher_location: normalizePublisherLocationOrNull(r.publisher_location ?? null),
 			edition: r.edition ?? null,
 			total_volumes: r.total_volumes ?? null,
 			original_year: r.original_year ?? null,
 			reprint_publisher: r.reprint_publisher ?? null,
-			reprint_location: r.reprint_location ?? null,
+			reprint_location: normalizePublisherLocationOrNull(r.reprint_location ?? null),
 			reprint_year: r.reprint_year ?? null,
 			needs_review_note: r.needs_review_note ?? null,
 			isbn: r.isbn ?? null,

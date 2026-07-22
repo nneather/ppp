@@ -193,12 +193,7 @@
 	}
 
 	function fmtYearChunk(): string {
-		const parts: string[] = [];
-		if (data.book.publisher_location) parts.push(data.book.publisher_location);
-		if (data.book.publisher) parts.push(data.book.publisher);
-		const head = parts.join(': ');
-		const yearStr = data.book.year != null ? String(data.book.year) : '';
-		return [head, yearStr].filter((s) => s.length > 0).join(', ');
+		return copyPublisherYearLine(data.book);
 	}
 
 	let copyToast = $state<string | null>(null);

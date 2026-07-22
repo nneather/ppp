@@ -9,6 +9,15 @@ describe('normalizePublisherLocationTurabian', () => {
 		expect(normalizePublisherLocationTurabian('Grand Rapids, MI')).toBe('Grand Rapids, MI');
 	});
 
+	it('maps traditional bibliographic state abbreviations to postal', () => {
+		expect(normalizePublisherLocationTurabian('Grand Rapids, Mich')).toBe('Grand Rapids, MI');
+		expect(normalizePublisherLocationTurabian('Grand Rapids, Mich.')).toBe('Grand Rapids, MI');
+		expect(normalizePublisherLocationTurabian('Downers Grove, Ill.')).toBe('Downers Grove, IL');
+		expect(normalizePublisherLocationTurabian('Wheaton, Ill')).toBe('Wheaton, IL');
+		expect(normalizePublisherLocationTurabian('Waco, Tex.')).toBe('Waco, TX');
+		expect(normalizePublisherLocationTurabian('Phillipsburg, N.J.')).toBe('Phillipsburg, NJ');
+	});
+
 	it('keeps Cambridge, MA distinct from Cambridge', () => {
 		expect(normalizePublisherLocationTurabian('Cambridge, MA')).toBe('Cambridge, MA');
 		expect(normalizePublisherLocationTurabian('Cambridge, Massachusetts')).toBe('Cambridge, MA');
@@ -17,6 +26,7 @@ describe('normalizePublisherLocationTurabian', () => {
 
 	it('drops state/country for well-known cities', () => {
 		expect(normalizePublisherLocationTurabian('New York, NY')).toBe('New York');
+		expect(normalizePublisherLocationTurabian('New York, N.Y.')).toBe('New York');
 		expect(normalizePublisherLocationTurabian('London, England')).toBe('London');
 		expect(normalizePublisherLocationTurabian('Tübingen, Germany')).toBe('Tübingen');
 		expect(normalizePublisherLocationTurabian('Oxford, UK')).toBe('Oxford');
