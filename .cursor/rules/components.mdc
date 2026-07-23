@@ -47,7 +47,7 @@ If you reach for one of these capabilities, use the existing component.
 | One-time milestone interstitial banner (positive framing, dismissible) | [src/lib/components/review-milestone-card.svelte](mdc:src/lib/components/review-milestone-card.svelte) |
 | End-of-sprint summary card (cleared/skipped/elapsed + go-again CTA) | [src/lib/components/review-sprint-summary.svelte](mdc:src/lib/components/review-sprint-summary.svelte) |
 | AI research proposal panel on review cards (per-field current→proposed, Apply/Apply all fill quick-edit state, Dismiss rejects) | [src/lib/components/review-proposal-panel.svelte](mdc:src/lib/components/review-proposal-panel.svelte) |
-| Dashboard library tile burndown second line (citation-verified / backlog cleared) | [src/lib/components/dashboard-library-tile-footer.svelte](mdc:src/lib/components/dashboard-library-tile-footer.svelte) |
+| Dashboard library tile footer — needs-review link when count > 0 | [src/lib/components/dashboard-library-tile-footer.svelte](mdc:src/lib/components/dashboard-library-tile-footer.svelte) |
 | Dashboard upcoming sermons panel (`preached_on >= today`, venue/topic/passage) | [src/lib/components/dashboard-upcoming-sermons.svelte](mdc:src/lib/components/dashboard-upcoming-sermons.svelte) |
 | Dashboard invoicing tile "Generate last week's invoice" footer (weekly clients with unbilled prior week) | [src/lib/components/dashboard-invoicing-tile-footer.svelte](mdc:src/lib/components/dashboard-invoicing-tile-footer.svelte) |
 | Inline project tree + weekly 5-segment health picker (carry-forward seed uses `untrack` in `$effect`; optional URL filters + latest-health trend badge; domain color dot + child left rail) | [src/lib/components/project-tree.svelte](mdc:src/lib/components/project-tree.svelte) |

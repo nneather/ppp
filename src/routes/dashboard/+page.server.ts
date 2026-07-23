@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	countBooksNeedingReview,
-	countReviewQueueBySlice
+	countLiveBooks
 } from '$lib/library/server/loaders';
 import {
 	ymdInChicago,
@@ -101,8 +101,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		unbilledRes,
 		lastWeekEntriesRes,
 		libraryNeedsReview,
-		criticalRemaining,
-		backlogRemaining,
+		libraryBookCount,
 		projectTree,
 		latestHealthMap,
 		nowTasks,
@@ -124,8 +123,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 			.gte('date', lastWeek.start)
 			.lte('date', lastWeek.end),
 		countBooksNeedingReview(supabase),
-		countReviewQueueBySlice(supabase, 'critical'),
-		countReviewQueueBySlice(supabase, 'backlog'),
+		countLiveBooks(supabase),
 		locals.perf.measure('db', () => loadProjectTree(supabase)),
 		locals.perf.measure('db', () => loadLatestHealth(supabase)),
 		locals.perf.measure('db', () => loadDashboardNowTasks(supabase, { todayYmd: today })),
@@ -190,8 +188,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 			unbilledPriorCount: null as number | null,
 			lastWeekInvoiceCandidates,
 			libraryNeedsReviewCount: libraryNeedsReview,
-			libraryCriticalRemaining: criticalRemaining,
-			libraryBacklogRemaining: backlogRemaining,
+			libraryBookCount,
 			projectTree,
 			latestHealth,
 			criticalNowTaskCount,
@@ -212,8 +209,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		unbilledPriorCount: unbilledRes.count ?? 0,
 		lastWeekInvoiceCandidates,
 		libraryNeedsReviewCount: libraryNeedsReview,
-		libraryCriticalRemaining: criticalRemaining,
-		libraryBacklogRemaining: backlogRemaining,
+		libraryBookCount,
 		projectTree,
 		latestHealth,
 		criticalNowTaskCount,

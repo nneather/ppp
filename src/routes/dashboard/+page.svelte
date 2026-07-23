@@ -168,18 +168,18 @@
 										>Library</span
 									>
 								</div>
-								<p class="text-sm text-muted-foreground">Open library</p>
+								<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+									Books
+								</p>
+								<p
+									class="mt-1.5 text-2xl font-semibold text-foreground tabular-nums md:text-3xl"
+									aria-live="polite"
+								>
+									{data.libraryBookCount.toLocaleString()}
+								</p>
 							</a>
-							{#if data.libraryNeedsReviewCount != null}
-								<DashboardLibraryTileFooter
-									needsReviewCount={data.libraryNeedsReviewCount}
-									criticalRemaining={data.libraryCriticalRemaining ?? 0}
-									backlogRemaining={data.libraryBacklogRemaining ?? 0}
-								/>
-							{:else}
-								<div class="border-t border-border px-4 pb-3 pt-2.5 md:px-5 md:pb-4 md:pt-3">
-									<span class="text-sm text-muted-foreground">Review queue: –</span>
-								</div>
+							{#if data.libraryNeedsReviewCount != null && data.libraryNeedsReviewCount > 0}
+								<DashboardLibraryTileFooter needsReviewCount={data.libraryNeedsReviewCount} />
 							{/if}
 						</div>
 					</li>

@@ -55,17 +55,17 @@
 							{/if}
 						</p>
 						<p class="mt-0.5 text-sm font-medium text-foreground">
-							{sermon.topic?.trim() ||
-								sermon.passage_display?.trim() ||
+							{sermon.passage_display?.trim() ||
+								sermon.topic?.trim() ||
 								'Untitled sermon'}
 						</p>
-						{#if sermon.venue_name || (sermon.passage_display && sermon.topic)}
+						{#if sermon.venue_name || (sermon.topic?.trim() && sermon.passage_display?.trim())}
 							<p class="mt-0.5 text-xs text-muted-foreground">
 								{#if sermon.venue_name}{sermon.venue_name}{/if}
-								{#if sermon.venue_name && sermon.passage_display && sermon.topic}
+								{#if sermon.venue_name && sermon.topic?.trim() && sermon.passage_display?.trim()}
 									<span aria-hidden="true"> · </span>
 								{/if}
-								{#if sermon.passage_display && sermon.topic}{sermon.passage_display}{/if}
+								{#if sermon.topic?.trim() && sermon.passage_display?.trim()}{sermon.topic.trim()}{/if}
 							</p>
 						{/if}
 					</a>
