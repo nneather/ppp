@@ -109,7 +109,12 @@
 		queueMicrotask(() => deleteFormEl?.requestSubmit());
 	}
 
-	function isTargetNow(task: ProjectTaskView): boolean {
+	/**
+	 * Today-focus underline: all Critical Now rows, plus Opportunity Now when
+	 * start_date is Chicago today (Target Now).
+	 */
+	function isActiveToday(task: ProjectTaskView): boolean {
+		if (task.priority === 'critical_now') return true;
 		return task.priority === 'opportunity_now' && task.start_date === todayYmd;
 	}
 
@@ -136,7 +141,7 @@
 
 {#snippet taskRow(task: ProjectTaskView, isCompleted = false)}
 	{@const domainColor = parseProjectColorKey(task.domain_color)}
-	{@const targetNow = !isCompleted && isTargetNow(task)}
+	{@const activeToday = !isCompleted && isActiveToday(task)}
 	<li
 		class={cn(
 			'flex flex-col gap-2 border-b border-border/60 px-3 py-2.5 last:border-b-0',
@@ -164,7 +169,12 @@
 					<p
 						class={cn(
 							'min-w-0 flex-1 break-words text-sm font-medium',
-							targetNow && 'underline decoration-amber-600/70 underline-offset-2',
+							activeToday &&
+								task.priority === 'critical_now' &&
+								'underline decoration-red-600/70 underline-offset-2',
+							activeToday &&
+								task.priority === 'opportunity_now' &&
+								'underline decoration-amber-600/70 underline-offset-2',
 							isCompleted && 'line-through'
 						)}
 					>
