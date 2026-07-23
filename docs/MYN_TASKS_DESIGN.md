@@ -14,7 +14,7 @@ This document is the architectural reference for the current build and for the *
 | Opportunity Now | `opportunity_now` | Normal | daily |
 | Over the Horizon | `over_horizon` | Low | weekly |
 
-**Soft cap (locked for fall polish — [126](decisions/126-myn-fall-backlog-lock.md)):** **50 total** open, non-deferred tasks across all zones (not per-zone). When over 50, default list shows the highest-priority / newest (FRESH) 50 and hides the rest (lowest priority first, then oldest `start_date`). Always surface an at-cap banner whenever open non-deferred count ≥ 50 (e.g. “Showing 50 of N — at cap”). Optional “Show all” toggle to reveal truncated rows. Linenberger’s classic 5 / 20 zone caps remain methodology context only — not the product soft-cap.
+**Soft cap (shipped — [128](decisions/128-myn-fall-polish.md); locked [126](decisions/126-myn-fall-backlog-lock.md)):** **50 total** open, non-deferred tasks across all zones (not per-zone). When over 50, default list shows the highest-priority / newest (FRESH) 50 and hides the rest (lowest priority first, then oldest `start_date`). Always surface an at-cap banner whenever open non-deferred count ≥ 50 (e.g. “Showing 50 of N — at cap”). Optional “Show all” via `?all=1`. Linenberger’s classic 5 / 20 zone caps remain methodology context only — not the product soft-cap.
 
 ---
 
@@ -60,26 +60,29 @@ See migration `20260604030000_ppp_project_tasks_myn.sql`. Every task **requires*
 
 | Concern | Location |
 |---|---|
-| Types / zone caps | `src/lib/types/projects.ts` |
+| Types / soft-cap | `src/lib/types/projects.ts` (`TASK_SOFT_CAP_TOTAL`) |
+| Saved views + truncate | `src/lib/projects/task-views.ts` |
 | Recurrence math | `src/lib/projects/task-recurrence.ts` |
 | Load + group | `src/lib/projects/server/task-loaders.ts` |
 | Actions | `src/lib/projects/server/task-actions.ts` |
+| Profile prefs | `src/lib/projects/server/task-prefs-actions.ts` |
 | UI list | `src/lib/components/project-task-list.svelte` |
 | UI sheet | `src/lib/components/project-task-sheet.svelte` |
 | Route | `src/routes/tasks/` (legacy `/projects/tasks` redirects) |
+| Settings | `src/routes/settings/projects/` |
 
 ---
 
-## Fall polish backlog (locked — [126](decisions/126-myn-fall-backlog-lock.md))
+## Fall polish backlog (shipped — [128](decisions/128-myn-fall-polish.md); locked in [126](decisions/126-myn-fall-backlog-lock.md))
 
-`/tasks` already is the unified list. Build these; do **not** invent `/now` or nullable `project_id`.
+`/tasks` is the unified list. No `/now` route; `project_id` remains required.
 
-### Ship
+### Shipped
 
-1. **Default project + saved views** — keep required `project_id`. Profile (or settings) **default project** for New Task when no filter is active. **Saved views** as named include/exclude (or only-project) presets over the existing loader — e.g. “All except Email Inbox”, “Education only”. Project labels stay on.
-2. **Defer → next Monday** — one-click (defer dialog + optional row action): set `priority = over_horizon`, `start_date = next Chicago Monday`. Defer dialog presets: tomorrow / next Monday / +1 week / pick date.
-3. **Target Now** — when `priority = opportunity_now` and `start_date = today`, style the row (badge / underline).
-4. **Global soft-cap (50)** — see Urgency zones above; replace per-zone “over cap” UX with the 50-total model.
+1. **Default project + saved views** — `profiles.default_task_project_id`; named views on `profiles.task_saved_views` managed at `/settings/projects`; apply via `?view=` on `/tasks` (`?project=` wins).
+2. **Defer → next Monday** — presets + “Defer to Monday (OTH)” in defer dialog.
+3. **Target Now** — `opportunity_now` + `start_date = today` row badge/underline.
+4. **Global soft-cap (50)** — truncate + banner; `?all=1` show all.
 
 ### Dropped / parked
 
@@ -98,5 +101,6 @@ See migration `20260604030000_ppp_project_tasks_myn.sql`. Every task **requires*
 - [045 — Session 1 tree + check-in](decisions/045-projects-session-1-tree-checkin.md)
 - [046 — Session 2 dashboard + filters](decisions/046-projects-session-2-dashboard-filters.md)
 - [047 — Session 3 MYN tasks + links + audit](decisions/047-projects-session-3-myn-tasks-links-audit.md)
-- [099 — MYN trial adopted](decisions/099-myn-trial-adopted.md)
+- [128 — Fall MYN polish](decisions/128-myn-fall-polish.md)
 - [126 — Fall MYN backlog lock](decisions/126-myn-fall-backlog-lock.md)
+- [099 — MYN trial adopted](decisions/099-myn-trial-adopted.md)

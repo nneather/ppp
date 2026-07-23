@@ -39,7 +39,7 @@
 		return `/tasks${q ? `?${q}` : ''}`;
 	}
 
-	function toggleParam(key: 'deferred' | 'completed') {
+	function toggleParam(key: 'deferred' | 'completed' | 'all') {
 		const on = page.url.searchParams.get(key) === '1';
 		goto(tasksHref({ [key]: on ? null : '1' }), { keepFocus: true, noScroll: true });
 	}
@@ -49,6 +49,11 @@
 		return data.filterProjectName ?? 'Project';
 	});
 
+	const viewFilterLabel = $derived.by(() => {
+		if (!data.activeViewId) return 'All (no saved view)';
+		return data.activeViewName ?? 'Saved view';
+	});
+
 	const projectSelectItems = $derived([
 		{ value: '__all__', label: 'All projects' },
 		...data.projectOptions.map((o) => ({
@@ -56,6 +61,22 @@
 			label: o.name
 		}))
 	]);
+
+	const viewSelectItems = $derived([
+		{ value: '__all__', label: 'All (no saved view)' },
+		...data.savedViews.map((v) => ({
+			value: v.id,
+			label: v.name
+		}))
+	]);
+
+	const softCapBanner = $derived.by(() => {
+		if (!data.atCap) return null;
+		if (data.truncated) {
+			return `Showing ${data.visibleCount} of ${data.openCount} — at cap`;
+		}
+		return `${data.openCount} open — at cap`;
+	});
 
 	function openCreate() {
 		sheetMode = 'create';
@@ -73,6 +94,9 @@
 		if (!editingTask?.series_id) return null;
 		return data.seriesById[editingTask.series_id] ?? null;
 	});
+
+	/** Filter project wins; else profile default for New Task. */
+	const sheetDefaultProjectId = $derived(data.projectId ?? data.defaultTaskProjectId);
 
 	async function onTaskSaved() {
 		await invalidate('app:projects:tasks');
@@ -97,7 +121,24 @@
 	<p class="mb-6 text-sm text-muted-foreground">
 		MYN urgency zones — Critical Now, Opportunity Now, Over the Horizon. Sorted by start date (newest
 		first). Today: {data.todayYmd} (Chicago).
+		<a href="/settings/projects" class="underline-offset-2 hover:underline">Task defaults</a>
 	</p>
+
+	{#if softCapBanner}
+		<div
+			class="mb-4 flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+		>
+			<p class="text-sm font-medium text-amber-900 dark:text-amber-200">{softCapBanner}</p>
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				onclick={() => toggleParam('all')}
+			>
+				{data.showAll ? 'Show 50' : 'Show all'}
+			</Button>
+		</div>
+	{/if}
 
 	<section class="mb-6 flex flex-col gap-4">
 		<div class="space-y-2">
@@ -106,7 +147,7 @@
 				type="single"
 				value={data.projectId ?? '__all__'}
 				onValueChange={(v) => {
-					goto(tasksHref({ project: v === '__all__' || !v ? null : v }), {
+					goto(tasksHref({ project: v === '__all__' || !v ? null : v, view: null }), {
 						keepFocus: true,
 						noScroll: true
 					});
@@ -120,6 +161,29 @@
 				</Select.Content>
 			</Select.Root>
 		</div>
+
+		{#if data.savedViews.length > 0}
+			<div class="space-y-2">
+				<Label>Saved view</Label>
+				<Select.Root
+					type="single"
+					value={data.activeViewId ?? '__all__'}
+					onValueChange={(v) => {
+						goto(tasksHref({ view: v === '__all__' || !v ? null : v, project: null }), {
+							keepFocus: true,
+							noScroll: true
+						});
+					}}
+				>
+					<Select.Trigger class="w-full max-w-md">{viewFilterLabel}</Select.Trigger>
+					<Select.Content class="max-h-72">
+						{#each viewSelectItems as item (item.value)}
+							<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+		{/if}
 
 		<div class="flex flex-wrap gap-2">
 			<Button
@@ -158,7 +222,7 @@
 	task={editingTask}
 	series={editingSeries}
 	projectOptions={data.projectOptions}
-	defaultProjectId={data.projectId}
+	defaultProjectId={sheetDefaultProjectId}
 	errorMessage={sheetError}
 	onSaved={onTaskSaved}
 />

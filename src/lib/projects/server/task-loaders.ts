@@ -1,10 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
+import { truncateTasksToSoftCap } from '$lib/projects/task-views';
 import {
 	TASK_PRIORITIES,
 	TASK_PRIORITY_LABELS,
-	TASK_ZONE_CAPS,
 	TASK_PRIORITY_ORDER,
+	TASK_SOFT_CAP_TOTAL,
 	type TaskPriority,
 	type ProjectTaskView,
 	type ProjectTaskSeriesView,
@@ -66,7 +67,10 @@ export type LoadTasksOptions = {
 	projectIds?: readonly string[] | null;
 	includeDeferred?: boolean;
 	includeCompleted?: boolean;
+	/** When true, skip soft-cap truncation (`?all=1`). */
+	showAll?: boolean;
 	todayYmd?: string;
+	softCap?: number;
 };
 
 export type LoadTasksResult = {
@@ -74,6 +78,14 @@ export type LoadTasksResult = {
 	deferred: ProjectTaskView[];
 	completed: ProjectTaskView[];
 	todayYmd: string;
+	/** Open non-deferred count before soft-cap truncate. */
+	openCount: number;
+	/** Visible open tasks after soft-cap (equals openCount when not truncated). */
+	visibleCount: number;
+	/** True when openCount >= soft cap (banner even if showAll). */
+	atCap: boolean;
+	/** True when list was truncated (not showAll and openCount > soft cap). */
+	truncated: boolean;
 };
 
 /** Attach root-domain palette keys after load (from `buildDomainColorByProjectId`). */
@@ -96,6 +108,26 @@ export function attachTaskDomainColors(
 	};
 }
 
+function groupOpenIntoZones(open: ProjectTaskView[]): TaskZoneGroup[] {
+	const byZone = new Map<TaskPriority, ProjectTaskView[]>();
+	for (const p of TASK_PRIORITY_ORDER) {
+		byZone.set(p, []);
+	}
+	for (const task of open) {
+		const list = byZone.get(task.priority);
+		if (list) list.push(task);
+	}
+	return TASK_PRIORITY_ORDER.map((priority) => {
+		const tasks = (byZone.get(priority) ?? []).sort(compareTasksFresh);
+		return {
+			priority,
+			label: TASK_PRIORITY_LABELS[priority],
+			tasks,
+			count: tasks.length
+		};
+	});
+}
+
 export async function loadTasks(
 	supabase: SupabaseClient,
 	opts: LoadTasksOptions = {}
@@ -103,6 +135,8 @@ export async function loadTasks(
 	const todayYmd = opts.todayYmd ?? ymdInChicago();
 	const includeDeferred = opts.includeDeferred ?? false;
 	const includeCompleted = opts.includeCompleted ?? false;
+	const showAll = opts.showAll ?? false;
+	const softCap = opts.softCap ?? TASK_SOFT_CAP_TOTAL;
 
 	let q = supabase
 		.from('project_tasks')
@@ -112,7 +146,19 @@ export async function loadTasks(
 		.order('sort_order', { ascending: true })
 		.order('created_at', { ascending: true });
 
-	if (opts.projectIds != null && opts.projectIds.length > 0) {
+	if (opts.projectIds != null) {
+		if (opts.projectIds.length === 0) {
+			return {
+				zones: emptyZones(),
+				deferred: [],
+				completed: [],
+				todayYmd,
+				openCount: 0,
+				visibleCount: 0,
+				atCap: false,
+				truncated: false
+			};
+		}
 		q = q.in('project_id', [...opts.projectIds]);
 	} else if (opts.projectId) {
 		q = q.eq('project_id', opts.projectId);
@@ -121,7 +167,16 @@ export async function loadTasks(
 	const { data, error } = await q;
 	if (error) {
 		console.error('loadTasks', error);
-		return { zones: emptyZones(), deferred: [], completed: [], todayYmd };
+		return {
+			zones: emptyZones(),
+			deferred: [],
+			completed: [],
+			todayYmd,
+			openCount: 0,
+			visibleCount: 0,
+			atCap: false,
+			truncated: false
+		};
 	}
 
 	const all: ProjectTaskView[] = [];
@@ -146,10 +201,7 @@ export async function loadTasks(
 
 	const deferred: ProjectTaskView[] = [];
 	const completed: ProjectTaskView[] = [];
-	const byZone = new Map<TaskPriority, ProjectTaskView[]>();
-	for (const p of TASK_PRIORITY_ORDER) {
-		byZone.set(p, []);
-	}
+	const open: ProjectTaskView[] = [];
 
 	for (const task of all) {
 		if (task.completed_at != null) {
@@ -160,10 +212,10 @@ export async function loadTasks(
 			if (includeDeferred) deferred.push(task);
 			continue;
 		}
-		const list = byZone.get(task.priority);
-		if (list) list.push(task);
+		open.push(task);
 	}
 
+	open.sort(compareTasksFresh);
 	deferred.sort(compareTasksFresh);
 	completed.sort((a, b) => {
 		const ca = a.completed_at ?? '';
@@ -171,31 +223,34 @@ export async function loadTasks(
 		return cb.localeCompare(ca);
 	});
 
-	const zones: TaskZoneGroup[] = TASK_PRIORITY_ORDER.map((priority) => {
-		const tasks = (byZone.get(priority) ?? []).sort(compareTasksFresh);
-		const cap = TASK_ZONE_CAPS[priority];
-		const count = tasks.length;
-		return {
-			priority,
-			label: TASK_PRIORITY_LABELS[priority],
-			cap,
-			tasks,
-			count,
-			overCap: cap != null && count > cap
-		};
-	});
+	const openCount = open.length;
+	const atCap = openCount >= softCap;
+	let visibleOpen = open;
+	let truncated = false;
+	if (!showAll && openCount > softCap) {
+		const result = truncateTasksToSoftCap(open, softCap);
+		visibleOpen = result.kept;
+		truncated = result.truncated;
+	}
 
-	return { zones, deferred, completed, todayYmd };
+	return {
+		zones: groupOpenIntoZones(visibleOpen),
+		deferred,
+		completed,
+		todayYmd,
+		openCount,
+		visibleCount: visibleOpen.length,
+		atCap,
+		truncated
+	};
 }
 
 function emptyZones(): TaskZoneGroup[] {
 	return TASK_PRIORITY_ORDER.map((priority) => ({
 		priority,
 		label: TASK_PRIORITY_LABELS[priority],
-		cap: TASK_ZONE_CAPS[priority],
 		tasks: [],
-		count: 0,
-		overCap: false
+		count: 0
 	}));
 }
 

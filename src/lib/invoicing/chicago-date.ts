@@ -72,6 +72,28 @@ export function previousMondaySundayWeekChicago(): { start: string; end: string 
 	return { start: ymdFromUtcNoon(thisMon), end: ymdFromUtcNoon(prevSun) };
 }
 
+/**
+ * Next Monday after `fromYmd` (Chicago civil). If `fromYmd` is already Monday,
+ * returns the following Monday. Defaults to Chicago today.
+ */
+export function nextMondayYmdChicago(fromYmd?: string): string {
+	const from = fromYmd ?? ymdInChicago();
+	const mid = utcNoonFromYmd(from);
+	if (!mid) return from;
+	const dow = mid.getUTCDay(); // 0=Sun … 1=Mon
+	const daysUntilNextMonday = dow === 1 ? 7 : (8 - dow) % 7;
+	mid.setUTCDate(mid.getUTCDate() + daysUntilNextMonday);
+	return ymdFromUtcNoon(mid);
+}
+
+/** Add N calendar days to a civil YMD (UTC-noon arithmetic). */
+export function addDaysYmd(ymd: string, days: number): string | null {
+	const mid = utcNoonFromYmd(ymd);
+	if (!mid) return null;
+	mid.setUTCDate(mid.getUTCDate() + days);
+	return ymdFromUtcNoon(mid);
+}
+
 /** First day of the calendar month through `todayYmd` (inclusive). */
 export function firstOfMonthThroughYmd(todayYmd: string): { start: string; end: string } {
 	const mid = utcNoonFromYmd(todayYmd);

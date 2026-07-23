@@ -1004,34 +1004,48 @@ export type Database = {
         Row: {
           created_at: string
           default_cc_emails: string[]
+          default_task_project_id: string | null
           deleted_at: string | null
           email: string
           full_name: string | null
           id: string
           role: string
+          task_saved_views: Json
           updated_at: string
         }
         Insert: {
           created_at?: string
           default_cc_emails?: string[]
+          default_task_project_id?: string | null
           deleted_at?: string | null
           email: string
           full_name?: string | null
           id: string
           role?: string
+          task_saved_views?: Json
           updated_at?: string
         }
         Update: {
           created_at?: string
           default_cc_emails?: string[]
+          default_task_project_id?: string | null
           deleted_at?: string | null
           email?: string
           full_name?: string | null
           id?: string
           role?: string
+          task_saved_views?: Json
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_default_task_project_id_fkey"
+            columns: ["default_task_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_links: {
         Row: {

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { tick } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -19,6 +20,7 @@
 		PROJECT_COLOR_RAIL_CLASS,
 		parseProjectColorKey
 	} from '$lib/projects/project-colors';
+	import { addDaysYmd, nextMondayYmdChicago } from '$lib/invoicing/chicago-date';
 	import type { TaskSeriesScope } from '$lib/projects/task-recurrence';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
@@ -49,6 +51,7 @@
 	let deferTask = $state<ProjectTaskView | null>(null);
 	let deferPriority = $state<TaskPriority>('over_horizon');
 	let deferDate = $state('');
+	let deferFormEl = $state<HTMLFormElement | null>(null);
 
 	let deleteOpen = $state(false);
 	let deleteTask = $state<ProjectTaskView | null>(null);
@@ -56,17 +59,33 @@
 	let deleteScope = $state<TaskSeriesScope | null>(null);
 
 	const deferPriorityLabel = $derived(TASK_PRIORITY_LABELS[deferPriority]);
+	const nextMondayYmd = $derived(nextMondayYmdChicago(todayYmd));
+	const tomorrowYmd = $derived(addDaysYmd(todayYmd, 1) ?? todayYmd);
+	const plusOneWeekYmd = $derived(addDaysYmd(todayYmd, 7) ?? todayYmd);
 
 	function openDefer(task: ProjectTaskView) {
 		deferTask = task;
 		deferPriority = task.priority === 'critical_now' ? 'opportunity_now' : 'over_horizon';
-		const d = new Date(`${todayYmd}T12:00:00Z`);
-		d.setUTCDate(d.getUTCDate() + 7);
-		const y = d.getUTCFullYear();
-		const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
-		const day = String(d.getUTCDate()).padStart(2, '0');
-		deferDate = `${y}-${mo}-${day}`;
+		deferDate = plusOneWeekYmd;
 		deferOpen = true;
+	}
+
+	function applyDeferPreset(kind: 'tomorrow' | 'monday' | 'week') {
+		if (kind === 'tomorrow') {
+			deferDate = tomorrowYmd;
+		} else if (kind === 'monday') {
+			deferDate = nextMondayYmd;
+			deferPriority = 'over_horizon';
+		} else {
+			deferDate = plusOneWeekYmd;
+		}
+	}
+
+	async function deferToMondaySubmit() {
+		deferDate = nextMondayYmd;
+		deferPriority = 'over_horizon';
+		await tick();
+		deferFormEl?.requestSubmit();
 	}
 
 	function openDelete(task: ProjectTaskView) {
@@ -86,6 +105,10 @@
 		deleteScope = scope;
 		deleteOpen = false;
 		queueMicrotask(() => deleteFormEl?.requestSubmit());
+	}
+
+	function isTargetNow(task: ProjectTaskView): boolean {
+		return task.priority === 'opportunity_now' && task.start_date === todayYmd;
 	}
 
 	const actionEnhance: SubmitFunction = () => {
@@ -111,10 +134,12 @@
 
 {#snippet taskRow(task: ProjectTaskView, isCompleted = false)}
 	{@const domainColor = parseProjectColorKey(task.domain_color)}
+	{@const targetNow = !isCompleted && isTargetNow(task)}
 	<li
 		class={cn(
 			'flex flex-col gap-2 border-b border-border/60 px-3 py-2.5 last:border-b-0',
 			domainColor && PROJECT_COLOR_RAIL_CLASS[domainColor],
+			targetNow && 'bg-amber-500/10',
 			isCompleted && 'opacity-70'
 		)}
 	>
@@ -135,9 +160,22 @@
 			</form>
 			<div class="min-w-0 flex-1">
 				<div class="flex min-w-0 items-start gap-1.5">
-					<p class={cn('min-w-0 flex-1 break-words text-sm font-medium', isCompleted && 'line-through')}>
+					<p
+						class={cn(
+							'min-w-0 flex-1 break-words text-sm font-medium',
+							targetNow && 'underline decoration-amber-600/70 underline-offset-2',
+							isCompleted && 'line-through'
+						)}
+					>
 						{task.title}
 					</p>
+					{#if targetNow}
+						<span
+							class="mt-0.5 shrink-0 rounded border border-amber-600/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800 uppercase dark:text-amber-200"
+						>
+							Target Now
+						</span>
+					{/if}
 					{#if task.series_id}
 						<span
 							class="mt-0.5 shrink-0 text-muted-foreground"
@@ -245,12 +283,7 @@
 			)}
 		>
 			<h2 class="text-sm font-semibold">{zone.label}</h2>
-			<span class="text-xs text-muted-foreground">
-				{zone.count}{zone.cap != null ? ` / ~${zone.cap}` : ''}
-				{#if zone.overCap}
-					<span class="font-medium text-amber-700 dark:text-amber-400"> — over cap</span>
-				{/if}
-			</span>
+			<span class="text-xs text-muted-foreground">{zone.count}</span>
 		</div>
 		{#if zone.tasks.length === 0}
 			<p class="px-3 text-sm text-muted-foreground italic">No open tasks in this zone.</p>
@@ -310,7 +343,13 @@
 			</Dialog.Description>
 		</Dialog.Header>
 		{#if deferTask}
-			<form method="POST" action="?/deferTask" use:enhance={actionEnhance} class="flex flex-col gap-4">
+			<form
+				bind:this={deferFormEl}
+				method="POST"
+				action="?/deferTask"
+				use:enhance={actionEnhance}
+				class="flex flex-col gap-4"
+			>
 				<input type="hidden" name="id" value={deferTask.id} />
 				<p class="text-sm font-medium">{deferTask.title}</p>
 
@@ -338,15 +377,41 @@
 				</div>
 
 				<div class="space-y-2">
+					<Label>Presets</Label>
+					<div class="flex flex-wrap gap-1.5">
+						<Button type="button" variant="outline" size="sm" onclick={() => applyDeferPreset('tomorrow')}>
+							Tomorrow
+						</Button>
+						<Button type="button" variant="outline" size="sm" onclick={() => applyDeferPreset('monday')}>
+							Next Monday
+						</Button>
+						<Button type="button" variant="outline" size="sm" onclick={() => applyDeferPreset('week')}>
+							+1 week
+						</Button>
+					</div>
+				</div>
+
+				<div class="space-y-2">
 					<Label for="defer-date">Start date (must be after {todayYmd})</Label>
 					<Input id="defer-date" name="start_date" type="date" bind:value={deferDate} required />
 				</div>
 
-				<Dialog.Footer class="gap-2 sm:justify-end">
-					<Button type="button" variant="outline" hotkey="Escape" label="Cancel" onclick={() => (deferOpen = false)}>
-						Cancel
+				<Dialog.Footer class="flex flex-col gap-2 sm:flex-col">
+					<Button type="button" variant="secondary" onclick={deferToMondaySubmit}>
+						Defer to Monday (OTH)
 					</Button>
-					<Button type="submit" hotkey="s" label="Defer">Defer</Button>
+					<div class="flex w-full flex-wrap gap-2 sm:justify-end">
+						<Button
+							type="button"
+							variant="outline"
+							hotkey="Escape"
+							label="Cancel"
+							onclick={() => (deferOpen = false)}
+						>
+							Cancel
+						</Button>
+						<Button type="submit" hotkey="s" label="Defer">Defer</Button>
+					</div>
 				</Dialog.Footer>
 			</form>
 		{/if}

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-23 — IVP `publisher_location` backfill ([127](docs/decisions/127-ivp-publisher-location-backfill.md)); owner smokes closed; fall MYN lock ([126](docs/decisions/126-myn-fall-backlog-lock.md)); citation abbr ([125](docs/decisions/125-books-citation-abbreviation.md)).
+**Last updated:** 2026-07-23 — Fall MYN polish shipped ([128](docs/decisions/128-myn-fall-polish.md)); IVP location backfill ([127](docs/decisions/127-ivp-publisher-location-backfill.md)); citation abbr ([125](docs/decisions/125-books-citation-abbreviation.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,7 @@
 
 ## Current focus
 
-**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)); **update banners non-blocking** ([100](docs/decisions/100-pwa-update-banner-nonblocking.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). **Writing-session gaps shipped** ([094](docs/decisions/094-library-writing-session-gaps.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); fall polish scope locked ([126](docs/decisions/126-myn-fall-backlog-lock.md)) — default project + views, next-Monday defer, Target Now, 50-total soft-cap; cross-module parked.
+**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)); **update banners non-blocking** ([100](docs/decisions/100-pwa-update-banner-nonblocking.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). **Writing-session gaps shipped** ([094](docs/decisions/094-library-writing-session-gaps.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); **fall polish shipped** ([128](docs/decisions/128-myn-fall-polish.md) / lock [126](docs/decisions/126-myn-fall-backlog-lock.md)) — default project + saved views, next-Monday defer, Target Now, 50-total soft-cap; cross-module parked.
 
 **Review queue — research cleanup done ([087](docs/decisions/087-library-review-queue-research-cleanup.md)):** non-shelf `needs_review` and pending proposals drained to **0**. Remaining: **Needs the shelf** deck (**50** books — ISBN/year/publisher/edition). Decks/sprints/proposals UI from [067](docs/decisions/067-library-review-sprint-decks.md)+[068](docs/decisions/068-library-review-ai-research-pass.md) still the workflow for Madison. Taxonomy: Politics and Policy, Leadership, Literary Criticism, Church Fathers, Ancient Biblical Sources, Children's and Young Adult; `books.copy_count` for multi-copy rows.
 
@@ -35,7 +35,7 @@ Nearest hard dates:
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)), PDF email MIME harden ([078](docs/decisions/078-invoice-email-pdf-mime.md)), PDF email diagnostics runbook ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 + writing-session gaps** ([094](docs/decisions/094-library-writing-session-gaps.md)). **Not-owned** Sessions 0–1 + inbox/owned-reappear polish ([101](docs/decisions/101-library-not-owned-session-0.md)–[108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md)) — **queue drain done**. **August QA Track A done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)); Track B (shelf) open. **`.docx` smoke ✅**; commentary series ([113](docs/decisions/113-commentary-series-volume-omit.md)); cite strip ([114](docs/decisions/114-book-detail-ui-cleanup.md)) + cite card/spacing ([118](docs/decisions/118-book-detail-cite-card-spacing.md)); postal locations ([115](docs/decisions/115-publisher-location-postal.md)); IVP location backfill ([127](docs/decisions/127-ivp-publisher-location-backfill.md)); commentary Batches 1–5 ([116](docs/decisions/116-commentary-consistency-batch1.md)–[121](docs/decisions/121-commentary-consistency-batch5.md)); Bible coverage list filter ([123](docs/decisions/123-library-bible-coverage-filter.md)); DOTHB essay seed + citation abbr ([124](docs/decisions/124-dothb-essay-smoke-seed.md)/[125](docs/decisions/125-books-citation-abbreviation.md)). **Owner smokes ✅** (essays/Articles, PWA resume, megacomponent core; OCR deferred). |
-| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)) + **recurring tasks + active badge** ([109](docs/decisions/109-tasks-active-badge-recurrence.md)) + task sheet date/footer polish ([112](docs/decisions/112-task-sheet-date-overflow.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), links, audit. **Inbound live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); **fall polish locked** ([126](docs/decisions/126-myn-fall-backlog-lock.md)) — see [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md). **Owner E2E smoke 2026-07-22 passed.** **Viewer access:** owner-only by design. |
+| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)) + **recurring tasks + active badge** ([109](docs/decisions/109-tasks-active-badge-recurrence.md)) + task sheet date/footer polish ([112](docs/decisions/112-task-sheet-date-overflow.md)) + **fall MYN polish** ([128](docs/decisions/128-myn-fall-polish.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), `/settings/projects` prefs, links, audit. **Inbound live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)). **Owner E2E smoke 2026-07-22 passed.** **Viewer access:** owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ **v1 Sessions 1–2** ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md)) + owner-smoke UX ([110](docs/decisions/110-sermons-owner-smoke-ux.md)). List + by-book smoke **passed** (venue select, ranged Find-in-library, icon counts). |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -44,6 +44,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [128 — Fall MYN polish](docs/decisions/128-myn-fall-polish.md) (2026-07-23) — default project + settings saved views; next-Monday defer; Target Now; soft-cap 50 + `?all=1`.
 - [127 — IVP publisher_location backfill](docs/decisions/127-ivp-publisher-location-backfill.md) (2026-07-23) — Downers Grove, IL for US IVP; link free-text; B&H / Eerdmans outlier fixes.
 - [126 — Fall MYN backlog lock](docs/decisions/126-myn-fall-backlog-lock.md) (2026-07-23) — default project + saved views; next-Monday defer; Target Now; soft-cap 50 total; drop OTH queue / weekly review / nullable project_id; cross-module parked.
 - [125 — Per-book citation abbreviation](docs/decisions/125-books-citation-abbreviation.md) (2026-07-23) — `books.citation_abbreviation` overrides series abbr; IVP dicts share series (DOTHB/DJG/DPL/DOTWPW).
@@ -77,13 +78,14 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 **Projects (use weekly):**
 - `/projects` — inline tree + weekly check-in (`depends('app:projects:tree')`), optional **progress tracking** per check-in (value / of / note — [048](docs/decisions/048-projects-checkin-progress.md)).
 - `/dashboard` — domain status strip + attention deep link.
-- `/tasks` — MYN zones (Critical / Opportunity / OTH), FRESH sort, defer/promote; `?project=` filter. Legacy `/projects/tasks` 308-redirects here.
+- `/tasks` — MYN zones (Critical / Opportunity / OTH), FRESH sort, defer/promote; `?project=` / `?view=` / `?all=1` ([128](docs/decisions/128-myn-fall-polish.md)). Legacy `/projects/tasks` 308-redirects here.
+- `/settings/projects` — default New Task project + named saved views.
 - Edit project Sheet — metadata + **links** (edit mode only).
 - `/settings/audit-log?module=projects` — includes `project_tasks` soft-delete revert.
 
-**Projects helpers:** `src/lib/projects/` — `week.ts`, `filter.ts`, `progress.ts` ([048]), `carry-forward.ts` ([048]), `health-appearance.ts` ([047b](docs/decisions/047-projects-status-appearance.md)), `project-colors.ts` + `email-inbound.ts` ([077](docs/decisions/077-email-to-task-and-domain-colors.md)), `server/loaders.ts`, `server/actions.ts`, `server/task-loaders.ts`, `server/task-actions.ts`. Design: [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md).
+**Projects helpers:** `src/lib/projects/` — `week.ts`, `filter.ts`, `progress.ts` ([048]), `carry-forward.ts` ([048]), `health-appearance.ts` ([047b](docs/decisions/047-projects-status-appearance.md)), `project-colors.ts` + `email-inbound.ts` ([077](docs/decisions/077-email-to-task-and-domain-colors.md)), `task-views.ts` ([128](docs/decisions/128-myn-fall-polish.md)), `server/loaders.ts`, `server/actions.ts`, `server/task-loaders.ts`, `server/task-actions.ts`, `server/task-prefs-actions.ts`. Design: [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md).
 
-**Projects migrations (prod):** `20260603170000_ppp_projects_v1.sql`, `20260603200000_projects_add_not_started_lifecycle.sql`, `20260604030000_ppp_project_tasks_myn.sql`, `20260604100000_project_updates_progress.sql`, `20260709164016_projects_email_inbox_and_domain_colors.sql`.
+**Projects migrations (prod):** `20260603170000_ppp_projects_v1.sql`, `20260603200000_projects_add_not_started_lifecycle.sql`, `20260604030000_ppp_project_tasks_myn.sql`, `20260604100000_project_updates_progress.sql`, `20260709164016_projects_email_inbox_and_domain_colors.sql`, `20260723170000_profiles_task_prefs.sql`.
 
 **Sermons:** `/sermons` list + Sheet; `/sermons/by-book` commentary × sermon spine; `/settings/sermons/venues`; helpers `src/lib/sermons/`; migration `20260717190000_ppp_sermons_v1.sql` ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md)).
 
@@ -93,7 +95,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` **2026-07-23** ([127](docs/decisions/127-ivp-publisher-location-backfill.md); **0 errors**). Prior: [125](docs/decisions/125-books-citation-abbreviation.md).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-23** ([128](docs/decisions/128-myn-fall-polish.md); **0 errors**, 298 tests). Prior: [127](docs/decisions/127-ivp-publisher-location-backfill.md).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -206,27 +208,14 @@ Flow: Create project under Work + sub-project → weekly check-in save → /dash
 Then: check Session 3 smoke box on docs/POS_Projects_Build_Tracker.md and note date in PLAN.md.
 ```
 
-### Projects — fall MYN polish ([126](docs/decisions/126-myn-fall-backlog-lock.md))
+### Projects — fall MYN polish ✅ done ([128](docs/decisions/128-myn-fall-polish.md))
 
 ```
 Session: projects — fall MYN polish
-Read: AGENTS.md, docs/MYN_TASKS_DESIGN.md (Fall polish backlog), docs/decisions/126-myn-fall-backlog-lock.md,
-  src/lib/components/project-task-list.svelte, project-task-sheet.svelte,
-  src/lib/projects/server/task-loaders.ts, src/routes/tasks/
-Goal: Ship locked fall polish on /tasks — no nullable project_id, no OTH review queue, no cross-module tags.
-Acceptance:
- - [ ] Default project preference fills New Task when no ?project= filter
- - [ ] Saved views: include / exclude / only-project presets (URL or named)
- - [ ] Defer: one-click next Chicago Monday → OTH; date presets (tomorrow / Mon / +1w / pick)
- - [ ] Target Now visual: opportunity_now + start_date = today
- - [ ] Soft-cap 50 total open non-deferred: hide lowest priority then oldest; always banner at ≥50; optional Show all
- - [ ] npm run check + npm run test pass
- - [ ] mobile-width screenshot of at-cap banner + Target Now row
-End-of-session deliverables:
- - [ ] docs/decisions/NNN-myn-fall-polish.md filed
- - [ ] PLAN.md + MYN_TASKS_DESIGN.md marked shipped where done
+… (shipped 2026-07-23 — /settings/projects prefs; /tasks views + soft-cap + Target Now + defer presets)
 ```
 
+Owner follow-up: mobile glance at-cap banner + Target Now row when convenient.
 ### PWA — branded icon set (deferred from 057)
 
 ```
@@ -312,8 +301,8 @@ Acceptance:
 
 ### Do now
 1. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
-2. **Fall MYN polish** (when ready) — locked scope [126](docs/decisions/126-myn-fall-backlog-lock.md) / session prompt: default project + saved views, next-Monday defer, Target Now, soft-cap 50. Cross-module still parked. **Email → task live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)).
-3. **Optional** — R2 dump TOC proof without Docker (`pg_restore -l` on downloaded objects); OCR matrix when next touching scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)); link remaining B&H free-text to `B&H Academic` ([127](docs/decisions/127-ivp-publisher-location-backfill.md)).
+2. **Optional** — OCR matrix when next touching scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)); link remaining B&H free-text to `B&H Academic` ([127](docs/decisions/127-ivp-publisher-location-backfill.md)).
+3. **Owner glance** — mobile `/tasks` at-cap banner + Target Now after fall polish ([128](docs/decisions/128-myn-fall-polish.md)).
 
 ### Wait for Sarah (next week)
 4. **Invoicing — first real-client send** (Sarah back in office). If outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.
@@ -324,6 +313,7 @@ Acceptance:
 7. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — shelf-bound; do with other Madison library cleanup.
 
 ### Done recently (not open work)
-- **Owner smoke (2026-07-22 / 23)** — sermons ✅ ([110](docs/decisions/110-sermons-owner-smoke-ux.md)); Projects E2E ✅ ([112](docs/decisions/112-task-sheet-date-overflow.md)); **`.docx` / commentary / cite** ✅; **PWA resume ✅**; **essays/DOTHB + Articles ✅** ([124](docs/decisions/124-dothb-essay-smoke-seed.md)/[125](docs/decisions/125-books-citation-abbreviation.md) — compact first footnote kept); megacomponent core ✅ (OCR deferred); weekly backup Actions + R2 objects ✅ (TOC proof optional).
+- **Fall MYN polish** — ✅ ([128](docs/decisions/128-myn-fall-polish.md)); lock [126](docs/decisions/126-myn-fall-backlog-lock.md).
+- **Owner smoke (2026-07-22 / 23)** — sermons ✅ ([110](docs/decisions/110-sermons-owner-smoke-ux.md)); Projects E2E ✅ ([112](docs/decisions/112-task-sheet-date-overflow.md)); **`.docx` / commentary / cite** ✅; **PWA resume ✅**; **essays/DOTHB + Articles ✅** ([124](docs/decisions/124-dothb-essay-smoke-seed.md)/[125](docs/decisions/125-books-citation-abbreviation.md) — compact first footnote kept); megacomponent core ✅ (OCR deferred); weekly backup **pipeline OK** (Actions green + three R2 objects 2026-07-20; TOC/`pg_restore -l` skipped — no local client).
 - **IVP publisher_location backfill** — ✅ ([127](docs/decisions/127-ivp-publisher-location-backfill.md)); free-text link + B&H/Eerdmans outlier fixes.
 - **Not-owned queue drain** — ✅ ([107](docs/decisions/107-not-owned-pending-inbox-dismiss.md), [108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md)); Session 2+ Goodreads proposals abandoned.

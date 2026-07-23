@@ -120,12 +120,18 @@ export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
 	over_horizon: 'Over the Horizon'
 };
 
-/** MYN soft caps for visible open tasks per zone. */
+/**
+ * Classic Linenberger per-zone methodology caps (context only — not the product soft-cap).
+ * Product soft-cap is {@link TASK_SOFT_CAP_TOTAL}.
+ */
 export const TASK_ZONE_CAPS: Record<TaskPriority, number | null> = {
 	critical_now: 5,
 	opportunity_now: 20,
 	over_horizon: null
 };
+
+/** Global soft-cap: open non-deferred tasks across all zones ([126]). */
+export const TASK_SOFT_CAP_TOTAL = 50;
 
 /** Zone display order on the MYN task page. */
 export const TASK_PRIORITY_ORDER: readonly TaskPriority[] = TASK_PRIORITIES;
@@ -170,10 +176,9 @@ export type ProjectTaskSeriesView = {
 export type TaskZoneGroup = {
 	priority: TaskPriority;
 	label: string;
-	cap: number | null;
 	tasks: ProjectTaskView[];
+	/** Visible (post soft-cap) count in this zone. */
 	count: number;
-	overCap: boolean;
 };
 
 export type ProjectLinkRow = {

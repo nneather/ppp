@@ -9,6 +9,10 @@ import {
 import { attachTaskDomainColors, loadTasks, loadTaskSeriesByIds } from '$lib/projects/server/task-loaders';
 import { buildDomainColorByProjectId } from '$lib/projects/project-colors';
 import {
+	parseTaskSavedViews,
+	resolveTaskViewProjectIds
+} from '$lib/projects/task-views';
+import {
 	createTaskAction,
 	updateTaskAction,
 	completeTaskAction,
@@ -33,26 +37,52 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	depends('app:projects:tasks');
 
 	const projectId = parseProjectFilter(url.searchParams.get('project'));
+	const viewId = (url.searchParams.get('view') ?? '').trim() || null;
 	const includeDeferred = url.searchParams.get('deferred') === '1';
 	const includeCompleted = url.searchParams.get('completed') === '1';
+	const showAll = url.searchParams.get('all') === '1';
 
 	const supabase = locals.supabase;
 
-	const [tree, flatRows] = await Promise.all([
+	const [tree, flatRows, profileRes] = await Promise.all([
 		loadProjectTree(supabase),
-		loadProjectRows(supabase)
+		loadProjectRows(supabase),
+		supabase
+			.from('profiles')
+			.select('default_task_project_id, task_saved_views')
+			.eq('id', user.id)
+			.maybeSingle()
 	]);
+
+	if (profileRes.error) console.error(profileRes.error);
+
+	const savedViews = parseTaskSavedViews(profileRes.data?.task_saved_views);
+	const defaultTaskProjectId = profileRes.data?.default_task_project_id ?? null;
 
 	// Domain roots only (Personal, Education, …) — not leaf children.
 	const projectOptions = flattenProjectTree(tree).filter((o) => o.parent_id == null);
-	const projectIds = projectId
-		? [projectId, ...collectDescendantIds(flatRows, projectId)]
-		: null;
+
+	let projectIds: string[] | null = null;
+	let activeViewId: string | null = null;
+	let activeViewName: string | null = null;
+
+	// Explicit ?project= wins over ?view=
+	if (projectId) {
+		projectIds = [projectId, ...collectDescendantIds(flatRows, projectId)];
+	} else if (viewId) {
+		const view = savedViews.find((v) => v.id === viewId) ?? null;
+		if (view) {
+			activeViewId = view.id;
+			activeViewName = view.name;
+			projectIds = resolveTaskViewProjectIds(flatRows, view);
+		}
+	}
 
 	const taskData = await loadTasks(supabase, {
 		projectIds,
 		includeDeferred,
-		includeCompleted
+		includeCompleted,
+		showAll
 	});
 
 	const projectNameById = Object.fromEntries(flatRows.map((r) => [r.id, r.name]));
@@ -71,8 +101,13 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		...colored,
 		seriesById,
 		projectId,
+		activeViewId,
+		activeViewName,
+		savedViews,
+		defaultTaskProjectId,
 		includeDeferred,
 		includeCompleted,
+		showAll,
 		projectOptions,
 		projectNameById,
 		filterProjectName: projectId ? (projectNameById[projectId] ?? null) : null

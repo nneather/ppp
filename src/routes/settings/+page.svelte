@@ -4,6 +4,7 @@
 	import ScrollText from '@lucide/svelte/icons/scroll-text';
 	import Shield from '@lucide/svelte/icons/shield';
 	import BookOpen from '@lucide/svelte/icons/book-open';
+	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import Mic from '@lucide/svelte/icons/mic';
 	import { cn } from '$lib/utils';
 	import type { PageProps } from './$types';
@@ -36,6 +37,16 @@
 					data.clientCount != null
 						? `${data.clientCount} client${data.clientCount === 1 ? '' : 's'}`
 						: '—'
+			},
+			{
+				href: '/settings/projects',
+				title: 'Projects & tasks',
+				description: 'Default New Task project and saved task views',
+				icon: FolderKanban,
+				summary:
+					data.savedViewCount != null
+						? `${data.savedViewCount} saved view${data.savedViewCount === 1 ? '' : 's'}`
+						: 'Defaults · views'
 			},
 			{
 				href: '/settings/library',
