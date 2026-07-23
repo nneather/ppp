@@ -17,6 +17,7 @@
 		librarySearchPassageHref,
 		sermonsListByBookHref
 	} from '$lib/sermons/by-book';
+	import { formatYmdMediumChicago } from '$lib/invoicing/chicago-date';
 	import { cn } from '$lib/utils';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -202,8 +203,17 @@
 						</span>
 						<span
 							class="flex shrink-0 items-center gap-2.5 text-xs tabular-nums text-muted-foreground"
-							aria-label={`${row.commentaryCount} commentaries${row.fourStarCount > 0 ? `, ${row.fourStarCount} at 4 stars or higher` : ''}`}
+							aria-label={`${row.latestSermonOn ? `Latest sermon ${formatYmdMediumChicago(row.latestSermonOn)}, ` : ''}${row.commentaryCount} commentaries${row.fourStarCount > 0 ? `, ${row.fourStarCount} at 4 stars or higher` : ''}`}
 						>
+							{#if row.latestSermonOn}
+								<time
+									datetime={row.latestSermonOn}
+									class="text-muted-foreground"
+									title="Most recent sermon"
+								>
+									{formatYmdMediumChicago(row.latestSermonOn)}
+								</time>
+							{/if}
 							<span class="inline-flex items-center gap-1" title="Commentaries">
 								<BookOpen class="size-3.5 shrink-0 opacity-70" aria-hidden="true" />
 								{row.commentaryCount}
@@ -266,6 +276,11 @@
 												{#if hit.authorShort}
 													<span class="mt-0.5 block text-xs text-muted-foreground"
 														>{hit.authorShort}</span
+													>
+												{/if}
+												{#if hit.seriesLabel}
+													<span class="mt-0.5 block text-xs text-muted-foreground"
+														>{hit.seriesLabel}</span
 													>
 												{/if}
 											</span>

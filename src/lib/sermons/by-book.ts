@@ -29,6 +29,7 @@ export function emptyByBookRows(): ByBookRow[] {
 		canonIndex,
 		testament: testamentForCanonIndex(canonIndex),
 		sermonCount: 0,
+		latestSermonOn: null,
 		commentaryCount: 0,
 		fourStarCount: 0,
 		commentaries: [],
@@ -48,6 +49,66 @@ export function compareCommentaryHits(a: ByBookShelfHit, b: ByBookShelfHit): num
 
 export function sortShelfHits(hits: ByBookShelfHit[]): ByBookShelfHit[] {
 	return hits.slice().sort(compareCommentaryHits);
+}
+
+/**
+ * Collapse multi-part / multi-edition commentaries that share a series + author set
+ * into one hit (per Bible book). Standalone books (no series) stay one-per-bookId.
+ */
+export function commentaryCollapseKey(hit: ByBookShelfHit): string {
+	if (hit.seriesId) {
+		return `series:${hit.seriesId}:${hit.authorKey ?? ''}`;
+	}
+	return `book:${hit.bookId}`;
+}
+
+function preferHit(a: ByBookShelfHit, b: ByBookShelfHit): ByBookShelfHit {
+	const cmp = compareCommentaryHits(a, b);
+	if (cmp <= 0) return a;
+	return b;
+}
+
+export function collapseCommentaryHits(hits: ByBookShelfHit[]): ByBookShelfHit[] {
+	const groups = new Map<string, ByBookShelfHit[]>();
+	for (const hit of hits) {
+		const key = commentaryCollapseKey(hit);
+		const list = groups.get(key) ?? [];
+		list.push(hit);
+		groups.set(key, list);
+	}
+
+	const collapsed: ByBookShelfHit[] = [];
+	for (const members of groups.values()) {
+		if (members.length === 1) {
+			collapsed.push(members[0]!);
+			continue;
+		}
+		let preferred = members[0]!;
+		for (let i = 1; i < members.length; i++) {
+			preferred = preferHit(preferred, members[i]!);
+		}
+		const titles: string[] = [];
+		const seen = new Set<string>();
+		for (const m of members.slice().sort(compareCommentaryHits)) {
+			const t = m.title.trim();
+			if (!t) continue;
+			const norm = t.toLowerCase();
+			if (seen.has(norm)) continue;
+			seen.add(norm);
+			titles.push(t);
+		}
+		let maxRating: number | null = null;
+		for (const m of members) {
+			if (m.rating == null) continue;
+			if (maxRating == null || m.rating > maxRating) maxRating = m.rating;
+		}
+		collapsed.push({
+			...preferred,
+			title: titles.length > 0 ? titles.join('; ') : preferred.title,
+			rating: maxRating
+		});
+	}
+	return collapsed;
 }
 
 /** Header totals from the full (unfiltered) canon spine + distinct sermon count. */

@@ -114,6 +114,15 @@ export type ByBookShelfHit = {
 	title: string;
 	/** Short author line, or null when unknown / unsigned. */
 	authorShort: string | null;
+	/** Series abbreviation, or full name when no abbr; null when none. */
+	seriesLabel: string | null;
+	/** Series id for multi-part / edition collapse; null when standalone. */
+	seriesId: string | null;
+	/**
+	 * Sorted author/editor person ids joined with `|` — collapse key with seriesId.
+	 * Empty string when no author/editor rows.
+	 */
+	authorKey: string | null;
 	/** 1–5 when rated; null = unrated (commentaries still list). */
 	rating: number | null;
 	genre: string | null;
@@ -125,6 +134,8 @@ export type ByBookRow = {
 	canonIndex: number;
 	testament: 'ot' | 'nt';
 	sermonCount: number;
+	/** Most recent `sermons.preached_on` for this bible book; null when none. */
+	latestSermonOn: string | null;
 	commentaryCount: number;
 	fourStarCount: number;
 	commentaries: ByBookShelfHit[];

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	byBookFiltersToSearchParams,
+	collapseCommentaryHits,
 	compareCommentaryHits,
 	defaultSortDir,
 	emptyByBookRows,
@@ -20,9 +21,12 @@ function hit(partial: Partial<ByBookShelfHit> & { title: string }): ByBookShelfH
 		essayId: null,
 		title: partial.title,
 		authorShort: partial.authorShort ?? null,
+		seriesLabel: partial.seriesLabel ?? null,
+		seriesId: partial.seriesId ?? null,
+		authorKey: partial.authorKey ?? null,
 		rating: partial.rating ?? null,
 		genre: partial.genre ?? 'Commentary',
-		href: partial.href ?? '/library/books/b1'
+		href: partial.href ?? `/library/books/${partial.bookId ?? 'b1'}`
 	};
 }
 
@@ -42,6 +46,7 @@ describe('by-book canon spine', () => {
 		const rows = emptyByBookRows();
 		expect(rows).toHaveLength(66);
 		expect(rows[0]?.bibleBook).toBe('Genesis');
+		expect(rows[0]?.latestSermonOn).toBeNull();
 		expect(rows[OT_BOOK_COUNT - 1]?.testament).toBe('ot');
 		expect(rows[OT_BOOK_COUNT]?.bibleBook).toBe('Matthew');
 		expect(rows[OT_BOOK_COUNT]?.testament).toBe('nt');
@@ -61,12 +66,111 @@ describe('compareCommentaryHits', () => {
 	});
 });
 
+describe('collapseCommentaryHits', () => {
+	const wenhamId = 'person-wenham';
+	const sklarId = 'person-sklar';
+	const wbc = 'series-wbc';
+	const totc = 'series-totc';
+	const zecot = 'series-zecot';
+	const nicnt = 'series-nicnt';
+
+	it('merges same-series same-author multi-part vols (Wenham WBC Genesis)', () => {
+		const collapsed = collapseCommentaryHits([
+			hit({
+				title: 'Genesis 1-15',
+				bookId: 'w1',
+				seriesId: wbc,
+				seriesLabel: 'WBC',
+				authorKey: wenhamId,
+				authorShort: 'Wenham',
+				rating: 5
+			}),
+			hit({
+				title: 'Genesis 16-50',
+				bookId: 'w2',
+				seriesId: wbc,
+				seriesLabel: 'WBC',
+				authorKey: wenhamId,
+				authorShort: 'Wenham',
+				rating: 4
+			})
+		]);
+		expect(collapsed).toHaveLength(1);
+		expect(collapsed[0]?.title).toBe('Genesis 1-15; Genesis 16-50');
+		expect(collapsed[0]?.rating).toBe(5);
+		expect(collapsed[0]?.bookId).toBe('w1');
+		expect(collapsed[0]?.seriesLabel).toBe('WBC');
+	});
+
+	it('keeps different series by same author separate (Sklar Leviticus)', () => {
+		const collapsed = collapseCommentaryHits([
+			hit({
+				title: 'Leviticus',
+				bookId: 's1',
+				seriesId: totc,
+				seriesLabel: 'TOTC',
+				authorKey: sklarId,
+				authorShort: 'Sklar',
+				rating: 5
+			}),
+			hit({
+				title: 'Leviticus',
+				bookId: 's2',
+				seriesId: zecot,
+				seriesLabel: 'ZECOT',
+				authorKey: sklarId,
+				authorShort: 'Sklar',
+				rating: 5
+			})
+		]);
+		expect(collapsed).toHaveLength(2);
+		expect(collapsed.map((h) => h.seriesLabel).sort()).toEqual(['TOTC', 'ZECOT']);
+	});
+
+	it('merges same-series editions (Fee NICNT)', () => {
+		const feeId = 'person-fee';
+		const collapsed = collapseCommentaryHits([
+			hit({
+				title: 'The First Epistle to the Corinthians',
+				bookId: 'f1',
+				seriesId: nicnt,
+				seriesLabel: 'NICNT',
+				authorKey: feeId,
+				authorShort: 'Fee',
+				rating: null
+			}),
+			hit({
+				title: 'The First Epistle to the Corinthians',
+				bookId: 'f2',
+				seriesId: nicnt,
+				seriesLabel: 'NICNT',
+				authorKey: feeId,
+				authorShort: 'Fee',
+				rating: 5
+			})
+		]);
+		expect(collapsed).toHaveLength(1);
+		expect(collapsed[0]?.title).toBe('The First Epistle to the Corinthians');
+		expect(collapsed[0]?.rating).toBe(5);
+		expect(collapsed[0]?.bookId).toBe('f2');
+	});
+
+	it('does not collapse standalone books without series', () => {
+		const collapsed = collapseCommentaryHits([
+			hit({ title: 'A', bookId: 'a1', authorKey: 'p1', seriesId: null }),
+			hit({ title: 'B', bookId: 'a2', authorKey: 'p1', seriesId: null })
+		]);
+		expect(collapsed).toHaveLength(2);
+	});
+});
+
 describe('filter + sort', () => {
 	const rows: ByBookRow[] = emptyByBookRows().map((r) => {
 		if (r.bibleBook === 'Genesis') {
 			return {
 				...r,
 				sermonCount: 2,
+				latestSermonOn: '2026-07-01',
 				commentaryCount: 1,
 				fourStarCount: 1,
 				commentaries: [hit({ title: 'Wenham', rating: 5, bookId: 'w' })],
@@ -87,6 +191,7 @@ describe('filter + sort', () => {
 			return {
 				...r,
 				sermonCount: 5,
+				latestSermonOn: '2025-12-25',
 				commentaryCount: 3,
 				fourStarCount: 0,
 				commentaries: [

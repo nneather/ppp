@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { authorsLabelForBook } from '$lib/library/authors-label';
 import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
 import {
+	collapseCommentaryHits,
 	emptyByBookRows,
 	filterByBookRows,
 	parseByBookListFilters,
@@ -324,12 +325,21 @@ export function parseSermonListFilters(url: URL): SermonListFilters {
 // By-book commentary × sermon stats
 // ---------------------------------------------------------------------------
 
+type CovSeriesEmbed = {
+	id: string;
+	name: string;
+	abbreviation: string | null;
+	deleted_at: string | null;
+};
+
 type CovBookEmbed = {
 	id: string;
 	title: string | null;
 	genre: string | null;
 	rating: number | null;
 	deleted_at: string | null;
+	series_id: string | null;
+	series: CovSeriesEmbed | CovSeriesEmbed[] | null;
 };
 
 type CovEssayEmbed = {
@@ -406,6 +416,30 @@ function essayAuthorShort(
 	);
 }
 
+/** Sorted author/editor person ids — collapse key with series_id. */
+function authorKeyFromJunctions(rows: AuthorJunctionDb[]): string {
+	const ids = [
+		...new Set(
+			rows
+				.filter((a) => a.role === 'author' || a.role === 'editor')
+				.map((a) => a.person_id)
+		)
+	].sort();
+	return ids.join('|');
+}
+
+function seriesLabelFromEmbed(
+	seriesId: string | null,
+	seriesEmbed: CovSeriesEmbed | CovSeriesEmbed[] | null
+): { seriesId: string | null; seriesLabel: string | null } {
+	if (!seriesId) return { seriesId: null, seriesLabel: null };
+	const series = oneEmbed(seriesEmbed);
+	if (!series || series.deleted_at) return { seriesId: null, seriesLabel: null };
+	const abbr = series.abbreviation?.trim() || null;
+	const name = series.name?.trim() || null;
+	return { seriesId: series.id, seriesLabel: abbr || name };
+}
+
 /**
  * Assemble the Protestant canon spine with sermon counts + Commentary coverage
  * (and Also on shelf). No new tables — aggregates existing rows.
@@ -422,7 +456,7 @@ export async function loadByBookStats(
 	const [passagesRes, coverageRes] = await Promise.all([
 		supabase
 			.from('sermon_passages')
-			.select('sermon_id, bible_book, sermons!inner ( id, deleted_at )')
+			.select('sermon_id, bible_book, sermons!inner ( id, deleted_at, preached_on )')
 			.is('deleted_at', null)
 			.is('sermons.deleted_at', null),
 		supabase.from('book_bible_coverage').select(
@@ -431,7 +465,15 @@ export async function loadByBookStats(
 			bible_book,
 			book_id,
 			essay_id,
-			books ( id, title, genre, rating, deleted_at ),
+			books (
+				id,
+				title,
+				genre,
+				rating,
+				deleted_at,
+				series_id,
+				series ( id, name, abbreviation, deleted_at )
+			),
 			essays (
 				id,
 				essay_title,
@@ -463,16 +505,30 @@ export async function loadByBookStats(
 	}
 
 	const sermonIdsByBook = new Map<string, Set<string>>();
+	const latestSermonOnByBook = new Map<string, string>();
 	const allSermonIds = new Set<string>();
 	for (const raw of passagesRes.data ?? []) {
 		const row = raw as {
 			sermon_id: string;
 			bible_book: string;
+			sermons:
+				| { id: string; deleted_at: string | null; preached_on: string }
+				| { id: string; deleted_at: string | null; preached_on: string }[]
+				| null;
 		};
 		allSermonIds.add(row.sermon_id);
 		const set = sermonIdsByBook.get(row.bible_book) ?? new Set<string>();
 		set.add(row.sermon_id);
 		sermonIdsByBook.set(row.bible_book, set);
+
+		const sermon = oneEmbed(row.sermons);
+		const preachedOn = sermon?.preached_on?.trim() || null;
+		if (preachedOn) {
+			const prev = latestSermonOnByBook.get(row.bible_book);
+			if (!prev || preachedOn > prev) {
+				latestSermonOnByBook.set(row.bible_book, preachedOn);
+			}
+		}
 	}
 
 	const covRows = (coverageRes.data ?? []) as unknown as CoverageDb[];
@@ -551,6 +607,9 @@ export async function loadByBookStats(
 				essayId: essay.id,
 				title: essay.essay_title,
 				authorShort: essayAuthorShort(essay.id, essayAuthorRows, peopleMap),
+				seriesLabel: null,
+				seriesId: null,
+				authorKey: null,
 				rating: null,
 				genre: null,
 				href: `/library/books/${parent.id}#essay-${essay.id}`
@@ -564,13 +623,19 @@ export async function loadByBookStats(
 		const book = oneEmbed(c.books);
 		if (!book || book.deleted_at || !c.book_id) continue;
 
-		const authorShort = authorsLabelForBook(authorsByBook.get(book.id) ?? [], peopleMap);
+		const junctions = authorsByBook.get(book.id) ?? [];
+		const authorShort = authorsLabelForBook(junctions, peopleMap);
+		const authorKey = authorKeyFromJunctions(junctions) || null;
+		const { seriesId, seriesLabel } = seriesLabelFromEmbed(book.series_id, book.series);
 		const hit: ByBookShelfHit = {
 			kind: 'book',
 			bookId: book.id,
 			essayId: null,
 			title: (book.title ?? '').trim() || 'Untitled',
 			authorShort,
+			seriesLabel,
+			seriesId,
+			authorKey,
 			rating: book.rating,
 			genre: book.genre,
 			href: `/library/books/${book.id}`
@@ -590,12 +655,15 @@ export async function loadByBookStats(
 
 	const assembled = emptyByBookRows().map((row) => {
 		const sermonCount = sermonIdsByBook.get(row.bibleBook)?.size ?? 0;
-		const commentaries = sortShelfHits(commentariesByBook.get(row.bibleBook) ?? []);
+		const commentaries = sortShelfHits(
+			collapseCommentaryHits(commentariesByBook.get(row.bibleBook) ?? [])
+		);
 		const alsoOnShelf = sortShelfHits(alsoByBook.get(row.bibleBook) ?? []);
 		const fourStarCount = commentaries.filter((h) => h.rating != null && h.rating >= 4).length;
 		return {
 			...row,
 			sermonCount,
+			latestSermonOn: latestSermonOnByBook.get(row.bibleBook) ?? null,
 			commentaryCount: commentaries.length,
 			fourStarCount,
 			commentaries,
