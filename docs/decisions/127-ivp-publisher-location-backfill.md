@@ -29,7 +29,7 @@
 
 ## Open questions surfaced
 
-- Optional later: link remaining ~25 B&H / Broadman / Holman free-text rows to `B&H Academic` (or split historical Broadman Press).
+- ~~Optional later: link remaining ~25 B&H / Broadman / Holman free-text rows to `B&H Academic`~~ — **done** ([131](131-bh-publisher-link-backfill.md)); single imprint, no Broadman Press split.
 - *1 & 2 Samuel* (`Inter-Varsity Missions`, ISBN `9781844743681`) still unlinked; location already `Downers Grove, IL` — may be UK IVP imprint (verify on shelf).
 
 ## Surprises
