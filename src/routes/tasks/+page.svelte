@@ -118,9 +118,8 @@
 		{/snippet}
 	</PageHeader>
 
-	<p class="mb-6 text-sm text-muted-foreground">
-		MYN urgency zones — Critical Now, Opportunity Now, Over the Horizon. Sorted by start date (newest
-		first). Today: {data.todayYmd} (Chicago).
+	<p class="mb-4 text-sm text-muted-foreground">
+		MYN zones · FRESH sort · Today {data.todayYmd} (Chicago).
 		<a href="/settings/projects" class="underline-offset-2 hover:underline">Task defaults</a>
 	</p>
 
@@ -140,52 +139,58 @@
 		</div>
 	{/if}
 
-	<section class="mb-6 flex flex-col gap-4">
-		<div class="space-y-2">
-			<Label>Project filter</Label>
-			<Select.Root
-				type="single"
-				value={data.projectId ?? '__all__'}
-				onValueChange={(v) => {
-					goto(tasksHref({ project: v === '__all__' || !v ? null : v, view: null }), {
-						keepFocus: true,
-						noScroll: true
-					});
-				}}
-			>
-				<Select.Trigger class="w-full max-w-md">{projectFilterLabel}</Select.Trigger>
-				<Select.Content class="max-h-72">
-					{#each projectSelectItems as item (item.value)}
-						<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-		</div>
-
-		{#if data.savedViews.length > 0}
-			<div class="space-y-2">
-				<Label>Saved view</Label>
+	<section class="mb-5 flex flex-col gap-3">
+		<div
+			class="grid gap-3 {data.savedViews.length > 0
+				? 'sm:grid-cols-2'
+				: 'sm:grid-cols-1 sm:max-w-md'}"
+		>
+			<div class="min-w-0 space-y-1.5">
+				<Label class="text-xs font-medium text-muted-foreground">Project</Label>
 				<Select.Root
 					type="single"
-					value={data.activeViewId ?? '__all__'}
+					value={data.projectId ?? '__all__'}
 					onValueChange={(v) => {
-						goto(tasksHref({ view: v === '__all__' || !v ? null : v, project: null }), {
+						goto(tasksHref({ project: v === '__all__' || !v ? null : v, view: null }), {
 							keepFocus: true,
 							noScroll: true
 						});
 					}}
 				>
-					<Select.Trigger class="w-full max-w-md">{viewFilterLabel}</Select.Trigger>
+					<Select.Trigger class="w-full">{projectFilterLabel}</Select.Trigger>
 					<Select.Content class="max-h-72">
-						{#each viewSelectItems as item (item.value)}
+						{#each projectSelectItems as item (item.value)}
 							<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>
 			</div>
-		{/if}
 
-		<div class="flex flex-wrap gap-2">
+			{#if data.savedViews.length > 0}
+				<div class="min-w-0 space-y-1.5">
+					<Label class="text-xs font-medium text-muted-foreground">Saved view</Label>
+					<Select.Root
+						type="single"
+						value={data.activeViewId ?? '__all__'}
+						onValueChange={(v) => {
+							goto(tasksHref({ view: v === '__all__' || !v ? null : v, project: null }), {
+								keepFocus: true,
+								noScroll: true
+							});
+						}}
+					>
+						<Select.Trigger class="w-full">{viewFilterLabel}</Select.Trigger>
+						<Select.Content class="max-h-72">
+							{#each viewSelectItems as item (item.value)}
+								<Select.Item value={item.value} label={item.label}>{item.label}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+			{/if}
+		</div>
+
+		<div class="flex flex-wrap items-center gap-1.5">
 			<Button
 				type="button"
 				variant={data.includeDeferred ? 'secondary' : 'outline'}
