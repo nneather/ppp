@@ -1028,9 +1028,12 @@ async function fetchLiveBookCount(
 	needsReviewOnly: boolean,
 	opts: { includeUnowned?: boolean } = {}
 ): Promise<number | null> {
+	// Prefer exact: PostgREST `estimated` exacts only up to db-max-rows (1000), then
+	// may silently stick near that threshold when the planner underestimates — wrong for
+	// a ~1k+ owned corpus on the dashboard / list "N books" header.
 	let q = supabase
 		.from('books')
-		.select('id', { count: 'estimated', head: true })
+		.select('id', { count: 'exact', head: true })
 		.is('deleted_at', null);
 	if (opts.includeUnowned !== true) {
 		q = q.eq('owned', true);
