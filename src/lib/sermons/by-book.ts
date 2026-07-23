@@ -68,9 +68,22 @@ function preferHit(a: ByBookShelfHit, b: ByBookShelfHit): ByBookShelfHit {
 	return b;
 }
 
+/**
+ * When a parent commentary has essay-level coverage for this Bible book, drop the
+ * volume-level hit so ESVEC/NIB show the signed essay (not both).
+ */
+export function preferEssayHitsOverParentBooks(hits: ByBookShelfHit[]): ByBookShelfHit[] {
+	const parentsWithEssay = new Set<string>();
+	for (const hit of hits) {
+		if (hit.kind === 'essay') parentsWithEssay.add(hit.bookId);
+	}
+	if (parentsWithEssay.size === 0) return hits;
+	return hits.filter((hit) => !(hit.kind === 'book' && parentsWithEssay.has(hit.bookId)));
+}
+
 export function collapseCommentaryHits(hits: ByBookShelfHit[]): ByBookShelfHit[] {
 	const groups = new Map<string, ByBookShelfHit[]>();
-	for (const hit of hits) {
+	for (const hit of preferEssayHitsOverParentBooks(hits)) {
 		const key = commentaryCollapseKey(hit);
 		const list = groups.get(key) ?? [];
 		list.push(hit);

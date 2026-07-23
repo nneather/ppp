@@ -265,7 +265,7 @@
 						{:else}
 							<p class="text-xs font-medium text-muted-foreground">Commentaries</p>
 							<ul class="mt-1 space-y-0.5">
-								{#each row.commentaries as hit (hit.bookId)}
+								{#each row.commentaries as hit (`${hit.kind}-${hit.essayId ?? hit.bookId}`)}
 									<li>
 										<a
 											href={hit.href}

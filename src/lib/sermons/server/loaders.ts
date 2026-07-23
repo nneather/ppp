@@ -342,15 +342,22 @@ type CovBookEmbed = {
 	series: CovSeriesEmbed | CovSeriesEmbed[] | null;
 };
 
+type CovEssayParentEmbed = {
+	id: string;
+	title: string | null;
+	genre: string | null;
+	rating: number | null;
+	deleted_at: string | null;
+	series_id: string | null;
+	series: CovSeriesEmbed | CovSeriesEmbed[] | null;
+};
+
 type CovEssayEmbed = {
 	id: string;
 	essay_title: string;
 	deleted_at: string | null;
 	parent_book_id: string;
-	books:
-		| { id: string; title: string | null; deleted_at: string | null }
-		| { id: string; title: string | null; deleted_at: string | null }[]
-		| null;
+	books: CovEssayParentEmbed | CovEssayParentEmbed[] | null;
 };
 
 type CoverageDb = {
@@ -416,6 +423,17 @@ function essayAuthorShort(
 	);
 }
 
+function essayAuthorKey(essayId: string, essayAuthors: EssayAuthorDb[]): string {
+	const ids = [
+		...new Set(
+			essayAuthors
+				.filter((a) => a.essay_id === essayId && (a.role === 'author' || a.role === 'editor'))
+				.map((a) => a.person_id)
+		)
+	].sort();
+	return ids.join('|');
+}
+
 /** Sorted author/editor person ids — collapse key with series_id. */
 function authorKeyFromJunctions(rows: AuthorJunctionDb[]): string {
 	const ids = [
@@ -479,7 +497,15 @@ export async function loadByBookStats(
 				essay_title,
 				deleted_at,
 				parent_book_id,
-				books!essays_parent_book_id_fkey ( id, title, deleted_at )
+				books!essays_parent_book_id_fkey (
+					id,
+					title,
+					genre,
+					rating,
+					deleted_at,
+					series_id,
+					series ( id, name, abbreviation, deleted_at )
+				)
 			)
 		`
 		)
@@ -601,22 +627,32 @@ export async function loadByBookStats(
 			if (!essay || essay.deleted_at) continue;
 			const parent = oneEmbed(essay.books);
 			if (!parent || parent.deleted_at) continue;
+			const authorKey = essayAuthorKey(essay.id, essayAuthorRows) || null;
+			const { seriesId, seriesLabel } = seriesLabelFromEmbed(parent.series_id, parent.series);
 			const hit: ByBookShelfHit = {
 				kind: 'essay',
 				bookId: parent.id,
 				essayId: essay.id,
 				title: essay.essay_title,
 				authorShort: essayAuthorShort(essay.id, essayAuthorRows, peopleMap),
-				seriesLabel: null,
-				seriesId: null,
-				authorKey: null,
-				rating: null,
-				genre: null,
+				seriesLabel,
+				seriesId,
+				authorKey,
+				rating: parent.rating,
+				genre: parent.genre,
 				href: `/library/books/${parent.id}#essay-${essay.id}`
 			};
-			const list = alsoByBook.get(c.bible_book) ?? [];
-			list.push(hit);
-			alsoByBook.set(c.bible_book, list);
+			// Signed commentary essays (ESVEC, NIB) belong with Commentaries; other
+			// essay coverage (reference parents, etc.) stays under Also on the shelf.
+			if (parent.genre === 'Commentary') {
+				const list = commentariesByBook.get(c.bible_book) ?? [];
+				list.push(hit);
+				commentariesByBook.set(c.bible_book, list);
+			} else {
+				const list = alsoByBook.get(c.bible_book) ?? [];
+				list.push(hit);
+				alsoByBook.set(c.bible_book, list);
+			}
 			continue;
 		}
 

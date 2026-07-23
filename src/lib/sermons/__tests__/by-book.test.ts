@@ -16,9 +16,9 @@ import type { ByBookListFilters, ByBookRow, ByBookShelfHit } from '$lib/types/se
 
 function hit(partial: Partial<ByBookShelfHit> & { title: string }): ByBookShelfHit {
 	return {
-		kind: 'book',
+		kind: partial.kind ?? 'book',
 		bookId: partial.bookId ?? 'b1',
-		essayId: null,
+		essayId: partial.essayId ?? null,
 		title: partial.title,
 		authorShort: partial.authorShort ?? null,
 		seriesLabel: partial.seriesLabel ?? null,
@@ -26,7 +26,11 @@ function hit(partial: Partial<ByBookShelfHit> & { title: string }): ByBookShelfH
 		authorKey: partial.authorKey ?? null,
 		rating: partial.rating ?? null,
 		genre: partial.genre ?? 'Commentary',
-		href: partial.href ?? `/library/books/${partial.bookId ?? 'b1'}`
+		href:
+			partial.href ??
+			(partial.kind === 'essay' && partial.essayId
+				? `/library/books/${partial.bookId ?? 'b1'}#essay-${partial.essayId}`
+				: `/library/books/${partial.bookId ?? 'b1'}`)
 	};
 }
 
@@ -73,6 +77,38 @@ describe('collapseCommentaryHits', () => {
 	const totc = 'series-totc';
 	const zecot = 'series-zecot';
 	const nicnt = 'series-nicnt';
+	const esvec = 'series-esvec';
+
+	it('drops parent volume when a signed essay covers the same book', () => {
+		const volumeId = 'esvec-vol-8';
+		const collapsed = collapseCommentaryHits([
+			hit({
+				kind: 'book',
+				title: 'Matthew–Luke',
+				bookId: volumeId,
+				seriesId: esvec,
+				seriesLabel: 'ESVEC',
+				authorKey: 'ed1|ed2',
+				authorShort: 'Duguid; Hamilton; Sklar',
+				rating: 5
+			}),
+			hit({
+				kind: 'essay',
+				title: 'Matthew',
+				bookId: volumeId,
+				essayId: 'essay-matthew',
+				seriesId: esvec,
+				seriesLabel: 'ESVEC',
+				authorKey: 'doriani',
+				authorShort: 'Doriani',
+				rating: 5
+			})
+		]);
+		expect(collapsed).toHaveLength(1);
+		expect(collapsed[0]?.kind).toBe('essay');
+		expect(collapsed[0]?.title).toBe('Matthew');
+		expect(collapsed[0]?.authorShort).toBe('Doriani');
+	});
 
 	it('merges same-series same-author multi-part vols (Wenham WBC Genesis)', () => {
 		const collapsed = collapseCommentaryHits([
