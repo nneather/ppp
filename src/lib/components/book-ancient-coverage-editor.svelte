@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { enhance, deserialize } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import type { ActionResult, SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -64,6 +64,17 @@
 	let createPending = $state(false);
 	let createMessage = $state<string | null>(null);
 
+	async function invalidateBook() {
+		await invalidate(`app:library:book:${bookId}`);
+	}
+
+	async function invalidateBookAndAncientTexts() {
+		await Promise.all([
+			invalidate(`app:library:book:${bookId}`),
+			invalidate('app:library:ancient_texts')
+		]);
+	}
+
 	async function addSelection() {
 		if (!pickerValue || !browser) return;
 		addPending = true;
@@ -85,7 +96,7 @@
 					addError = data.message ?? 'Could not add coverage.';
 				} else {
 					pickerValue = null;
-					await invalidateAll();
+					await invalidateBook();
 				}
 			}
 		} catch (err) {
@@ -101,9 +112,9 @@
 		return async ({ result, update }) => {
 			await update({ reset: false });
 			if (result.type !== 'success') {
-				// invalidateAll re-hydrates on failure
+				// Book invalidate re-hydrates on failure
 			}
-			await invalidateAll();
+			await invalidateBook();
 		};
 	};
 
@@ -149,7 +160,7 @@
 					ancientTexts = [...ancientTexts, data.ancientText];
 					pickerValue = data.ancientText.id;
 					createOpen = false;
-					await invalidateAll();
+					await invalidateBookAndAncientTexts();
 					// Immediately link this newly created row to the current book.
 					await addSelection();
 				}

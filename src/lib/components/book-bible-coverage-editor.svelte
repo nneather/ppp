@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { cn } from '$lib/utils.js';
 
@@ -15,8 +15,9 @@
 	 *              on the coverage junction)
 	 *
 	 * The component does NOT re-fetch after each toggle — the host page
-	 * calls `invalidateAll()` in the SubmitFunction. Until the server round
-	 * trips, local state shows an optimistic update (click feels instant).
+	 * invalidates `app:library:book:<id>` in the SubmitFunction. Until the
+	 * server round trips, local state shows an optimistic update (click feels
+	 * instant).
 	 *
 	 * Mirrors the host's `<SourcePicker>` contract conceptually (locked to a
 	 * single bookId) but since bible-coverage rows carry no extra fields,
@@ -50,7 +51,7 @@
 					if (adding) covered = covered.filter((b) => b !== bible_book);
 					else covered = [...covered, bible_book];
 				}
-				await invalidateAll();
+				await invalidate(`app:library:book:${bookId}`);
 			};
 		};
 	}

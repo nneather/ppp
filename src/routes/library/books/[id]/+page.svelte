@@ -81,11 +81,80 @@
 	let notesDraft = $state('');
 	let notesBaseline = $state('');
 	let notesPending = $state(false);
+	/** True while the caret is in the notes field. */
+	let notesFocused = $state(false);
+	/**
+	 * True from notes focus until a settled blur (delayed) — survives the
+	 * blur→mousedown gap when tapping Save so we don't mount heavy below-fold
+	 * DOM mid-save.
+	 */
+	let notesEditing = $state(false);
+	let notesTextareaEl = $state<HTMLTextAreaElement | null>(null);
+	let notesBlurFlushTimer: ReturnType<typeof setTimeout> | null = null;
 	let ratingFormEl = $state<HTMLFormElement | null>(null);
 	let ratingHiddenEl = $state<HTMLInputElement | null>(null);
 	let ownedFormEl = $state<HTMLFormElement | null>(null);
 	let ownedHiddenEl = $state<HTMLInputElement | null>(null);
 	let notesSyncedBookId = $state('');
+
+	/** Queued while notes are focused — flush on blur / notes save to avoid iOS focus loss. */
+	let pendingRefs: ScriptureRefRow[] | null = null;
+	let pendingTopics: BookTopicRow[] | null = null;
+	let pendingEssays: EssayRow[] | null = null;
+	let coverageImportWanted = false;
+
+	function mainScrollEl(): HTMLElement | null {
+		if (!browser) return null;
+		return document.querySelector('main');
+	}
+
+	function cancelNotesBlurFlush() {
+		if (notesBlurFlushTimer != null) {
+			clearTimeout(notesBlurFlushTimer);
+			notesBlurFlushTimer = null;
+		}
+	}
+
+	function flushDeferredBookStreams(opts?: { mountCoverage?: boolean }) {
+		if (pendingRefs !== null) {
+			refs = pendingRefs;
+			pendingRefs = null;
+		}
+		if (pendingTopics !== null) {
+			topics = pendingTopics;
+			pendingTopics = null;
+		}
+		if (pendingEssays !== null) {
+			essays = pendingEssays;
+			pendingEssays = null;
+		}
+		const mountCoverage = opts?.mountCoverage ?? !notesEditing;
+		if (!mountCoverage) {
+			coverageImportWanted = true;
+			return;
+		}
+		coverageImportWanted = false;
+		void ensureCoverageEditors();
+	}
+
+	function onNotesFocus() {
+		cancelNotesBlurFlush();
+		notesFocused = true;
+		notesEditing = true;
+	}
+
+	function onNotesBlur() {
+		notesFocused = false;
+		cancelNotesBlurFlush();
+		// Delay so tapping Save (blur then click) does not mount coverage chips
+		// under the notes field before the submit handler runs.
+		notesBlurFlushTimer = setTimeout(() => {
+			notesBlurFlushTimer = null;
+			if (notesFocused || notesTextareaEl === document.activeElement) return;
+			notesEditing = false;
+			flushDeferredBookStreams({ mountCoverage: true });
+		}, 300);
+	}
 
 	$effect(() => {
 		const id = data.book.id;
@@ -96,6 +165,13 @@
 			notesBaseline = notes;
 			ratingOptimistic = undefined;
 			ownedOptimistic = undefined;
+			notesFocused = false;
+			notesEditing = false;
+			cancelNotesBlurFlush();
+			pendingRefs = null;
+			pendingTopics = null;
+			pendingEssays = null;
+			coverageImportWanted = false;
 		}
 	});
 
@@ -142,12 +218,25 @@
 
 	const notesSubmit: SubmitFunction = () => {
 		notesPending = true;
+		cancelNotesBlurFlush();
+		const keepFocus = notesEditing;
+		const scrollTop = mainScrollEl()?.scrollTop ?? null;
 		return async ({ update, result }) => {
 			await update({ reset: false });
 			await invalidateBook();
 			notesPending = false;
 			if (result.type === 'success') {
 				notesBaseline = notesDraft;
+			}
+			flushDeferredBookStreams({ mountCoverage: !keepFocus });
+			if (keepFocus && browser) {
+				notesFocused = true;
+				notesEditing = true;
+				queueMicrotask(() => {
+					const main = mainScrollEl();
+					if (main != null && scrollTop != null) main.scrollTop = scrollTop;
+					notesTextareaEl?.focus({ preventScroll: true });
+				});
 			}
 		};
 	};
@@ -241,6 +330,10 @@
 	let essays = $state<EssayRow[]>([]);
 	$effect(() => {
 		void data.essaysPromise.then((rows) => {
+			if (notesFocused || notesEditing) {
+				pendingEssays = rows;
+				return;
+			}
 			essays = rows;
 		});
 	});
@@ -337,16 +430,26 @@
 	// for snappy feedback. After invalidate(book) the canonical state takes over.
 	let refs = $state<ScriptureRefRow[]>([]);
 	let scriptureRefsLoading = $state(true);
+	/** One-shot open-state seed per book after first load settles. */
+	let refsOpenSeededForBookId: string | null = null;
 
 	$effect(() => {
 		const p = data.scriptureRefsPromise;
 		scriptureRefsLoading = true;
 		void p
 			.then((rows) => {
-				refs = rows;
+				if (notesFocused || notesEditing) {
+					pendingRefs = rows;
+				} else {
+					refs = rows;
+				}
 			})
 			.catch(() => {
-				refs = [];
+				if (notesFocused || notesEditing) {
+					pendingRefs = [];
+				} else {
+					refs = [];
+				}
 			})
 			.finally(() => {
 				scriptureRefsLoading = false;
@@ -373,16 +476,32 @@
 		if (scriptureRefsBookId !== id) {
 			scriptureRefsBookId = id;
 			recordedImagesOpen = false;
+			refsOpenSeededForBookId = null;
+			refsOpen = false;
 		}
 	});
 
+	// Seed open state once per book when the first load finishes — do not re-force
+	// on later invalidations or fight manual <details> toggles.
 	$effect(() => {
-		if (scriptureRefsLoading || scriptureRefsBookId !== data.book.id) return;
-		refsOpen = refs.length === 0 || addOpen;
+		if (scriptureRefsLoading) return;
+		const id = data.book.id;
+		if (scriptureRefsBookId !== id) return;
+		if (refsOpenSeededForBookId === id) return;
+		refsOpenSeededForBookId = id;
+		const effectiveLen = pendingRefs !== null ? pendingRefs.length : refs.length;
+		if (effectiveLen === 0 || addOpen) refsOpen = true;
 	});
 
 	$effect(() => {
 		if (addOpen) refsOpen = true;
+	});
+
+	// Opening the disclosure must materialize any notes-focus-deferred rows.
+	$effect(() => {
+		if (!refsOpen || pendingRefs === null) return;
+		refs = pendingRefs;
+		pendingRefs = null;
 	});
 
 	$effect(() => {
@@ -423,12 +542,6 @@
 			});
 		});
 	});
-
-	$effect(() => {
-		if (scriptureRefsLoading) return;
-		if (refs.length === 0 && !addOpen) refsOpen = true;
-	});
-
 	const uniqueImageRefs = $derived.by(() => {
 		const seen = new Map<
 			string,
@@ -463,6 +576,11 @@
 		// the parallel $effect above — both fire on load, ordering is racy).
 		const tryScroll = () => {
 			refsOpen = true;
+			// Deep-link must render rows even if notes-focus deferred the assign.
+			if (pendingRefs !== null) {
+				refs = pendingRefs;
+				pendingRefs = null;
+			}
 			const el = document.getElementById(`ref-${id}`);
 			if (!el) {
 				if (refs.find((r) => r.id === id)) {
@@ -660,6 +778,10 @@
 	let topics = $state<BookTopicRow[]>([]);
 	$effect(() => {
 		void data.bookTopicsPromise.then((t) => {
+			if (notesFocused || notesEditing) {
+				pendingTopics = t;
+				return;
+			}
 			topics = t;
 		});
 	});
@@ -747,6 +869,32 @@
 	let BookTopicFormCmp = $state<BookTopicFormType | null>(null);
 	let BookBibleCoverageEditorCmp = $state<BookBibleCoverageEditorType | null>(null);
 	let BookAncientCoverageEditorCmp = $state<BookAncientCoverageEditorType | null>(null);
+	/** Constructors loaded but not yet mounted (notes were focused during import). */
+	let loadedBibleCoverageCmp: BookBibleCoverageEditorType | null = null;
+	let loadedAncientCoverageCmp: BookAncientCoverageEditorType | null = null;
+
+	async function ensureCoverageEditors() {
+		if (!browser) return;
+		if (BookBibleCoverageEditorCmp === null && loadedBibleCoverageCmp === null) {
+			const m = await import('$lib/components/book-bible-coverage-editor.svelte');
+			loadedBibleCoverageCmp = m.default;
+		}
+		void ensureAncientTexts();
+		if (BookAncientCoverageEditorCmp === null && loadedAncientCoverageCmp === null) {
+			const m = await import('$lib/components/book-ancient-coverage-editor.svelte');
+			loadedAncientCoverageCmp = m.default;
+		}
+		if (notesFocused || notesEditing) {
+			coverageImportWanted = true;
+			return;
+		}
+		if (loadedBibleCoverageCmp && BookBibleCoverageEditorCmp === null) {
+			BookBibleCoverageEditorCmp = loadedBibleCoverageCmp;
+		}
+		if (loadedAncientCoverageCmp && BookAncientCoverageEditorCmp === null) {
+			BookAncientCoverageEditorCmp = loadedAncientCoverageCmp;
+		}
+	}
 
 	$effect(() => {
 		if (!browser) return;
@@ -768,13 +916,7 @@
 	});
 
 	onMount(() => {
-		void import('$lib/components/book-bible-coverage-editor.svelte').then((m) => {
-			BookBibleCoverageEditorCmp = m.default;
-		});
-		void ensureAncientTexts();
-		void import('$lib/components/book-ancient-coverage-editor.svelte').then((m) => {
-			BookAncientCoverageEditorCmp = m.default;
-		});
+		void ensureCoverageEditors();
 	});
 </script>
 
@@ -1011,8 +1153,11 @@
 						<textarea
 							id={`book-notes-${data.book.id}`}
 							name="personal_notes"
+							bind:this={notesTextareaEl}
 							bind:value={notesDraft}
 							rows={4}
+							onfocus={onNotesFocus}
+							onblur={onNotesBlur}
 							class="flex min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
 							placeholder="Thoughts, sermon hooks, disagreements…"
 						></textarea>
@@ -1301,7 +1446,7 @@
 				</p>
 			{/if}
 
-			{#if !scriptureRefsLoading && groupedRefs.length > 0}
+			{#if refsOpen && !scriptureRefsLoading && groupedRefs.length > 0}
 				<div class="space-y-5">
 					{#each groupedRefs as group (group.bible_book)}
 						<div>
@@ -1398,7 +1543,7 @@
 				</div>
 			{/if}
 
-			{#if uniqueImageRefs.length > 0}
+			{#if refsOpen && uniqueImageRefs.length > 0}
 				<details
 					class="mt-4 rounded-lg border border-border/60 bg-muted/20"
 					bind:open={recordedImagesOpen}
