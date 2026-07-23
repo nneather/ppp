@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-23 — Per-book citation abbreviation ([125](docs/decisions/125-books-citation-abbreviation.md)); DOTHB essay seed ([124](docs/decisions/124-dothb-essay-smoke-seed.md)).
+**Last updated:** 2026-07-23 — Fall MYN backlog locked ([126](docs/decisions/126-myn-fall-backlog-lock.md)); per-book citation abbreviation ([125](docs/decisions/125-books-citation-abbreviation.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,7 @@
 
 ## Current focus
 
-**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)); **update banners non-blocking** ([100](docs/decisions/100-pwa-update-banner-nonblocking.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). **Writing-session gaps shipped** ([094](docs/decisions/094-library-writing-session-gaps.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)) — keep `/tasks`; fall polish OK; Global Now parked.
+**Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)); **update banners non-blocking** ([100](docs/decisions/100-pwa-update-banner-nonblocking.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). **Writing-session gaps shipped** ([094](docs/decisions/094-library-writing-session-gaps.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); fall polish scope locked ([126](docs/decisions/126-myn-fall-backlog-lock.md)) — default project + views, next-Monday defer, Target Now, 50-total soft-cap; cross-module parked.
 
 **Review queue — research cleanup done ([087](docs/decisions/087-library-review-queue-research-cleanup.md)):** non-shelf `needs_review` and pending proposals drained to **0**. Remaining: **Needs the shelf** deck (**50** books — ISBN/year/publisher/edition). Decks/sprints/proposals UI from [067](docs/decisions/067-library-review-sprint-decks.md)+[068](docs/decisions/068-library-review-ai-research-pass.md) still the workflow for Madison. Taxonomy: Politics and Policy, Leadership, Literary Criticism, Church Fathers, Ancient Biblical Sources, Children's and Young Adult; `books.copy_count` for multi-copy rows.
 
@@ -35,7 +35,7 @@ Nearest hard dates:
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)), PDF email MIME harden ([078](docs/decisions/078-invoice-email-pdf-mime.md)), PDF email diagnostics runbook ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 + writing-session gaps** ([094](docs/decisions/094-library-writing-session-gaps.md)). **Not-owned** Sessions 0–1 + inbox/owned-reappear polish ([101](docs/decisions/101-library-not-owned-session-0.md)–[108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md)) — **queue drain done**. **August QA Track A done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)); Track B (shelf) open. **`.docx` smoke ✅**; commentary series ([113](docs/decisions/113-commentary-series-volume-omit.md)); cite strip ([114](docs/decisions/114-book-detail-ui-cleanup.md)) + cite card/spacing ([118](docs/decisions/118-book-detail-cite-card-spacing.md)); postal locations ([115](docs/decisions/115-publisher-location-postal.md)); commentary Batches 1–5 ([116](docs/decisions/116-commentary-consistency-batch1.md)–[121](docs/decisions/121-commentary-consistency-batch5.md)); Bible coverage list filter ([123](docs/decisions/123-library-bible-coverage-filter.md)); DOTHB essay seed ([124](docs/decisions/124-dothb-essay-smoke-seed.md)). **Owner smokes left:** essays/DOTHB + Articles search. **PWA resume ✅**. |
-| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)) + **recurring tasks + active badge** ([109](docs/decisions/109-tasks-active-badge-recurrence.md)) + task sheet date/footer polish ([112](docs/decisions/112-task-sheet-date-overflow.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), links, audit. **Inbound live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); Global Now parked until fall. **Owner E2E smoke 2026-07-22 passed.** **Viewer access:** owner-only by design. **Backlog:** fall MYN polish ([MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md)). |
+| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)) + **recurring tasks + active badge** ([109](docs/decisions/109-tasks-active-badge-recurrence.md)) + task sheet date/footer polish ([112](docs/decisions/112-task-sheet-date-overflow.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), links, audit. **Inbound live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); **fall polish locked** ([126](docs/decisions/126-myn-fall-backlog-lock.md)) — see [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md). **Owner E2E smoke 2026-07-22 passed.** **Viewer access:** owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ **v1 Sessions 1–2** ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md)) + owner-smoke UX ([110](docs/decisions/110-sermons-owner-smoke-ux.md)). List + by-book smoke **passed** (venue select, ranged Find-in-library, icon counts). |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -44,9 +44,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [126 — Fall MYN backlog lock](docs/decisions/126-myn-fall-backlog-lock.md) (2026-07-23) — default project + saved views; next-Monday defer; Target Now; soft-cap 50 total; drop OTH queue / weekly review / nullable project_id; cross-module parked.
 - [125 — Per-book citation abbreviation](docs/decisions/125-books-citation-abbreviation.md) (2026-07-23) — `books.citation_abbreviation` overrides series abbr; IVP dicts share series (DOTHB/DJG/DPL/DOTWPW).
 - [124 — DOTHB essay smoke seed](docs/decisions/124-dothb-essay-smoke-seed.md) (2026-07-23) — Canaan + Judges essays; PWA resume ✅; backup Actions green.
-- [123 — Library Bible coverage list filter](docs/decisions/123-library-bible-coverage-filter.md) (2026-07-23) — `/library` Filters: `?bible_book=` facet via `book_bible_coverage` (MultiCombobox + chips).
 - [117 — Commentary consistency Batch 2](docs/decisions/117-commentary-consistency-batch2.md) (2026-07-22) — CSC/BST/NIVAC/CBC creates; NIGTC/ACCS/BECNT attaches; TOTC/TNTC vols; Beale title; Milgrom.
 - [113 — Commentary series volume omit](docs/decisions/113-commentary-series-volume-omit.md) (2026-07-22) — no `Vol. N.` for commentary-in-series; bare series digit after series title; keep `N vols.` / Keener `Vol. N.`; `.docx` smoke passed.
 - [105 — Solo git/ship agent guidance](docs/decisions/105-solo-git-ship-agent-guidance.md) (2026-07-21) — `main` protection adopted (required `check-and-test`, no PR theater); agents must not invent PRs or pile onto unrelated branches.
@@ -205,13 +205,25 @@ Flow: Create project under Work + sub-project → weekly check-in save → /dash
 Then: check Session 3 smoke box on docs/POS_Projects_Build_Tracker.md and note date in PLAN.md.
 ```
 
-### Projects — global MYN Now view (future session)
+### Projects — fall MYN polish ([126](docs/decisions/126-myn-fall-backlog-lock.md))
 
 ```
-Read: docs/MYN_TASKS_DESIGN.md (Future architectural build), AGENTS.md projects inventory,
-  src/lib/components/project-task-list.svelte, docs/decisions/047-projects-session-3-myn-tasks-links-audit.md
-Goal: Cross-project (and eventually cross-module) unified Now list — reuse task list component.
-Phase 0: nullable project_id? nav entry? defer-to-Review automation scope?
+Session: projects — fall MYN polish
+Read: AGENTS.md, docs/MYN_TASKS_DESIGN.md (Fall polish backlog), docs/decisions/126-myn-fall-backlog-lock.md,
+  src/lib/components/project-task-list.svelte, project-task-sheet.svelte,
+  src/lib/projects/server/task-loaders.ts, src/routes/tasks/
+Goal: Ship locked fall polish on /tasks — no nullable project_id, no OTH review queue, no cross-module tags.
+Acceptance:
+ - [ ] Default project preference fills New Task when no ?project= filter
+ - [ ] Saved views: include / exclude / only-project presets (URL or named)
+ - [ ] Defer: one-click next Chicago Monday → OTH; date presets (tomorrow / Mon / +1w / pick)
+ - [ ] Target Now visual: opportunity_now + start_date = today
+ - [ ] Soft-cap 50 total open non-deferred: hide lowest priority then oldest; always banner at ≥50; optional Show all
+ - [ ] npm run check + npm run test pass
+ - [ ] mobile-width screenshot of at-cap banner + Target Now row
+End-of-session deliverables:
+ - [ ] docs/decisions/NNN-myn-fall-polish.md filed
+ - [ ] PLAN.md + MYN_TASKS_DESIGN.md marked shipped where done
 ```
 
 ### PWA — branded icon set (deferred from 057)
@@ -300,7 +312,7 @@ Acceptance:
 ### Do now
 1. **Owner smoke (remaining)** — essays/DOTHB + Articles search ([086](docs/decisions/086-essay-visibility-and-search-lanes.md), [124](docs/decisions/124-dothb-essay-smoke-seed.md)/[125](docs/decisions/125-books-citation-abbreviation.md)): open Historical Books → essays; `/library?q=Canaan` → **Articles in volumes**; footnote should use `in DOTHB`. Optional: megacomponent phone pass ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md)).
 2. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
-3. **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)) — keep `/tasks`; fall polish as needed. Global Now parked until fall. **Email → task live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). Recurrence + dashboard active badge shipped ([109](docs/decisions/109-tasks-active-badge-recurrence.md)); sheet date/footer polish ([112](docs/decisions/112-task-sheet-date-overflow.md)).
+3. **Fall MYN polish** (when ready) — locked scope [126](docs/decisions/126-myn-fall-backlog-lock.md) / session prompt: default project + saved views, next-Monday defer, Target Now, soft-cap 50. Cross-module still parked. **Email → task live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)).
 4. **Optional later** — IVP `publisher_location` backfill (~45 NULL; [124](docs/decisions/124-dothb-essay-smoke-seed.md)).
 
 ### Wait for Sarah (next week)
