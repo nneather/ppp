@@ -1,5 +1,5 @@
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { fail, redirect } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
 import {
 	countBooksNeedingReview,
 	countReviewQueueBySlice
@@ -9,7 +9,32 @@ import {
 	mondaySundayWeekContainingYmd,
 	previousMondaySundayWeekChicago
 } from '$lib/invoicing/chicago-date';
-import { loadProjectTree, loadLatestHealth } from '$lib/projects/server/loaders';
+import { currentSundayChicago } from '$lib/projects/week';
+import { countMissingWeekCheckIns } from '$lib/projects/filter';
+import {
+	loadProjectTree,
+	loadLatestHealth,
+	loadProjectRows,
+	flattenProjectTree
+} from '$lib/projects/server/loaders';
+import {
+	attachTaskDomainColors,
+	loadDashboardNowTasks,
+	loadTaskSeriesByIds
+} from '$lib/projects/server/task-loaders';
+import { buildDomainColorByProjectId } from '$lib/projects/project-colors';
+import {
+	createTaskAction,
+	updateTaskAction,
+	completeTaskAction,
+	uncompleteTaskAction,
+	deferTaskAction,
+	promoteTaskAction,
+	raisePriorityAction,
+	softDeleteTaskAction,
+	undoSoftDeleteTaskAction
+} from '$lib/projects/server/task-actions';
+import { loadUpcomingSermons } from '$lib/sermons/server/loaders';
 import type { LatestHealth } from '$lib/types/projects';
 import type { LastWeekInvoiceCandidate } from '$lib/types/invoicing';
 
@@ -60,14 +85,17 @@ function aggregateLastWeekInvoiceCandidates(
 		.sort((a, b) => a.clientName.localeCompare(b.clientName));
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, depends }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
+
+	depends('app:projects:tasks');
 
 	const supabase = locals.supabase;
 	const today = ymdInChicago();
 	const thisMonday = mondaySundayWeekContainingYmd(today).start;
 	const lastWeek = previousMondaySundayWeekChicago();
+	const weekOf = currentSundayChicago();
 
 	const [
 		unbilledRes,
@@ -77,8 +105,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		backlogRemaining,
 		projectTree,
 		latestHealthMap,
-		criticalNowTasksRes,
-		opportunityNowTasksRes
+		nowTasks,
+		upcomingSermonsRes,
+		flatRows,
+		profileRes
 	] = await Promise.all([
 		supabase
 			.from('time_entries')
@@ -98,32 +128,47 @@ export const load: PageServerLoad = async ({ locals }) => {
 		countReviewQueueBySlice(supabase, 'backlog'),
 		locals.perf.measure('db', () => loadProjectTree(supabase)),
 		locals.perf.measure('db', () => loadLatestHealth(supabase)),
+		locals.perf.measure('db', () => loadDashboardNowTasks(supabase, { todayYmd: today })),
+		locals.perf.measure('db', () => loadUpcomingSermons(supabase, { todayYmd: today, limit: 5 })),
+		loadProjectRows(supabase),
 		supabase
-			.from('project_tasks')
-			.select('id', { count: 'exact', head: true })
-			.eq('priority', 'critical_now')
-			.is('deleted_at', null)
-			.is('completed_at', null)
-			.lte('start_date', today),
-		supabase
-			.from('project_tasks')
-			.select('id', { count: 'exact', head: true })
-			.eq('priority', 'opportunity_now')
-			.is('deleted_at', null)
-			.is('completed_at', null)
-			.lte('start_date', today)
+			.from('profiles')
+			.select('default_task_project_id')
+			.eq('id', user.id)
+			.maybeSingle()
 	]);
 
-	const criticalNowTaskCount = criticalNowTasksRes.error
-		? null
-		: (criticalNowTasksRes.count ?? 0);
-	const opportunityNowTaskCount = opportunityNowTasksRes.error
-		? null
-		: (opportunityNowTasksRes.count ?? 0);
-	if (criticalNowTasksRes.error) console.error(criticalNowTasksRes.error);
-	if (opportunityNowTasksRes.error) console.error(opportunityNowTasksRes.error);
+	if (profileRes.error) console.error(profileRes.error);
+	if (upcomingSermonsRes.error) console.error(upcomingSermonsRes.error);
 
 	const latestHealth = Object.fromEntries(latestHealthMap) as Record<string, LatestHealth>;
+	const missingCheckInCount = countMissingWeekCheckIns(projectTree, latestHealth, weekOf);
+
+	const colored = attachTaskDomainColors(
+		{
+			zones: nowTasks.zones,
+			deferred: [],
+			completed: [],
+			todayYmd: nowTasks.todayYmd,
+			openCount: nowTasks.criticalNowCount + nowTasks.opportunityNowCount,
+			visibleCount: nowTasks.criticalNowCount + nowTasks.opportunityNowCount,
+			atCap: false,
+			truncated: false
+		},
+		buildDomainColorByProjectId(flatRows)
+	);
+
+	const seriesIds = [
+		...new Set(
+			colored.zones
+				.flatMap((z) => z.tasks)
+				.map((t) => t.series_id)
+				.filter((id): id is string => id != null)
+		)
+	];
+	const seriesById = await loadTaskSeriesByIds(supabase, seriesIds);
+
+	const projectOptions = flattenProjectTree(projectTree).filter((o) => o.parent_id == null);
 
 	let lastWeekInvoiceCandidates: LastWeekInvoiceCandidate[] = [];
 	if (lastWeekEntriesRes.error) {
@@ -135,6 +180,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			lastWeek.end
 		);
 	}
+
+	const criticalNowTaskCount = nowTasks.criticalNowCount;
+	const opportunityNowTaskCount = nowTasks.opportunityNowCount;
 
 	if (unbilledRes.error) {
 		console.error(unbilledRes.error);
@@ -148,6 +196,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 			latestHealth,
 			criticalNowTaskCount,
 			opportunityNowTaskCount,
+			nowZones: colored.zones,
+			todayYmd: today,
+			seriesById,
+			projectOptions,
+			defaultTaskProjectId: profileRes.data?.default_task_project_id ?? null,
+			upcomingSermons: upcomingSermonsRes.sermons,
+			missingCheckInCount,
+			weekOf,
 			dashboardError: 'Could not load unbilled count.' as string | null
 		};
 	}
@@ -162,6 +218,62 @@ export const load: PageServerLoad = async ({ locals }) => {
 		latestHealth,
 		criticalNowTaskCount,
 		opportunityNowTaskCount,
+		nowZones: colored.zones,
+		todayYmd: today,
+		seriesById,
+		projectOptions,
+		defaultTaskProjectId: profileRes.data?.default_task_project_id ?? null,
+		upcomingSermons: upcomingSermonsRes.sermons,
+		missingCheckInCount,
+		weekOf,
 		dashboardError: null as string | null
 	};
+};
+
+export const actions: Actions = {
+	createTask: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'createTask' as const, message: 'Unauthorized' });
+		return createTaskAction(locals.supabase, user.id, await request.formData());
+	},
+	updateTask: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'updateTask' as const, message: 'Unauthorized' });
+		return updateTaskAction(locals.supabase, await request.formData());
+	},
+	completeTask: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'completeTask' as const, message: 'Unauthorized' });
+		return completeTaskAction(locals.supabase, await request.formData());
+	},
+	uncompleteTask: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'uncompleteTask' as const, message: 'Unauthorized' });
+		return uncompleteTaskAction(locals.supabase, await request.formData());
+	},
+	deferTask: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'deferTask' as const, message: 'Unauthorized' });
+		return deferTaskAction(locals.supabase, await request.formData());
+	},
+	promoteTask: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'promoteTask' as const, message: 'Unauthorized' });
+		return promoteTaskAction(locals.supabase, await request.formData());
+	},
+	raisePriority: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'raisePriority' as const, message: 'Unauthorized' });
+		return raisePriorityAction(locals.supabase, await request.formData());
+	},
+	softDeleteTask: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'softDeleteTask' as const, message: 'Unauthorized' });
+		return softDeleteTaskAction(locals.supabase, await request.formData());
+	},
+	undoSoftDeleteTask: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'undoSoftDeleteTask' as const, message: 'Unauthorized' });
+		return undoSoftDeleteTaskAction(locals.supabase, await request.formData());
+	}
 };

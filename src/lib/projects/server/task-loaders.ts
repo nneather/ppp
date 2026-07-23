@@ -254,6 +254,96 @@ function emptyZones(): TaskZoneGroup[] {
 	}));
 }
 
+const NOW_PRIORITIES: readonly TaskPriority[] = ['critical_now', 'opportunity_now'];
+
+export type LoadDashboardNowTasksResult = {
+	zones: TaskZoneGroup[];
+	todayYmd: string;
+	criticalNowCount: number;
+	opportunityNowCount: number;
+};
+
+/**
+ * Critical + Opportunity Now only (visible / non-deferred) for the desktop dashboard pane.
+ * Skips OTH, deferred, completed, and soft-cap truncation.
+ */
+export async function loadDashboardNowTasks(
+	supabase: SupabaseClient,
+	opts: { todayYmd?: string } = {}
+): Promise<LoadDashboardNowTasksResult> {
+	const todayYmd = opts.todayYmd ?? ymdInChicago();
+
+	const { data, error } = await supabase
+		.from('project_tasks')
+		.select(`${TASK_COLUMNS}, projects!project_tasks_project_id_fkey ( name )`)
+		.is('deleted_at', null)
+		.is('completed_at', null)
+		.in('priority', [...NOW_PRIORITIES])
+		.lte('start_date', todayYmd)
+		.order('start_date', { ascending: false })
+		.order('sort_order', { ascending: true })
+		.order('created_at', { ascending: true });
+
+	if (error) {
+		console.error('loadDashboardNowTasks', error);
+		return {
+			zones: NOW_PRIORITIES.map((priority) => ({
+				priority,
+				label: TASK_PRIORITY_LABELS[priority],
+				tasks: [],
+				count: 0
+			})),
+			todayYmd,
+			criticalNowCount: 0,
+			opportunityNowCount: 0
+		};
+	}
+
+	const open: ProjectTaskView[] = [];
+	for (const raw of data ?? []) {
+		const row = mapTaskRow(
+			raw as {
+				id: string;
+				project_id: string;
+				title: string;
+				priority: string;
+				start_date: string;
+				completed_at: string | null;
+				sort_order: number;
+				notes: string | null;
+				series_id: string | null;
+				series_occurrence: number | null;
+				projects: { name: string } | { name: string }[] | null;
+			}
+		);
+		if (row) open.push(row);
+	}
+
+	const byZone = new Map<TaskPriority, ProjectTaskView[]>();
+	for (const p of NOW_PRIORITIES) byZone.set(p, []);
+	for (const task of open) {
+		const list = byZone.get(task.priority);
+		if (list) list.push(task);
+	}
+
+	const zones: TaskZoneGroup[] = NOW_PRIORITIES.map((priority) => {
+		const tasks = (byZone.get(priority) ?? []).sort(compareTasksFresh);
+		return {
+			priority,
+			label: TASK_PRIORITY_LABELS[priority],
+			tasks,
+			count: tasks.length
+		};
+	});
+
+	return {
+		zones,
+		todayYmd,
+		criticalNowCount: zones[0]?.count ?? 0,
+		opportunityNowCount: zones[1]?.count ?? 0
+	};
+}
+
 const LINK_COLUMNS = 'id, project_id, url, label, sort_order';
 
 export async function loadProjectLinks(

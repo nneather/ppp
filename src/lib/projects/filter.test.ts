@@ -7,7 +7,8 @@ import {
 	countActiveProjectFilters,
 	hasActiveProjectFilters,
 	matchesFilter,
-	computeVisibleNodeIds
+	computeVisibleNodeIds,
+	countMissingWeekCheckIns
 } from '$lib/projects/filter';
 import { DEFAULT_VISIBLE_LIFECYCLES } from '$lib/types/projects';
 import type { LatestHealth, ProjectNode } from '$lib/types/projects';
@@ -179,5 +180,45 @@ describe('computeVisibleNodeIds', () => {
 		const visible = computeVisibleNodeIds(tree, latest, filters);
 		expect(visible.has('d')).toBe(true);
 		expect(visible.has('c')).toBe(true);
+	});
+});
+
+describe('countMissingWeekCheckIns', () => {
+	it('counts active and paused without this week_of', () => {
+		const domain = node({
+			id: 'd',
+			name: 'Work',
+			parent_id: null,
+			depth: 0,
+			lifecycle_status: 'active'
+		});
+		const childOk = node({
+			id: 'c1',
+			name: 'Done',
+			parent_id: 'd',
+			depth: 1,
+			lifecycle_status: 'active'
+		});
+		const childMissing = node({
+			id: 'c2',
+			name: 'Missing',
+			parent_id: 'd',
+			depth: 1,
+			lifecycle_status: 'paused'
+		});
+		const idea = node({
+			id: 'c3',
+			name: 'Idea',
+			parent_id: 'd',
+			depth: 1,
+			lifecycle_status: 'idea'
+		});
+		domain.children = [childOk, childMissing, idea];
+		const latest: Record<string, LatestHealth> = {
+			d: { health_status: 'satisfactory', week_of: '2026-06-07', previous: null },
+			c1: { health_status: 'excellent', week_of: '2026-06-07', previous: null },
+			c2: { health_status: 'watch', week_of: '2026-05-31', previous: null }
+		};
+		expect(countMissingWeekCheckIns([domain], latest, '2026-06-07')).toBe(1);
 	});
 });

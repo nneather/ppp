@@ -36,6 +36,7 @@
 		deferred = [],
 		completed = [],
 		showProjectLabel = true,
+		compact = false,
 		todayYmd,
 		onEdit,
 		onInvalidate
@@ -44,6 +45,8 @@
 		deferred?: ProjectTaskView[];
 		completed?: ProjectTaskView[];
 		showProjectLabel?: boolean;
+		/** Tighter rows / headers for dashboard Now pane. */
+		compact?: boolean;
 		todayYmd: string;
 		onEdit: (task: ProjectTaskView) => void;
 		onInvalidate?: () => void | Promise<void>;
@@ -144,7 +147,8 @@
 	{@const activeToday = !isCompleted && isActiveToday(task)}
 	<li
 		class={cn(
-			'flex flex-col gap-2 border-b border-border/60 px-3 py-2.5 last:border-b-0',
+			'flex flex-col gap-2 border-b border-border/60 last:border-b-0',
+			compact ? 'px-2.5 py-2' : 'px-3 py-2.5',
 			domainColor && PROJECT_COLOR_RAIL_CLASS[domainColor],
 			isCompleted && 'opacity-70'
 		)}
@@ -216,7 +220,9 @@
 						{task.project_name}
 					</p>
 				{/if}
-				<p class="text-xs text-muted-foreground">Start {task.start_date}</p>
+				{#if !compact}
+					<p class="text-xs text-muted-foreground">Start {task.start_date}</p>
+				{/if}
 			</div>
 			{#if !isCompleted}
 				<div class="flex shrink-0 flex-wrap justify-end gap-0.5">
@@ -308,18 +314,21 @@
 {/snippet}
 
 {#each zones as zone (zone.priority)}
-	<section class="mb-6">
+	<section class={compact ? 'mb-4' : 'mb-6'}>
 		<div
 			class={cn(
-				'mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2',
+				'mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border',
+				compact ? 'px-2.5 py-1.5' : 'px-3 py-2',
 				zoneHeaderClass[zone.priority]
 			)}
 		>
-			<h2 class="text-sm font-semibold">{zone.label}</h2>
+			<h2 class={cn('font-semibold', compact ? 'text-xs' : 'text-sm')}>{zone.label}</h2>
 			<span class="text-xs text-muted-foreground">{zone.count}</span>
 		</div>
 		{#if zone.tasks.length === 0}
-			<p class="px-3 text-sm text-muted-foreground italic">No open tasks in this zone.</p>
+			<p class="px-3 text-sm text-muted-foreground italic">
+				{compact ? 'None' : 'No open tasks in this zone.'}
+			</p>
 		{:else}
 			<ul class="rounded-lg border border-border bg-card">
 				{#each zone.tasks as task (task.id)}

@@ -63,6 +63,16 @@ export type SermonListRow = {
 	library_search_href: string | null;
 };
 
+/** Lightweight upcoming row for `/dashboard` (no passages). */
+export type DashboardSermonRow = {
+	id: string;
+	preached_on: string;
+	venue_name: string | null;
+	context_type: ContextType | null;
+	topic: string | null;
+	passage_display: string | null;
+};
+
 export type SermonListFilters = {
 	year: number | null;
 	context: ContextType | null;

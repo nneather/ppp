@@ -18,6 +18,7 @@ import {
 	type ByBookShelfHit,
 	type ByBookSummary,
 	type ContextType,
+	type DashboardSermonRow,
 	type SermonListFilters,
 	type SermonListRow,
 	type SermonPassageRow,
@@ -104,6 +105,63 @@ export async function loadSermonVenues(supabase: SupabaseClient): Promise<{
 	}));
 
 	return { venues, error: null };
+}
+
+const UPCOMING_SERMONS_DEFAULT_LIMIT = 5;
+
+/** Live sermons with `preached_on >= todayYmd`, soonest first (dashboard panel). */
+export async function loadUpcomingSermons(
+	supabase: SupabaseClient,
+	opts: { todayYmd: string; limit?: number }
+): Promise<{ sermons: DashboardSermonRow[]; error: string | null }> {
+	const limit = opts.limit ?? UPCOMING_SERMONS_DEFAULT_LIMIT;
+	const sermonsRes = await supabase
+		.from('sermons')
+		.select('id, preached_on, venue_id, context_type, topic, passage_display')
+		.is('deleted_at', null)
+		.gte('preached_on', opts.todayYmd)
+		.order('preached_on', { ascending: true })
+		.limit(limit);
+
+	if (sermonsRes.error) {
+		console.error('[sermons] loadUpcomingSermons', sermonsRes.error);
+		return { sermons: [], error: sermonsRes.error.message };
+	}
+
+	const sermonRows = (sermonsRes.data ?? []) as Array<{
+		id: string;
+		preached_on: string;
+		venue_id: string | null;
+		context_type: string | null;
+		topic: string | null;
+		passage_display: string | null;
+	}>;
+
+	const venueIds = [
+		...new Set(sermonRows.map((s) => s.venue_id).filter((id): id is string => id != null))
+	];
+	const venuesRes = venueIds.length
+		? await supabase.from('sermon_venues').select('id, name').in('id', venueIds)
+		: { data: [] as { id: string; name: string }[], error: null };
+
+	if (venuesRes.error) console.error('[sermons] upcoming venues', venuesRes.error);
+
+	const venueNameById = new Map<string, string>();
+	for (const v of venuesRes.data ?? []) {
+		const row = v as { id: string; name: string };
+		venueNameById.set(row.id, row.name);
+	}
+
+	const sermons: DashboardSermonRow[] = sermonRows.map((s) => ({
+		id: s.id,
+		preached_on: s.preached_on,
+		venue_name: s.venue_id ? (venueNameById.get(s.venue_id) ?? null) : null,
+		context_type: asContextType(s.context_type),
+		topic: s.topic,
+		passage_display: s.passage_display
+	}));
+
+	return { sermons, error: null };
 }
 
 export async function loadSermons(

@@ -34,7 +34,8 @@ No separate `due_date` column — deadlines are not part of v1 MYN.
 
 | Surface | Path | Purpose |
 |---|---|---|
-| MYN task list | `/projects/tasks` | All projects; optional `?project=<uuid>` |
+| MYN task list | `/tasks` | All projects; optional `?project=` / `?view=` / `?all=1` |
+| Desktop Now pane | `/dashboard` (`md+`) | Critical + Opportunity only; full list stays on `/tasks` ([132](decisions/132-desktop-home-dashboard.md)) |
 | Project tree | `/projects` | Weekly health check-in (unchanged) |
 | Links | Metadata Sheet (edit project) | `project_links` CRUD |
 | Audit | `/settings/audit-log?module=projects` | includes `project_tasks` |

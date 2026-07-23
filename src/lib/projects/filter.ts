@@ -201,3 +201,29 @@ export function countActiveProjects(tree: ProjectNode[]): number {
 	walk(tree);
 	return count;
 }
+
+/**
+ * Active + paused projects (any depth) whose latest health `week_of` is not
+ * the given Chicago Sunday — used for the dashboard check-in nudge.
+ */
+export function countMissingWeekCheckIns(
+	tree: ProjectNode[],
+	latestHealth: Map<string, LatestHealth> | Record<string, LatestHealth>,
+	weekOf: string
+): number {
+	const get = (id: string): LatestHealth | undefined =>
+		latestHealth instanceof Map ? latestHealth.get(id) : latestHealth[id];
+
+	let missing = 0;
+	function walk(nodes: ProjectNode[]) {
+		for (const n of nodes) {
+			if (n.lifecycle_status === 'active' || n.lifecycle_status === 'paused') {
+				const h = get(n.id);
+				if (!h || h.week_of !== weekOf) missing++;
+			}
+			if (n.children.length) walk(n.children);
+		}
+	}
+	walk(tree);
+	return missing;
+}
