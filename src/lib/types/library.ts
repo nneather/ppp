@@ -275,6 +275,11 @@ export type BookListFilters = {
 	genre?: string[];
 	series_id?: string[];
 	author_id?: string[];
+	/**
+	 * Books with `book_bible_coverage` for any of these canon names
+	 * (OR within; AND with other facets). URL `?bible_book=Romans`.
+	 */
+	bible_book?: string[];
 	language?: Language[];
 	reading_status?: ReadingStatus[];
 	needs_review?: boolean;

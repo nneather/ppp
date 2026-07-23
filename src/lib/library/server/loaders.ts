@@ -446,8 +446,9 @@ export type LoadBookListFilteredResult = {
 
 type BookListFilterContext = {
 	orClause: string | null;
-	authorBookIds: string[] | null;
-	authorFilterClientSide: boolean;
+	/** Book ids to AND-narrow via `.in('id', …)` (author ∩ bible coverage). */
+	narrowBookIds: string[] | null;
+	narrowFilterClientSide: boolean;
 };
 
 function personRowFromRaw(p: RawPerson | null | undefined): PersonRow | null {
@@ -503,11 +504,11 @@ function applyBookListFilters(
 		q = q.eq('needs_review', true);
 	}
 	if (
-		ctx.authorBookIds &&
-		!ctx.authorFilterClientSide &&
-		ctx.authorBookIds.length > 0
+		ctx.narrowBookIds &&
+		!ctx.narrowFilterClientSide &&
+		ctx.narrowBookIds.length > 0
 	) {
-		q = q.in('id', ctx.authorBookIds);
+		q = q.in('id', ctx.narrowBookIds);
 	}
 	if (filters.q && filters.q.trim().length > 0) {
 		q = q.textSearch('search_vector', filters.q.trim(), {
@@ -624,6 +625,11 @@ function mapBookListRows(data: unknown[], people: PersonRow[]): BookListRow[] {
  *   - If the list exceeds MAX_IN_LIST, fetch without the author narrow and
  *     prune client-side after hydration (same-module trade-off as the
  *     category filter pre-Session-5).
+ *
+ * Strategy for `bible_book` (coverage facet):
+ *   - SELECT `book_id` from `book_bible_coverage` where `bible_book IN (...)`
+ *     and `book_id IS NOT NULL` (essay-only coverage is out of scope for the
+ *     book list). Intersect with author book_ids when both facets are set.
  */
 async function resolveBookListFilterContext(
 	supabase: SupabaseClient,
@@ -631,23 +637,55 @@ async function resolveBookListFilterContext(
 ): Promise<BookListFilterContext> {
 	const orClause: string | null = null;
 
-	let authorBookIds: string[] | null = null;
-	let authorFilterClientSide = false;
+	const idSets: string[][] = [];
+	let narrowFilterClientSide = false;
+
 	if (filters.author_id && filters.author_id.length > 0) {
 		const { data: authorBooks, error: abErr } = await supabase
 			.from('book_authors')
 			.select('book_id')
 			.in('person_id', filters.author_id);
 		if (abErr) console.error('[loadBookListFiltered] author facet lookup', abErr);
-		authorBookIds = Array.from(
+		const authorBookIds = Array.from(
 			new Set((authorBooks ?? []).map((a) => (a as { book_id: string }).book_id))
 		);
 		if (authorBookIds.length > MAX_IN_LIST) {
-			authorFilterClientSide = true;
+			narrowFilterClientSide = true;
+		} else {
+			idSets.push(authorBookIds);
 		}
 	}
 
-	return { orClause, authorBookIds, authorFilterClientSide };
+	if (filters.bible_book && filters.bible_book.length > 0) {
+		const { data: coverageRows, error: covErr } = await supabase
+			.from('book_bible_coverage')
+			.select('book_id')
+			.in('bible_book', filters.bible_book)
+			.not('book_id', 'is', null);
+		if (covErr) console.error('[loadBookListFiltered] bible coverage facet lookup', covErr);
+		const coverageBookIds = Array.from(
+			new Set(
+				(coverageRows ?? [])
+					.map((r) => (r as { book_id: string | null }).book_id)
+					.filter((id): id is string => typeof id === 'string' && id.length > 0)
+			)
+		);
+		if (coverageBookIds.length > MAX_IN_LIST) {
+			narrowFilterClientSide = true;
+		} else {
+			idSets.push(coverageBookIds);
+		}
+	}
+
+	let narrowBookIds: string[] | null = null;
+	if (idSets.length > 0) {
+		narrowBookIds = idSets.reduce((acc, next) => {
+			const nextSet = new Set(next);
+			return acc.filter((id) => nextSet.has(id));
+		});
+	}
+
+	return { orClause, narrowBookIds, narrowFilterClientSide };
 }
 
 export async function loadBookListFiltered(
@@ -659,15 +697,15 @@ export async function loadBookListFiltered(
 	const ctx = await resolveBookListFilterContext(supabase, filters);
 
 	if (
-		ctx.authorBookIds &&
-		!ctx.authorFilterClientSide &&
-		ctx.authorBookIds.length === 0
+		ctx.narrowBookIds &&
+		!ctx.narrowFilterClientSide &&
+		ctx.narrowBookIds.length === 0
 	) {
 		return { books: [], filteredCount: 0 };
 	}
 
 	const usePagination =
-		opts.limit != null && filters.all !== true && !ctx.authorFilterClientSide;
+		opts.limit != null && filters.all !== true && !ctx.narrowFilterClientSide;
 
 	if (!usePagination) {
 		const data = await paginateAll<unknown>(([from, to]) => {
@@ -684,11 +722,30 @@ export async function loadBookListFiltered(
 			};
 		});
 
-		if (ctx.authorFilterClientSide && filters.author_id && filters.author_id.length > 0) {
+		if (ctx.narrowFilterClientSide && filters.author_id && filters.author_id.length > 0) {
 			const wanted = new Set(filters.author_id);
 			rows = rows.filter((r) =>
 				r.author_person_ids.some((pid) => wanted.has(pid))
 			);
+		}
+
+		if (ctx.narrowFilterClientSide && filters.bible_book && filters.bible_book.length > 0) {
+			// Rare path: coverage id list exceeded MAX_IN_LIST. Re-resolve and prune.
+			const { data: coverageRows, error: covErr } = await supabase
+				.from('book_bible_coverage')
+				.select('book_id')
+				.in('bible_book', filters.bible_book)
+				.not('book_id', 'is', null);
+			if (covErr) {
+				console.error('[loadBookListFiltered] bible coverage client prune', covErr);
+			} else {
+				const wanted = new Set(
+					(coverageRows ?? [])
+						.map((r) => (r as { book_id: string | null }).book_id)
+						.filter((id): id is string => typeof id === 'string' && id.length > 0)
+				);
+				rows = rows.filter((r) => wanted.has((r.raw as { id: string }).id));
+			}
 		}
 
 		const books = mapBookListRowsFromDenorm(rows.map((r) => r.raw));

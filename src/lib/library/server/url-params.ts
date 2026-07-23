@@ -13,8 +13,11 @@
  * pagination + `/library/books.json`.
  */
 
+import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
 import { LANGUAGES, READING_STATUSES } from '$lib/types/library';
 import type { BookListFilters, Language, ReadingStatus } from '$lib/types/library';
+
+const BIBLE_BOOK_SET = new Set<string>(BIBLE_BOOK_NAMES);
 
 /**
  * Parse repeated/CSV URL params into a deduped string list. Accepts both
@@ -40,6 +43,9 @@ export function parseBookListFilters(url: URL): BookListFilters {
 
 	const authors = multiParam(url, 'author_id');
 	if (authors.length > 0) filters.author_id = authors;
+
+	const bibleBooks = multiParam(url, 'bible_book').filter((b) => BIBLE_BOOK_SET.has(b));
+	if (bibleBooks.length > 0) filters.bible_book = bibleBooks;
 
 	const langSet = new Set<Language>(LANGUAGES);
 	const langs = multiParam(url, 'language').filter((l): l is Language =>
@@ -71,6 +77,7 @@ export function bookListFiltersAreDefault(filters: BookListFilters): boolean {
 		!filters.genre?.length &&
 		!filters.series_id?.length &&
 		!filters.author_id?.length &&
+		!filters.bible_book?.length &&
 		!filters.language?.length &&
 		!filters.reading_status?.length &&
 		filters.needs_review !== true &&
@@ -100,6 +107,7 @@ export function bookListFiltersToSearchParams(
 	setMulti('genre', filters.genre);
 	setMulti('series_id', filters.series_id);
 	setMulti('author_id', filters.author_id);
+	setMulti('bible_book', filters.bible_book);
 	setMulti('language', filters.language);
 	setMulti('reading_status', filters.reading_status);
 	if (filters.needs_review === true) keep.set('needs_review', 'true');

@@ -357,6 +357,7 @@
 			(filters.genre?.length ?? 0) > 0 ||
 				(filters.series_id?.length ?? 0) > 0 ||
 				(filters.author_id?.length ?? 0) > 0 ||
+				(filters.bible_book?.length ?? 0) > 0 ||
 				(filters.language?.length ?? 0) > 0 ||
 				(filters.reading_status?.length ?? 0) > 0 ||
 				filters.needs_review === true ||
@@ -369,6 +370,7 @@
 		(filters.genre?.length ?? 0) +
 			(filters.series_id?.length ?? 0) +
 			(filters.author_id?.length ?? 0) +
+			(filters.bible_book?.length ?? 0) +
 			(filters.language?.length ?? 0) +
 			(filters.reading_status?.length ?? 0) +
 			(filters.needs_review === true ? 1 : 0) +
@@ -469,16 +471,27 @@
 		}))
 	);
 
+	const bibleBookItems = $derived<MultiComboboxItem[]>(
+		data.bibleBookNames.map((name) => ({
+			id: name,
+			label: name
+		}))
+	);
+
 	// Bindable mirrors for MultiCombobox. The source of truth remains the
 	// URL; these re-hydrate in a $effect tracking filters.* so back/forward
 	// sync works.
 	let seriesSelection = $state<string[]>([]);
 	let authorSelection = $state<string[]>([]);
+	let bibleBookSelection = $state<string[]>([]);
 	$effect(() => {
 		seriesSelection = filters.series_id ?? [];
 	});
 	$effect(() => {
 		authorSelection = filters.author_id ?? [];
+	});
+	$effect(() => {
+		bibleBookSelection = filters.bible_book ?? [];
 	});
 
 	// -------------------------------------------------------------------------
@@ -654,6 +667,23 @@
 				{/if}
 			</section>
 		{/if}
+
+		<section class="sm:col-span-2 lg:col-span-3">
+			<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+				Bible book coverage
+			</h3>
+			{#if MultiCombobox}
+				<MultiCombobox
+					bind:values={bibleBookSelection}
+					items={bibleBookItems}
+					placeholder="Search Genesis, Romans, …"
+					ariaLabel="Bible book coverage"
+					onChange={(next) => setArrayFilter('bible_book', next)}
+				/>
+			{:else}
+				<div class="h-10 animate-pulse rounded-md bg-muted" aria-hidden="true"></div>
+			{/if}
+		</section>
 
 		<section class="sm:col-span-2 lg:col-span-3">
 			<h3 class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -925,6 +955,15 @@
 					onclick={() => toggleArrayFilter('series_id', id)}
 				>
 					{seriesLabel(id)} <X class="size-3" />
+				</button>
+			{/each}
+			{#each filters.bible_book ?? [] as name (name)}
+				<button
+					type="button"
+					class="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-2 py-0.5 text-xs text-primary transition-colors hover:bg-primary/15"
+					onclick={() => toggleArrayFilter('bible_book', name)}
+				>
+					{name} <X class="size-3" />
 				</button>
 			{/each}
 			{#each filters.language ?? [] as l (l)}
