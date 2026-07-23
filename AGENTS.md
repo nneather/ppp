@@ -164,7 +164,7 @@ End-of-session deliverables:
   - `/projects` — tree + metadata sheet (links in edit mode) + domain color picker; `depends('app:projects:tree')`.
   - `/tasks` — MYN task page (legacy `/projects/tasks` 308-redirects here); `depends('app:projects:tasks')`; Chicago today via `ymdInChicago()`; `?view=` / `?all=1` ([128](docs/decisions/128-myn-fall-polish.md)).
   - `/settings/projects` — default New Task project + named saved views.
-  - **Email → task:** Edge Function `email-inbound-task` (Resend inbound → Email Inbox project); secrets `RESEND_WEBHOOK_SECRET`, `INBOUND_TASK_PROJECT_ID`, `INBOUND_TASK_ALLOWED_SENDERS` — [supabase/README.md](supabase/README.md).
+  - **Email → task:** Edge Function `email-inbound-task` (Resend inbound → **Personal** via `INBOUND_TASK_PROJECT_ID`); secrets `RESEND_WEBHOOK_SECRET`, `INBOUND_TASK_PROJECT_ID`, `INBOUND_TASK_ALLOWED_SENDERS` — [supabase/README.md](supabase/README.md). Email Inbox project retired ([130](docs/decisions/130-retire-email-inbox-default-personal.md)).
   - **Partial unique upsert:** `project_updates` — PK `id` only ([045](docs/decisions/045-projects-session-1-tree-checkin.md)).
   - **Audit log:** `_PROJECTS_TABLES` includes `project_tasks` + `project_task_series`; soft-delete revert for `projects`, `project_updates`, `project_tasks`, `project_task_series`.
 

@@ -1,5 +1,5 @@
 /**
- * Resend inbound webhook → MYN task in Email Inbox.
+ * Resend inbound webhook → MYN task on the configured project (Personal).
  * Auth: Svix signature (RESEND_WEBHOOK_SECRET), not user JWT.
  * Mirrors pure helpers in src/lib/projects/email-inbound.ts.
  */

@@ -119,7 +119,7 @@ Functions live under `supabase/functions/`:
 | `generate-invoice-pdf` | Authenticated owner only. Loads invoice + line items + client, builds a PDF with `pdf-lib`, returns `{ pdf: "<base64>" }`.                            |
 | `send-invoice`         | Authenticated owner only. Sends the PDF via [Resend](https://resend.com) to the client’s email. Expects `{ invoice_id, pdf_base64, custom_message }`. |
 | `ocr_scripture_refs`   | Library: user JWT + `GET /auth/v1/user`; downloads `library-scripture-images` via service role; calls **Anthropic Messages API** (vision); returns `{ rawText, candidates }` — never writes DB rows. |
-| `email-inbound-task`   | Resend inbound webhook (`email.received`). Svix-signed (no user JWT). Fetches body via Receiving API; inserts a MYN task into the Email Inbox project. |
+| `email-inbound-task`   | Resend inbound webhook (`email.received`). Svix-signed (no user JWT). Fetches body via Receiving API; inserts a MYN task into `INBOUND_TASK_PROJECT_ID` (Personal). |
 
 ### Secrets (set on the hosted project)
 
@@ -152,7 +152,7 @@ supabase secrets set ANTHROPIC_OCR_MODEL=claude-sonnet-4-6
 - **`RESEND_API_KEY`** — Required for `send-invoice` and `email-inbound-task` (Receiving API). **Production:** default `from` is `Parker Neathery <invoicing@npneathery.com>` (verified `npneathery.com`); override with optional secret **`INVOICE_RESEND_FROM`** (full Resend `from` string, e.g. `"Display" <addr@yourdomain.com>`). `reply_to` stays `parker@npneathery.com` in code. For a **non-verified** Resend setup, point `INVOICE_RESEND_FROM` at `onboarding@resend.dev` or change the default in [`send-invoice/index.ts`](./functions/send-invoice/index.ts).
 - **`SENDER_*`** — Used on the PDF letterhead (`generate-invoice-pdf`). Optional lines can be omitted. If unset, defaults match N. P. Neathery Consulting (name, tagline, address, phone). `SENDER_EMAIL` is optional on the PDF. Override **`INVOICE_SERVICE_LABEL`**, **`INVOICE_PAYABLE_TO`**, **`INVOICE_TERMS`**, or **`INVOICE_THANK_YOU`** to customize the “FOR” line and footer text.
 - **`RESEND_WEBHOOK_SECRET`** — Svix signing secret from the Resend webhook for `email.received` → `email-inbound-task`.
-- **`INBOUND_TASK_PROJECT_ID`** — UUID of the seeded **Email Inbox** project (`a1b2c3d4-e5f6-7890-abcd-ef1234567890`).
+- **`INBOUND_TASK_PROJECT_ID`** — UUID of the destination project for forwarded mail (Personal root: `72de0d93-cfcd-46ef-aeab-9b3caf401a44`). Email Inbox project retired ([130](../docs/decisions/130-retire-email-inbox-default-personal.md)).
 - **`INBOUND_TASK_ALLOWED_SENDERS`** — Comma-separated allowlist of **forwarder** From addresses (the mailbox you send the forward from, not the original author). Current set: Gmail ×2, 229, Covenant ×2, `parker@npneathery.com`.
 - **`INBOUND_TASK_RECIPIENT`** — Address you forward to (e.g. `tasks@zeneoldai.resend.app` on Resend’s free managed domain, or a custom domain later).
 - **`SUPABASE_URL`**, **`SUPABASE_ANON_KEY`**, and **`SUPABASE_SERVICE_ROLE_KEY`** are injected automatically in Edge Functions; do not set those keys manually.
@@ -173,13 +173,13 @@ Only messages you **forward** to the recipient address become tasks. The webhook
 ```bash
 npx dotenv -e .env -- bash -c 'supabase secrets set \
   RESEND_WEBHOOK_SECRET=whsec_xxxx \
-  INBOUND_TASK_PROJECT_ID=a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
+  INBOUND_TASK_PROJECT_ID=72de0d93-cfcd-46ef-aeab-9b3caf401a44 \
   INBOUND_TASK_ALLOWED_SENDERS=parker.neathery@gmail.com,neal.p.neathery@gmail.com,parker.neathery@229project.com,parker.neathery89@covenantseminary.edu,parker.neathery@covenantseminary.edu,parker@npneathery.com \
   INBOUND_TASK_RECIPIENT=tasks@zeneoldai.resend.app \
   --project-ref "$SUPABASE_REF"'
 ```
 
-5. Forward a test email from an allowlisted mailbox to `tasks@zeneoldai.resend.app`; it should appear under **Opportunity Now** on `/tasks` in the Email Inbox project.
+5. Forward a test email from an allowlisted mailbox to `tasks@zeneoldai.resend.app`; it should appear under **Opportunity Now** on `/tasks` labeled **Personal**.
 
 ### PDF layout looks unchanged after code changes
 

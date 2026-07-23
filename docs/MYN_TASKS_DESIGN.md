@@ -92,7 +92,7 @@ See migration `20260604030000_ppp_project_tasks_myn.sql`. Every task **requires*
 | OTH review-queue UI (Linenberger ~75) | **Dropped** |
 | Weekly guided OTH review mode | **Dropped** |
 | Cross-module `source_type` + module RLS | **Parked** until a create-from-entity (book/invoice → task) need is real |
-| Email / capture beyond inbound → Email Inbox | Already live ([077](decisions/077-email-to-task-and-domain-colors.md)); no further capture in this polish |
+| Email / capture beyond inbound → Personal | Live ([077](decisions/077-email-to-task-and-domain-colors.md)); destination **Personal** after [130](decisions/130-retire-email-inbox-default-personal.md) |
 
 ---
 

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-23 — Form control height consistency ([129](docs/decisions/129-form-control-height-consistency.md)); Fall MYN polish ([128](docs/decisions/128-myn-fall-polish.md)); IVP location backfill ([127](docs/decisions/127-ivp-publisher-location-backfill.md)).
+**Last updated:** 2026-07-23 — Email Inbox retired; inbound + New Task default → Personal ([130](docs/decisions/130-retire-email-inbox-default-personal.md)); Fall MYN polish ([128](docs/decisions/128-myn-fall-polish.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -44,9 +44,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [130 — Retire Email Inbox; default + inbound → Personal](docs/decisions/130-retire-email-inbox-default-personal.md) (2026-07-23) — soft-delete Email Inbox; refile tasks; `INBOUND_TASK_PROJECT_ID` = Personal.
 - [129 — Form control height consistency](docs/decisions/129-form-control-height-consistency.md) (2026-07-23) — WebKit date height + Select `size="lg"`; time-entry peers match.
 - [128 — Fall MYN polish](docs/decisions/128-myn-fall-polish.md) (2026-07-23) — default project + settings saved views; next-Monday defer; Target Now; soft-cap 50 + `?all=1`.
-- [127 — IVP publisher_location backfill](docs/decisions/127-ivp-publisher-location-backfill.md) (2026-07-23) — Downers Grove, IL for US IVP; link free-text; B&H / Eerdmans outlier fixes.
 - [125 — Per-book citation abbreviation](docs/decisions/125-books-citation-abbreviation.md) (2026-07-23) — `books.citation_abbreviation` overrides series abbr; IVP dicts share series (DOTHB/DJG/DPL/DOTWPW).
 - [124 — DOTHB essay smoke seed](docs/decisions/124-dothb-essay-smoke-seed.md) (2026-07-23) — Canaan + Judges essays; PWA resume ✅; backup Actions green.
 - [117 — Commentary consistency Batch 2](docs/decisions/117-commentary-consistency-batch2.md) (2026-07-22) — CSC/BST/NIVAC/CBC creates; NIGTC/ACCS/BECNT attaches; TOTC/TNTC vols; Beale title; Milgrom.
