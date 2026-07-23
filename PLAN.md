@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-23 — Fall MYN polish shipped ([128](docs/decisions/128-myn-fall-polish.md)); IVP location backfill ([127](docs/decisions/127-ivp-publisher-location-backfill.md)); citation abbr ([125](docs/decisions/125-books-citation-abbreviation.md)).
+**Last updated:** 2026-07-23 — Form control height consistency ([129](docs/decisions/129-form-control-height-consistency.md)); Fall MYN polish ([128](docs/decisions/128-myn-fall-polish.md)); IVP location backfill ([127](docs/decisions/127-ivp-publisher-location-backfill.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -44,9 +44,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [129 — Form control height consistency](docs/decisions/129-form-control-height-consistency.md) (2026-07-23) — WebKit date height + Select `size="lg"`; time-entry peers match.
 - [128 — Fall MYN polish](docs/decisions/128-myn-fall-polish.md) (2026-07-23) — default project + settings saved views; next-Monday defer; Target Now; soft-cap 50 + `?all=1`.
 - [127 — IVP publisher_location backfill](docs/decisions/127-ivp-publisher-location-backfill.md) (2026-07-23) — Downers Grove, IL for US IVP; link free-text; B&H / Eerdmans outlier fixes.
-- [126 — Fall MYN backlog lock](docs/decisions/126-myn-fall-backlog-lock.md) (2026-07-23) — default project + saved views; next-Monday defer; Target Now; soft-cap 50 total; drop OTH queue / weekly review / nullable project_id; cross-module parked.
 - [125 — Per-book citation abbreviation](docs/decisions/125-books-citation-abbreviation.md) (2026-07-23) — `books.citation_abbreviation` overrides series abbr; IVP dicts share series (DOTHB/DJG/DPL/DOTWPW).
 - [124 — DOTHB essay smoke seed](docs/decisions/124-dothb-essay-smoke-seed.md) (2026-07-23) — Canaan + Judges essays; PWA resume ✅; backup Actions green.
 - [117 — Commentary consistency Batch 2](docs/decisions/117-commentary-consistency-batch2.md) (2026-07-22) — CSC/BST/NIVAC/CBC creates; NIGTC/ACCS/BECNT attaches; TOTC/TNTC vols; Beale title; Milgrom.
@@ -95,7 +95,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-23** ([128](docs/decisions/128-myn-fall-polish.md); **0 errors**, 298 tests). Prior: [127](docs/decisions/127-ivp-publisher-location-backfill.md).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-23** ([129](docs/decisions/129-form-control-height-consistency.md); **0 errors**, 298 tests). Prior: [128](docs/decisions/128-myn-fall-polish.md).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -313,6 +313,7 @@ Acceptance:
 7. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — shelf-bound; do with other Madison library cleanup.
 
 ### Done recently (not open work)
+- **Form control height consistency** — ✅ ([129](docs/decisions/129-form-control-height-consistency.md)); WebKit date + Select `lg`.
 - **Fall MYN polish** — ✅ ([128](docs/decisions/128-myn-fall-polish.md)); lock [126](docs/decisions/126-myn-fall-backlog-lock.md).
 - **Owner smoke (2026-07-22 / 23)** — sermons ✅ ([110](docs/decisions/110-sermons-owner-smoke-ux.md)); Projects E2E ✅ ([112](docs/decisions/112-task-sheet-date-overflow.md)); **`.docx` / commentary / cite** ✅; **PWA resume ✅**; **essays/DOTHB + Articles ✅** ([124](docs/decisions/124-dothb-essay-smoke-seed.md)/[125](docs/decisions/125-books-citation-abbreviation.md) — compact first footnote kept); megacomponent core ✅ (OCR deferred); weekly backup **pipeline OK** (Actions green + three R2 objects 2026-07-20; TOC/`pg_restore -l` skipped — no local client).
 - **IVP publisher_location backfill** — ✅ ([127](docs/decisions/127-ivp-publisher-location-backfill.md)); free-text link + B&H/Eerdmans outlier fixes.

@@ -255,11 +255,7 @@
 					<div class="space-y-2">
 						<Label for="gi-client">Client</Label>
 						<Select.Root type="single" bind:value={clientId} items={selectItems}>
-							<Select.Trigger
-								id="gi-client"
-								size="default"
-								class="h-12 min-h-12 w-full justify-between px-3"
-							>
+							<Select.Trigger id="gi-client" size="lg" class="w-full justify-between">
 								<span data-slot="select-value" class="truncate text-left">{clientLabel}</span>
 							</Select.Trigger>
 							<Select.Content class="max-h-72">
@@ -363,7 +359,7 @@
 												id="date-{o.localId}"
 												type="date"
 												bind:value={o.date}
-												class="h-11 min-h-11 text-base"
+												class="text-base"
 											/>
 										</div>
 										<div class="mt-2 grid grid-cols-2 gap-2">

@@ -192,11 +192,7 @@
 					<div class="space-y-2">
 						<Label for="te-client">Client</Label>
 						<Select.Root type="single" bind:value={clientId} items={selectItems}>
-							<Select.Trigger
-								id="te-client"
-								size="default"
-								class="h-12 min-h-12 w-full justify-between px-3"
-							>
+							<Select.Trigger id="te-client" size="lg" class="w-full justify-between">
 								<span data-slot="select-value" class="truncate text-left">{clientLabel}</span>
 							</Select.Trigger>
 							<Select.Content class="max-h-72">
