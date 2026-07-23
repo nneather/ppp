@@ -16,6 +16,7 @@
 
 - Series = grouping/settings; citation abbreviation = per-work footnote label. ABD/TDNT/BDAG keep abbr on the series row (no book override). IVP Black Dictionaries share one series with distinct per-book abbrs.
 - Bibliography stays full-title Covenant form (same as ABD fixture).
+- **Owner smoke 2026-07-23:** keep compact first footnote (`in DOTHB, pages`); short form + bib signed off; no hybrid “DOTHB + eds/pub” first note.
 
 ## Schema changes
 
@@ -27,7 +28,7 @@
 
 ## Open questions surfaced
 
-- None blocking. Optional later: seed essays on DJG/DPL/DOTWPW; IVP `publisher_location` backfill.
+- None blocking. Optional: seed essays on DJG/DPL/DOTWPW. IVP `publisher_location` backfill done ([127](127-ivp-publisher-location-backfill.md)). OCR matrix deferred until next scripture-batch change.
 
 ## Surprises
 
