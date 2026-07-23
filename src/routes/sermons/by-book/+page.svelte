@@ -259,41 +259,52 @@
 				</div>
 
 				{#if open}
-					<div class="border-t border-border bg-muted/20 px-3 py-3">
+					<div class="border-t border-border bg-muted/20 px-3 py-2.5">
 						{#if row.commentaries.length === 0}
 							<p class="text-xs text-muted-foreground">No commentaries tagged for this book.</p>
 						{:else}
 							<p class="text-xs font-medium text-muted-foreground">Commentaries</p>
-							<ul class="mt-1.5 space-y-1.5">
+							<ul class="mt-1 space-y-0.5">
 								{#each row.commentaries as hit (hit.bookId)}
 									<li>
 										<a
 											href={hit.href}
-											class="flex items-start justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60"
+											class="flex items-start gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60"
 										>
-											<span class="min-w-0">
-												<span class="font-medium tracking-tight">{hit.title}</span>
+											<span class="min-w-0 flex-1">
+												<span class="block truncate font-medium tracking-tight"
+													>{hit.title}</span
+												>
 												{#if hit.authorShort}
-													<span class="mt-0.5 block text-xs text-muted-foreground"
+													<span class="mt-0.5 block truncate text-xs text-muted-foreground"
 														>{hit.authorShort}</span
-													>
-												{/if}
-												{#if hit.seriesLabel}
-													<span class="mt-0.5 block text-xs text-muted-foreground"
-														>{hit.seriesLabel}</span
 													>
 												{/if}
 											</span>
 											<span
-												class="flex shrink-0 items-center gap-0.5 tabular-nums text-xs text-muted-foreground"
+												class="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs tabular-nums text-muted-foreground"
+												aria-label={[
+													hit.seriesLabel ? `Series ${hit.seriesLabel}` : null,
+													hit.rating != null ? `Rated ${hit.rating} stars` : 'Unrated'
+												]
+													.filter(Boolean)
+													.join(', ')}
 											>
-												{#if hit.rating != null}
-													<Star
-														class="size-3 fill-amber-500 text-amber-600 dark:text-amber-400"
-														aria-hidden="true"
-													/>
+												{#if hit.seriesLabel}
+													<span
+														class="max-w-[7.5rem] truncate font-medium text-muted-foreground"
+														title={hit.seriesLabel}>{hit.seriesLabel}</span
+													>
 												{/if}
-												{ratingLabel(hit.rating)}
+												<span class="inline-flex items-center gap-0.5">
+													{#if hit.rating != null}
+														<Star
+															class="size-3 fill-amber-500 text-amber-600 dark:text-amber-400"
+															aria-hidden="true"
+														/>
+													{/if}
+													{ratingLabel(hit.rating)}
+												</span>
 											</span>
 										</a>
 									</li>
@@ -304,7 +315,7 @@
 						{#if row.alsoOnShelf.length > 0}
 							<button
 								type="button"
-								class="mt-3 flex w-full items-center gap-1 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+								class="mt-2.5 flex w-full items-center gap-1 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
 								onclick={() => {
 									alsoOpenFor = alsoOpenFor === row.bibleBook ? null : row.bibleBook;
 								}}
@@ -320,31 +331,35 @@
 								Also on shelf ({row.alsoOnShelf.length})
 							</button>
 							{#if alsoOpenFor === row.bibleBook}
-								<ul class="mt-1.5 space-y-1.5">
+								<ul class="mt-1 space-y-0.5">
 									{#each row.alsoOnShelf as hit (`${hit.kind}-${hit.essayId ?? hit.bookId}`)}
 										<li>
 											<a
 												href={hit.href}
-												class="flex items-start justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60"
+												class="flex items-start gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60"
 											>
-												<span class="min-w-0">
-													<span class="font-medium tracking-tight">{hit.title}</span>
-													{#if hit.kind === 'essay'}
-														<span
-															class="ml-1 text-[10px] font-normal uppercase tracking-wide text-muted-foreground"
-															>essay</span
-														>
-													{:else if hit.genre}
-														<span class="mt-0.5 block text-xs text-muted-foreground"
-															>{hit.genre}</span
-														>
-													{/if}
+												<span class="min-w-0 flex-1">
+													<span class="block truncate font-medium tracking-tight">
+														{hit.title}{#if hit.kind === 'essay'}
+															<span
+																class="ml-1 text-[10px] font-normal uppercase tracking-wide text-muted-foreground"
+																>essay</span
+															>
+														{/if}
+													</span>
 													{#if hit.authorShort}
-														<span class="mt-0.5 block text-xs text-muted-foreground"
+														<span
+															class="mt-0.5 block truncate text-xs text-muted-foreground"
 															>{hit.authorShort}</span
 														>
 													{/if}
 												</span>
+												{#if hit.kind !== 'essay' && hit.genre}
+													<span
+														class="max-w-[7.5rem] shrink-0 truncate pt-0.5 text-xs text-muted-foreground"
+														title={hit.genre}>{hit.genre}</span
+													>
+												{/if}
 											</a>
 										</li>
 									{/each}
