@@ -168,6 +168,7 @@
 	let subtitle = $state('');
 	let pub = $state<BookPublicationFields>(emptyPublicationFields());
 	let series_id = $state<string>('');
+	let citation_abbreviation = $state('');
 	let volume_number = $state('');
 	let copy_count = $state('1');
 	let owned = $state(true);
@@ -222,6 +223,7 @@
 			subtitle,
 			pub,
 			series_id,
+			citation_abbreviation,
 			volume_number,
 			copy_count,
 			owned,
@@ -274,6 +276,7 @@
 		].some((v) => String(v ?? '').trim().length > 0) ||
 			authorRows.some((a) => a.person_id) ||
 			!!series_id ||
+			!!citation_abbreviation.trim() ||
 			!!genre ||
 			needs_review === true
 	);
@@ -413,6 +416,7 @@
 				shelving_location: book.shelving_location ?? ''
 			};
 			series_id = book.series_id ?? '';
+			citation_abbreviation = book.citation_abbreviation ?? '';
 			volume_number = book.volume_number ?? '';
 			copy_count = String(book.copy_count >= 1 ? book.copy_count : 1);
 			owned = book.owned !== false;
@@ -886,6 +890,22 @@
 									{/each}
 								</Select.Content>
 							</Select.Root>
+						</div>
+						<div class="space-y-2">
+							<Label for="bf-cite-abbr">Citation abbreviation</Label>
+							<Input
+								id="bf-cite-abbr"
+								name="citation_abbreviation"
+								bind:value={citation_abbreviation}
+								placeholder="e.g. DOTHB, DJG — overrides series abbr"
+								maxlength={32}
+								class="h-11 text-base"
+							/>
+							<p class="text-muted-foreground text-xs leading-snug">
+								Optional. For Turabian article footnotes when this work’s SBL abbr differs from
+								the series (IVP Black Dictionaries). Leave blank to use the series abbreviation
+								(ABD, TDNT, …).
+							</p>
 						</div>
 						<div class="space-y-2">
 							<Label for="bf-volume">Volume number</Label>

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-23 — DOTHB essay smoke seed + PWA resume ✅ ([124](docs/decisions/124-dothb-essay-smoke-seed.md)); Bible coverage filter ([123](docs/decisions/123-library-bible-coverage-filter.md)).
+**Last updated:** 2026-07-23 — Per-book citation abbreviation ([125](docs/decisions/125-books-citation-abbreviation.md)); DOTHB essay seed ([124](docs/decisions/124-dothb-essay-smoke-seed.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -20,7 +20,7 @@
 
 **Invoicing — ad-hoc enhancements shipped 2026-06-22:** discard sent invoices ([049](docs/decisions/049-invoicing-discard-sent.md)); per-client billing preferences — `billing_cadence` + `consultation_grouping` on `clients`, `buildConsultationLines()` ([050](docs/decisions/050-invoicing-client-billing-preferences.md)). Migration `20260622120000_clients_billing_preferences.sql` applied.
 
-**Library — Wave 2 Sessions 1–4 complete; August shelf QA:** Trip QA **signed off 2026-06-03** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)). **Fixture-first build** locked 2026-07-06 ([056](docs/decisions/056-library-wave2-phase0.md)). **Track A (Covenant strings) done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). **Track B** (physical shelf of all 20 rows) still open. **Owner smokes left:** essays/DOTHB + Articles search ([124](docs/decisions/124-dothb-essay-smoke-seed.md)). **PWA resume ✅** ([111](docs/decisions/111-pwa-resume-auto-apply-harden.md)/[124](docs/decisions/124-dothb-essay-smoke-seed.md)). **`.docx` Word smoke ✅** ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); commentary series ([113](docs/decisions/113-commentary-series-volume-omit.md)); cite strip ([114](docs/decisions/114-book-detail-ui-cleanup.md)); postal locations ([115](docs/decisions/115-publisher-location-postal.md)).
+**Library — Wave 2 Sessions 1–4 complete; August shelf QA:** Trip QA **signed off 2026-06-03** ([043](docs/decisions/043-library-trip-qa-signoff-projects-handoff.md)). **Fixture-first build** locked 2026-07-06 ([056](docs/decisions/056-library-wave2-phase0.md)). **Track A (Covenant strings) done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). **Track B** (physical shelf of all 20 rows) still open. **Owner smokes left:** essays/DOTHB + Articles search ([124](docs/decisions/124-dothb-essay-smoke-seed.md)/[125](docs/decisions/125-books-citation-abbreviation.md) — expect `in DOTHB`). **PWA resume ✅**. **`.docx` Word smoke ✅** ([063](docs/decisions/063-library-wave2-session4-docx-export.md)); commentary series ([113](docs/decisions/113-commentary-series-volume-omit.md)); cite strip ([114](docs/decisions/114-book-detail-ui-cleanup.md)); postal locations ([115](docs/decisions/115-publisher-location-postal.md)).
 
 Nearest hard dates:
 - **2026-05-21** — move to Madison; trip-period workflow (mobile-first) — library usable
@@ -44,9 +44,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
-- [124 — DOTHB essay smoke seed](docs/decisions/124-dothb-essay-smoke-seed.md) (2026-07-23) — Canaan + Judges essays; IVP dict series abbr cleared; PWA resume ✅; backup Actions green.
+- [125 — Per-book citation abbreviation](docs/decisions/125-books-citation-abbreviation.md) (2026-07-23) — `books.citation_abbreviation` overrides series abbr; IVP dicts share series (DOTHB/DJG/DPL/DOTWPW).
+- [124 — DOTHB essay smoke seed](docs/decisions/124-dothb-essay-smoke-seed.md) (2026-07-23) — Canaan + Judges essays; PWA resume ✅; backup Actions green.
 - [123 — Library Bible coverage list filter](docs/decisions/123-library-bible-coverage-filter.md) (2026-07-23) — `/library` Filters: `?bible_book=` facet via `book_bible_coverage` (MultiCombobox + chips).
-- [122 — Calvin CC imprint normalize](docs/decisions/122-calvin-cc-imprint-normalize.md) (2026-07-23) — Banner/Eerdmans/CTS rows → Baker 1993 (vols 1/6/16); one set only.
 - [117 — Commentary consistency Batch 2](docs/decisions/117-commentary-consistency-batch2.md) (2026-07-22) — CSC/BST/NIVAC/CBC creates; NIGTC/ACCS/BECNT attaches; TOTC/TNTC vols; Beale title; Milgrom.
 - [113 — Commentary series volume omit](docs/decisions/113-commentary-series-volume-omit.md) (2026-07-22) — no `Vol. N.` for commentary-in-series; bare series digit after series title; keep `N vols.` / Keener `Vol. N.`; `.docx` smoke passed.
 - [105 — Solo git/ship agent guidance](docs/decisions/105-solo-git-ship-agent-guidance.md) (2026-07-21) — `main` protection adopted (required `check-and-test`, no PR theater); agents must not invent PRs or pile onto unrelated branches.
@@ -92,7 +92,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-23** ([123](docs/decisions/123-library-bible-coverage-filter.md); **0 errors**). Prior: [118](docs/decisions/118-book-detail-cite-card-spacing.md) check.
+**Repo gate:** `npm run check` + citation/format tests **2026-07-23** ([125](docs/decisions/125-books-citation-abbreviation.md); **0 errors**). Prior: [123](docs/decisions/123-library-bible-coverage-filter.md).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -298,10 +298,10 @@ Acceptance:
 ## Next up
 
 ### Do now
-1. **Owner smoke (remaining)** — essays/DOTHB + Articles-in-volumes search ([086](docs/decisions/086-essay-visibility-and-search-lanes.md), [124](docs/decisions/124-dothb-essay-smoke-seed.md)): open Historical Books → essays open; `/library?q=Canaan` or `Judges` → **Articles in volumes** → deep-link. Optional: megacomponent phone pass ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md)).
+1. **Owner smoke (remaining)** — essays/DOTHB + Articles search ([086](docs/decisions/086-essay-visibility-and-search-lanes.md), [124](docs/decisions/124-dothb-essay-smoke-seed.md)/[125](docs/decisions/125-books-citation-abbreviation.md)): open Historical Books → essays; `/library?q=Canaan` → **Articles in volumes**; footnote should use `in DOTHB`. Optional: megacomponent phone pass ([062](docs/decisions/062-library-wave2-session3-megacomponent-split.md)).
 2. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
 3. **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)) — keep `/tasks`; fall polish as needed. Global Now parked until fall. **Email → task live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). Recurrence + dashboard active badge shipped ([109](docs/decisions/109-tasks-active-badge-recurrence.md)); sheet date/footer polish ([112](docs/decisions/112-task-sheet-date-overflow.md)).
-4. **Optional later** — IVP `publisher_location` backfill (~45 NULL; [124](docs/decisions/124-dothb-essay-smoke-seed.md)); per-work citation abbr (DOTHB/DJG/DPL) without splitting series.
+4. **Optional later** — IVP `publisher_location` backfill (~45 NULL; [124](docs/decisions/124-dothb-essay-smoke-seed.md)).
 
 ### Wait for Sarah (next week)
 4. **Invoicing — first real-client send** (Sarah back in office). If outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.

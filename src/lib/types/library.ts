@@ -219,7 +219,13 @@ export type BookDetail = {
 	reprint_year: number | null;
 	series_id: string | null;
 	series_name: string | null;
+	/**
+	 * Effective citation abbreviation for Turabian (book `citation_abbreviation`
+	 * overrides `series.abbreviation` when set).
+	 */
 	series_abbreviation: string | null;
+	/** Raw per-book override; null means fall back to series abbr. */
+	citation_abbreviation: string | null;
 	volume_number: string | null;
 	/** Physical copies of this edition (default 1). */
 	copy_count: number;

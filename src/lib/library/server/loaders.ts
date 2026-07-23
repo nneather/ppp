@@ -5,6 +5,7 @@ import {
 	type PublisherJoin
 } from '$lib/library/publisher-resolve';
 import { normalizePublisherLocationOrNull } from '$lib/library/publisher-location';
+import { effectiveSeriesAbbreviation } from '$lib/library/citation-abbreviation';
 import type {
 	BookListFilters,
 	BookListRow,
@@ -286,6 +287,7 @@ type RawBookListRow = {
 	publisher: string | null;
 	publisher_location: string | null;
 	publisher_id: string | null;
+	citation_abbreviation: string | null;
 	series: { name: string; abbreviation: string | null } | { name: string; abbreviation: string | null }[] | null;
 	publishers: RawPublisherRow | RawPublisherRow[] | null;
 	book_authors:
@@ -315,6 +317,7 @@ export async function loadBookList(
 			reading_status,
 			needs_review,
 			volume_number,
+			citation_abbreviation,
 			series ( name, abbreviation ),
 			book_authors ( person_id, sort_order, role )
 		`
@@ -342,7 +345,10 @@ export async function loadBookList(
 			language: (r.language as Language) ?? 'english',
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 			needs_review: Boolean(r.needs_review),
-			series_abbreviation: ser?.abbreviation ?? null,
+			series_abbreviation: effectiveSeriesAbbreviation({
+				citation_abbreviation: r.citation_abbreviation,
+				series_abbreviation: ser?.abbreviation ?? null
+			}),
 			series_name: ser?.name ?? null,
 			volume_number: r.volume_number ?? null,
 			authors_label,
@@ -400,6 +406,7 @@ const BOOK_LIST_SELECT = `
 				author_display,
 				publisher_canonical_display,
 				publisher_location_display,
+				citation_abbreviation,
 				series ( name, abbreviation )
 			`;
 
@@ -418,6 +425,7 @@ const BOOK_LIST_SELECT_EMBEDDED = `
 				publisher_location,
 				publisher_id,
 				${PUBLISHER_EMBED},
+				citation_abbreviation,
 				series ( name, abbreviation ),
 				book_authors (
 					person_id,
@@ -537,6 +545,7 @@ function mapBookListRowsFromDenorm(data: unknown[]): BookListRow[] {
 			author_display: string | null;
 			publisher_canonical_display: string | null;
 			publisher_location_display: string | null;
+			citation_abbreviation: string | null;
 			series?: RawSeries | RawSeries[] | null;
 		};
 		const ser = asArrayOrSingle(r.series)[0] ?? null;
@@ -549,7 +558,10 @@ function mapBookListRowsFromDenorm(data: unknown[]): BookListRow[] {
 			language: (r.language as Language) ?? 'english',
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 			needs_review: Boolean(r.needs_review),
-			series_abbreviation: ser?.abbreviation ?? null,
+			series_abbreviation: effectiveSeriesAbbreviation({
+				citation_abbreviation: r.citation_abbreviation,
+				series_abbreviation: ser?.abbreviation ?? null
+			}),
 			series_name: ser?.name ?? null,
 			volume_number: r.volume_number ?? null,
 			authors_label: r.author_display ?? null,
@@ -587,7 +599,10 @@ function mapBookListRows(data: unknown[], people: PersonRow[]): BookListRow[] {
 			language: (r.language as Language) ?? 'english',
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 			needs_review: Boolean(r.needs_review),
-			series_abbreviation: ser?.abbreviation ?? null,
+			series_abbreviation: effectiveSeriesAbbreviation({
+				citation_abbreviation: r.citation_abbreviation,
+				series_abbreviation: ser?.abbreviation ?? null
+			}),
 			series_name: ser?.name ?? null,
 			volume_number: r.volume_number ?? null,
 			authors_label,
@@ -1120,6 +1135,7 @@ type RawBookDetail = {
 	needs_review_note: string | null;
 	no_attributed_author: boolean | null;
 	page_count: number | null;
+	citation_abbreviation: string | null;
 	deleted_at: string | null;
 	created_at: string;
 	updated_at: string;
@@ -1171,6 +1187,7 @@ export async function loadBookDetail(
 			needs_review_note,
 			no_attributed_author,
 			page_count,
+			citation_abbreviation,
 			deleted_at,
 			created_at,
 			updated_at,
@@ -1222,7 +1239,11 @@ export async function loadBookDetail(
 		reprint_year: r.reprint_year ?? null,
 		series_id: r.series_id ?? null,
 		series_name: r.series?.name ?? null,
-		series_abbreviation: r.series?.abbreviation ?? null,
+		series_abbreviation: effectiveSeriesAbbreviation({
+			citation_abbreviation: r.citation_abbreviation,
+			series_abbreviation: r.series?.abbreviation ?? null
+		}),
+		citation_abbreviation: r.citation_abbreviation?.trim() ? r.citation_abbreviation.trim() : null,
 		volume_number: r.volume_number ?? null,
 		copy_count: r.copy_count != null && r.copy_count >= 1 ? r.copy_count : 1,
 		owned: r.owned !== false,
@@ -1402,6 +1423,7 @@ const REVIEW_CARD_SELECT = `
 	language,
 	isbn,
 	import_match_type,
+	citation_abbreviation,
 	series ( name, abbreviation ),
 	book_authors ( person_id, sort_order, role )
 `;
@@ -1501,7 +1523,10 @@ export async function loadReviewQueue(
 			language: (r.language as Language) ?? 'english',
 			reading_status: (r.reading_status as ReadingStatus) ?? 'unread',
 			needs_review: Boolean(r.needs_review),
-			series_abbreviation: ser?.abbreviation ?? null,
+			series_abbreviation: effectiveSeriesAbbreviation({
+				citation_abbreviation: r.citation_abbreviation,
+				series_abbreviation: ser?.abbreviation ?? null
+			}),
 			series_name: ser?.name ?? null,
 			volume_number: r.volume_number ?? null,
 			authors_label,

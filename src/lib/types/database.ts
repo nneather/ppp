@@ -410,6 +410,7 @@ export type Database = {
           author_display: string | null
           barcode: string | null
           borrowed_to: string | null
+          citation_abbreviation: string | null
           copy_count: number
           created_at: string
           created_by: string | null
@@ -453,6 +454,7 @@ export type Database = {
           author_display?: string | null
           barcode?: string | null
           borrowed_to?: string | null
+          citation_abbreviation?: string | null
           copy_count?: number
           created_at?: string
           created_by?: string | null
@@ -496,6 +498,7 @@ export type Database = {
           author_display?: string | null
           barcode?: string | null
           borrowed_to?: string | null
+          citation_abbreviation?: string | null
           copy_count?: number
           created_at?: string
           created_by?: string | null

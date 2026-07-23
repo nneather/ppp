@@ -7,6 +7,7 @@ import { markProposalResolved, markProposalPending } from '$lib/library/server/p
 import { ensureShelfMarkerNote } from '$lib/library/review';
 import { parseIsbnWithChecksum } from '$lib/library/isbn';
 import { normalizePublisherLocationOrNull } from '$lib/library/publisher-location';
+import { normalizeCitationAbbreviationOrNull } from '$lib/library/citation-abbreviation';
 
 /**
  * Server-side helpers for the books vertical slice. Both `/library` (list) and
@@ -67,6 +68,7 @@ export type BookFormPayload = {
 	reprint_location: string | null;
 	reprint_year: number | null;
 	series_id: string | null;
+	citation_abbreviation: string | null;
 	volume_number: string | null;
 	copy_count: number;
 	owned: boolean;
@@ -331,6 +333,13 @@ export function parseBookForm(fd: FormData): ParseResult {
 	const reprint_publisher = trimOrNull(fd.get('reprint_publisher'));
 	const reprint_location = locationOrNull(fd.get('reprint_location'));
 	const series_id = trimOrNull(fd.get('series_id'));
+	const citationAbbrevRaw = normalizeCitationAbbreviationOrNull(
+		String(fd.get('citation_abbreviation') ?? '')
+	);
+	if (citationAbbrevRaw != null && citationAbbrevRaw.length > 32) {
+		return { ok: false, message: 'Citation abbreviation is too long (32 char max).' };
+	}
+	const citation_abbreviation = citationAbbrevRaw;
 	const volume_number = trimOrNull(fd.get('volume_number'));
 	const copy_count_raw = parseInt0(fd.get('copy_count'));
 	const copy_count =
@@ -380,6 +389,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 		userNeedsReview ||
 		genre != null ||
 		series_id != null ||
+		citation_abbreviation != null ||
 		authors.length > 0;
 	if (!hasAnyField) {
 		return {
@@ -420,6 +430,7 @@ export function parseBookForm(fd: FormData): ParseResult {
 			reprint_location,
 			reprint_year,
 			series_id,
+			citation_abbreviation,
 			volume_number,
 			copy_count,
 			owned,
@@ -458,6 +469,7 @@ function bookColumnsPayload(p: BookFormPayload): Record<string, unknown> {
 		reprint_location: p.reprint_location,
 		reprint_year: p.reprint_year,
 		series_id: p.series_id,
+		citation_abbreviation: p.citation_abbreviation,
 		volume_number: p.volume_number,
 		copy_count: p.copy_count,
 		owned: p.owned,

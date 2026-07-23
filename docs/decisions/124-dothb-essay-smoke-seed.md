@@ -23,14 +23,19 @@
 ## Schema changes
 
 - `20260723154500_library_dothb_essay_seed.sql` — DML only (series rename/abbr clear; book polish; people + essays + essay_authors)
+- `20260723162000_library_dothb_series_abbr.sql` — DOTHB series row + attach Historical Books for abbreviated footnotes
 
 ## New components / patterns added
 
 - None.
 
+## Follow-up (same day)
+
+- Owner wanted abbreviated footnotes after seeing long form. Applied `20260723162000_library_dothb_series_abbr.sql`: dedicated series **DOTHB** on Historical Books only (siblings stay on IVP Bible Dictionary Series). Footnote → `…, "Canaan, Canaanites," in DOTHB, 122–132.` Bibliography stays full-title Covenant form (same as ABD fixture).
+
 ## Open questions surfaced
 
-- **Per-work citation abbreviation** (e.g. `books.citation_abbreviation` or per-dictionary series rows DOTHB/DJG/DPL) so abbreviated SBL article cites work without splitting the IVP dictionary group.
+- **Sibling Black Dictionaries (DJG/DPL/DOTWPW)** — same pattern when essays are seeded: one series row per work with SBL abbr, or a future `books.citation_abbreviation` to keep a single IVP dictionary group in settings.
 - **IVP `publisher_location` backfill** — [scan](a3601bf5-aefa-4c3e-8353-881e5eeac413): ~45/50 IVP-ish live books still NULL on `publisher_location` (many already show Downers Grove via display/registry). Optional batch after smoke.
 
 ## Surprises
