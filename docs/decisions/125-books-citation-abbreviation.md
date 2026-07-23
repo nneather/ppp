@@ -28,7 +28,7 @@
 
 ## Open questions surfaced
 
-- None blocking. Optional: seed essays on DJG/DPL/DOTWPW. IVP `publisher_location` backfill done ([127](127-ivp-publisher-location-backfill.md)). OCR matrix deferred until next scripture-batch change.
+- None blocking. Optional: seed essays on DJG/DPL/DOTWPW. IVP `publisher_location` backfill done ([127](127-ivp-publisher-location-backfill.md)). OCR matrix deferred until next scripture-batch change. Weekly backup **pipeline OK** (Actions + three R2 objects; TOC skipped).
 
 ## Surprises
 
