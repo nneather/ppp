@@ -19,6 +19,7 @@ import {
 	uncompleteTaskAction,
 	deferTaskAction,
 	promoteTaskAction,
+	raisePriorityAction,
 	softDeleteTaskAction,
 	undoSoftDeleteTaskAction
 } from '$lib/projects/server/task-actions';
@@ -144,6 +145,11 @@ export const actions: Actions = {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'promoteTask' as const, message: 'Unauthorized' });
 		return promoteTaskAction(locals.supabase, await request.formData());
+	},
+	raisePriority: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'raisePriority' as const, message: 'Unauthorized' });
+		return raisePriorityAction(locals.supabase, await request.formData());
 	},
 	softDeleteTask: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

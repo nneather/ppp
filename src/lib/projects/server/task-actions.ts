@@ -19,6 +19,7 @@ export type TaskActionKind =
 	| 'uncompleteTask'
 	| 'deferTask'
 	| 'promoteTask'
+	| 'raisePriority'
 	| 'softDeleteTask'
 	| 'undoSoftDeleteTask';
 
@@ -588,6 +589,66 @@ export async function promoteTaskAction(supabase: SupabaseClient, fd: FormData) 
 	}
 
 	return { kind: 'promoteTask' as const, taskId: id, success: true as const };
+}
+
+/** One-step zone raise: OTH → Opportunity Now, Opportunity → Critical. Also sets start_date = today. */
+export async function raisePriorityAction(supabase: SupabaseClient, fd: FormData) {
+	const id = parseUuid(fd.get('id'));
+	if (!id) return fail(400, { kind: 'raisePriority' as const, message: 'Missing task id.' });
+
+	const { data: row, error: loadError } = await supabase
+		.from('project_tasks')
+		.select('id, priority, completed_at, deleted_at')
+		.eq('id', id)
+		.maybeSingle();
+
+	if (loadError) {
+		console.error('raisePriorityAction load', loadError);
+		return fail(500, {
+			kind: 'raisePriority' as const,
+			taskId: id,
+			message: loadError.message ?? 'Could not load task.'
+		});
+	}
+	if (!row || row.deleted_at != null) {
+		return fail(404, { kind: 'raisePriority' as const, taskId: id, message: 'Task not found.' });
+	}
+	if (row.completed_at != null) {
+		return fail(400, {
+			kind: 'raisePriority' as const,
+			taskId: id,
+			message: 'Completed tasks cannot be raised.'
+		});
+	}
+
+	const current = row.priority as string;
+	let next: TaskPriority | null = null;
+	if (current === 'over_horizon') next = 'opportunity_now';
+	else if (current === 'opportunity_now') next = 'critical_now';
+	else {
+		return fail(400, {
+			kind: 'raisePriority' as const,
+			taskId: id,
+			message: 'Already Critical Now.'
+		});
+	}
+
+	const today = ymdInChicago();
+	const { error } = await supabase
+		.from('project_tasks')
+		.update({ priority: next, start_date: today } as never)
+		.eq('id', id);
+
+	if (error) {
+		console.error('raisePriorityAction', error);
+		return fail(500, {
+			kind: 'raisePriority' as const,
+			taskId: id,
+			message: error.message ?? 'Could not raise priority.'
+		});
+	}
+
+	return { kind: 'raisePriority' as const, taskId: id, success: true as const };
 }
 
 export async function deferTaskAction(supabase: SupabaseClient, fd: FormData) {

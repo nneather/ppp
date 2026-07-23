@@ -24,6 +24,8 @@
 	import type { TaskSeriesScope } from '$lib/projects/task-recurrence';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+	import ChevronsUp from '@lucide/svelte/icons/chevrons-up';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Repeat from '@lucide/svelte/icons/repeat';
@@ -139,7 +141,6 @@
 		class={cn(
 			'flex flex-col gap-2 border-b border-border/60 px-3 py-2.5 last:border-b-0',
 			domainColor && PROJECT_COLOR_RAIL_CLASS[domainColor],
-			targetNow && 'bg-amber-500/10',
 			isCompleted && 'opacity-70'
 		)}
 	>
@@ -169,13 +170,6 @@
 					>
 						{task.title}
 					</p>
-					{#if targetNow}
-						<span
-							class="mt-0.5 shrink-0 rounded border border-amber-600/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800 uppercase dark:text-amber-200"
-						>
-							Target Now
-						</span>
-					{/if}
 					{#if task.series_id}
 						<span
 							class="mt-0.5 shrink-0 text-muted-foreground"
@@ -216,6 +210,35 @@
 			</div>
 			{#if !isCompleted}
 				<div class="flex shrink-0 flex-wrap justify-end gap-0.5">
+					{#if task.priority === 'opportunity_now'}
+						<form method="POST" action="?/raisePriority" use:enhance={actionEnhance}>
+							<input type="hidden" name="id" value={task.id} />
+							<Button
+								type="submit"
+								variant="ghost"
+								size="icon-sm"
+								class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+								aria-label="Raise to Critical Now"
+								title="Raise to Critical Now"
+							>
+								<CircleAlert class="size-4" />
+							</Button>
+						</form>
+					{:else if task.priority === 'over_horizon'}
+						<form method="POST" action="?/raisePriority" use:enhance={actionEnhance}>
+							<input type="hidden" name="id" value={task.id} />
+							<Button
+								type="submit"
+								variant="ghost"
+								size="icon-sm"
+								class="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+								aria-label="Raise to Opportunity Now"
+								title="Raise to Opportunity Now"
+							>
+								<ChevronsUp class="size-4" />
+							</Button>
+						</form>
+					{/if}
 					<form method="POST" action="?/promoteTask" use:enhance={actionEnhance}>
 						<input type="hidden" name="id" value={task.id} />
 						<Button
