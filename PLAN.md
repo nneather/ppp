@@ -142,14 +142,18 @@ Migration + `/classwork` CRUD + mobile nav trim. Tracker: [docs/POS_Classwork_Bu
 ### Classwork — Session 2: dashboard due-soon + MCP tools — from [153](docs/decisions/153-classwork-session-1.md)
 
 ```
-Session: classwork #2 — dashboard due-soon strip + MCP tools
+Session: classwork #2 — dashboard due-soon + MCP tools
 Tracker: docs/POS_Classwork_Build_Tracker.md, Session 2
 Read: AGENTS.md, docs/POS_Classwork_Build_Tracker.md, docs/decisions/153-classwork-session-1.md,
-  docs/decisions/150-classwork-session-0.md, scripts/ppp-mcp/README.md, src/lib/classwork/
+  docs/decisions/150-classwork-session-0.md, scripts/ppp-mcp/README.md, src/lib/classwork/,
+  src/routes/dashboard/+page.svelte (desktop Now column — [132])
 Supabase: hosted db push only if needed — supabase/README.md
-Goal: Surface open assignments due within 14 days on /dashboard (desktop + mobile glance) and replace MCP stubs.
+Goal: Surface open assignments due within 14 days on /dashboard and replace MCP stubs.
+Lock before UI (tracker open Q D1 — owner pick):
+ - [ ] Desktop home placement: (A) badge/strip under the Now tasks card, or (B) integrated
+       into the Now column as a distinct Classwork section (not MYN task rows). Mobile glance follows.
 Acceptance:
- - [ ] Dashboard "due in 14 days" strip (overdue first); deep-link to /classwork
+ - [ ] Dashboard due-soon (14d, overdue first) per D1; deep-link to /classwork
  - [ ] MCP list_due_soon real (horizon_days default 14, overdue included) — same tool name
  - [ ] MCP get_assignments_for_course (fuzzy course resolve)
  - [ ] npm run mcp:smoke green; npm run check + npm run test
@@ -422,7 +426,7 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Classwork Session 2** — dashboard due-soon strip + MCP `list_due_soon` / `get_assignments_for_course`. Session 1 done ([153](docs/decisions/153-classwork-session-1.md)); prompt above.
+1. **Classwork Session 2** — lock desktop home placement (badge under Now vs Now-adjacent section — tracker D1), then due-soon UI + MCP `list_due_soon` / `get_assignments_for_course`. Session 1 done ([153](docs/decisions/153-classwork-session-1.md)); prompt above.
 2. **Contacts / CRM Session 0** — lightweight people tracker (meet cadence + Christmas cards; mailing send later). Prompt above. Thin v1 by ~Thanksgiving.
 3. **Owner:** wire `ppp` MCP in Cursor + Claude Code ([scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md)); confirm one chat smoke (`list_now_tasks`).
 

@@ -40,6 +40,7 @@
 - A2 time-of-day deadlines — still deferred.
 - Owner: confirm audit_log row + mobile glance after first UI write (MCP SQL is read-only here).
 - Weekly R2 backup dump does not yet include `courses` / `assignments` — fold into backup.yml when convenient (ops follow-up, not Session 2).
+- **Desktop home (D1):** owner asked to park placement — badge under Now tasks vs integrated Now-column section; decide in Session 2 (see tracker open Q).
 
 ## Surprises (read these before the next session)
 
