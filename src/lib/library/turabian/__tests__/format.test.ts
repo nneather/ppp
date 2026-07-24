@@ -853,6 +853,42 @@ describe('formatBibliography', () => {
 		);
 	});
 
+	it('essay/chapter note defaults to [page], not stored page range; bib keeps range', () => {
+		const volume = book({
+			work_type: 'edited_volume',
+			title: 'The Glory of the Atonement',
+			authors: [
+				{ person_id: 'e1', person_label: 'David G. Peterson', role: 'editor', sort_order: 0 },
+				{ person_id: 'e2', person_label: 'David F. Wells', role: 'editor', sort_order: 1 }
+			],
+			publisher: 'Baker Academic',
+			publisher_location: 'Grand Rapids, MI',
+			year: 2004
+		});
+		const essay = {
+			essay_title: 'The Perseverance of the Saints',
+			page_start: 123,
+			page_end: 145,
+			authors: [
+				{
+					person_id: 'a1',
+					person_label: 'John Piper',
+					role: 'author' as const,
+					sort_order: 0
+				}
+			]
+		};
+		expect(formatEssayFootnote(essay, volume).plain).toBe(
+			'John Piper, "The Perseverance of the Saints," in The Glory of the Atonement, eds. David G. Peterson and David F. Wells (Grand Rapids, MI: Baker Academic, 2004), [page].'
+		);
+		expect(formatEssayFootnote(essay, volume, { shortForm: 'short' }).plain).toBe(
+			'Piper, "The Perseverance of the Saints," [page].'
+		);
+		expect(formatEssayBibliography(essay, volume).plain).toBe(
+			'Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells, 123–145. Grand Rapids, MI: Baker Academic, 2004.'
+		);
+	});
+
 	it('formats dictionary essay s.v. footnote', () => {
 		const volume = book({
 			work_type: 'reference_work',

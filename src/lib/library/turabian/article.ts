@@ -54,9 +54,15 @@ function quotedTitleBib(article: string, mode: 'plain' | 'html'): string {
 	return `"${article}."`;
 }
 
-function pageSegment(essay: EssayCitationInput, opts?: { page?: string }): string {
+/** Note/short-form locus: typed override, else `[page]` — never the essay’s stored range (094 overturned for notes; bib still uses {@link bibPageSegment}). */
+function notePageSegment(opts?: { page?: string }): string {
 	const fromOpts = opts?.page?.trim();
 	if (fromOpts) return fromOpts.replace(/^p\.?\s*/i, '');
+	return '[page]';
+}
+
+/** Bibliography chapter/article span from stored `page_start`/`page_end`. */
+function bibPageSegment(essay: EssayCitationInput): string {
 	const start = essay.page_start;
 	if (start == null) return '[page]';
 	const end = essay.page_end;
@@ -187,7 +193,7 @@ export function formatEssayFootnote(
 	volume: BookCitationInput,
 	opts?: EssayFormatOptions
 ): CitationFormatted {
-	const page = pageSegment(essay, opts);
+	const page = notePageSegment(opts);
 	const sourceType = resolveEssaySourceType(volume);
 
 	if (opts?.shortForm === 'short') {
@@ -229,7 +235,7 @@ export function formatEssayBibliography(
 	const pub = formatPublicationFacts(volume, 'bib');
 
 	const isChapter = volume.work_type === 'edited_volume';
-	const page = pageSegment(essay);
+	const page = bibPageSegment(essay);
 
 	let plain = `${authorLead} ${quotedTitleBib(article, 'plain')} In ${volTitle}`;
 	let html = `${escapeHtml(authorLead)} ${quotedTitleBib(article, 'html')} In ${volTitleHtml}`;
