@@ -187,7 +187,7 @@
 					}}
 				>
 					<Select.Trigger class="w-full" size="lg">{projectLabel}</Select.Trigger>
-					<Select.Content>
+					<Select.Content class="max-h-72">
 						<Select.Item value={NONE}>No linked project</Select.Item>
 						{#if suggested.length}
 							{#each suggested as p (p.id)}
