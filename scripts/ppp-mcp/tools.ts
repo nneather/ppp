@@ -19,10 +19,14 @@ import {
 	loadLatestHealth,
 	loadProjectRows
 } from '../../src/lib/projects/server/loaders.ts';
-import { loadDashboardNowTasks } from '../../src/lib/projects/server/task-loaders.ts';
+import {
+	loadDashboardNowTasks,
+	loadWeekTasks
+} from '../../src/lib/projects/server/task-loaders.ts';
 import { loadByBookStats, loadSermons, loadUpcomingSermons } from '../../src/lib/sermons/server/loaders.ts';
 import { bibleBookSuggestions, resolveBibleBookName } from '../../src/lib/mcp/bible-book.ts';
 import { courseSuggestions, resolveCourse } from '../../src/lib/mcp/course.ts';
+import { TASK_PRIORITY_LABELS } from '../../src/lib/types/projects.ts';
 import type { Database } from '../../src/lib/types/database.ts';
 
 type Sb = SupabaseClient<Database>;
@@ -60,6 +64,31 @@ export async function listNowTasks(supabase: Sb) {
 				start_date: t.start_date,
 				notes: t.notes
 			}))
+		}))
+	});
+}
+
+/**
+ * Coming-week task horizon (all MYN zones). Distinct from list_now_tasks
+ * (Critical + Opportunity Now only).
+ */
+export async function listWeekTasks(supabase: Sb, args: { days?: number } = {}) {
+	const result = await loadWeekTasks(supabase, { days: args.days });
+	return jsonText({
+		todayYmd: result.todayYmd,
+		windowDays: result.windowDays,
+		windowEndYmd: result.windowEndYmd,
+		count: result.count,
+		by_project: result.by_project,
+		tasks: result.tasks.map((t) => ({
+			id: t.id,
+			title: t.title,
+			project_id: t.project_id,
+			project_name: t.project_name,
+			priority: t.priority,
+			priority_label: TASK_PRIORITY_LABELS[t.priority],
+			start_date: t.start_date,
+			notes: t.notes
 		}))
 	});
 }
@@ -355,6 +384,7 @@ export async function listSermonsForBibleBook(
 
 export const TOOL_NAMES = [
 	'list_now_tasks',
+	'list_week_tasks',
 	'list_due_soon',
 	'get_assignments_for_course',
 	'list_contacts_due',

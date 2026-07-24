@@ -17,6 +17,7 @@ import {
 	listProjectHealth,
 	listSermonsForBibleBook,
 	listUpcomingSermonsTool,
+	listWeekTasks,
 	searchLibrary,
 	TOOL_NAMES,
 	type ToolName
@@ -27,6 +28,8 @@ async function runTool(name: ToolName): Promise<unknown> {
 	switch (name) {
 		case 'list_now_tasks':
 			return listNowTasks(supabase);
+		case 'list_week_tasks':
+			return listWeekTasks(supabase, { days: 7 });
 		case 'list_due_soon':
 			return listDueSoon(supabase, { horizon_days: 14 });
 		case 'get_assignments_for_course': {

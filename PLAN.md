@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — Essay author inline create ([162](docs/decisions/162-essay-author-inline-create.md)); Classwork Session 2 ([161](docs/decisions/161-classwork-session-2.md)); TDNT/HALAT/LSJ ([160](docs/decisions/160-tdnt-halat-lsj-consistency.md)).
+**Last updated:** 2026-07-24 — MCP `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)); essay author inline create ([162](docs/decisions/162-essay-author-inline-create.md)); Classwork Session 2 ([161](docs/decisions/161-classwork-session-2.md)).
 
 **How to use this file — read this first:**
 
@@ -20,7 +20,7 @@
 
 - **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)) — `/classwork` CRUD, dashboard Due soon (D1=B), MCP `list_due_soon` + `get_assignments_for_course`.
 - **Contacts / CRM** — Session 0 (Phase 0 lock) not started — prompt below. Thin v1 target ~Thanksgiving.
-- **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools real ([161](docs/decisions/161-classwork-session-2.md)); contacts stub remains. Reload MCP clients after this session.
+- **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)); contacts stub remains. Reload MCP clients after this session.
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
 
 Nearest hard dates:
@@ -39,7 +39,7 @@ Nearest hard dates:
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 ([153](docs/decisions/153-classwork-session-1.md)/[161](docs/decisions/161-classwork-session-2.md)) — CRUD + dashboard Due soon (D1=B) + MCP tools. Backlog: bulk syllabus entry if needed late Aug. |
 | Contacts / CRM | *(tracker created in Session 0)* | 🔲 Fall priority ([139](docs/decisions/139-lightweight-crm-fall-priority.md)) — meet cadence + Christmas cards; mailing send later; **≠ library `people`.** |
-| MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)); contacts stub remains. |
+| MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)); contacts stub remains. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [165 — MCP list_week_tasks](docs/decisions/165-mcp-list-week-tasks.md) (2026-07-24) — coming-week MYN horizon (all zones; `days` 1–31 default 7) for Monday-protocol week-ahead.
 - [162 — Essay author inline create](docs/decisions/162-essay-author-inline-create.md) (2026-07-24) — essay autocomplete `onCreate` → PersonEditDialog create; book detail `?/createPerson`.
 - [161 — Classwork Session 2 (dashboard due-soon + MCP)](docs/decisions/161-classwork-session-2.md) (2026-07-24) — D1=B Due soon under Now; mobile Classwork tile; `list_due_soon` + `get_assignments_for_course`.
 - [160 — TDNT / HALAT consistency + LSJ](docs/decisions/160-tdnt-halat-lsj-consistency.md) (2026-07-24) — TDNT Eerdmans remint; German HAL→HALAT; add LSJ; fix abridged Liddell & Scott.
 - [159 — PLAN.md trim + conventions](docs/decisions/159-plan-md-trim-and-conventions.md) (2026-07-24) — lean PLAN; history in decisions/trackers.
-- [158 — Book detail polish + in-page author edit](docs/decisions/158-book-detail-polish-author-edit.md) (2026-07-24) — drop book icon; quieter cite/facts; On the shelf; owner author tap → Edit person dialog + View books.
 
 ---
 
@@ -65,7 +65,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 - Edit project Sheet — metadata + **links** (edit mode only).
 - `/settings/audit-log?module=projects` — includes `project_tasks` soft-delete revert.
 
-**Projects helpers:** `src/lib/projects/` — `week.ts`, `filter.ts` (`countMissingWeekCheckIns`), `progress.ts` ([048]), `carry-forward.ts` ([048]), `health-appearance.ts` ([047b](docs/decisions/047-projects-status-appearance.md)), `project-colors.ts` + `email-inbound.ts` ([077](docs/decisions/077-email-to-task-and-domain-colors.md)), `task-views.ts` ([128](docs/decisions/128-myn-fall-polish.md)), `server/loaders.ts`, `server/actions.ts`, `server/task-loaders.ts` (`loadDashboardNowTasks` — [132](docs/decisions/132-desktop-home-dashboard.md)), `server/task-actions.ts`, `server/task-prefs-actions.ts`. Design: [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md).
+**Projects helpers:** `src/lib/projects/` — `week.ts`, `filter.ts` (`countMissingWeekCheckIns`), `progress.ts` ([048]), `carry-forward.ts` ([048]), `health-appearance.ts` ([047b](docs/decisions/047-projects-status-appearance.md)), `project-colors.ts` + `email-inbound.ts` ([077](docs/decisions/077-email-to-task-and-domain-colors.md)), `task-views.ts` ([128](docs/decisions/128-myn-fall-polish.md)), `week-tasks.ts` ([165](docs/decisions/165-mcp-list-week-tasks.md)), `server/loaders.ts`, `server/actions.ts`, `server/task-loaders.ts` (`loadDashboardNowTasks` — [132](docs/decisions/132-desktop-home-dashboard.md); `loadWeekTasks` — [165](docs/decisions/165-mcp-list-week-tasks.md)), `server/task-actions.ts`, `server/task-prefs-actions.ts`. Design: [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md).
 
 **Projects migrations (prod):** `20260603170000_ppp_projects_v1.sql`, `20260603200000_projects_add_not_started_lifecycle.sql`, `20260604030000_ppp_project_tasks_myn.sql`, `20260604100000_project_updates_progress.sql`, `20260709164016_projects_email_inbox_and_domain_colors.sql`, `20260723170000_profiles_task_prefs.sql`.
 
@@ -79,7 +79,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([162](docs/decisions/162-essay-author-inline-create.md); **0 errors**, 350 tests).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([165](docs/decisions/165-mcp-list-week-tasks.md); **0 errors**, 368 tests).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -228,7 +228,7 @@ Acceptance:
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
 1. **Contacts / CRM Session 0** — lightweight people tracker (meet cadence + Christmas cards; mailing send later). Prompt above. Thin v1 by ~Thanksgiving.
-2. **Owner:** reload `ppp` MCP clients after classwork tools ([161](docs/decisions/161-classwork-session-2.md)); smoke `list_due_soon` / `get_assignments_for_course`.
+2. **Owner:** reload `ppp` MCP clients after [165](docs/decisions/165-mcp-list-week-tasks.md); smoke `list_week_tasks` / `list_due_soon`.
 3. **Owner glance:** `/dashboard` Due soon under Now (desktop) + Classwork tile (mobile).
 
 ### Next / parallel

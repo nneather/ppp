@@ -1,11 +1,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { ymdInChicago } from '$lib/invoicing/chicago-date';
+import { addDaysYmd, ymdInChicago } from '$lib/invoicing/chicago-date';
 import { truncateTasksToSoftCap } from '$lib/projects/task-views';
 import {
+	clampWeekTaskDays,
+	compareWeekHorizonTasks,
+	summarizeWeekTasksByProject,
+	type WeekTaskProjectGroup
+} from '$lib/projects/week-tasks';
+import {
+	LIFECYCLE_STATUSES,
 	TASK_PRIORITIES,
 	TASK_PRIORITY_LABELS,
 	TASK_PRIORITY_ORDER,
 	TASK_SOFT_CAP_TOTAL,
+	type LifecycleStatus,
 	type TaskPriority,
 	type ProjectTaskView,
 	type ProjectTaskSeriesView,
@@ -256,12 +264,107 @@ function emptyZones(): TaskZoneGroup[] {
 
 const NOW_PRIORITIES: readonly TaskPriority[] = ['critical_now', 'opportunity_now'];
 
+const EXCLUDED_PROJECT_LIFECYCLES = new Set<LifecycleStatus>(['done', 'archived']);
+
+function isLifecycleStatus(v: string): v is LifecycleStatus {
+	return (LIFECYCLE_STATUSES as readonly string[]).includes(v);
+}
+
 export type LoadDashboardNowTasksResult = {
 	zones: TaskZoneGroup[];
 	todayYmd: string;
 	criticalNowCount: number;
 	opportunityNowCount: number;
 };
+
+export type LoadWeekTasksResult = {
+	todayYmd: string;
+	windowDays: number;
+	windowEndYmd: string;
+	count: number;
+	tasks: ProjectTaskView[];
+	by_project: WeekTaskProjectGroup[];
+};
+
+/**
+ * Non-done tasks whose start_date falls in [today .. today+days] (Chicago civil),
+ * all MYN zones. Excludes projects with lifecycle done/archived.
+ */
+export async function loadWeekTasks(
+	supabase: SupabaseClient,
+	opts: { todayYmd?: string; days?: number } = {}
+): Promise<LoadWeekTasksResult> {
+	const todayYmd = opts.todayYmd ?? ymdInChicago();
+	const windowDays = clampWeekTaskDays(opts.days);
+	const windowEndYmd = addDaysYmd(todayYmd, windowDays) ?? todayYmd;
+
+	const { data, error } = await supabase
+		.from('project_tasks')
+		.select(
+			`${TASK_COLUMNS}, projects!project_tasks_project_id_fkey ( name, lifecycle_status )`
+		)
+		.is('deleted_at', null)
+		.is('completed_at', null)
+		.gte('start_date', todayYmd)
+		.lte('start_date', windowEndYmd)
+		.order('start_date', { ascending: true })
+		.order('sort_order', { ascending: true })
+		.order('created_at', { ascending: true });
+
+	if (error) {
+		console.error('loadWeekTasks', error);
+		return {
+			todayYmd,
+			windowDays,
+			windowEndYmd,
+			count: 0,
+			tasks: [],
+			by_project: []
+		};
+	}
+
+	const tasks: ProjectTaskView[] = [];
+	for (const raw of data ?? []) {
+		const proj = raw.projects as
+			| { name: string; lifecycle_status: string }
+			| { name: string; lifecycle_status: string }[]
+			| null;
+		const project = Array.isArray(proj) ? proj[0] : proj;
+		if (!project?.name) continue;
+		if (
+			isLifecycleStatus(project.lifecycle_status) &&
+			EXCLUDED_PROJECT_LIFECYCLES.has(project.lifecycle_status)
+		) {
+			continue;
+		}
+		const row = mapTaskRow({
+			id: raw.id,
+			project_id: raw.project_id,
+			title: raw.title,
+			priority: raw.priority,
+			start_date: raw.start_date,
+			completed_at: raw.completed_at,
+			sort_order: raw.sort_order,
+			notes: raw.notes,
+			series_id: raw.series_id,
+			series_occurrence: raw.series_occurrence,
+			projects: { name: project.name }
+		});
+		if (row) tasks.push(row);
+	}
+
+	tasks.sort(compareWeekHorizonTasks);
+	const by_project = summarizeWeekTasksByProject(tasks);
+
+	return {
+		todayYmd,
+		windowDays,
+		windowEndYmd,
+		count: tasks.length,
+		tasks,
+		by_project
+	};
+}
 
 /**
  * Critical + Opportunity Now only (visible / non-deferred) for the desktop dashboard pane.

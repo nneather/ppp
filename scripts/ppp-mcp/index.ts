@@ -22,6 +22,7 @@ import {
 	listProjectHealth,
 	listSermonsForBibleBook,
 	listUpcomingSermonsTool,
+	listWeekTasks,
 	searchLibrary
 } from './tools.ts';
 
@@ -39,6 +40,27 @@ server.registerTool(
 	async () => {
 		const { supabase } = await getPppMcpClient();
 		return listNowTasks(supabase);
+	}
+);
+
+server.registerTool(
+	'list_week_tasks',
+	{
+		description:
+			"Coming week's MYN task horizon (all zones incl. Over-the-Horizon). Non-done tasks whose start_date falls in [today .. today+days] America/Chicago. Not just Critical/Opportunity Now — use list_now_tasks for that.",
+		inputSchema: {
+			days: z
+				.number()
+				.int()
+				.min(1)
+				.max(31)
+				.optional()
+				.describe('Inclusive days ahead from Chicago today (default 7, max 31).')
+		}
+	},
+	async (args) => {
+		const { supabase } = await getPppMcpClient();
+		return listWeekTasks(supabase, args);
 	}
 );
 

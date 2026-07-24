@@ -21,6 +21,7 @@ The server loads `.env` then `.env.local` from the repo root. Prefer **not** put
 | Tool | Notes |
 |---|---|
 | `list_now_tasks` | Critical + Opportunity Now |
+| `list_week_tasks` | Coming-week horizon: all MYN zones; `start_date` in `[today .. today+days]` Chicago (default `days=7`) |
 | `list_due_soon` | Open classwork due within `horizon_days` (default 14; overdue included) |
 | `get_assignments_for_course` | All assignments for a course (fuzzy name/code resolve) |
 | `list_contacts_due` | Stub (CRM not shipped) |
