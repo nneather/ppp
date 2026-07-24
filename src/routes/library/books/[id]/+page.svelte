@@ -997,36 +997,31 @@
 	});
 </script>
 
-{#snippet citeCardHeader()}
-	<div class="flex items-center gap-2">
-		<Quote class="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-		<p class="text-[11px] font-semibold uppercase tracking-wider text-foreground/80">Cite</p>
-		<span class="text-[11px] text-muted-foreground">Turabian</span>
-	</div>
-{/snippet}
-
-{#snippet copyDraftButtons()}
-	<div class="flex flex-col gap-2.5">
-		<div class="flex flex-wrap items-end gap-x-3 gap-y-2">
-			<div class="space-y-1">
-				<Label
-					for="citation-page"
-					class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
-				>
-					Page
-				</Label>
+{#snippet copyDraftButtons(showLabel = true)}
+	<div class="flex flex-col gap-1.5">
+		<div class="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 sm:flex-nowrap">
+			{#if showLabel}
+				<div class="flex shrink-0 items-center gap-1.5 text-muted-foreground">
+					<Quote class="size-3.5" aria-hidden="true" />
+					<span class="text-[11px] font-semibold uppercase tracking-wider text-foreground/80"
+						>Cite</span
+					>
+				</div>
+			{/if}
+			<div class="flex shrink-0 items-center gap-1.5">
+				<Label for="citation-page" class="text-[11px] text-muted-foreground">Page</Label>
 				<Input
 					id="citation-page"
 					type="text"
 					inputmode="numeric"
 					placeholder="[page]"
 					bind:value={citationPage}
-					class="h-8 w-[4.75rem] font-mono text-sm tabular-nums"
+					class="h-7 w-14 font-mono text-sm tabular-nums"
 					autocomplete="off"
 				/>
 			</div>
 			<div
-				class="inline-flex max-w-full overflow-x-auto overflow-y-hidden rounded-lg border border-border bg-background shadow-xs"
+				class="flex min-w-0 flex-1 basis-full overflow-hidden rounded-md border border-border bg-background sm:basis-auto"
 				role="group"
 				aria-label="Copy citation"
 			>
@@ -1034,47 +1029,50 @@
 					type="button"
 					variant="ghost"
 					size="sm"
-					class="h-8 gap-1.5 rounded-none border-0 px-3 font-medium hover:bg-muted"
+					class="h-7 min-w-0 flex-1 gap-1 rounded-none border-0 px-2 text-xs font-medium hover:bg-muted sm:text-[0.8rem]"
 					disabled={!citationFootnote.plain}
 					onclick={() => void copyTurabian('footnote')}
 				>
-					<Copy class="size-3.5 text-muted-foreground" /> Footnote
+					<Copy class="size-3.5 shrink-0 text-muted-foreground" />
+					<span class="truncate">Footnote</span>
 				</Button>
 				<Button
 					type="button"
 					variant="ghost"
 					size="sm"
-					class="h-8 gap-1.5 rounded-none border-0 border-l border-border px-3 font-medium hover:bg-muted"
+					class="h-7 min-w-0 flex-1 gap-1 rounded-none border-0 border-l border-border px-2 text-xs font-medium hover:bg-muted sm:text-[0.8rem]"
 					disabled={!citationShort.plain}
 					onclick={() => void copyTurabian('short')}
 				>
-					<Copy class="size-3.5 text-muted-foreground" /> Short form
+					<Copy class="size-3.5 shrink-0 text-muted-foreground" />
+					<span class="truncate">Short form</span>
 				</Button>
 				<Button
 					type="button"
 					variant="ghost"
 					size="sm"
-					class="h-8 gap-1.5 rounded-none border-0 border-l border-border px-3 font-medium hover:bg-muted"
+					class="h-7 min-w-0 flex-1 gap-1 rounded-none border-0 border-l border-border px-2 text-xs font-medium hover:bg-muted sm:text-[0.8rem]"
 					disabled={!citationBibliography.plain}
 					onclick={() => void copyTurabian('bibliography')}
 				>
-					<Copy class="size-3.5 text-muted-foreground" /> Bibliography
+					<Copy class="size-3.5 shrink-0 text-muted-foreground" />
+					<span class="truncate">Bibliography</span>
 				</Button>
 			</div>
+			{#if citationCanCiteSet}
+				<label
+					class="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+				>
+					<input
+						type="checkbox"
+						class="size-3.5 shrink-0 rounded border-border accent-foreground"
+						bind:checked={citationCiteSet}
+						aria-label={`Cite set (${data.book.total_volumes} vols.) in bibliography`}
+					/>
+					<span class="whitespace-nowrap">Set ({data.book.total_volumes} vols.)</span>
+				</label>
+			{/if}
 		</div>
-		{#if citationCanCiteSet}
-			<label
-				class="inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-border/80 bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-			>
-				<input
-					type="checkbox"
-					class="size-3.5 shrink-0 rounded border-border accent-foreground"
-					bind:checked={citationCiteSet}
-					aria-label={`Cite set (${data.book.total_volumes} vols.) in bibliography`}
-				/>
-				Cite set ({data.book.total_volumes} vols.) in bibliography
-			</label>
-		{/if}
 		{#if citationIncompleteHint}
 			<p class="text-xs text-amber-800 dark:text-amber-300">{citationIncompleteHint}</p>
 		{/if}
@@ -1366,27 +1364,25 @@
 	</Sheet.Root>
 
 	<details
-		class="mt-4 rounded-lg border border-border bg-card text-card-foreground shadow-sm md:hidden"
+		class="mt-4 rounded-lg border border-border bg-card text-card-foreground md:hidden"
 		aria-label="Copy citations for drafts"
 	>
 		<summary
-			class="flex cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden"
+			class="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-foreground/80 [&::-webkit-details-marker]:hidden"
 		>
-			{@render citeCardHeader()}
+			<Quote class="size-3.5 text-muted-foreground" aria-hidden="true" />
+			Cite
 		</summary>
-		<div class="border-t border-border px-3.5 pb-3 pt-2.5">
-			{@render copyDraftButtons()}
+		<div class="border-t border-border px-3 pb-2 pt-2">
+			{@render copyDraftButtons(false)}
 		</div>
 	</details>
 
 	<section
-		class="mt-4 hidden rounded-lg border border-border bg-card px-3.5 py-3 text-card-foreground shadow-sm md:block"
+		class="mt-4 hidden rounded-lg border border-border bg-card px-3 py-2 text-card-foreground md:block"
 		aria-label="Copy citations for drafts"
 	>
-		<div class="mb-2.5">
-			{@render citeCardHeader()}
-		</div>
-		{@render copyDraftButtons()}
+		{@render copyDraftButtons(true)}
 	</section>
 
 	{#if data.book.needs_review_note}
