@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — MCP `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)); `list_project_health` filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)); BDAG s.v. + essay bib ([163](docs/decisions/163-bdag-sv-essay-bib-greek-nfc.md)).
+**Last updated:** 2026-07-24 — Loeb Classical Library series + remint ([166](docs/decisions/166-loeb-classical-library.md)); MCP `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)); `list_project_health` filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)).
 
 **How to use this file — read this first:**
 
@@ -47,11 +47,10 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [166 — Loeb Classical Library series + remint](docs/decisions/166-loeb-classical-library.md) (2026-07-24) — `LCL` omit-from-citation; remint Confessions I–II, Teacher, Boethius (were mislabeled New City/Digireads).
 - [165 — MCP list_week_tasks](docs/decisions/165-mcp-list-week-tasks.md) (2026-07-24) — coming-week MYN horizon (all zones; `days` 1–31 default 7) for Monday-protocol week-ahead.
 - [164 — MCP list_project_health root + changed_only](docs/decisions/164-mcp-list-project-health-filters.md) (2026-07-24) — optional subtree + WoW health delta for Monday-protocol week-ahead.
 - [163 — BDAG s.v. volume cite + essay bib vol:page + Greek NFC](docs/decisions/163-bdag-sv-essay-bib-greek-nfc.md) (2026-07-24) — lexicon volume Footnote is s.v. placeholders; essay bib gets `4:100`; NFC for breathing+accent.
-- [162 — Essay author inline create](docs/decisions/162-essay-author-inline-create.md) (2026-07-24) — essay autocomplete `onCreate` → PersonEditDialog create; book detail `?/createPerson`.
-- [161 — Classwork Session 2 (dashboard due-soon + MCP)](docs/decisions/161-classwork-session-2.md) (2026-07-24) — D1=B Due soon under Now; mobile Classwork tile; `list_due_soon` + `get_assignments_for_course`.
 
 ---
 
