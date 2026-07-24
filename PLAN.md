@@ -10,7 +10,7 @@
 
 ## Current focus
 
-**Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md), [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later). **MCP read-only v1 shipped** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)). Madison shelf QA after Aug 9. Personal: `~/Neal/context/current-priorities.md`.
+**Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md), [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later). **Classwork Phase 0 locked** ([150](docs/decisions/150-classwork-session-0.md)) — Session 1 (schema + `/classwork` CRUD) is next. **MCP read-only v1 shipped** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)). Madison shelf QA after Aug 9. Personal: `~/Neal/context/current-priorities.md`.
 
 **Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)); **update banners non-blocking** ([100](docs/decisions/100-pwa-update-banner-nonblocking.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). **Writing-session gaps shipped** ([094](docs/decisions/094-library-writing-session-gaps.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); **fall polish shipped** ([128](docs/decisions/128-myn-fall-polish.md) / lock [126](docs/decisions/126-myn-fall-backlog-lock.md)) — default project + saved views, next-Monday defer, Target Now, 50-total soft-cap; cross-module parked.
 
@@ -39,7 +39,7 @@ Nearest hard dates:
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 + writing-session gaps** ([094](docs/decisions/094-library-writing-session-gaps.md)). **Not-owned** Sessions 0–1 + inbox/owned-reappear polish ([101](docs/decisions/101-library-not-owned-session-0.md)–[108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md)) — **queue drain done**. **August QA Track A done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)); Track B (shelf) open. **`.docx` smoke ✅**; commentary series ([113](docs/decisions/113-commentary-series-volume-omit.md)); cite strip ([114](docs/decisions/114-book-detail-ui-cleanup.md)) + cite card/spacing ([118](docs/decisions/118-book-detail-cite-card-spacing.md)); postal locations ([115](docs/decisions/115-publisher-location-postal.md)); IVP location backfill ([127](docs/decisions/127-ivp-publisher-location-backfill.md)); B&H publisher link ([131](docs/decisions/131-bh-publisher-link-backfill.md)); Baker publisher pass ([133](docs/decisions/133-baker-publisher-link-pass.md)); **Eerdmans** ([145](docs/decisions/145-eerdmans-publisher-link-pass.md)); **publisher batches 1–2** ([146](docs/decisions/146-publisher-link-batch1-registry.md)/[147](docs/decisions/147-publisher-link-batch2-create.md)); commentary Batches 1–5 ([116](docs/decisions/116-commentary-consistency-batch1.md)–[121](docs/decisions/121-commentary-consistency-batch5.md)); Bible coverage list filter ([123](docs/decisions/123-library-bible-coverage-filter.md)); DOTHB essay seed + citation abbr ([124](docs/decisions/124-dothb-essay-smoke-seed.md)/[125](docs/decisions/125-books-citation-abbreviation.md)); notes focus jump ([135](docs/decisions/135-book-detail-notes-focus-jump.md)); commentary genre mistags ([136](docs/decisions/136-commentary-genre-mistags.md)); ESVEC essay coverage ([137](docs/decisions/137-esvec-essay-bible-coverage.md)); **list search prefix FTS** ([140](docs/decisions/140-library-search-prefix-tsquery.md)); **series `include_in_citation`** ([142](docs/decisions/142-series-include-in-citation.md)); **OL edition prefill + in-book person edit** ([143](docs/decisions/143-ol-edition-prefill-person-edit.md)). **Owner smokes ✅** (essays/Articles, PWA resume, megacomponent core; OCR deferred). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)) + **recurring tasks + active badge** ([109](docs/decisions/109-tasks-active-badge-recurrence.md)) + task sheet date/footer polish ([112](docs/decisions/112-task-sheet-date-overflow.md)) + **fall MYN polish** ([128](docs/decisions/128-myn-fall-polish.md)) + **desktop home dashboard** ([132](docs/decisions/132-desktop-home-dashboard.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), `/settings/projects` prefs, links, audit. **Inbound live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)). **Owner E2E smoke 2026-07-22 passed.** **Viewer access:** owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ **v1 Sessions 1–2** ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md)) + owner-smoke UX ([110](docs/decisions/110-sermons-owner-smoke-ux.md)) + by-book series/dedupe/latest sermon ([134](docs/decisions/134-sermons-by-book-series-dedupe.md)). List + by-book smoke **passed** (venue select, ranged Find-in-library, icon counts). |
-| Classwork | *(tracker in Session 0)* | 🔲 Fall priority ([138](docs/decisions/138-fall-semester-priorities.md)) — Session 0 not started. |
+| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | 🟡 **Phase 0 locked** ([150](docs/decisions/150-classwork-session-0.md)) — `courses` + `assignments` (due dates; hybrid `project_id` link; MCP `list_due_soon` + `get_assignments_for_course`). Session 1 (schema + `/classwork` CRUD) next; target mid-Aug, semester 2026-08-31. |
 | Contacts / CRM | *(tracker in Session 0)* | 🔲 Fall priority ([139](docs/decisions/139-lightweight-crm-fall-priority.md)) — meet cadence + Christmas cards; mailing send later; ≠ library `people`. |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ **Read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) — local stdio; Cursor + Claude Code; classwork/contacts stubs until those modules ship. |
 
@@ -112,7 +112,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md); **0 errors**, 324 tests; `npm run mcp:smoke` all 9 tools OK). DML-only publisher passes ([145](docs/decisions/145-eerdmans-publisher-link-pass.md)–[149](docs/decisions/149-nibc-all-hendrickson.md)) — no app/types change.
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md); **0 errors**, 324 tests; `npm run mcp:smoke` all 9 tools OK). DML-only publisher passes ([145](docs/decisions/145-eerdmans-publisher-link-pass.md)–[149](docs/decisions/149-nibc-all-hendrickson.md)) — no app/types change. Classwork Session 0 ([150](docs/decisions/150-classwork-session-0.md)) docs-only — check N/A.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -126,32 +126,33 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Session prompts (copy-paste)
 
-### Classwork — Session 0: Phase 0 lock (pre–Aug 31) — from [138](docs/decisions/138-fall-semester-priorities.md)
+### Classwork — Session 0: Phase 0 lock ✅ done ([150](docs/decisions/150-classwork-session-0.md))
+
+All gates signed 2026-07-24 — tracker at [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md).
+
+### Classwork — Session 1: schema + /classwork CRUD (pre-syllabi) — from [150](docs/decisions/150-classwork-session-0.md)
 
 ```
-Session: classwork #0 — Phase 0 structure lock
-Tracker: create docs/POS_Classwork_Build_Tracker.md (or equivalent) this session
-Read: AGENTS.md, docs/MODULE_KICKOFF_PLAYBOOK.md, docs/decisions/041-library-module-retro.md,
-  docs/decisions/000-invoicing-retro.md, docs/decisions/138-fall-semester-priorities.md,
-  docs/MYN_TASKS_DESIGN.md (no due_date on MYN — do not overload project_tasks),
-  docs/POS_Schema_v1.md#projects (Education domain), PLAN.md, latest 3 docs/decisions/
+Session: classwork #1 — schema + /classwork CRUD (thin v1)
+Tracker: docs/POS_Classwork_Build_Tracker.md, Session 1
+Read: AGENTS.md, docs/MODULE_KICKOFF_PLAYBOOK.md (footgun registry), docs/POS_Classwork_Build_Tracker.md,
+  docs/decisions/150-classwork-session-0.md, .cursor/rules/db-changes.mdc, src/lib/types/database.ts
 Supabase: hosted db push only — supabase/README.md
-Goal: Lock classwork Phase 0 before any migration or CRUD. Semester starts 2026-08-31.
-Hard constraint: assignments need due dates; MYN tasks intentionally have none — new entity set.
-Phase 0 gates (owner must answer; agent proposes options, does not invent schema):
- - [ ] Taxonomy singular — courses / terms / assignments / paper drafts: which are tables vs fields?
- - [ ] Relationship to projects — under Education root, parallel module, or hybrid (course ↔ project_id)?
- - [ ] Nullable matrix — required vs optional on primary entities
- - [ ] Form surfaces — list + Sheet vs /new pages; dashboard “due in 14 days” vs /classwork only
- - [ ] RLS + viewer plan (or written solo waiver)
- - [ ] MCP read surface — which fields must be queryable day one (list due-soon, course roster)
- - [ ] Open Questions on tracker ≤2 per entity
-Out of scope this session: migrations, UI CRUD, MCP implementation (separate prompt).
-End-of-session:
- - [ ] Tracker + schema sketch filed; Phase 0 checkboxes signed
- - [ ] docs/decisions/<next-free>-classwork-session-0.md
- - [ ] PLAN.md Next up + Session 1 prompt
- - [ ] npm run check N/A if no code; note in decision
+Goal: Ship ppp_classwork_v1 (courses + assignments per tracker sketch) + /classwork CRUD before syllabi land (~mid-Aug).
+Acceptance:
+ - [ ] Migration ppp_classwork_v1: courses + assignments per tracker sketch; RLS via app_is_owner() /
+       app_has_module_read('classwork'); explicit GRANTs; set_updated_at + audit triggers; indexes;
+       module_registry row; npm run supabase:gen-types
+ - [ ] /classwork list: ?group=date|course toggle (URL source of truth), course filter, overdue surfaced first
+ - [ ] Course Sheet + Assignment Sheet (parent_id picker same-course only + cycle guard;
+       courses.project_id picker suggests Education subtree — resolve open Qs C2/A1)
+ - [ ] status not_started/in_progress/done; completed_at stamped on done
+ - [ ] Nav entry (decide mobile tab bar slot vs dashboard-glance-only — tab bar is at 7);
+       permissions UI slug 'classwork'; /settings/audit-log _CLASSWORK_TABLES whitelist + module option
+ - [ ] npm run check passes; audit_log row for an example write; viewer RLS smoke or waiver note;
+       mobile-width screenshot
+End-of-session: tracker Session 1 done with notes; docs/decisions/<next-free>-classwork-session-1.md;
+  PLAN.md refreshed (+ Session 2 prompt: dashboard due-soon strip + MCP list_due_soon/get_assignments_for_course)
 ```
 
 ### MCP — read-only v1 ✅ done ([144](docs/decisions/144-ppp-mcp-readonly-v1.md))
@@ -386,7 +387,7 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Classwork Session 0** — Phase 0 lock (due dates; do not overload MYN). Prompt above.
+1. **Classwork Session 1** — schema `ppp_classwork_v1` + `/classwork` CRUD before syllabi land (~mid-Aug). Phase 0 locked ([150](docs/decisions/150-classwork-session-0.md)); prompt above. Then Session 2: dashboard due-soon strip + MCP `list_due_soon` / `get_assignments_for_course`.
 2. **Contacts / CRM Session 0** — lightweight people tracker (meet cadence + Christmas cards; mailing send later). Prompt above. Thin v1 by ~Thanksgiving.
 3. **Owner:** wire `ppp` MCP in Cursor + Claude Code ([scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md)); confirm one chat smoke (`list_now_tasks`).
 
