@@ -1,0 +1,265 @@
+/**
+ * Read-only tool handlers for ppp MCP v1 — wrap existing server loaders.
+ */
+
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { ymdInChicago } from '../../src/lib/invoicing/chicago-date.ts';
+import {
+	loadBookCitationInputs,
+	loadBookListFiltered,
+	loadPeople
+} from '../../src/lib/library/server/loaders.ts';
+import { formatBibliography, formatFootnote } from '../../src/lib/library/turabian/format.ts';
+import {
+	loadLatestHealth,
+	loadProjectRows
+} from '../../src/lib/projects/server/loaders.ts';
+import { loadDashboardNowTasks } from '../../src/lib/projects/server/task-loaders.ts';
+import { loadByBookStats, loadSermons, loadUpcomingSermons } from '../../src/lib/sermons/server/loaders.ts';
+import { bibleBookSuggestions, resolveBibleBookName } from '../../src/lib/mcp/bible-book.ts';
+import type { Database } from '../../src/lib/types/database.ts';
+
+type Sb = SupabaseClient<Database>;
+
+function jsonText(data: unknown): { content: { type: 'text'; text: string }[] } {
+	return {
+		content: [{ type: 'text', text: JSON.stringify(data, null, 2) }]
+	};
+}
+
+function stubResult(tool: string, reason: string) {
+	return jsonText({
+		stub: true,
+		tool,
+		message: reason
+	});
+}
+
+export async function listNowTasks(supabase: Sb) {
+	const result = await loadDashboardNowTasks(supabase);
+	return jsonText({
+		todayYmd: result.todayYmd,
+		criticalNowCount: result.criticalNowCount,
+		opportunityNowCount: result.opportunityNowCount,
+		zones: result.zones.map((z) => ({
+			priority: z.priority,
+			label: z.label,
+			count: z.count,
+			tasks: z.tasks.map((t) => ({
+				id: t.id,
+				title: t.title,
+				project_id: t.project_id,
+				project_name: t.project_name,
+				priority: t.priority,
+				start_date: t.start_date,
+				notes: t.notes
+			}))
+		}))
+	});
+}
+
+export async function listDueSoon(_supabase: Sb) {
+	return stubResult(
+		'list_due_soon',
+		'Classwork module not shipped yet — due dates live there, not on MYN tasks. See docs/decisions/138-fall-semester-priorities.md.'
+	);
+}
+
+export async function listContactsDue(_supabase: Sb) {
+	return stubResult(
+		'list_contacts_due',
+		'Contacts / CRM module not shipped yet. See docs/decisions/139-lightweight-crm-fall-priority.md.'
+	);
+}
+
+export async function searchLibrary(
+	supabase: Sb,
+	args: { q: string; limit?: number; include_unowned?: boolean }
+) {
+	const q = args.q.trim();
+	if (!q) {
+		return jsonText({ error: 'q is required', books: [], filteredCount: 0 });
+	}
+	const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
+	const { books, filteredCount } = await loadBookListFiltered(
+		supabase,
+		[],
+		{
+			q,
+			includeUnowned: args.include_unowned === true
+		},
+		{ limit, offset: 0 }
+	);
+	return jsonText({
+		q,
+		filteredCount,
+		books: books.map((b) => ({
+			id: b.id,
+			title: b.title,
+			authors_label: b.authors_label,
+			genre: b.genre,
+			series_name: b.series_name,
+			publisher: b.publisher_canonical,
+			needs_review: b.needs_review
+		}))
+	});
+}
+
+export async function getBookCitation(
+	supabase: Sb,
+	args: { book_id: string; page?: string }
+) {
+	const bookId = args.book_id.trim();
+	if (!bookId) {
+		return jsonText({ error: 'book_id is required' });
+	}
+	const people = await loadPeople(supabase);
+	const [input] = await loadBookCitationInputs(supabase, [bookId], people);
+	if (!input) {
+		return jsonText({ error: `Book not found: ${bookId}` });
+	}
+	const page = args.page?.trim() || undefined;
+	const footnote = formatFootnote(input, page ? { page } : undefined);
+	const bibliography = formatBibliography(input);
+	return jsonText({
+		book_id: bookId,
+		title: input.title,
+		footnote: { plain: footnote.plain, sourceType: footnote.sourceType },
+		bibliography: { plain: bibliography.plain, sourceType: bibliography.sourceType }
+	});
+}
+
+export async function listUpcomingSermonsTool(
+	supabase: Sb,
+	args: { limit?: number } = {}
+) {
+	const todayYmd = ymdInChicago();
+	const limit = Math.min(Math.max(args.limit ?? 5, 1), 20);
+	const { sermons, error } = await loadUpcomingSermons(supabase, { todayYmd, limit });
+	return jsonText({ todayYmd, error, sermons });
+}
+
+export async function listProjectHealth(supabase: Sb) {
+	const [projects, healthMap] = await Promise.all([
+		loadProjectRows(supabase),
+		loadLatestHealth(supabase)
+	]);
+	const rows = projects
+		.filter((p) => p.lifecycle_status !== 'done' && p.lifecycle_status !== 'archived')
+		.map((p) => {
+			const h = healthMap.get(p.id);
+			return {
+				id: p.id,
+				name: p.name,
+				parent_id: p.parent_id,
+				lifecycle_status: p.lifecycle_status,
+				health_status: h?.health_status ?? null,
+				health_week_of: h?.week_of ?? null,
+				previous_health: h?.previous ?? null
+			};
+		});
+	return jsonText({ count: rows.length, projects: rows });
+}
+
+export async function listCommentariesForBibleBook(
+	supabase: Sb,
+	args: { bible_book: string }
+) {
+	const resolved = resolveBibleBookName(args.bible_book);
+	if (!resolved) {
+		return jsonText({
+			error: `Unknown bible_book: ${args.bible_book}`,
+			suggestions: bibleBookSuggestions(args.bible_book)
+		});
+	}
+	const { rows, error } = await loadByBookStats(supabase, {
+		sort: 'canon',
+		sortDir: 'asc',
+		testament: null,
+		hasSermons: false,
+		hasFourStar: false
+	});
+	if (error) return jsonText({ error, bible_book: resolved });
+	const row = rows.find((r) => r.bibleBook === resolved);
+	if (!row) {
+		return jsonText({ bible_book: resolved, commentaries: [], also_on_shelf: [] });
+	}
+	return jsonText({
+		bible_book: resolved,
+		commentary_count: row.commentaryCount,
+		four_star_count: row.fourStarCount,
+		commentaries: row.commentaries.map((c) => ({
+			kind: c.kind,
+			book_id: c.bookId,
+			essay_id: c.essayId,
+			title: c.title,
+			author: c.authorShort,
+			series: c.seriesLabel,
+			rating: c.rating,
+			genre: c.genre
+		})),
+		also_on_shelf: row.alsoOnShelf.map((c) => ({
+			kind: c.kind,
+			book_id: c.bookId,
+			essay_id: c.essayId,
+			title: c.title,
+			author: c.authorShort,
+			series: c.seriesLabel,
+			rating: c.rating,
+			genre: c.genre
+		}))
+	});
+}
+
+export async function listSermonsForBibleBook(
+	supabase: Sb,
+	args: { bible_book: string }
+) {
+	const resolved = resolveBibleBookName(args.bible_book);
+	if (!resolved) {
+		return jsonText({
+			error: `Unknown bible_book: ${args.bible_book}`,
+			suggestions: bibleBookSuggestions(args.bible_book)
+		});
+	}
+	const { sermons, error } = await loadSermons(supabase, {
+		year: null,
+		context: null,
+		venueId: null,
+		bibleBook: resolved
+	});
+	return jsonText({
+		bible_book: resolved,
+		error,
+		count: sermons.length,
+		sermons: sermons.map((s) => ({
+			id: s.id,
+			preached_on: s.preached_on,
+			venue_name: s.venue_name,
+			context_type: s.context_type,
+			topic: s.topic,
+			passage_display: s.passage_display,
+			passages: s.passages.map((p) => ({
+				bible_book: p.bible_book,
+				chapter_start: p.chapter_start,
+				verse_start: p.verse_start,
+				chapter_end: p.chapter_end,
+				verse_end: p.verse_end
+			}))
+		}))
+	});
+}
+
+export const TOOL_NAMES = [
+	'list_now_tasks',
+	'list_due_soon',
+	'list_contacts_due',
+	'search_library',
+	'get_book_citation',
+	'list_upcoming_sermons',
+	'list_project_health',
+	'list_commentaries_for_bible_book',
+	'list_sermons_for_bible_book'
+] as const;
+
+export type ToolName = (typeof TOOL_NAMES)[number];

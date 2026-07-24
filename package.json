@@ -33,12 +33,15 @@
 		"library:migrate:dry": "dotenv -e .env -e .env.local -- tsx scripts/library-migrate-local-to-prod/migrateLibraryData.ts",
 		"library:migrate:apply": "dotenv -e .env -e .env.local -- tsx scripts/library-migrate-local-to-prod/migrateLibraryData.ts --apply",
 		"library:language-audit": "dotenv -e .env -e .env.local -- tsx scripts/library-language-audit/auditLanguage.ts",
-		"library:review-research": "dotenv -e .env -e .env.local -- tsx scripts/library-review-research/proposeMetadata.ts"
+		"library:review-research": "dotenv -e .env -e .env.local -- tsx scripts/library-review-research/proposeMetadata.ts",
+		"mcp:smoke": "tsx scripts/ppp-mcp/smoke.ts",
+		"mcp:serve": "tsx scripts/ppp-mcp/index.ts"
 	},
 	"devDependencies": {
 		"@fontsource-variable/geist": "^5.2.8",
 		"@internationalized/date": "^3.12.0",
 		"@lucide/svelte": "^1.8.0",
+		"@modelcontextprotocol/sdk": "^1.29.0",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/kit": "^2.50.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
@@ -64,6 +67,7 @@
 		"typescript": "^5.9.3",
 		"vite": "^7.3.1",
 		"vitest": "^3.2.4",
+		"zod": "^4.0.0",
 		"workbox-expiration": "^7.4.1",
 		"workbox-precaching": "^7.4.1",
 		"workbox-routing": "^7.4.1",

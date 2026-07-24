@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — OL edition prefill + in-book person edit ([143](docs/decisions/143-ol-edition-prefill-person-edit.md)); series `include_in_citation` ([142](docs/decisions/142-series-include-in-citation.md)); shelf add Brill Synopsis + Bock/Marshall/Schreiner ([141](docs/decisions/141-brill-synopsis-bock-marshall-schreiner.md)); library search prefix FTS ([140](docs/decisions/140-library-search-prefix-tsquery.md)).
+**Last updated:** 2026-07-24 — ppp MCP read-only v1 ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)); OL edition prefill + in-book person edit ([143](docs/decisions/143-ol-edition-prefill-person-edit.md)); series `include_in_citation` ([142](docs/decisions/142-series-include-in-citation.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -10,7 +10,7 @@
 
 ## Current focus
 
-**Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md), [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **MCP read-only v1** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later). Madison shelf QA after Aug 9. Personal: `~/Neal/context/current-priorities.md`.
+**Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md), [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later). **MCP read-only v1 shipped** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)). Madison shelf QA after Aug 9. Personal: `~/Neal/context/current-priorities.md`.
 
 **Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)); **update banners non-blocking** ([100](docs/decisions/100-pwa-update-banner-nonblocking.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). **Writing-session gaps shipped** ([094](docs/decisions/094-library-writing-session-gaps.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); **fall polish shipped** ([128](docs/decisions/128-myn-fall-polish.md) / lock [126](docs/decisions/126-myn-fall-backlog-lock.md)) — default project + saved views, next-Monday defer, Target Now, 50-total soft-cap; cross-module parked.
 
@@ -41,7 +41,7 @@ Nearest hard dates:
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ **v1 Sessions 1–2** ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md)) + owner-smoke UX ([110](docs/decisions/110-sermons-owner-smoke-ux.md)) + by-book series/dedupe/latest sermon ([134](docs/decisions/134-sermons-by-book-series-dedupe.md)). List + by-book smoke **passed** (venue select, ranged Find-in-library, icon counts). |
 | Classwork | *(tracker in Session 0)* | 🔲 Fall priority ([138](docs/decisions/138-fall-semester-priorities.md)) — Session 0 not started. |
 | Contacts / CRM | *(tracker in Session 0)* | 🔲 Fall priority ([139](docs/decisions/139-lightweight-crm-fall-priority.md)) — meet cadence + Christmas cards; mailing send later; ≠ library `people`. |
-| MCP | *(in-repo server TBD)* | 🔲 Fall priority ([138](docs/decisions/138-fall-semester-priorities.md)) — read-only v1; contacts tools when CRM lands. |
+| MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ **Read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) — local stdio; Cursor + Claude Code; classwork/contacts stubs until those modules ship. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -49,6 +49,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [144 — ppp MCP read-only v1](docs/decisions/144-ppp-mcp-readonly-v1.md) (2026-07-24) — local stdio MCP; service role + owner assert; 7 live tools + 2 stubs; Cursor + Claude Code wiring.
 - [143 — OL edition prefill + in-book person edit](docs/decisions/143-ol-edition-prefill-person-edit.md) (2026-07-24) — drop binding/revision from OL `edition`; pencil edit person on book form; cleared 28 junk editions.
 - [142 — Series `include_in_citation`](docs/decisions/142-series-include-in-citation.md) (2026-07-24) — per-series Turabian series-segment gate; default true; SSBT/NSBT/NSD + classics/fiction opted out; settings toggle.
 - [141 — Brill Synopsis + Bock BECNT / Marshall TNTC / Schreiner ZECNT](docs/decisions/141-brill-synopsis-bock-marshall-schreiner.md) (2026-07-24) — SPT series + 3 Brill vols; Bock Luke×2 + Acts; Marshall TNTC Acts; Schreiner ZECNT Galatians.
@@ -110,7 +111,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([143](docs/decisions/143-ol-edition-prefill-person-edit.md); **0 errors**, 319 tests). Prior: [142](docs/decisions/142-series-include-in-citation.md).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md); **0 errors**, 324 tests; `npm run mcp:smoke` all 9 tools OK). Prior: [143](docs/decisions/143-ol-edition-prefill-person-edit.md).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -152,35 +153,15 @@ End-of-session:
  - [ ] npm run check N/A if no code; note in decision
 ```
 
-### MCP — read-only v1 (pre–Aug 31) — from [138](docs/decisions/138-fall-semester-priorities.md)
+### MCP — read-only v1 ✅ done ([144](docs/decisions/144-ppp-mcp-readonly-v1.md))
+
+Local stdio at [`scripts/ppp-mcp/`](scripts/ppp-mcp/); wire Cursor + Claude Code per README. Smoke: `npm run mcp:smoke`. Stubs remain for classwork / contacts until those modules ship.
+
+### MCP — read-only v1 (pre–Aug 31) — from [138](docs/decisions/138-fall-semester-priorities.md) *(prompt archived — shipped)*
 
 ```
 Session: cross-cutting — ppp MCP server read-only v1
-Read: AGENTS.md, docs/decisions/138-fall-semester-priorities.md,
-  docs/decisions/139-lightweight-crm-fall-priority.md, PLAN.md,
-  src/lib/projects/server/task-loaders.ts (loadDashboardNowTasks / loadTasks),
-  src/lib/library/server/loaders.ts (search / book detail patterns),
-  src/lib/sermons/server/loaders.ts (loadUpcomingSermons),
-  src/lib/server/auth-session.ts, .cursor/rules/edge-functions.mdc,
-  supabase/README.md (hosted only; service role never to client)
-Goal: Ship a thin MCP server so Cursor/Claude chats can query ppp without clicking the PWA.
-Lock before code (multiple-choice to Parker if ambiguous):
- - [ ] Transport: local stdio MCP in-repo vs remote hosted — prefer local stdio for v1 unless blocked
- - [ ] Auth: how the process gets an owner-scoped Supabase client (env service role + assert owner id?
-       user JWT?); document in decision; never expose service role to browser
- - [ ] Tool list v1 (read-only only) — propose then confirm:
-       list_now_tasks | list_due_soon (classwork stub OK if module not shipped) |
-       search_library | get_book_citation | list_upcoming_sermons | list_project_health |
-       list_contacts_due (stub OK until CRM Session 1 — meet-cadence / Christmas flags)
- - [ ] Reuse existing server loaders / pure helpers where possible; do not duplicate RLS logic in SQL
-Acceptance:
- - [ ] MCP package or scripts/ path documented; Cursor mcp.json (or equivalent) wiring steps in decision
- - [ ] At least 4 read tools work against hosted prod from a local Cursor chat smoke
- - [ ] No write/mutate tools in v1
- - [ ] Secrets only via env / Cursor MCP config (gitignored); documented in decision + .env.example stubs
- - [ ] npm run check (+ tests if logic extracted) pass
-End-of-session: docs/decisions/<next-free>-ppp-mcp-readonly-v1.md, PLAN.md refreshed,
-  AGENTS.md inventory + components.mdc if new helpers
+… (shipped 2026-07-24 — docs/decisions/144-ppp-mcp-readonly-v1.md)
 ```
 
 ### Contacts / CRM — Session 0: Phase 0 lock (fall) — from [139](docs/decisions/139-lightweight-crm-fall-priority.md)
@@ -405,8 +386,8 @@ Acceptance:
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
 1. **Classwork Session 0** — Phase 0 lock (due dates; do not overload MYN). Prompt above.
-2. **ppp MCP read-only v1** — chat query for tasks / library / sermons (+ classwork/contacts stubs OK). Prompt above.
-3. **Contacts / CRM Session 0** — lightweight people tracker (meet cadence + Christmas cards; mailing send later). Prompt above. Thin v1 by ~Thanksgiving.
+2. **Contacts / CRM Session 0** — lightweight people tracker (meet cadence + Christmas cards; mailing send later). Prompt above. Thin v1 by ~Thanksgiving.
+3. **Owner:** wire `ppp` MCP in Cursor + Claude Code ([scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md)); confirm one chat smoke (`list_now_tasks`).
 
 ### Next / parallel
 4. **Invoicing — first real-client send** (Sarah back in office). If outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) before further Edge MIME change.
@@ -420,6 +401,7 @@ Acceptance:
 10. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
 
 ### Done recently (not open work)
+- **ppp MCP read-only v1** — ✅ ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)); `npm run mcp:smoke` green; wire clients per README.
 - **Library search prefix FTS** — ✅ ([140](docs/decisions/140-library-search-prefix-tsquery.md)); `piot` → Piotrowski.
 - **Owner glance** — ✅ mobile `/tasks` at-cap banner + Target Now after fall polish ([128](docs/decisions/128-myn-fall-polish.md)).
 - **Form control height consistency** — ✅ ([129](docs/decisions/129-form-control-height-consistency.md)); WebKit date + Select `lg`.

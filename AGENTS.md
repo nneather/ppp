@@ -197,6 +197,7 @@ End-of-session deliverables:
 - **`npm run ship-library`** / **`ship-library:apply`** — library schema gate: `check` → `db:push:dry` (or full push + `gen-types` + `test` + `deploy-functions` on apply). Use after any library migration or OCR Edge change.
 - **`library:language-audit`** — dry-run / optional `--apply` English→German hints; uses `LIBRARY_AUDIT_DATABASE_URL` or **`LIBRARY_DST_DATABASE_URL`** / `LIBRARY_SRC_DATABASE_URL` (same migrate vars). See [`scripts/library-language-audit/README.md`](scripts/library-language-audit/README.md).
 - **`library:review-research`** — AI research pass ([068](docs/decisions/068-library-review-ai-research-pass.md)): OL + optional Anthropic genre proposals into `book_metadata_proposals` (pending; owner confirms on `/library/review`). Dry-run default; `LIBRARY_RESEARCH_CONFIRM=yes … --apply`. IPv4 networks need the **Session Pooler** URI (`LIBRARY_RESEARCH_DATABASE_URL`; derive via `scripts/backup-restore-verify/derive-pooler-url.ts`) — the Direct host is IPv6-only. See [`scripts/library-review-research/README.md`](scripts/library-review-research/README.md).
+- **`mcp:smoke` / [`scripts/ppp-mcp/`](scripts/ppp-mcp/)** — local stdio **read-only** MCP for Cursor + Claude Code ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)). Loads `.env` + `.env.local`; requires `PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `POS_OWNER_ID` (owner assert). Tools wrap existing loaders. Wiring: [`scripts/ppp-mcp/README.md`](scripts/ppp-mcp/README.md). Helper: [`src/lib/mcp/bible-book.ts`](src/lib/mcp/bible-book.ts).
 
 ## Git / ship (solo)
 
@@ -222,7 +223,7 @@ Two files. Both are gitignored.
 | File | Purpose | Examples |
 |---|---|---|
 | `.env` | Prod project ref / non-secret config used by CLI scripts — copy from [`.env.example`](.env.example) | `SUPABASE_REF` |
-| `.env.local` | Prod secrets and public client config | `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `RESEND_API_KEY`, **`ANTHROPIC_API_KEY`** (optional — mirror of Supabase Edge secret for `supabase functions serve` / local OCR dev only), **`LIBRARY_SRC_DATABASE_URL`**, **`LIBRARY_DST_DATABASE_URL`**, **`LIBRARY_MIGRATE_CONFIRM`** (Postgres URIs, typically both from Supabase Dashboard **Connect → Direct** — see [`scripts/library-migrate-local-to-prod/README.md`](scripts/library-migrate-local-to-prod/README.md)) |
+| `.env.local` | Prod secrets and public client config | `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `RESEND_API_KEY`, **`ANTHROPIC_API_KEY`** (optional — mirror of Supabase Edge secret for `supabase functions serve` / local OCR dev only), **`LIBRARY_SRC_DATABASE_URL`**, **`LIBRARY_DST_DATABASE_URL`**, **`LIBRARY_MIGRATE_CONFIRM`** (Postgres URIs, typically both from Supabase Dashboard **Connect → Direct** — see [`scripts/library-migrate-local-to-prod/README.md`](scripts/library-migrate-local-to-prod/README.md)), **`SUPABASE_SERVICE_ROLE_KEY`** + **`POS_OWNER_ID`** (CLI / ppp MCP / library-import — never browser; [144](docs/decisions/144-ppp-mcp-readonly-v1.md)) |
 | `.env.staging` | **ppp-staging** ref only | `SUPABASE_REF` — copy from [`.env.staging.example`](.env.staging.example) |
 | `.env.staging.local` | Staging keys + RLS test passwords | `PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`, `RLS_TEST_*` — see [`scripts/rls-smoke/README.md`](scripts/rls-smoke/README.md) |
 
