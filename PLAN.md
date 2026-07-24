@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — **Multi-vol systematics credits + set bib** ([157](docs/decisions/157-multivol-systematics-credits-set-bib.md)); book detail densify ([156](docs/decisions/156-book-detail-densify.md)); batch essay entry ([155](docs/decisions/155-batch-essay-entry.md)).
+**Last updated:** 2026-07-24 — Book detail polish + author edit ([158](docs/decisions/158-book-detail-polish-author-edit.md)); multi-vol systematics credits ([157](docs/decisions/157-multivol-systematics-credits-set-bib.md)); densify ([156](docs/decisions/156-book-detail-densify.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -49,6 +49,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [158 — Book detail polish + in-page author edit](docs/decisions/158-book-detail-polish-author-edit.md) (2026-07-24) — drop book icon; quieter cite/facts; On the shelf; owner author tap → Edit person dialog + View books.
 - [157 — Multi-volume systematics credits + set bibliography](docs/decisions/157-multivol-systematics-credits-set-bib.md) (2026-07-24) — Calvin/Synopsis/Mastricht/Bavinck/Turretin editors+translators; house-style titles; Turabian §17.1.4 cite-set checkbox on book detail.
 - [156 — Book detail densify (siblings, also-by, peeks)](docs/decisions/156-book-detail-densify.md) (2026-07-24) — series siblings + also-by-author under facts; conditional section peeks; genre in facts `<dl>`; author/series links.
 - [155 — Batch essay entry + remove top preview](docs/decisions/155-batch-essay-entry.md) (2026-07-24) — multi-row essay create (`?/createEssaysBatch`); dropped near-title essays preview card; edit stays single-row.
@@ -116,7 +117,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([157](docs/decisions/157-multivol-systematics-credits-set-bib.md); **0 errors**, Turabian format suite green). Prior: [156](docs/decisions/156-book-detail-densify.md); [154](docs/decisions/154-essay-note-page-placeholder.md) / [155](docs/decisions/155-batch-essay-entry.md).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([158](docs/decisions/158-book-detail-polish-author-edit.md); **0 errors**, 343 tests). Prior: [157](docs/decisions/157-multivol-systematics-credits-set-bib.md); [156](docs/decisions/156-book-detail-densify.md).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

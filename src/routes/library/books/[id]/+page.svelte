@@ -8,7 +8,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
-	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -16,6 +15,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
 	import Copy from '@lucide/svelte/icons/copy';
+	import PersonEditDialog from '$lib/components/person-edit-dialog.svelte';
 	import {
 		bookDetailToCitationInput,
 		copyCitationToClipboard,
@@ -41,11 +41,11 @@
 	import type {
 		AlsoByAuthorShelf,
 		AncientTextRow,
-		BookAuthorShelfRow,
 		BookListRow,
 		BookSiblingRow,
 		BookTopicRow,
 		EssayRow,
+		PersonRow,
 		ReadingStatus,
 		ScriptureRefRow,
 		TopicCount
@@ -70,6 +70,24 @@
 	}
 
 	let bookActionsSheetOpen = $state(false);
+	let personEditOpen = $state(false);
+	let personEditTarget = $state<PersonRow | null>(null);
+
+	function openPersonEdit(personId: string) {
+		const p = data.people.find((x) => x.id === personId) ?? null;
+		if (!p) return;
+		personEditTarget = p;
+		personEditOpen = true;
+	}
+
+	async function onPersonEdited() {
+		await invalidateBook();
+		await invalidate('app:library:people').catch(() => {});
+	}
+
+	const showBookEyebrow = $derived(
+		data.book.work_type !== 'monograph' || data.book.needs_review
+	);
 
 	const bookTitleLabel = $derived(
 		data.book.title?.trim() ? data.book.title : '(untitled book)'
@@ -374,6 +392,8 @@
 		const match = data.book.authors.find((a) => a.person_id === id);
 		return match?.person_label ?? null;
 	});
+
+	const showOnTheShelf = $derived(seriesSiblings.length > 0 || alsoByAuthor.books.length > 0);
 
 	let essays = $state<EssayRow[]>([]);
 	$effect(() => {
@@ -1040,7 +1060,6 @@
 {/snippet}
 
 {#snippet bookEyebrow()}
-	<BookOpen class="size-5 shrink-0" />
 	{#if data.book.work_type !== 'monograph'}
 		<span class="text-xs uppercase tracking-wide text-muted-foreground">
 			{WORK_TYPE_LABELS[data.book.work_type].split(' (')[0]}
@@ -1065,24 +1084,39 @@
 {/snippet}
 
 {#snippet bookAuthorsMeta()}
-	{#if data.book.authors.length > 0}
-		<p class="text-sm text-foreground">
-			{#each data.book.authors as a, i (a.person_id + a.role)}
-				<span>
-					<a
-						href={`/library?author_id=${encodeURIComponent(a.person_id)}`}
-						class="underline-offset-2 hover:underline"
-					>
-						{a.person_label}
-					</a>
-					{#if a.role !== 'author'}
-						<span class="text-muted-foreground">({AUTHOR_ROLE_LABELS[a.role]})</span>
+	<div class="space-y-1.5">
+		{#if data.book.authors.length > 0}
+			<p class="text-sm text-foreground">
+				{#each data.book.authors as a, i (a.person_id + a.role)}
+					<span>
+						{#if data.isOwner}
+							<button
+								type="button"
+								class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+								onclick={() => openPersonEdit(a.person_id)}
+							>
+								{a.person_label}
+							</button>
+						{:else}
+							<a
+								href={`/library?author_id=${encodeURIComponent(a.person_id)}`}
+								class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+							>
+								{a.person_label}
+							</a>
+						{/if}
+						{#if a.role !== 'author'}
+							<span class="text-muted-foreground">({AUTHOR_ROLE_LABELS[a.role]})</span>
+						{/if}
+					</span>{#if i < data.book.authors.length - 1},
 					{/if}
-				</span>{#if i < data.book.authors.length - 1},
-				{/if}
-			{/each}
-		</p>
-	{/if}
+				{/each}
+			</p>
+		{/if}
+		{#if data.book.genre}
+			<p class="text-xs text-muted-foreground">{data.book.genre}</p>
+		{/if}
+	</div>
 {/snippet}
 
 {#snippet bookDetailActions()}
@@ -1263,10 +1297,20 @@
 		titlePlaceholder={bookTitleIsPlaceholder}
 		subtitle={data.book.subtitle?.trim() ? data.book.subtitle : undefined}
 		titleAfter={bookVolSuffix}
-		eyebrow={bookEyebrow}
-		meta={data.book.authors.length > 0 ? bookAuthorsMeta : undefined}
+		eyebrow={showBookEyebrow ? bookEyebrow : undefined}
+		meta={data.book.authors.length > 0 || data.book.genre ? bookAuthorsMeta : undefined}
 		actions={bookDetailActions}
 	/>
+
+	{#if data.isOwner}
+		<PersonEditDialog
+			bind:open={personEditOpen}
+			person={personEditTarget}
+			people={data.people}
+			actionPath="?/updatePerson"
+			onSaved={onPersonEdited}
+		/>
+	{/if}
 
 	<Sheet.Root bind:open={bookActionsSheetOpen}>
 		<Sheet.Content side="bottom" class="gap-0 p-0">
@@ -1300,7 +1344,7 @@
 	</Sheet.Root>
 
 	<details
-		class="mt-4 rounded-lg border border-border bg-muted/25 md:hidden"
+		class="mt-4 rounded-lg border border-border/50 bg-muted/10 md:hidden"
 		aria-label="Copy citations for drafts"
 	>
 		<summary
@@ -1308,13 +1352,13 @@
 		>
 			Cite
 		</summary>
-		<div class="border-t border-border/60 px-3 pb-2.5 pt-2">
+		<div class="border-t border-border/40 px-3 pb-2.5 pt-2">
 			{@render copyDraftButtons()}
 		</div>
 	</details>
 
 	<section
-		class="mt-4 hidden rounded-lg border border-border bg-muted/25 px-3 py-2.5 md:block"
+		class="mt-4 hidden rounded-lg border border-border/50 bg-muted/10 px-3 py-2.5 md:block"
 		aria-label="Copy citations for drafts"
 	>
 		<p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Cite</p>
@@ -1328,33 +1372,30 @@
 	{/if}
 
 	<div class="mt-4 grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_17.5rem]">
-		<div class="min-w-0 space-y-4">
-			<dl class="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5 text-sm leading-snug sm:grid-cols-[7.5rem_1fr]">
-				{#if data.book.genre}
-					<dt class="font-medium text-muted-foreground">Genre</dt>
-					<dd class="min-w-0 text-foreground">{data.book.genre}</dd>
-				{/if}
-
-				<dt class="font-medium text-muted-foreground">Publication</dt>
+		<div class="min-w-0 space-y-5">
+			<dl
+				class="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1 text-sm leading-snug sm:grid-cols-[6.5rem_1fr]"
+			>
+				<dt class="text-xs font-medium text-muted-foreground">Publication</dt>
 				<dd class="min-w-0 text-foreground">{fmtYearChunk() || '—'}</dd>
 
 				{#if data.book.edition}
-					<dt class="font-medium text-muted-foreground">Edition</dt>
+					<dt class="text-xs font-medium text-muted-foreground">Edition</dt>
 					<dd class="min-w-0 text-foreground">{data.book.edition}</dd>
 				{/if}
 
 				{#if data.book.copy_count > 1}
-					<dt class="font-medium text-muted-foreground">Copies</dt>
+					<dt class="text-xs font-medium text-muted-foreground">Copies</dt>
 					<dd class="min-w-0 text-foreground">{data.book.copy_count}</dd>
 				{/if}
 
 				{#if data.book.total_volumes}
-					<dt class="font-medium text-muted-foreground">Total volumes</dt>
+					<dt class="text-xs font-medium text-muted-foreground">Total volumes</dt>
 					<dd class="min-w-0 text-foreground">{data.book.total_volumes}</dd>
 				{/if}
 
 				{#if data.book.original_year || data.book.reprint_year || data.book.reprint_publisher || data.book.reprint_location}
-					<dt class="font-medium text-muted-foreground">Reprint</dt>
+					<dt class="text-xs font-medium text-muted-foreground">Reprint</dt>
 					<dd class="min-w-0 text-foreground">
 						{#if data.book.original_year}orig. {data.book.original_year}; {/if}
 						{[data.book.reprint_location, data.book.reprint_publisher, data.book.reprint_year]
@@ -1364,17 +1405,17 @@
 				{/if}
 
 				{#if data.book.page_count}
-					<dt class="font-medium text-muted-foreground">Pages</dt>
+					<dt class="text-xs font-medium text-muted-foreground">Pages</dt>
 					<dd class="min-w-0 text-foreground">{data.book.page_count}</dd>
 				{/if}
 
 				{#if data.book.series_name}
-					<dt class="font-medium text-muted-foreground">Series</dt>
+					<dt class="text-xs font-medium text-muted-foreground">Series</dt>
 					<dd class="min-w-0 text-foreground">
 						{#if data.book.series_id}
 							<a
 								href={`/library?series_id=${encodeURIComponent(data.book.series_id)}`}
-								class="underline-offset-2 hover:underline"
+								class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
 							>
 								{data.book.series_abbreviation
 									? `${data.book.series_abbreviation} — ${data.book.series_name}`
@@ -1388,84 +1429,88 @@
 					</dd>
 				{/if}
 
-				<dt class="font-medium text-muted-foreground">Language</dt>
+				<dt class="text-xs font-medium text-muted-foreground">Language</dt>
 				<dd class="min-w-0 text-foreground">{LANGUAGE_LABELS[data.book.language]}</dd>
 
 				{#if data.book.isbn}
-					<dt class="font-medium text-muted-foreground">ISBN</dt>
+					<dt class="text-xs font-medium text-muted-foreground">ISBN</dt>
 					<dd class="min-w-0 font-mono text-xs text-foreground">{data.book.isbn}</dd>
 				{/if}
 				{#if data.book.barcode}
-					<dt class="font-medium text-muted-foreground">Barcode</dt>
+					<dt class="text-xs font-medium text-muted-foreground">Barcode</dt>
 					<dd class="min-w-0 font-mono text-xs text-foreground">{data.book.barcode}</dd>
 				{/if}
 				{#if data.book.shelving_location}
-					<dt class="font-medium text-muted-foreground">Shelf</dt>
+					<dt class="text-xs font-medium text-muted-foreground">Shelf</dt>
 					<dd class="min-w-0 text-foreground">{data.book.shelving_location}</dd>
 				{/if}
 				{#if data.book.borrowed_to}
-					<dt class="font-medium text-muted-foreground">On loan to</dt>
+					<dt class="text-xs font-medium text-muted-foreground">On loan to</dt>
 					<dd class="min-w-0 text-foreground">{data.book.borrowed_to}</dd>
 				{/if}
 			</dl>
 
-			{#if seriesSiblings.length > 0}
-				<div>
-					<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-						In this series
-						<span class="font-normal normal-case tracking-normal">({seriesSiblings.length})</span>
-					</p>
-					<ul class="mt-1.5 space-y-1 text-sm">
-						{#each seriesSiblings as sib (sib.id)}
-							<li>
-								<a
-									href={`/library/books/${sib.id}`}
-									class="text-foreground underline-offset-2 hover:underline"
-								>
-									{siblingBookLabel(sib)}
-								</a>
-								{#if sib.year}
-									<span class="text-muted-foreground"> ({sib.year})</span>
+			{#if showOnTheShelf}
+				<div class="space-y-3 border-t border-border/40 pt-4">
+					<p class="text-xs font-medium text-muted-foreground">On the shelf</p>
+					{#if seriesSiblings.length > 0}
+						<div>
+							<p class="text-xs text-muted-foreground">
+								In this series
+								<span class="text-muted-foreground/80">({seriesSiblings.length})</span>
+							</p>
+							<ul class="mt-1 space-y-0.5 text-sm">
+								{#each seriesSiblings as sib (sib.id)}
+									<li>
+										<a
+											href={`/library/books/${sib.id}`}
+											class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+										>
+											{siblingBookLabel(sib)}
+										</a>
+										{#if sib.year}
+											<span class="text-muted-foreground/80"> ({sib.year})</span>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if alsoByAuthor.books.length > 0}
+						<div>
+							<p class="text-xs text-muted-foreground">
+								{#if alsoByAuthorLabel}
+									Also by {alsoByAuthorLabel}
+								{:else}
+									Also by this author
 								{/if}
-							</li>
-						{/each}
-					</ul>
-				</div>
-			{/if}
-
-			{#if alsoByAuthor.books.length > 0}
-				<div>
-					<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-						{#if alsoByAuthorLabel}
-							Also by {alsoByAuthorLabel}
-						{:else}
-							Also by this author
-						{/if}
-					</p>
-					<ul class="mt-1.5 space-y-1 text-sm">
-						{#each alsoByAuthor.books as row (row.id)}
-							<li>
-								<a
-									href={`/library/books/${row.id}`}
-									class="text-foreground underline-offset-2 hover:underline"
-								>
-									{row.title?.trim() || '(untitled)'}
-								</a>
-								{#if row.year}
-									<span class="text-muted-foreground"> ({row.year})</span>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-					{#if alsoByAuthor.hasMore && alsoByAuthor.primaryPersonId}
-						<p class="mt-1.5 text-sm">
-							<a
-								href={`/library?author_id=${encodeURIComponent(alsoByAuthor.primaryPersonId)}`}
-								class="text-muted-foreground underline-offset-2 hover:underline"
-							>
-								See all
-							</a>
-						</p>
+							</p>
+							<ul class="mt-1 space-y-0.5 text-sm">
+								{#each alsoByAuthor.books as row (row.id)}
+									<li>
+										<a
+											href={`/library/books/${row.id}`}
+											class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+										>
+											{row.title?.trim() || '(untitled)'}
+										</a>
+										{#if row.year}
+											<span class="text-muted-foreground/80"> ({row.year})</span>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+							{#if alsoByAuthor.hasMore && alsoByAuthor.primaryPersonId}
+								<p class="mt-1 text-sm">
+									<a
+										href={`/library?author_id=${encodeURIComponent(alsoByAuthor.primaryPersonId)}`}
+										class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+									>
+										See all
+									</a>
+								</p>
+							{/if}
+						</div>
 					{/if}
 				</div>
 			{/if}
