@@ -13,6 +13,7 @@ import {
 	undoSoftDeleteBookAction,
 	updateBookAction
 } from '$lib/library/server/book-actions';
+import { updatePersonSettingsAction } from '$lib/library/server/people-settings-actions';
 import { createSeriesSettingsAction } from '$lib/library/server/series-settings-actions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -62,6 +63,11 @@ export const actions: Actions = {
 		if (!user) return fail(401, { kind: 'createPerson' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return createPersonAction(locals.supabase, user.id, fd);
+	},
+	updatePerson: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'updatePerson' as const, personId: '', message: 'Unauthorized' });
+		return updatePersonSettingsAction(locals.supabase, user.id, await request.formData());
 	},
 	createSeries: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

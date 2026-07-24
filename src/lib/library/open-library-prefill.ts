@@ -38,7 +38,10 @@ export type OpenLibraryBookPrefill = {
 	publisher_id: string | null;
 	/** First `publish_places` entries from edition, when present. */
 	publisher_location: string | null;
-	/** Combined `edition_name` / `physical_format` from edition. */
+	/**
+	 * Turabian edition statement from OL `edition_name` when it looks like a real
+	 * edition (e.g. "2nd ed.", "Revised edition"). Never binding/format or OL revision.
+	 */
 	edition: string | null;
 	year: number | null;
 	page_count: number | null;
@@ -199,21 +202,54 @@ function publisherLocationFromEdition(edition: Record<string, unknown>): string 
 	return joined.length <= 80 ? joined : strs[0]!;
 }
 
-function editionLineFromEdition(edition: Record<string, unknown>): string | null {
-	const parts: string[] = [];
+/** Binding / physical format strings OL often stores in `physical_format` (never Turabian edition). */
+const OL_BINDING_ONLY_RE =
+	/^(paperback|hardcover|hardback|softcover|soft\s*cover|cloth|boards?|trade\s*paperback|mass\s*market(\s*paperback)?|leather(bound|-bound)?|spiral[- ]bound|ebook|e-book|kindle|pdf)$/i;
+
+/**
+ * Signals a real edition statement suitable for `books.edition` (Turabian).
+ * Conservative — unknown free text without these cues is dropped.
+ */
+const OL_EDITION_SIGNAL_RE =
+	/\b(\d+(st|nd|rd|th)\.?\s+ed\.?|ed\.?\s*\d+|edition|revised|expanded|updated|enlarged|abridged|annotated|corrected|reprint|new\s+ed)\b/i;
+
+/**
+ * Live `books.edition` values that look like the old OL bug
+ * (`physical_format` + ` — ` + revision), or binding-only.
+ */
+export function isLikelyOlBindingEditionJunk(edition: string): boolean {
+	const t = edition.trim();
+	if (!t) return false;
+	if (OL_BINDING_ONLY_RE.test(t)) return true;
+	if (/^\d+$/.test(t)) return true;
+	// "Paperback — 9", "Hardcover - 12", "Trade paperback — foo"
+	if (
+		/^(paperback|hardcover|hardback|softcover|soft\s*cover|cloth|boards?|trade\s*paperback|mass\s*market(\s*paperback)?)\s*[—–\-]\s*.+$/i.test(
+			t
+		)
+	) {
+		return true;
+	}
+	return false;
+}
+
+function looksLikeTurabianEdition(editionName: string): boolean {
+	const t = editionName.trim();
+	if (!t) return false;
+	if (isLikelyOlBindingEditionJunk(t)) return false;
+	if (/^\d+(st|nd|rd|th)\.?$/i.test(t)) return true;
+	return OL_EDITION_SIGNAL_RE.test(t);
+}
+
+/**
+ * Prefill `books.edition` from OL edition JSON.
+ * Uses `edition_name` only when it looks like a Turabian edition statement.
+ * Does **not** use `physical_format` or `revision` (those produced "Paperback — 9").
+ */
+export function editionLineFromEdition(edition: Record<string, unknown>): string | null {
 	const en = asStr(edition.edition_name);
-	const pf = asStr(edition.physical_format);
-	const rev = edition.revision;
-	const revStr =
-		typeof rev === 'string'
-			? rev.trim()
-			: typeof rev === 'number' && Number.isFinite(rev)
-				? String(rev)
-				: '';
-	if (en) parts.push(en);
-	if (pf) parts.push(pf);
-	if (revStr) parts.push(revStr);
-	return parts.length > 0 ? parts.join(' — ') : null;
+	if (!en || !looksLikeTurabianEdition(en)) return null;
+	return en;
 }
 
 function pageCountFromEdition(edition: Record<string, unknown>): number | null {

@@ -300,6 +300,7 @@
 
 	const formAction = $derived(`?/${mode === 'create' ? 'createBook' : 'updateBook'}`);
 	const personActionPath = '?/createPerson';
+	const personUpdateActionPath = '?/updatePerson';
 	const seriesActionPath = '?/createSeries';
 
 	const seriesSelectItems = $derived([
@@ -760,6 +761,7 @@
 			bind:people
 			{personBookCounts}
 			personActionPath={personActionPath}
+			personUpdateActionPath={personUpdateActionPath}
 		/>
 		<label class="mt-2 flex items-center gap-2">
 			<input

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { untrack } from 'svelte';
 	import { deserialize } from '$app/forms';
 	import { invalidate } from '$app/navigation';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -16,6 +15,7 @@
 	import type { PersonRow } from '$lib/types/library';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
 
@@ -24,16 +24,23 @@
 		people = $bindable(),
 		personBookCounts,
 		personActionPath,
+		personUpdateActionPath,
 		disabled = false
 	}: {
 		authorRows: BookAuthorRow[];
 		people: PersonRow[];
 		personBookCounts: Record<string, number>;
 		personActionPath: string;
+		personUpdateActionPath: string;
 		disabled?: boolean;
 	} = $props();
 
+	type PersonDialogMode = 'create' | 'edit';
+
 	let personDialogOpen = $state(false);
+	let personDialogMode = $state<PersonDialogMode>('create');
+	let editingPersonId = $state<string | null>(null);
+	let editingAliases = $state<string[]>([]);
 	let newPersonFirst = $state('');
 	let newPersonMiddle = $state('');
 	let newPersonLast = $state('');
@@ -161,11 +168,31 @@
 		rowKey: string | null,
 		prefill?: { first?: string; middle?: string; last?: string }
 	) {
+		personDialogMode = 'create';
+		editingPersonId = null;
+		editingAliases = [];
 		pendingAuthorRowKey = rowKey;
 		newPersonFirst = prefill?.first ?? '';
 		newPersonMiddle = prefill?.middle ?? '';
 		newPersonLast = prefill?.last ?? '';
 		newPersonSuffix = '';
+		personDialogMessage = null;
+		personDialogMessageTone = 'error';
+		personDialogConfirmedDuplicate = false;
+		personDialogOpen = true;
+	}
+
+	function openEditPersonDialog(personId: string) {
+		const p = people.find((x) => x.id === personId);
+		if (!p) return;
+		personDialogMode = 'edit';
+		editingPersonId = p.id;
+		editingAliases = Array.isArray(p.aliases) ? [...p.aliases] : [];
+		pendingAuthorRowKey = null;
+		newPersonFirst = p.first_name ?? '';
+		newPersonMiddle = p.middle_name ?? '';
+		newPersonLast = p.last_name;
+		newPersonSuffix = p.suffix ?? '';
 		personDialogMessage = null;
 		personDialogMessageTone = 'error';
 		personDialogConfirmedDuplicate = false;
@@ -183,12 +210,13 @@
 		}
 	});
 
-	function findCollidingPeople(first: string, last: string): PersonRow[] {
+	function findCollidingPeople(first: string, last: string, excludeId?: string | null): PersonRow[] {
 		const lastLower = last.trim().toLowerCase();
 		if (!lastLower) return [];
 		const initial = first.trim().charAt(0).toLowerCase();
 		return people.filter(
 			(p) =>
+				p.id !== excludeId &&
 				p.last_name.toLowerCase() === lastLower &&
 				(p.first_name?.trim().charAt(0).toLowerCase() ?? '') === initial
 		);
@@ -208,12 +236,19 @@
 			return;
 		}
 		if (!personDialogConfirmedDuplicate) {
-			const collisions = findCollidingPeople(newPersonFirst, newPersonLast);
+			const collisions = findCollidingPeople(
+				newPersonFirst,
+				newPersonLast,
+				personDialogMode === 'edit' ? editingPersonId : null
+			);
 			if (collisions.length > 0) {
 				const names = collisions
 					.map((p) => [p.first_name, p.last_name].filter(Boolean).join(' '))
 					.join(', ');
-				personDialogMessage = `Already in your library: ${names}. Continue creating a separate person?`;
+				personDialogMessage =
+					personDialogMode === 'edit'
+						? `Another person already matches that name: ${names}. Save anyway (same person id — not a merge)?`
+						: `Already in your library: ${names}. Continue creating a separate person?`;
 				personDialogMessageTone = 'warning';
 				return;
 			}
@@ -227,6 +262,53 @@
 			fd.append('middle_name', newPersonMiddle);
 			fd.append('last_name', newPersonLast);
 			fd.append('suffix', newPersonSuffix);
+
+			if (personDialogMode === 'edit' && editingPersonId) {
+				fd.append('id', editingPersonId);
+				for (const a of editingAliases) {
+					fd.append('aliases', a);
+				}
+				const resp = await fetch(personUpdateActionPath, {
+					method: 'POST',
+					headers: { 'x-sveltekit-action': 'true' },
+					body: fd
+				});
+				const result = deserialize(await resp.text()) as ActionResult;
+				if (result.type === 'success' || result.type === 'failure') {
+					const data = (result.data ?? {}) as {
+						kind?: string;
+						personId?: string;
+						success?: boolean;
+						message?: string;
+					};
+					if (result.type === 'failure' || !data.success) {
+						personDialogMessage = data.message ?? 'Could not update person.';
+						return;
+					}
+					const personId = editingPersonId;
+					people = people
+						.map((p) =>
+							p.id === personId
+								? {
+										...p,
+										first_name: newPersonFirst.trim() || null,
+										middle_name: newPersonMiddle.trim() || null,
+										last_name: newPersonLast.trim(),
+										suffix: newPersonSuffix.trim() || null
+									}
+								: p
+						)
+						.sort((a, b) => a.last_name.localeCompare(b.last_name));
+					personDialogOpen = false;
+					editingPersonId = null;
+					await invalidate('app:library:people').catch(() => {});
+					await invalidate('app:library:facets').catch(() => {});
+				} else {
+					personDialogMessage = 'Network error updating person.';
+				}
+				return;
+			}
+
 			const resp = await fetch(personActionPath, {
 				method: 'POST',
 				headers: { 'x-sveltekit-action': 'true' },
@@ -280,7 +362,10 @@
 			}
 		} catch (err) {
 			console.error(err);
-			personDialogMessage = 'Network error creating person.';
+			personDialogMessage =
+				personDialogMode === 'edit'
+					? 'Network error updating person.'
+					: 'Network error creating person.';
 		} finally {
 			personDialogPending = false;
 		}
@@ -379,6 +464,20 @@
 					</Select.Content>
 				</Select.Root>
 				<div class="flex min-h-11 items-center gap-1 self-end sm:min-h-0 sm:self-auto">
+					{#if row.person_id}
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							aria-label="Edit person name"
+							{disabled}
+							onclick={() => openEditPersonDialog(row.person_id)}
+							class="min-h-11 min-w-11 sm:min-h-0 sm:min-w-0"
+							title="Edit person name"
+						>
+							<Pencil class="size-4" />
+						</Button>
+					{/if}
 					<Button
 						type="button"
 						variant="ghost"
@@ -428,10 +527,15 @@
 <Dialog.Root bind:open={personDialogOpen}>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Add person</Dialog.Title>
+			<Dialog.Title>{personDialogMode === 'edit' ? 'Edit person' : 'Add person'}</Dialog.Title>
 			<Dialog.Description>
-				Last name is required. First / middle / suffix are optional but help with citations
-				later.
+				{#if personDialogMode === 'edit'}
+					Updates this person everywhere they appear. Same person id — not a merge or new
+					record.
+				{:else}
+					Last name is required. First / middle / suffix are optional but help with citations
+					later.
+				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
 
@@ -494,7 +598,11 @@
 					}}
 					disabled={personDialogPending}
 					hotkey="s"
-					label={personDialogPending ? 'Saving…' : 'Continue anyway'}
+					label={personDialogPending
+						? 'Saving…'
+						: personDialogMode === 'edit'
+							? 'Save anyway'
+							: 'Continue anyway'}
 				/>
 			{:else}
 				<Button
@@ -503,7 +611,11 @@
 					onclick={submitPersonDialog}
 					disabled={personDialogPending}
 					hotkey="s"
-					label={personDialogPending ? 'Saving…' : 'Add person'}
+					label={personDialogPending
+						? 'Saving…'
+						: personDialogMode === 'edit'
+							? 'Save name'
+							: 'Add person'}
 				/>
 			{/if}
 		</Dialog.Footer>
