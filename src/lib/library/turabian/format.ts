@@ -34,6 +34,14 @@ export type FormatOptions = {
 	shortForm?: FootnoteShortForm;
 };
 
+export type BibliographyFormatOptions = {
+	/**
+	 * Turabian §17.1.4 — cite the multi-volume set as a whole (`N vols.`)
+	 * instead of the single cited volume (`Vol. N.`). Requires `total_volumes > 1`.
+	 */
+	citeSet?: boolean;
+};
+
 type PubFacts = { plain: string; html: string };
 
 type NoteSegments = {
@@ -170,21 +178,26 @@ function authorPresentNoteSegments(
 
 function authorPresentBibSegments(
 	book: BookCitationInput,
-	opts?: { includeEditor?: boolean; includeTranslator?: boolean }
+	opts?: {
+		includeEditor?: boolean;
+		includeTranslator?: boolean;
+		citeSet?: boolean;
+	}
 ): BibSegments {
+	const citeSet = Boolean(opts?.citeSet);
 	const editorCredit =
 		opts?.includeEditor !== false ? formatEditorsCreditBibliography(book.authors) : undefined;
 	const translator =
 		opts?.includeTranslator !== false ? formatTranslatorsBibliography(book.authors) : undefined;
 	return {
 		lead: formatAuthorsBibliography(book.authors) || undefined,
-		titlePlain: formatTitleWithSubtitle(book, 'plain'),
-		titleHtml: formatTitleWithSubtitle(book, 'html'),
+		titlePlain: formatTitleWithSubtitle(book, 'plain', { omitSubtitle: citeSet }),
+		titleHtml: formatTitleWithSubtitle(book, 'html', { omitSubtitle: citeSet }),
 		editorCredit: editorCredit || undefined,
 		translator: translator || undefined,
 		edition: formatEditionSegment(book.edition, 'bib') || undefined,
-		volBib: formatVolumeBibliography(book) || undefined,
-		series: formatSeriesSegment(book, 'bib') || undefined,
+		volBib: formatVolumeBibliography(book, { citeSet }) || undefined,
+		series: formatSeriesSegment(book, 'bib', { citeSet }) || undefined,
 		pub: formatPublicationFacts(book, 'bib')
 	};
 }
@@ -282,8 +295,12 @@ export function formatFootnote(book: BookCitationInput, opts?: FormatOptions): C
 	return buildPair(plain, html, sourceType);
 }
 
-export function formatBibliography(book: BookCitationInput): CitationFormatted {
+export function formatBibliography(
+	book: BookCitationInput,
+	opts?: BibliographyFormatOptions
+): CitationFormatted {
 	const sourceType = resolveCitationSourceType(book);
+	const citeSet = Boolean(opts?.citeSet && (book.total_volumes ?? 0) > 1);
 
 	if (sourceType === 'bible') {
 		return buildPair('', '', sourceType);
@@ -297,23 +314,31 @@ export function formatBibliography(book: BookCitationInput): CitationFormatted {
 		case 'reference-work-edited': {
 			segments = {
 				lead: formatEditorsBibliography(book.authors),
-				titlePlain: formatTitleWithSubtitle(book, 'plain'),
-				titleHtml: formatTitleWithSubtitle(book, 'html'),
+				titlePlain: formatTitleWithSubtitle(book, 'plain', { omitSubtitle: citeSet }),
+				titleHtml: formatTitleWithSubtitle(book, 'html', { omitSubtitle: citeSet }),
 				edition: formatEditionSegment(book.edition, 'bib') || undefined,
-				volBib: formatVolumeBibliography(book) || undefined,
-				series: formatSeriesSegment(book, 'bib') || undefined,
+				volBib: formatVolumeBibliography(book, { citeSet }) || undefined,
+				series: formatSeriesSegment(book, 'bib', { citeSet }) || undefined,
 				pub: formatPublicationFacts(book, 'bib')
 			};
 			pair = joinBibSegments(segments);
 			break;
 		}
 		case 'book-with-translator': {
-			segments = authorPresentBibSegments(book, { includeEditor: false, includeTranslator: true });
+			segments = authorPresentBibSegments(book, {
+				includeEditor: false,
+				includeTranslator: true,
+				citeSet
+			});
 			pair = joinBibSegments(segments);
 			break;
 		}
 		case 'book-with-editor': {
-			segments = authorPresentBibSegments(book, { includeEditor: true, includeTranslator: false });
+			segments = authorPresentBibSegments(book, {
+				includeEditor: true,
+				includeTranslator: false,
+				citeSet
+			});
 			pair = joinBibSegments(segments);
 			break;
 		}
@@ -323,7 +348,7 @@ export function formatBibliography(book: BookCitationInput): CitationFormatted {
 		case 'reference-work-single-author':
 		case 'single-author-book':
 		default: {
-			segments = authorPresentBibSegments(book);
+			segments = authorPresentBibSegments(book, { citeSet });
 			pair = joinBibSegments(segments);
 			break;
 		}

@@ -304,6 +304,9 @@
 	const citationInput = $derived(bookDetailToCitationInput(data.book));
 	/** Page for Turabian note copy; empty → formatter default `[page]`. */
 	let citationPage = $state('');
+	/** Turabian §17.1.4 — bibliography as set (`N vols.`) when total_volumes > 1. */
+	let citationCiteSet = $state(false);
+	const citationCanCiteSet = $derived((data.book.total_volumes ?? 0) > 1);
 	const citationPageOpts = $derived({
 		page: citationPage.trim() || undefined
 	});
@@ -311,7 +314,11 @@
 	const citationShort = $derived(
 		formatFootnote(citationInput, { ...citationPageOpts, shortForm: 'short' as const })
 	);
-	const citationBibliography = $derived(formatBibliography(citationInput));
+	const citationBibliography = $derived(
+		formatBibliography(citationInput, {
+			citeSet: citationCanCiteSet && citationCiteSet
+		})
+	);
 	const citationMissing = $derived(
 		computeMissingImportant({
 			title: data.book.title,
@@ -1015,6 +1022,17 @@
 				<Copy class="size-3.5" /> Bibliography
 			</Button>
 		</div>
+		{#if citationCanCiteSet}
+			<label class="flex items-center gap-2 text-xs text-muted-foreground">
+				<input
+					type="checkbox"
+					class="size-3.5"
+					bind:checked={citationCiteSet}
+					aria-label={`Cite set (${data.book.total_volumes} vols.) in bibliography`}
+				/>
+				Cite set ({data.book.total_volumes} vols.) in bibliography
+			</label>
+		{/if}
 		{#if citationIncompleteHint}
 			<p class="text-xs text-amber-800 dark:text-amber-300">{citationIncompleteHint}</p>
 		{/if}

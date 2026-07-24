@@ -14,6 +14,7 @@ export {
 	formatFootnote,
 	formatBibliography,
 	type FormatOptions,
+	type BibliographyFormatOptions,
 	type FootnoteShortForm
 } from './format';
 export {

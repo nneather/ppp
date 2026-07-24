@@ -2,9 +2,18 @@ import { normalizePublisherLocationTurabian } from '$lib/library/publisher-locat
 import { resolveCitationSourceType } from './dispatch';
 import type { BookCitationInput } from './types';
 
-export function formatTitleWithSubtitle(book: BookCitationInput, mode: 'html' | 'plain'): string {
+export type TitleFormatOptions = {
+	/** Omit subtitle (set bibliography cite — Turabian §17.1.4). */
+	omitSubtitle?: boolean;
+};
+
+export function formatTitleWithSubtitle(
+	book: BookCitationInput,
+	mode: 'html' | 'plain',
+	opts?: TitleFormatOptions
+): string {
 	const title = (book.title ?? '').trim();
-	const subtitle = (book.subtitle ?? '').trim();
+	const subtitle = opts?.omitSubtitle ? '' : (book.subtitle ?? '').trim();
 	if (!title && !subtitle) return mode === 'html' ? '<i>(untitled)</i>' : '(untitled)';
 	const titlePart =
 		mode === 'html'
@@ -88,9 +97,15 @@ function escapeHtmlFacts(placePub: string, yearStr: string): string {
 	return escape(inner);
 }
 
+export type SeriesFormatOptions = {
+	/** Set bibliography — do not append volume to the series label. */
+	citeSet?: boolean;
+};
+
 export function formatSeriesSegment(
 	book: BookCitationInput,
-	mode: 'note' | 'bib'
+	mode: 'note' | 'bib',
+	opts?: SeriesFormatOptions
 ): string {
 	// Flag-only gate — volume_number is not a signal for include/omit ([142]).
 	if (book.series_include_in_citation === false) return '';
@@ -105,7 +120,7 @@ export function formatSeriesSegment(
 		resolveCitationSourceType(book) === 'commentary-in-series' &&
 		book.total_volumes != null &&
 		book.total_volumes > 1;
-	if (commentaryMultiVolSet) return out;
+	if (commentaryMultiVolSet || opts?.citeSet) return out;
 	if (vol && /^\d+$/.test(vol) && name && name !== abbr) {
 		// Series number e.g. "ESV Expository Commentary 3" / Parsons "Texts and Studies in Religion 106"
 		if (!out.includes(vol)) out = `${out} ${vol}`;
@@ -129,9 +144,21 @@ export function formatVolumePageNote(book: BookCitationInput, page?: string): st
 	return '';
 }
 
-export function formatVolumeBibliography(book: BookCitationInput): string {
+export type VolumeBibliographyOptions = {
+	/**
+	 * Turabian §17.1.4 — when more than one volume of a set was cited in notes,
+	 * bibliography may list the set as a whole (`N vols.`) instead of `Vol. N.`.
+	 */
+	citeSet?: boolean;
+};
+
+export function formatVolumeBibliography(
+	book: BookCitationInput,
+	opts?: VolumeBibliographyOptions
+): string {
 	const vol = (book.volume_number ?? '').trim();
 	const total = book.total_volumes;
+	if (opts?.citeSet && total != null && total > 1) return `${total} vols.`;
 	// Commentary-in-series: never emit "Vol. N." for series enumeration; allow "N vols." for sets.
 	if (resolveCitationSourceType(book) === 'commentary-in-series') {
 		if (total != null && total > 1) return `${total} vols.`;

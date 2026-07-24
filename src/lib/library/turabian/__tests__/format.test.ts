@@ -728,6 +728,39 @@ describe('formatBibliography', () => {
 		expect(formatBibliography(b).plain).toContain('14 vols.');
 	});
 
+	it('formats multi-volume set bibliography when citeSet (§17.1.4)', () => {
+		const b = book({
+			title: 'Systematic Theology',
+			subtitle: 'Anthropology',
+			authors: [{ person_id: 'a1', person_label: 'Charles Hodge', role: 'author', sort_order: 0 }],
+			volume_number: '2',
+			total_volumes: 3,
+			publisher: 'Eerdmans',
+			publisher_location: 'Grand Rapids, MI',
+			year: 1946
+		});
+		expect(formatBibliography(b).plain).toBe(
+			'Hodge, Charles. Systematic Theology: Anthropology. Vol. 2. Grand Rapids, MI: Eerdmans, 1946.'
+		);
+		expect(formatBibliography(b, { citeSet: true }).plain).toBe(
+			'Hodge, Charles. Systematic Theology. 3 vols. Grand Rapids, MI: Eerdmans, 1946.'
+		);
+	});
+
+	it('ignores citeSet when total_volumes is missing', () => {
+		const b = book({
+			title: 'Systematic Theology',
+			authors: [{ person_id: 'a1', person_label: 'Charles Hodge', role: 'author', sort_order: 0 }],
+			volume_number: '2',
+			publisher: 'Eerdmans',
+			publisher_location: 'Grand Rapids, MI',
+			year: 1946
+		});
+		expect(formatBibliography(b, { citeSet: true }).plain).toBe(
+			'Hodge, Charles. Systematic Theology. Vol. 2. Grand Rapids, MI: Eerdmans, 1946.'
+		);
+	});
+
 	it('formats edited_volume with only editors', () => {
 		const b = book({
 			work_type: 'edited_volume',
