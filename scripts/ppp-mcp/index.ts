@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { getPppMcpClient } from './client.ts';
 import {
 	getBookCitation,
+	getAssignmentsForCourse,
 	listCommentariesForBibleBook,
 	listContactsDue,
 	listDueSoon,
@@ -45,11 +46,37 @@ server.registerTool(
 	'list_due_soon',
 	{
 		description:
-			'Classwork assignments due soon. Stub until the classwork module ships (MYN tasks have no due_date).'
+			'Open classwork assignments due within horizon_days (default 14). Overdue included first. MYN tasks have no due_date.',
+		inputSchema: {
+			horizon_days: z
+				.number()
+				.int()
+				.min(0)
+				.max(365)
+				.optional()
+				.describe('Days ahead from Chicago today (default 14). Overdue always included.')
+		}
 	},
-	async () => {
+	async (args) => {
 		const { supabase } = await getPppMcpClient();
-		return listDueSoon(supabase);
+		return listDueSoon(supabase, args);
+	}
+);
+
+server.registerTool(
+	'get_assignments_for_course',
+	{
+		description:
+			'All assignments for a course (resolve by name or code; fuzzy prefix/substring). Includes parent grouping fields and courses.project_id for health joins.',
+		inputSchema: {
+			course: z
+				.string()
+				.describe('Course name or code (e.g. "Psalms", "OT512")')
+		}
+	},
+	async (args) => {
+		const { supabase } = await getPppMcpClient();
+		return getAssignmentsForCourse(supabase, args);
 	}
 );
 

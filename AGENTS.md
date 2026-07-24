@@ -181,13 +181,14 @@ End-of-session deliverables:
   - Routes: `/sermons` (list + Sheet), `/sermons/by-book` (commentary × sermon spine), `/settings/sermons/venues`. Library hook: deep-link to `/library/search-passage`.
   - Audit: `_SERMONS_TABLES`; soft-delete revert for venues/sermons/passages.
 
-- **Classwork helpers** at `src/lib/classwork/` (schema migration `20260724220000_ppp_classwork_v1.sql`; Session 0 [150](docs/decisions/150-classwork-session-0.md), Session 1 [153](docs/decisions/153-classwork-session-1.md)):
-  - `src/lib/types/classwork.ts` — `COURSE_STATUSES`, `ASSIGNMENT_KINDS`, `ASSIGNMENT_STATUSES`, list/filter view-models, `ClassworkProjectOption`.
-  - `src/lib/classwork/parent-picker.ts` — client-safe `parentPickerOptions` (same-course + exclude self/descendants).
-  - `src/lib/classwork/server/loaders.ts` — `loadCourses`, `loadAssignments`, `loadClassworkProjectOptions`, `parseClassworkListFilters`, `groupAssignmentsByDate` / `ByCourse`, `daysUntilDue`.
-  - `src/lib/classwork/server/actions.ts` — course + assignment CRUD soft-delete; `completed_at` stamp; parent same-course + cycle guard.
-  - Routes: `/classwork` (list + Sheets; `?group=date|course`). Nav: mobile tab bar = Dashboard/Tasks/Invoicing/Library/Classwork; Sermons+Projects desktop sidebar only.
-  - Audit: `_CLASSWORK_TABLES`; soft-delete revert for courses/assignments. Permissions slug `classwork`.
+- **Classwork helpers** at `src/lib/classwork/` (schema migration `20260724220000_ppp_classwork_v1.sql`; Session 0 [150](docs/decisions/150-classwork-session-0.md), Session 1 [153](docs/decisions/153-classwork-session-1.md), Session 2 [161](docs/decisions/161-classwork-session-2.md)):
+ - `src/lib/types/classwork.ts` — `COURSE_STATUSES`, `ASSIGNMENT_KINDS`, `ASSIGNMENT_STATUSES`, list/filter view-models, `ClassworkProjectOption`, `DueSoonAssignment`.
+ - `src/lib/classwork/parent-picker.ts` — client-safe `parentPickerOptions` (same-course + exclude self/descendants).
+ - `src/lib/classwork/server/loaders.ts` — `loadCourses`, `loadAssignments`, `loadDueSoonAssignments` / `selectDueSoon` (14d open, overdue first — [161](docs/decisions/161-classwork-session-2.md)), `loadClassworkProjectOptions`, `parseClassworkListFilters`, `groupAssignmentsByDate` / `ByCourse`, `daysUntilDue`.
+ - `src/lib/classwork/server/actions.ts` — course + assignment CRUD soft-delete; `completed_at` stamp; parent same-course + cycle guard.
+ - `src/lib/mcp/course.ts` — fuzzy course name/code resolve for MCP `get_assignments_for_course` ([161](docs/decisions/161-classwork-session-2.md)).
+ - Routes: `/classwork` (list + Sheets; `?group=date|course`); `/dashboard` due-soon (desktop Now column + mobile glance — [161](docs/decisions/161-classwork-session-2.md)). Nav: mobile tab bar = Dashboard/Tasks/Invoicing/Library/Classwork; Sermons+Projects desktop sidebar only.
+ - Audit: `_CLASSWORK_TABLES`; soft-delete revert for courses/assignments. Permissions slug `classwork`.
 
 ### Scripts
 

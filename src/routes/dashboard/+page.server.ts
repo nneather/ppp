@@ -34,6 +34,7 @@ import {
 	softDeleteTaskAction,
 	undoSoftDeleteTaskAction
 } from '$lib/projects/server/task-actions';
+import { loadDueSoonAssignments } from '$lib/classwork/server/loaders';
 import { loadUpcomingSermons } from '$lib/sermons/server/loaders';
 import type { LatestHealth } from '$lib/types/projects';
 import type { LastWeekInvoiceCandidate } from '$lib/types/invoicing';
@@ -90,6 +91,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 	if (!user) redirect(303, '/login');
 
 	depends('app:projects:tasks');
+	depends('app:classwork:list');
 
 	const supabase = locals.supabase;
 	const today = ymdInChicago();
@@ -106,6 +108,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		latestHealthMap,
 		nowTasks,
 		upcomingSermonsRes,
+		dueSoonRes,
 		flatRows,
 		profileRes
 	] = await Promise.all([
@@ -128,6 +131,9 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		locals.perf.measure('db', () => loadLatestHealth(supabase)),
 		locals.perf.measure('db', () => loadDashboardNowTasks(supabase, { todayYmd: today })),
 		locals.perf.measure('db', () => loadUpcomingSermons(supabase, { todayYmd: today, limit: 5 })),
+		locals.perf.measure('db', () =>
+			loadDueSoonAssignments(supabase, { todayYmd: today, horizonDays: 14 })
+		),
 		loadProjectRows(supabase),
 		supabase
 			.from('profiles')
@@ -138,6 +144,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 
 	if (profileRes.error) console.error(profileRes.error);
 	if (upcomingSermonsRes.error) console.error(upcomingSermonsRes.error);
+	if (dueSoonRes.error) console.error(dueSoonRes.error);
 
 	const latestHealth = Object.fromEntries(latestHealthMap) as Record<string, LatestHealth>;
 	const missingCheckInCount = countMissingWeekCheckIns(projectTree, latestHealth, weekOf);
@@ -182,6 +189,9 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 	const criticalNowTaskCount = nowTasks.criticalNowCount;
 	const opportunityNowTaskCount = nowTasks.opportunityNowCount;
 
+	const dueSoonAssignments = dueSoonRes.assignments;
+	const dueSoonOverdueCount = dueSoonAssignments.filter((a) => a.days_until < 0).length;
+
 	if (unbilledRes.error) {
 		console.error(unbilledRes.error);
 		return {
@@ -199,6 +209,8 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 			projectOptions,
 			defaultTaskProjectId: profileRes.data?.default_task_project_id ?? null,
 			upcomingSermons: upcomingSermonsRes.sermons,
+			dueSoonAssignments,
+			dueSoonOverdueCount,
 			missingCheckInCount,
 			weekOf,
 			dashboardError: 'Could not load unbilled count.' as string | null
@@ -220,6 +232,8 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		projectOptions,
 		defaultTaskProjectId: profileRes.data?.default_task_project_id ?? null,
 		upcomingSermons: upcomingSermonsRes.sermons,
+		dueSoonAssignments,
+		dueSoonOverdueCount,
 		missingCheckInCount,
 		weekOf,
 		dashboardError: null as string | null

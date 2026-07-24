@@ -5,6 +5,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ymdInChicago } from '../../src/lib/invoicing/chicago-date.ts';
 import {
+	loadAssignments,
+	loadCourses,
+	loadDueSoonAssignments
+} from '../../src/lib/classwork/server/loaders.ts';
+import {
 	loadBookCitationInputs,
 	loadBookListFiltered,
 	loadPeople
@@ -17,6 +22,7 @@ import {
 import { loadDashboardNowTasks } from '../../src/lib/projects/server/task-loaders.ts';
 import { loadByBookStats, loadSermons, loadUpcomingSermons } from '../../src/lib/sermons/server/loaders.ts';
 import { bibleBookSuggestions, resolveBibleBookName } from '../../src/lib/mcp/bible-book.ts';
+import { courseSuggestions, resolveCourse } from '../../src/lib/mcp/course.ts';
 import type { Database } from '../../src/lib/types/database.ts';
 
 type Sb = SupabaseClient<Database>;
@@ -58,11 +64,108 @@ export async function listNowTasks(supabase: Sb) {
 	});
 }
 
-export async function listDueSoon(_supabase: Sb) {
-	return stubResult(
-		'list_due_soon',
-		'Classwork module not shipped yet — due dates live there, not on MYN tasks. See docs/decisions/138-fall-semester-priorities.md.'
-	);
+export async function listDueSoon(
+	supabase: Sb,
+	args: { horizon_days?: number } = {}
+) {
+	const todayYmd = ymdInChicago();
+	const horizonDays = args.horizon_days ?? 14;
+	const { assignments, horizonEnd, error } = await loadDueSoonAssignments(supabase, {
+		todayYmd,
+		horizonDays
+	});
+	return jsonText({
+		todayYmd,
+		horizon_days: horizonDays,
+		horizon_end: horizonEnd,
+		error,
+		count: assignments.length,
+		assignments: assignments.map((a) => ({
+			id: a.id,
+			title: a.title,
+			kind: a.kind,
+			status: a.status,
+			due_date: a.due_date,
+			days_until: a.days_until,
+			course_id: a.course_id,
+			course_name: a.course_name,
+			course_code: a.course_code,
+			parent_id: a.parent_id
+		}))
+	});
+}
+
+export async function getAssignmentsForCourse(
+	supabase: Sb,
+	args: { course: string }
+) {
+	const query = args.course?.trim() ?? '';
+	if (!query) {
+		return jsonText({ error: 'course is required (name or code)' });
+	}
+
+	const { courses, error: coursesError } = await loadCourses(supabase);
+	if (coursesError) {
+		return jsonText({ error: coursesError });
+	}
+
+	const resolveInputs = courses.map((c) => ({
+		id: c.id,
+		name: c.name,
+		code: c.code
+	}));
+	const resolved = resolveCourse(query, resolveInputs);
+	if (!resolved) {
+		return jsonText({
+			error: `Unknown or ambiguous course: ${query}`,
+			suggestions: courseSuggestions(query, resolveInputs)
+		});
+	}
+
+	const course = courses.find((c) => c.id === resolved.id);
+	if (!course) {
+		return jsonText({ error: `Course not found: ${resolved.id}` });
+	}
+
+	const todayYmd = ymdInChicago();
+	const { assignments, error } = await loadAssignments(supabase, {
+		todayYmd,
+		courseId: course.id
+	});
+	if (error) {
+		return jsonText({ error, course: { id: course.id, name: course.name } });
+	}
+
+	const byId = new Map(assignments.map((a) => [a.id, a]));
+	return jsonText({
+		todayYmd,
+		course: {
+			id: course.id,
+			name: course.name,
+			code: course.code,
+			instructor: course.instructor,
+			term: course.term,
+			status: course.status,
+			project_id: course.project_id,
+			assignment_count: course.assignmentCount
+		},
+		count: assignments.length,
+		assignments: assignments.map((a) => {
+			const parent = a.parent_id ? byId.get(a.parent_id) : null;
+			return {
+				id: a.id,
+				title: a.title,
+				kind: a.kind,
+				status: a.status,
+				due_date: a.due_date,
+				days_until: a.days_until,
+				completed_at: a.completed_at,
+				parent_id: a.parent_id,
+				parent_title: parent?.title ?? null,
+				notes: a.notes
+			};
+		})
+	});
 }
 
 export async function listContactsDue(_supabase: Sb) {
@@ -253,6 +356,7 @@ export async function listSermonsForBibleBook(
 export const TOOL_NAMES = [
 	'list_now_tasks',
 	'list_due_soon',
+	'get_assignments_for_course',
 	'list_contacts_due',
 	'search_library',
 	'get_book_citation',

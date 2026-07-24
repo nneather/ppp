@@ -3,8 +3,10 @@
 	import { page } from '$app/state';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import BookOpen from '@lucide/svelte/icons/book-open';
+	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Plus from '@lucide/svelte/icons/plus';
+	import DashboardDueSoon from '$lib/components/dashboard-due-soon.svelte';
 	import DashboardLibraryTileFooter from '$lib/components/dashboard-library-tile-footer.svelte';
 	import DashboardInvoicingTileFooter from '$lib/components/dashboard-invoicing-tile-footer.svelte';
 	import DashboardUpcomingSermons from '$lib/components/dashboard-upcoming-sermons.svelte';
@@ -249,6 +251,46 @@
 							<p class="mt-3 text-sm font-medium text-primary">Open tasks →</p>
 						</a>
 					</li>
+
+					<!-- Mobile / narrow: classwork due-soon glance — desktop list is under Now -->
+					<li class="md:hidden">
+						<a
+							href="/classwork"
+							class={cn(
+								cardClass,
+								'p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
+							)}
+						>
+							<div class="mb-3 flex items-center gap-2 text-muted-foreground">
+								<GraduationCap class="size-4 shrink-0" />
+								<span class="text-sm font-semibold tracking-tight text-foreground"
+									>Classwork</span
+								>
+							</div>
+							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+								Due in 14 days
+							</p>
+							<p
+								class={cn(
+									'mt-1.5 text-2xl font-semibold tabular-nums',
+									data.dueSoonOverdueCount > 0
+										? 'text-destructive'
+										: 'text-foreground'
+								)}
+								aria-live="polite"
+							>
+								{data.dueSoonAssignments.length}
+							</p>
+							{#if data.dueSoonOverdueCount > 0}
+								<p class="mt-1 text-sm text-destructive">
+									{data.dueSoonOverdueCount} overdue
+								</p>
+							{:else if data.dueSoonAssignments.length === 0}
+								<p class="mt-1 text-sm text-muted-foreground">Nothing due soon</p>
+							{/if}
+							<p class="mt-3 text-sm font-medium text-primary">Open classwork →</p>
+						</a>
+					</li>
 				</ul>
 			</section>
 
@@ -256,10 +298,13 @@
 		</div>
 
 		<aside
-			class="mt-6 hidden min-h-0 md:sticky md:top-0 md:mt-0 md:block md:max-h-[calc(100dvh-5rem)] md:overflow-y-auto"
-			aria-labelledby="now-tasks-heading"
+			class="mt-6 hidden min-h-0 space-y-4 md:sticky md:top-0 md:mt-0 md:block md:max-h-[calc(100dvh-5rem)] md:overflow-y-auto"
+			aria-label="Now and classwork"
 		>
-			<div class="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+			<section
+				class="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm"
+				aria-labelledby="now-tasks-heading"
+			>
 				<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
 					<div class="min-w-0">
 						<h2
@@ -289,7 +334,9 @@
 					onEdit={openEdit}
 					onInvalidate={onTaskSaved}
 				/>
-			</div>
+			</section>
+
+			<DashboardDueSoon assignments={data.dueSoonAssignments} />
 		</aside>
 	</div>
 </div>

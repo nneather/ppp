@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { addDaysYmd } from '$lib/invoicing/chicago-date';
 import { findDomainRootId } from '$lib/projects/filter';
 import {
 	collectDescendantIds,
@@ -18,7 +19,8 @@ import {
 	type ClassworkListFilters,
 	type ClassworkProjectOption,
 	type CourseRow,
-	type CourseStatus
+	type CourseStatus,
+	type DueSoonAssignment
 } from '$lib/types/classwork';
 
 const COURSE_COLUMNS =
@@ -70,6 +72,115 @@ export function daysUntilDue(dueYmd: string, todayYmd: string): number {
 	const today = Date.parse(`${todayYmd}T12:00:00Z`);
 	if (!Number.isFinite(due) || !Number.isFinite(today)) return 0;
 	return Math.round((due - today) / 86_400_000);
+}
+
+/**
+ * Open assignments with due_date on/before today+horizon (overdue first via date asc).
+ * Pure helper for unit tests; loader applies the same filter in SQL.
+ */
+export function selectDueSoon(
+	assignments: AssignmentListRow[],
+	opts: { todayYmd: string; horizonDays: number }
+): DueSoonAssignment[] {
+	const horizon = Math.max(0, Math.floor(opts.horizonDays));
+	const out: DueSoonAssignment[] = [];
+	for (const a of assignments) {
+		if (a.status === 'done') continue;
+		const days = a.days_until ?? daysUntilDue(a.due_date, opts.todayYmd);
+		if (days > horizon) continue;
+		out.push({ ...a, days_until: days });
+	}
+	out.sort(
+		(a, b) =>
+			a.due_date.localeCompare(b.due_date) ||
+			a.title.localeCompare(b.title) ||
+			a.id.localeCompare(b.id)
+	);
+	return out;
+}
+
+/**
+ * Open assignments due within `horizonDays` of Chicago today (default 14).
+ * Overdue rows included; ordered by due_date ascending (most overdue first).
+ */
+export async function loadDueSoonAssignments(
+	supabase: SupabaseClient,
+	opts: { todayYmd: string; horizonDays?: number; limit?: number }
+): Promise<{
+	assignments: DueSoonAssignment[];
+	horizonDays: number;
+	horizonEnd: string;
+	error: string | null;
+}> {
+	const todayYmd = opts.todayYmd;
+	const horizonDays = Math.max(0, Math.floor(opts.horizonDays ?? 14));
+	const limit = Math.min(Math.max(opts.limit ?? 50, 1), 100);
+	const horizonEnd = addDaysYmd(todayYmd, horizonDays) ?? todayYmd;
+
+	const assignmentsRes = await supabase
+		.from('assignments')
+		.select(ASSIGNMENT_COLUMNS)
+		.is('deleted_at', null)
+		.neq('status', 'done')
+		.lte('due_date', horizonEnd)
+		.order('due_date', { ascending: true })
+		.order('title', { ascending: true })
+		.limit(limit);
+
+	if (assignmentsRes.error) {
+		console.error('[classwork] loadDueSoonAssignments', assignmentsRes.error);
+		return {
+			assignments: [],
+			horizonDays,
+			horizonEnd,
+			error: assignmentsRes.error.message
+		};
+	}
+
+	const rows = (assignmentsRes.data ?? []) as AssignmentDb[];
+	const courseIds = [...new Set(rows.map((r) => r.course_id))];
+	const coursesRes = courseIds.length
+		? await supabase
+				.from('courses')
+				.select('id, name, code')
+				.in('id', courseIds)
+				.is('deleted_at', null)
+		: { data: [] as { id: string; name: string; code: string | null }[], error: null };
+
+	if (coursesRes.error) {
+		console.error('[classwork] due-soon courses', coursesRes.error);
+	}
+
+	const courseById = new Map<string, { name: string; code: string | null }>();
+	for (const c of coursesRes.data ?? []) {
+		const row = c as { id: string; name: string; code: string | null };
+		courseById.set(row.id, { name: row.name, code: row.code });
+	}
+
+	const assignments: DueSoonAssignment[] = [];
+	for (const raw of rows) {
+		const kind = asAssignmentKind(raw.kind);
+		const status = asAssignmentStatus(raw.status);
+		if (!kind || !status || status === 'done') continue;
+		const course = courseById.get(raw.course_id);
+		assignments.push({
+			id: raw.id,
+			course_id: raw.course_id,
+			course_name: course?.name ?? 'Unknown course',
+			course_code: course?.code ?? null,
+			parent_id: raw.parent_id,
+			title: raw.title,
+			kind,
+			status,
+			due_date: raw.due_date,
+			completed_at: raw.completed_at,
+			notes: raw.notes,
+			sort_order: raw.sort_order,
+			days_until: daysUntilDue(raw.due_date, todayYmd)
+		});
+	}
+
+	return { assignments, horizonDays, horizonEnd, error: null };
 }
 
 export function parseClassworkListFilters(url: URL): ClassworkListFilters {

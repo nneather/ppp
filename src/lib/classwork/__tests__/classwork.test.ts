@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	daysUntilDue,
 	groupAssignmentsByCourse,
-	groupAssignmentsByDate
+	groupAssignmentsByDate,
+	selectDueSoon
 } from '$lib/classwork/server/loaders';
 import { parentPickerOptions } from '$lib/classwork/parent-picker';
 import type { AssignmentListRow, CourseRow } from '$lib/types/classwork';
@@ -99,5 +100,22 @@ describe('parentPickerOptions', () => {
 		];
 		const opts = parentPickerOptions(assignments, 'c1', 'root');
 		expect(opts.map((a) => a.id)).toEqual(['other']);
+	});
+});
+
+describe('selectDueSoon', () => {
+	it('includes overdue and within horizon; drops done and beyond', () => {
+		const today = '2026-08-10';
+		const selected = selectDueSoon(
+			[
+				row({ id: 'over', due_date: '2026-08-01', days_until: -9 }),
+				row({ id: 'soon', due_date: '2026-08-20', days_until: 10 }),
+				row({ id: 'far', due_date: '2026-09-01', days_until: 22 }),
+				row({ id: 'done', due_date: '2026-08-05', status: 'done', days_until: null })
+			],
+			{ todayYmd: today, horizonDays: 14 }
+		);
+		expect(selected.map((a) => a.id)).toEqual(['over', 'soon']);
+		expect(selected[0]!.days_until).toBe(-9);
 	});
 });

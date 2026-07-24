@@ -70,6 +70,11 @@ export type AssignmentListRow = {
 	days_until: number | null;
 };
 
+/** Open assignment due on/before today+horizon (overdue included). days_until always set. */
+export type DueSoonAssignment = AssignmentListRow & {
+	days_until: number;
+};
+
 export type ClassworkListFilters = {
 	group: ClassworkGroup;
 	courseId: string | null;

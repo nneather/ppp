@@ -1,6 +1,6 @@
 # Personal Operations System — Classwork Module Build Tracker
 
-_Last updated: 2026-07-24 | Module: Classwork (5th) | Session 1 complete_
+_Last updated: 2026-07-24 | Module: Classwork (5th) | Session 2 complete_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [150](decisions/150-classwork-session-0.md).
 
@@ -109,12 +109,12 @@ assignments
 
 ---
 
-## MCP read surface (fields locked; implementation in Session 2 or separate prompt)
+## MCP read surface (fields locked; implementation in Session 2)
 
 | Tool | Contract |
 |---|---|
-| `list_due_soon` | Replaces stub in `scripts/ppp-mcp/` — **same name**. Param `horizon_days` (default 14). Returns open (`status != 'done'`) assignments: title, kind, status, due_date, days_until (negative = overdue), course name + code. Overdue included. |
-| `get_assignments_for_course` | Resolve course by name/code (fuzzy, like `src/lib/mcp/bible-book.ts` resolver). Returns full assignment list: status, due_date, kind, parent grouping. |
+| `list_due_soon` | Replaces stub in `scripts/ppp-mcp/` — **same name**. Param `horizon_days` (default 14). Returns open (`status != 'done'`) assignments: title, kind, status, due_date, days_until (negative = overdue), course name + code. Overdue included. ✅ Session 2 |
+| `get_assignments_for_course` | Resolve course by name/code (fuzzy, like `src/lib/mcp/bible-book.ts` resolver). Returns full assignment list: status, due_date, kind, parent grouping. ✅ Session 2 |
 | (join path) | `courses.project_id` lets a weekly review join `list_project_health` → upcoming/behind assignments for a course at `watch`/`serious`. No new tool needed — just keep `project_id` in the course payload. |
 
 ---
@@ -127,7 +127,7 @@ assignments
 | C2 | course | `project_id` picker: hard-constrain to Education subtree or suggest-only? | ✅ Session 1 — suggest-only ([153](decisions/153-classwork-session-1.md)) |
 | A1 | assignment | Milestone ordering under a parent — is `due_date` sufficient or does the UI need `sort_order`? | ✅ Session 1 — `due_date` only; `sort_order` schema-only ([153](decisions/153-classwork-session-1.md)) |
 | A2 | assignment | Time-of-day deadlines (11:59 PM vs in-class) — deferred; revisit only if a real same-day-ordering need appears. | Only if hit |
-| D1 | dashboard | Desktop home: classwork due-soon as a **badge/strip under Now tasks** vs **integrated into the Now column** (not mixing MYN tasks with assignments as the same entity). Mobile glance placement follows. | Session 2 (or polish pass) — owner pick from screenshot context |
+| D1 | dashboard | Desktop home: classwork due-soon as a **badge/strip under Now tasks** vs **integrated into the Now column** (not mixing MYN tasks with assignments as the same entity). Mobile glance placement follows. | ✅ Session 2 — **(B)** distinct Due soon card under Now + mobile Classwork tile ([161](decisions/161-classwork-session-2.md)) |
 
 ---
 
@@ -137,8 +137,8 @@ assignments
 |---|---|---|
 | 0 | ✅ 2026-07-24 | Phase 0 lock + this tracker + [150](decisions/150-classwork-session-0.md) |
 | 1 | ✅ 2026-07-24 | Migration `ppp_classwork_v1` + gen-types + `/classwork` (group toggle) + Sheets + nav split (mobile: Dashboard/Tasks/Invoicing/Library/Classwork) + permissions/audit. C2 suggest-only; A1 due_date order. Viewer solo waiver noted. Decision [153](decisions/153-classwork-session-1.md). |
-| 2 | 🔲 | Dashboard due-soon + MCP `list_due_soon` / `get_assignments_for_course`. **Lock D1 first:** badge under Now vs Now-adjacent strip (see Open Q). Mobile glance too. |
+| 2 | ✅ 2026-07-24 | Dashboard due-soon (D1=B) + MCP `list_due_soon` / `get_assignments_for_course`. Decision [161](decisions/161-classwork-session-2.md). |
 | — | note | Decision numbers 146–149 were taken by a parallel library publisher session on 2026-07-24 — Session 0 record is **[150](decisions/150-classwork-session-0.md)**, not 146. |
 | — | backlog | Bulk/quick-add UI for syllabus entry — only if manual entry hurts in late August |
 
-**Timeline:** Session 1 before syllabi land (target mid-August, after Aug 9 STL return); Session 2 before 2026-08-31.
+**Timeline:** Sessions 1–2 done before syllabi land; semester start **2026-08-31**.

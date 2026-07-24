@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — Restructured: trimmed to current state + live prompts; completed-work archive now lives only in `docs/decisions/` and the module trackers ([159](docs/decisions/159-plan-md-trim-and-conventions.md)).
+**Last updated:** 2026-07-24 — Classwork Session 2 due-soon + MCP ([161](docs/decisions/161-classwork-session-2.md)); TDNT/HALAT/LSJ ([160](docs/decisions/160-tdnt-halat-lsj-consistency.md)); PLAN trim ([159](docs/decisions/159-plan-md-trim-and-conventions.md)).
 
 **How to use this file — read this first:**
 
@@ -18,9 +18,9 @@
 
 **Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later).
 
-- **Classwork** — Session 1 shipped ([153](docs/decisions/153-classwork-session-1.md)); **Session 2** (dashboard due-soon + MCP tools) is the active build — prompt below.
+- **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)) — `/classwork` CRUD, dashboard Due soon (D1=B), MCP `list_due_soon` + `get_assignments_for_course`.
 - **Contacts / CRM** — Session 0 (Phase 0 lock) not started — prompt below. Thin v1 target ~Thanksgiving.
-- **MCP read-only v1 shipped** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) — owner to wire Cursor + Claude Code.
+- **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools real ([161](docs/decisions/161-classwork-session-2.md)); contacts stub remains. Reload MCP clients after this session.
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
 
 Nearest hard dates:
@@ -37,9 +37,9 @@ Nearest hard dates:
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅ (essays/Articles, PWA resume, megacomponent core; OCR deferred). **Open:** August shelf QA Track B + "Needs the shelf" (50) — Madison; ISBN Google Books cross-check ([151](docs/decisions/151-book-metadata-source-strategy.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard. Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
-| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | 🟡 Session 1 done ([153](docs/decisions/153-classwork-session-1.md)) — `courses` + `assignments`, `/classwork` CRUD. **Session 2** (dashboard due-soon + MCP tools) in progress; target before 2026-08-31. |
+| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 ([153](docs/decisions/153-classwork-session-1.md)/[161](docs/decisions/161-classwork-session-2.md)) — CRUD + dashboard Due soon (D1=B) + MCP tools. Backlog: bulk syllabus entry if needed late Aug. |
 | Contacts / CRM | *(tracker created in Session 0)* | 🔲 Fall priority ([139](docs/decisions/139-lightweight-crm-fall-priority.md)) — meet cadence + Christmas cards; mailing send later; **≠ library `people`.** |
-| MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) — local stdio; Cursor + Claude Code. classwork/contacts tools land as those modules ship. |
+| MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)); contacts stub remains. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [161 — Classwork Session 2 (dashboard due-soon + MCP)](docs/decisions/161-classwork-session-2.md) (2026-07-24) — D1=B Due soon under Now; mobile Classwork tile; `list_due_soon` + `get_assignments_for_course`.
+- [160 — TDNT / HALAT consistency + LSJ](docs/decisions/160-tdnt-halat-lsj-consistency.md) (2026-07-24) — TDNT Eerdmans remint; German HAL→HALAT; add LSJ; fix abridged Liddell & Scott.
+- [159 — PLAN.md trim + conventions](docs/decisions/159-plan-md-trim-and-conventions.md) (2026-07-24) — lean PLAN; history in decisions/trackers.
 - [158 — Book detail polish + in-page author edit](docs/decisions/158-book-detail-polish-author-edit.md) (2026-07-24) — drop book icon; quieter cite/facts; On the shelf; owner author tap → Edit person dialog + View books.
 - [157 — Multi-volume systematics credits + set bibliography](docs/decisions/157-multivol-systematics-credits-set-bib.md) (2026-07-24) — Calvin/Synopsis/Mastricht/Bavinck/Turretin editors+translators; house-style titles; Turabian §17.1.4 cite-set checkbox on book detail.
-- [156 — Book detail densify (siblings, also-by, peeks)](docs/decisions/156-book-detail-densify.md) (2026-07-24) — series siblings + also-by-author under facts; conditional section peeks; genre in facts `<dl>`; author/series links.
-- [155 — Batch essay entry + remove top preview](docs/decisions/155-batch-essay-entry.md) (2026-07-24) — multi-row essay create (`?/createEssaysBatch`); dropped near-title essays preview card; edit stays single-row.
-- [153 — Classwork Session 1 (schema + `/classwork` CRUD)](docs/decisions/153-classwork-session-1.md) (2026-07-24) — `ppp_classwork_v1`; list group toggle; Sheets; mobile nav trim; C2 Education suggest; A1 due_date milestones.
 
 ---
 
@@ -59,7 +59,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Projects (use weekly):**
 - `/projects` — inline tree + weekly check-in (`depends('app:projects:tree')`), optional **progress tracking** per check-in (value / of / note — [048](docs/decisions/048-projects-checkin-progress.md)).
-- `/dashboard` — desktop two-column home (status + modules + upcoming sermons; sticky Critical/Opportunity Now); mobile glance without task list ([132](docs/decisions/132-desktop-home-dashboard.md)).
+- `/dashboard` — desktop two-column home (status + modules + upcoming sermons; sticky Critical/Opportunity Now + **Due soon** Classwork card); mobile glance tiles for Tasks + Classwork ([132](docs/decisions/132-desktop-home-dashboard.md), [161](docs/decisions/161-classwork-session-2.md)).
 - `/tasks` — MYN zones (Critical / Opportunity / OTH), FRESH sort, defer/promote; `?project=` / `?view=` / `?all=1` ([128](docs/decisions/128-myn-fall-polish.md)). Legacy `/projects/tasks` 308-redirects here.
 - `/settings/projects` — default New Task project + named saved views.
 - Edit project Sheet — metadata + **links** (edit mode only).
@@ -71,7 +71,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Sermons:** `/sermons` list + Sheet; `/sermons/by-book` commentary × sermon spine (series label + multi-part collapse + latest sermon date — [134](docs/decisions/134-sermons-by-book-series-dedupe.md)); `/settings/sermons/venues`; helpers `src/lib/sermons/` (incl. `loadUpcomingSermons`); migration `20260717190000_ppp_sermons_v1.sql` ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md), [132](docs/decisions/132-desktop-home-dashboard.md)).
 
-**Classwork:** `/classwork` CRUD (list group toggle); schema `courses` + `assignments` (migration `ppp_classwork_v1`); helpers `src/lib/classwork/`; MCP `list_due_soon` / `get_assignments_for_course` landing in Session 2 ([150](docs/decisions/150-classwork-session-0.md), [153](docs/decisions/153-classwork-session-1.md)).
+**Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; migration `20260724220000_ppp_classwork_v1.sql`.
 
 **Invoicing helpers:** `src/lib/invoicing/` — `chicago-date.ts`, `hours.ts`, `consultation-lines.ts` ([050]). Loaders/actions live inline in route `+page.server.ts` files **by design** (see AGENTS.md › Module structure).
 
@@ -79,7 +79,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([158](docs/decisions/158-book-detail-polish-author-edit.md); **0 errors**, 343 tests).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([161](docs/decisions/161-classwork-session-2.md); **0 errors**, 350 tests). `npm run mcp:smoke` green (10 tools).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -94,27 +94,6 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ## Session prompts (copy-paste) — LIVE only
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
-
-### Classwork — Session 2: dashboard due-soon + MCP tools — from [153](docs/decisions/153-classwork-session-1.md)
-
-```
-Session: classwork #2 — dashboard due-soon + MCP tools
-Tracker: docs/POS_Classwork_Build_Tracker.md, Session 2
-Read: AGENTS.md, docs/POS_Classwork_Build_Tracker.md, docs/decisions/153-classwork-session-1.md,
-  docs/decisions/150-classwork-session-0.md, scripts/ppp-mcp/README.md, src/lib/classwork/,
-  src/routes/dashboard/+page.svelte (desktop Now column — [132])
-Supabase: hosted db push only if needed — supabase/README.md
-Goal: Surface open assignments due within 14 days on /dashboard and replace MCP stubs.
-Lock before UI (tracker open Q D1 — owner pick):
- - [ ] Desktop home placement: (A) badge/strip under the Now tasks card, or (B) integrated
-       into the Now column as a distinct Classwork section (not MYN task rows). Mobile glance follows.
-Acceptance:
- - [ ] Dashboard due-soon (14d, overdue first) per D1; deep-link to /classwork
- - [ ] MCP list_due_soon real (horizon_days default 14, overdue included) — same tool name
- - [ ] MCP get_assignments_for_course (fuzzy course resolve)
- - [ ] npm run mcp:smoke green; npm run check + npm run test
-End-of-session: tracker Session 2 done; docs/decisions/<next-free>-classwork-session-2.md; PLAN.md refreshed
-```
 
 ### Contacts / CRM — Session 0: Phase 0 lock (fall) — from [139](docs/decisions/139-lightweight-crm-fall-priority.md)
 
@@ -248,21 +227,22 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Classwork Session 2** — lock desktop home placement (tracker D1), then due-soon UI + MCP `list_due_soon` / `get_assignments_for_course`. Session 1 done ([153](docs/decisions/153-classwork-session-1.md)); prompt above.
-2. **Contacts / CRM Session 0** — lightweight people tracker (meet cadence + Christmas cards; mailing send later). Prompt above. Thin v1 by ~Thanksgiving.
-3. **Owner:** wire `ppp` MCP in Cursor + Claude Code ([scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md)); confirm one chat smoke (`list_now_tasks`).
+1. **Contacts / CRM Session 0** — lightweight people tracker (meet cadence + Christmas cards; mailing send later). Prompt above. Thin v1 by ~Thanksgiving.
+2. **Owner:** reload `ppp` MCP clients after classwork tools ([161](docs/decisions/161-classwork-session-2.md)); smoke `list_due_soon` / `get_assignments_for_course`.
+3. **Owner glance:** `/dashboard` Due soon under Now (desktop) + Classwork tile (mobile).
 
 ### Next / parallel
 4. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
 5. **Invoicing — first real-client send** (Sarah back in office). If the outgoing PDF is unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run the diagnostics prompt above ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) before further Edge MIME change.
 6. **Security hardening (051 R2)** — open medium findings; prompt above.
 7. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
+8. **Classwork backlog** — bulk/quick-add if syllabus entry hurts late August ([POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md)).
 
 ### Wait for Madison / August
-8. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.
-9. **Needs the shelf** — 50 shelf-bound needs_review ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)); plus Research-deck phone smoke at ~673 proposals + the 45 no-AI-signal books ([068](docs/decisions/068-library-review-ai-research-pass.md)). Prompt above.
-10. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
-11. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
+9. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.
+10. **Needs the shelf** — 50 shelf-bound needs_review ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)); plus Research-deck phone smoke at ~673 proposals + the 45 no-AI-signal books ([068](docs/decisions/068-library-review-ai-research-pass.md)). Prompt above.
+11. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
+12. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
 
 ### Deferred / someday (pointer only — detail in the cited decision doc)
 - **PWA branded icons** ([057](docs/decisions/057-pwa-consistency.md)) — replace placeholder squares with a monogram set.

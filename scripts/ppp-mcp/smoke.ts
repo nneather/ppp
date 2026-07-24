@@ -8,6 +8,7 @@
 
 import { getPppMcpClient } from './client.ts';
 import {
+	getAssignmentsForCourse,
 	getBookCitation,
 	listCommentariesForBibleBook,
 	listContactsDue,
@@ -27,7 +28,15 @@ async function runTool(name: ToolName): Promise<unknown> {
 		case 'list_now_tasks':
 			return listNowTasks(supabase);
 		case 'list_due_soon':
-			return listDueSoon(supabase);
+			return listDueSoon(supabase, { horizon_days: 14 });
+		case 'get_assignments_for_course': {
+			// Prefer a real course when any exist; otherwise exercise the resolve-miss path.
+			const { loadCourses } = await import('../../src/lib/classwork/server/loaders.ts');
+			const { courses } = await loadCourses(supabase);
+			const sample = courses[0];
+			const course = sample?.code?.trim() || sample?.name?.trim() || 'Psalms';
+			return getAssignmentsForCourse(supabase, { course });
+		}
 		case 'list_contacts_due':
 			return listContactsDue(supabase);
 		case 'search_library':
