@@ -39,14 +39,18 @@
 		WORK_TYPE_LABELS
 	} from '$lib/types/library';
 	import type {
+		AlsoByAuthorShelf,
 		AncientTextRow,
+		BookAuthorShelfRow,
 		BookListRow,
+		BookSiblingRow,
 		BookTopicRow,
 		EssayRow,
 		ReadingStatus,
 		ScriptureRefRow,
 		TopicCount
 	} from '$lib/types/library';
+	import { siblingBookLabel } from '$lib/library/book-detail-related';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import BookEssaysEditor from '$lib/components/book-essays-editor.svelte';
 	import BookRatingScale from '$lib/components/book-rating-scale.svelte';
@@ -326,6 +330,43 @@
 	const showEssaysSection = $derived(
 		data.book.work_type === 'reference_work' || data.book.work_type === 'edited_volume'
 	);
+
+	let seriesSiblings = $state<BookSiblingRow[]>([]);
+	let alsoByAuthor = $state<AlsoByAuthorShelf>({
+		books: [],
+		hasMore: false,
+		primaryPersonId: null
+	});
+	let bibleCoverageCount = $state(0);
+	let ancientCoverageCount = $state(0);
+
+	$effect(() => {
+		void data.seriesSiblingsPromise.then((rows) => {
+			seriesSiblings = rows;
+		});
+	});
+	$effect(() => {
+		void data.alsoByAuthorPromise.then((shelf) => {
+			alsoByAuthor = shelf;
+		});
+	});
+	$effect(() => {
+		void data.bibleCoveragePromise.then((rows) => {
+			bibleCoverageCount = rows.length;
+		});
+	});
+	$effect(() => {
+		void data.ancientCoveragePromise.then((rows) => {
+			ancientCoverageCount = rows.length;
+		});
+	});
+
+	const alsoByAuthorLabel = $derived.by(() => {
+		const id = alsoByAuthor.primaryPersonId;
+		if (!id) return null;
+		const match = data.book.authors.find((a) => a.person_id === id);
+		return match?.person_label ?? null;
+	});
 
 	let essays = $state<EssayRow[]>([]);
 	$effect(() => {
@@ -779,6 +820,21 @@
 		});
 	});
 
+	const showSectionPeeks = $derived(
+		refs.length > 0 ||
+			bibleCoverageCount > 0 ||
+			ancientCoverageCount > 0 ||
+			topics.length > 0
+	);
+
+	function jumpToSection(elementId: string, opts?: { openRefs?: boolean }) {
+		if (!browser) return;
+		if (opts?.openRefs) refsOpen = true;
+		requestAnimationFrame(() => {
+			document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		});
+	}
+
 	let topicCounts = $state<TopicCount[]>([]);
 	let ancientTexts = $state<AncientTextRow[]>([]);
 
@@ -975,9 +1031,6 @@
 			{/if}
 		</span>
 	{/if}
-	{#if data.book.genre}
-		<span class="text-xs uppercase tracking-wide">{data.book.genre}</span>
-	{/if}
 	{#if data.book.needs_review}
 		<span
 			class="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
@@ -998,7 +1051,12 @@
 		<p class="text-sm text-foreground">
 			{#each data.book.authors as a, i (a.person_id + a.role)}
 				<span>
-					{a.person_label}
+					<a
+						href={`/library?author_id=${encodeURIComponent(a.person_id)}`}
+						class="underline-offset-2 hover:underline"
+					>
+						{a.person_label}
+					</a>
 					{#if a.role !== 'author'}
 						<span class="text-muted-foreground">({AUTHOR_ROLE_LABELS[a.role]})</span>
 					{/if}
@@ -1252,69 +1310,189 @@
 	{/if}
 
 	<div class="mt-4 grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_17.5rem]">
-		<dl class="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5 text-sm leading-snug sm:grid-cols-[7.5rem_1fr]">
-			<dt class="font-medium text-muted-foreground">Publication</dt>
-			<dd class="min-w-0 text-foreground">{fmtYearChunk() || '—'}</dd>
+		<div class="min-w-0 space-y-4">
+			<dl class="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5 text-sm leading-snug sm:grid-cols-[7.5rem_1fr]">
+				{#if data.book.genre}
+					<dt class="font-medium text-muted-foreground">Genre</dt>
+					<dd class="min-w-0 text-foreground">{data.book.genre}</dd>
+				{/if}
 
-			{#if data.book.edition}
-				<dt class="font-medium text-muted-foreground">Edition</dt>
-				<dd class="min-w-0 text-foreground">{data.book.edition}</dd>
+				<dt class="font-medium text-muted-foreground">Publication</dt>
+				<dd class="min-w-0 text-foreground">{fmtYearChunk() || '—'}</dd>
+
+				{#if data.book.edition}
+					<dt class="font-medium text-muted-foreground">Edition</dt>
+					<dd class="min-w-0 text-foreground">{data.book.edition}</dd>
+				{/if}
+
+				{#if data.book.copy_count > 1}
+					<dt class="font-medium text-muted-foreground">Copies</dt>
+					<dd class="min-w-0 text-foreground">{data.book.copy_count}</dd>
+				{/if}
+
+				{#if data.book.total_volumes}
+					<dt class="font-medium text-muted-foreground">Total volumes</dt>
+					<dd class="min-w-0 text-foreground">{data.book.total_volumes}</dd>
+				{/if}
+
+				{#if data.book.original_year || data.book.reprint_year || data.book.reprint_publisher || data.book.reprint_location}
+					<dt class="font-medium text-muted-foreground">Reprint</dt>
+					<dd class="min-w-0 text-foreground">
+						{#if data.book.original_year}orig. {data.book.original_year}; {/if}
+						{[data.book.reprint_location, data.book.reprint_publisher, data.book.reprint_year]
+							.filter((s): s is string | number => s != null && String(s).length > 0)
+							.join(', ')}
+					</dd>
+				{/if}
+
+				{#if data.book.page_count}
+					<dt class="font-medium text-muted-foreground">Pages</dt>
+					<dd class="min-w-0 text-foreground">{data.book.page_count}</dd>
+				{/if}
+
+				{#if data.book.series_name}
+					<dt class="font-medium text-muted-foreground">Series</dt>
+					<dd class="min-w-0 text-foreground">
+						{#if data.book.series_id}
+							<a
+								href={`/library?series_id=${encodeURIComponent(data.book.series_id)}`}
+								class="underline-offset-2 hover:underline"
+							>
+								{data.book.series_abbreviation
+									? `${data.book.series_abbreviation} — ${data.book.series_name}`
+									: data.book.series_name}
+							</a>
+						{:else}
+							{data.book.series_abbreviation
+								? `${data.book.series_abbreviation} — ${data.book.series_name}`
+								: data.book.series_name}
+						{/if}
+					</dd>
+				{/if}
+
+				<dt class="font-medium text-muted-foreground">Language</dt>
+				<dd class="min-w-0 text-foreground">{LANGUAGE_LABELS[data.book.language]}</dd>
+
+				{#if data.book.isbn}
+					<dt class="font-medium text-muted-foreground">ISBN</dt>
+					<dd class="min-w-0 font-mono text-xs text-foreground">{data.book.isbn}</dd>
+				{/if}
+				{#if data.book.barcode}
+					<dt class="font-medium text-muted-foreground">Barcode</dt>
+					<dd class="min-w-0 font-mono text-xs text-foreground">{data.book.barcode}</dd>
+				{/if}
+				{#if data.book.shelving_location}
+					<dt class="font-medium text-muted-foreground">Shelf</dt>
+					<dd class="min-w-0 text-foreground">{data.book.shelving_location}</dd>
+				{/if}
+				{#if data.book.borrowed_to}
+					<dt class="font-medium text-muted-foreground">On loan to</dt>
+					<dd class="min-w-0 text-foreground">{data.book.borrowed_to}</dd>
+				{/if}
+			</dl>
+
+			{#if seriesSiblings.length > 0}
+				<div>
+					<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+						In this series
+						<span class="font-normal normal-case tracking-normal">({seriesSiblings.length})</span>
+					</p>
+					<ul class="mt-1.5 space-y-1 text-sm">
+						{#each seriesSiblings as sib (sib.id)}
+							<li>
+								<a
+									href={`/library/books/${sib.id}`}
+									class="text-foreground underline-offset-2 hover:underline"
+								>
+									{siblingBookLabel(sib)}
+								</a>
+								{#if sib.year}
+									<span class="text-muted-foreground"> ({sib.year})</span>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</div>
 			{/if}
 
-			{#if data.book.copy_count > 1}
-				<dt class="font-medium text-muted-foreground">Copies</dt>
-				<dd class="min-w-0 text-foreground">{data.book.copy_count}</dd>
+			{#if alsoByAuthor.books.length > 0}
+				<div>
+					<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+						{#if alsoByAuthorLabel}
+							Also by {alsoByAuthorLabel}
+						{:else}
+							Also by this author
+						{/if}
+					</p>
+					<ul class="mt-1.5 space-y-1 text-sm">
+						{#each alsoByAuthor.books as row (row.id)}
+							<li>
+								<a
+									href={`/library/books/${row.id}`}
+									class="text-foreground underline-offset-2 hover:underline"
+								>
+									{row.title?.trim() || '(untitled)'}
+								</a>
+								{#if row.year}
+									<span class="text-muted-foreground"> ({row.year})</span>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+					{#if alsoByAuthor.hasMore && alsoByAuthor.primaryPersonId}
+						<p class="mt-1.5 text-sm">
+							<a
+								href={`/library?author_id=${encodeURIComponent(alsoByAuthor.primaryPersonId)}`}
+								class="text-muted-foreground underline-offset-2 hover:underline"
+							>
+								See all
+							</a>
+						</p>
+					{/if}
+				</div>
 			{/if}
 
-			{#if data.book.total_volumes}
-				<dt class="font-medium text-muted-foreground">Total volumes</dt>
-				<dd class="min-w-0 text-foreground">{data.book.total_volumes}</dd>
+			{#if showSectionPeeks}
+				<div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+					{#if refs.length > 0}
+						<button
+							type="button"
+							class="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+							onclick={() => jumpToSection('scripture-refs-heading', { openRefs: true })}
+						>
+							Scripture · {refs.length}
+						</button>
+					{/if}
+					{#if bibleCoverageCount > 0}
+						<button
+							type="button"
+							class="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+							onclick={() => jumpToSection('bible-coverage-heading')}
+						>
+							Bible coverage · {bibleCoverageCount}
+						</button>
+					{/if}
+					{#if ancientCoverageCount > 0}
+						<button
+							type="button"
+							class="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+							onclick={() => jumpToSection('ancient-coverage-heading')}
+						>
+							Ancient · {ancientCoverageCount}
+						</button>
+					{/if}
+					{#if topics.length > 0}
+						<button
+							type="button"
+							class="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+							onclick={() => jumpToSection('book-topics-heading')}
+						>
+							Topics · {topics.length}
+						</button>
+					{/if}
+				</div>
 			{/if}
-
-			{#if data.book.original_year || data.book.reprint_year || data.book.reprint_publisher || data.book.reprint_location}
-				<dt class="font-medium text-muted-foreground">Reprint</dt>
-				<dd class="min-w-0 text-foreground">
-					{#if data.book.original_year}orig. {data.book.original_year}; {/if}
-					{[data.book.reprint_location, data.book.reprint_publisher, data.book.reprint_year]
-						.filter((s): s is string | number => s != null && String(s).length > 0)
-						.join(', ')}
-				</dd>
-			{/if}
-
-			{#if data.book.page_count}
-				<dt class="font-medium text-muted-foreground">Pages</dt>
-				<dd class="min-w-0 text-foreground">{data.book.page_count}</dd>
-			{/if}
-
-			{#if data.book.series_name}
-				<dt class="font-medium text-muted-foreground">Series</dt>
-				<dd class="min-w-0 text-foreground">
-					{data.book.series_abbreviation
-						? `${data.book.series_abbreviation} — ${data.book.series_name}`
-						: data.book.series_name}
-				</dd>
-			{/if}
-
-			<dt class="font-medium text-muted-foreground">Language</dt>
-			<dd class="min-w-0 text-foreground">{LANGUAGE_LABELS[data.book.language]}</dd>
-
-			{#if data.book.isbn}
-				<dt class="font-medium text-muted-foreground">ISBN</dt>
-				<dd class="min-w-0 font-mono text-xs text-foreground">{data.book.isbn}</dd>
-			{/if}
-			{#if data.book.barcode}
-				<dt class="font-medium text-muted-foreground">Barcode</dt>
-				<dd class="min-w-0 font-mono text-xs text-foreground">{data.book.barcode}</dd>
-			{/if}
-			{#if data.book.shelving_location}
-				<dt class="font-medium text-muted-foreground">Shelf</dt>
-				<dd class="min-w-0 text-foreground">{data.book.shelving_location}</dd>
-			{/if}
-			{#if data.book.borrowed_to}
-				<dt class="font-medium text-muted-foreground">On loan to</dt>
-				<dd class="min-w-0 text-foreground">{data.book.borrowed_to}</dd>
-			{/if}
-		</dl>
+		</div>
 
 		<aside class="flex flex-col gap-3">
 			{@render readingStatusCard()}

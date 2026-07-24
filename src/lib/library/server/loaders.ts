@@ -10,6 +10,9 @@ import type {
 	BookListFilters,
 	BookListRow,
 	BookDetail,
+	BookSiblingRow,
+	BookAuthorShelfRow,
+	AlsoByAuthorShelf,
 	SeriesRow,
 	PublisherRow,
 	PersonRow,
@@ -31,6 +34,7 @@ import type {
 	EssayRow,
 	EssaySearchHit
 } from '$lib/types/library';
+import { compareSiblingBooks } from '$lib/library/book-detail-related';
 import {
 	SCRIPTURE_IMAGES_BUCKET,
 	SCRIPTURE_IMAGES_SIGNED_URL_TTL
@@ -1297,6 +1301,107 @@ export async function loadBookDetail(
 		authors,
 		created_at: r.created_at,
 		updated_at: r.updated_at
+	};
+}
+
+const SERIES_SIBLING_CAP = 20;
+const AUTHOR_SHELF_CAP = 8;
+
+/**
+ * Other owned books in the same series (excludes current). Empty when no
+ * `seriesId`. Sorted by volume then title ([156]).
+ */
+export async function loadSeriesSiblingBooks(
+	supabase: SupabaseClient,
+	seriesId: string | null | undefined,
+	excludeBookId: string
+): Promise<BookSiblingRow[]> {
+	if (!seriesId) return [];
+	const { data, error } = await supabase
+		.from('books')
+		.select('id, title, volume_number, year')
+		.eq('series_id', seriesId)
+		.neq('id', excludeBookId)
+		.is('deleted_at', null)
+		.eq('owned', true)
+		.limit(SERIES_SIBLING_CAP);
+	if (error) {
+		console.error('[loadSeriesSiblingBooks]', error);
+		return [];
+	}
+	const rows: BookSiblingRow[] = (data ?? []).map((r) => ({
+		id: (r as { id: string }).id,
+		title: (r as { title: string | null }).title ?? null,
+		volume_number: (r as { volume_number: string | null }).volume_number ?? null,
+		year: (r as { year: number | null }).year ?? null
+	}));
+	rows.sort(compareSiblingBooks);
+	return rows;
+}
+
+/**
+ * Other owned books sharing primary author/editor person ids. Cap 8 + hasMore
+ * ([156]). Skip when `personIds` is empty.
+ */
+export async function loadAlsoByAuthorBooks(
+	supabase: SupabaseClient,
+	personIds: string[],
+	excludeBookId: string
+): Promise<AlsoByAuthorShelf> {
+	const empty: AlsoByAuthorShelf = {
+		books: [],
+		hasMore: false,
+		primaryPersonId: null
+	};
+	const unique = [...new Set(personIds.filter(Boolean))];
+	if (unique.length === 0) return empty;
+
+	const primaryPersonId = unique[0] ?? null;
+
+	const { data: junctions, error: jErr } = await supabase
+		.from('book_authors')
+		.select('book_id')
+		.in('person_id', unique)
+		.neq('book_id', excludeBookId);
+	if (jErr) {
+		console.error('[loadAlsoByAuthorBooks] junctions', jErr);
+		return { ...empty, primaryPersonId };
+	}
+
+	const bookIds = [
+		...new Set(
+			(junctions ?? [])
+				.map((r) => (r as { book_id: string | null }).book_id)
+				.filter((id): id is string => Boolean(id) && id !== excludeBookId)
+		)
+	];
+	if (bookIds.length === 0) return { ...empty, primaryPersonId };
+
+	const fetchLimit = AUTHOR_SHELF_CAP + 1;
+	const { data, error } = await supabase
+		.from('books')
+		.select('id, title, year, author_display')
+		.in('id', bookIds)
+		.is('deleted_at', null)
+		.eq('owned', true)
+		.order('title', { ascending: true })
+		.limit(fetchLimit);
+	if (error) {
+		console.error('[loadAlsoByAuthorBooks] books', error);
+		return { ...empty, primaryPersonId };
+	}
+
+	const mapped: BookAuthorShelfRow[] = (data ?? []).map((r) => ({
+		id: (r as { id: string }).id,
+		title: (r as { title: string | null }).title ?? null,
+		year: (r as { year: number | null }).year ?? null,
+		authors_label: (r as { author_display: string | null }).author_display ?? null
+	}));
+	const hasMore = mapped.length > AUTHOR_SHELF_CAP;
+	return {
+		books: mapped.slice(0, AUTHOR_SHELF_CAP),
+		hasMore,
+		primaryPersonId
 	};
 }
 

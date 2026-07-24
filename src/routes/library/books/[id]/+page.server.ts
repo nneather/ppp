@@ -8,8 +8,11 @@ import {
 	loadEssaysForBook,
 	loadPeople,
 	loadPersonBookCounts,
-	loadScriptureRefsForBook
+	loadScriptureRefsForBook,
+	loadSeriesSiblingBooks,
+	loadAlsoByAuthorBooks
 } from '$lib/library/server/loaders';
+import { primaryAuthorPersonIds } from '$lib/library/book-detail-related';
 import {
 	softDeleteBookAction,
 	undoSoftDeleteBookAction,
@@ -81,6 +84,8 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		? Object.fromEntries(await loadPersonBookCounts(supabase))
 		: ({} as Record<string, number>);
 
+	const alsoByPersonIds = primaryAuthorPersonIds(book.authors);
+
 	return {
 		book,
 		people,
@@ -88,6 +93,8 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		series,
 		bibleBookNames,
 		scriptureRefsPromise: loadScriptureRefsForBook(supabase, id),
+		seriesSiblingsPromise: loadSeriesSiblingBooks(supabase, book.series_id, id),
+		alsoByAuthorPromise: loadAlsoByAuthorBooks(supabase, alsoByPersonIds, id),
 		isOwner,
 		userId: user.id,
 		bookTopicsPromise: loadBookTopicsForBook(supabase, id),

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — **Batch essay entry** ([155](docs/decisions/155-batch-essay-entry.md)); essay author book counts ([152](docs/decisions/152-essay-author-book-counts.md)); Classwork Session 0 ([150](docs/decisions/150-classwork-session-0.md)).
+**Last updated:** 2026-07-24 — Book detail densify ([156](docs/decisions/156-book-detail-densify.md)); batch essay entry ([155](docs/decisions/155-batch-essay-entry.md)); essay note `[page]` ([154](docs/decisions/154-essay-note-page-placeholder.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -114,7 +114,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([155](docs/decisions/155-batch-essay-entry.md) + [152](docs/decisions/152-essay-author-book-counts.md); **0 errors**, 335 tests).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([156](docs/decisions/156-book-detail-densify.md); **0 errors**, 341 tests). Prior: [154](docs/decisions/154-essay-note-page-placeholder.md) / [155](docs/decisions/155-batch-essay-entry.md).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

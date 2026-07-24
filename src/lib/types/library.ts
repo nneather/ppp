@@ -256,6 +256,30 @@ export type BookDetail = {
 	updated_at: string;
 };
 
+/** Compact series peer on book detail ([156]). */
+export type BookSiblingRow = {
+	id: string;
+	title: string | null;
+	volume_number: string | null;
+	year: number | null;
+};
+
+/** Compact same-author shelf row on book detail ([156]). */
+export type BookAuthorShelfRow = {
+	id: string;
+	title: string | null;
+	year: number | null;
+	authors_label: string | null;
+};
+
+/** Streamed also-by-author shelf for book detail ([156]). */
+export type AlsoByAuthorShelf = {
+	books: BookAuthorShelfRow[];
+	/** True when more owned matches exist beyond `books`. */
+	hasMore: boolean;
+	primaryPersonId: string | null;
+};
+
 /** Person dedup hint surfaced by `peopleByLastInitial` map. */
 export type PersonDedupHint = {
 	person: PersonRow;
