@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-23 — ESVEC essay bible coverage + by-book signed hits ([137](docs/decisions/137-esvec-essay-bible-coverage.md)); commentary genre mistags ([136](docs/decisions/136-commentary-genre-mistags.md)); book-detail notes focus ([135](docs/decisions/135-book-detail-notes-focus-jump.md)).
+**Last updated:** 2026-07-24 — Shelf add Brill Synopsis + Bock/Marshall/Schreiner ([141](docs/decisions/141-brill-synopsis-bock-marshall-schreiner.md)); library search prefix FTS ([140](docs/decisions/140-library-search-prefix-tsquery.md)); fall priorities ([138](docs/decisions/138-fall-semester-priorities.md)/[139](docs/decisions/139-lightweight-crm-fall-priority.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -9,6 +9,8 @@
 ---
 
 ## Current focus
+
+**Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md), [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **MCP read-only v1** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later). Madison shelf QA after Aug 9. Personal: `~/Neal/context/current-priorities.md`.
 
 **Overnight deep-dive reviews (2026-07-07, decision-first):** three background agents — **usage retrospective** ([064](docs/decisions/064-usage-retrospective-review.md)), **writing workflow** ([065](docs/decisions/065-writing-workflow-review.md)), **operational resilience** ([066](docs/decisions/066-operational-resilience-review.md)); reports in [docs/reviews/](docs/reviews/). All 14 open calls answered. **Review-queue improvement + AI research pass: done** ([067](docs/decisions/067-library-review-sprint-decks.md), [068](docs/decisions/068-library-review-ai-research-pass.md)). **Nav watchdog shipped** ([072](docs/decisions/072-pwa-cold-start-resilience.md)); **PWA update auto-recover** ([082](docs/decisions/082-pwa-update-auto-recover.md)); **update banners non-blocking** ([100](docs/decisions/100-pwa-update-banner-nonblocking.md)). **Ops hardening shipped** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). **Writing-session gaps shipped** ([094](docs/decisions/094-library-writing-session-gaps.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)); **fall polish shipped** ([128](docs/decisions/128-myn-fall-polish.md) / lock [126](docs/decisions/126-myn-fall-backlog-lock.md)) — default project + saved views, next-Monday defer, Target Now, 50-total soft-cap; cross-module parked.
 
@@ -34,9 +36,12 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc: discard sent ([049]), per-client billing preferences ([050]), UX standardization ([054](docs/decisions/054-invoicing-polish.md)), dashboard last-week generate ([059](docs/decisions/059-dashboard-last-week-invoice.md)), PDF email MIME harden ([078](docs/decisions/078-invoice-email-pdf-mime.md)), PDF email diagnostics runbook ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 + writing-session gaps** ([094](docs/decisions/094-library-writing-session-gaps.md)). **Not-owned** Sessions 0–1 + inbox/owned-reappear polish ([101](docs/decisions/101-library-not-owned-session-0.md)–[108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md)) — **queue drain done**. **August QA Track A done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)); Track B (shelf) open. **`.docx` smoke ✅**; commentary series ([113](docs/decisions/113-commentary-series-volume-omit.md)); cite strip ([114](docs/decisions/114-book-detail-ui-cleanup.md)) + cite card/spacing ([118](docs/decisions/118-book-detail-cite-card-spacing.md)); postal locations ([115](docs/decisions/115-publisher-location-postal.md)); IVP location backfill ([127](docs/decisions/127-ivp-publisher-location-backfill.md)); B&H publisher link ([131](docs/decisions/131-bh-publisher-link-backfill.md)); Baker publisher pass ([133](docs/decisions/133-baker-publisher-link-pass.md)); commentary Batches 1–5 ([116](docs/decisions/116-commentary-consistency-batch1.md)–[121](docs/decisions/121-commentary-consistency-batch5.md)); Bible coverage list filter ([123](docs/decisions/123-library-bible-coverage-filter.md)); DOTHB essay seed + citation abbr ([124](docs/decisions/124-dothb-essay-smoke-seed.md)/[125](docs/decisions/125-books-citation-abbreviation.md)); notes focus jump ([135](docs/decisions/135-book-detail-notes-focus-jump.md)); commentary genre mistags ([136](docs/decisions/136-commentary-genre-mistags.md)); ESVEC essay coverage ([137](docs/decisions/137-esvec-essay-bible-coverage.md)). **Owner smokes ✅** (essays/Articles, PWA resume, megacomponent core; OCR deferred). |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build complete — QA signed off 2026-06-03. **Wave 2 Sessions 1–4 + writing-session gaps** ([094](docs/decisions/094-library-writing-session-gaps.md)). **Not-owned** Sessions 0–1 + inbox/owned-reappear polish ([101](docs/decisions/101-library-not-owned-session-0.md)–[108](docs/decisions/108-not-owned-owned-reappear-abandon-proposals.md)) — **queue drain done**. **August QA Track A done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)); Track B (shelf) open. **`.docx` smoke ✅**; commentary series ([113](docs/decisions/113-commentary-series-volume-omit.md)); cite strip ([114](docs/decisions/114-book-detail-ui-cleanup.md)) + cite card/spacing ([118](docs/decisions/118-book-detail-cite-card-spacing.md)); postal locations ([115](docs/decisions/115-publisher-location-postal.md)); IVP location backfill ([127](docs/decisions/127-ivp-publisher-location-backfill.md)); B&H publisher link ([131](docs/decisions/131-bh-publisher-link-backfill.md)); Baker publisher pass ([133](docs/decisions/133-baker-publisher-link-pass.md)); commentary Batches 1–5 ([116](docs/decisions/116-commentary-consistency-batch1.md)–[121](docs/decisions/121-commentary-consistency-batch5.md)); Bible coverage list filter ([123](docs/decisions/123-library-bible-coverage-filter.md)); DOTHB essay seed + citation abbr ([124](docs/decisions/124-dothb-essay-smoke-seed.md)/[125](docs/decisions/125-books-citation-abbreviation.md)); notes focus jump ([135](docs/decisions/135-book-detail-notes-focus-jump.md)); commentary genre mistags ([136](docs/decisions/136-commentary-genre-mistags.md)); ESVEC essay coverage ([137](docs/decisions/137-esvec-essay-bible-coverage.md)); **list search prefix FTS** ([140](docs/decisions/140-library-search-prefix-tsquery.md)). **Owner smokes ✅** (essays/Articles, PWA resume, megacomponent core; OCR deferred). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ **v1 complete** + **email-to-task + domain colors** ([077](docs/decisions/077-email-to-task-and-domain-colors.md)) + project select scroll ([080](docs/decisions/080-tasks-project-select-scroll.md)) + domain-root task options ([081](docs/decisions/081-tasks-project-options-domains.md)) + **recurring tasks + active badge** ([109](docs/decisions/109-tasks-active-badge-recurrence.md)) + task sheet date/footer polish ([112](docs/decisions/112-task-sheet-date-overflow.md)) + **fall MYN polish** ([128](docs/decisions/128-myn-fall-polish.md)) + **desktop home dashboard** ([132](docs/decisions/132-desktop-home-dashboard.md)). Tree/check-in, dashboard/filters, MYN `/tasks` (top-level nav; `/projects/tasks` redirects), `/settings/projects` prefs, links, audit. **Inbound live** ([098](docs/decisions/098-resend-inbound-webhook-secrets.md)). **MYN adopted** ([099](docs/decisions/099-myn-trial-adopted.md)). **Owner E2E smoke 2026-07-22 passed.** **Viewer access:** owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ **v1 Sessions 1–2** ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md)) + owner-smoke UX ([110](docs/decisions/110-sermons-owner-smoke-ux.md)) + by-book series/dedupe/latest sermon ([134](docs/decisions/134-sermons-by-book-series-dedupe.md)). List + by-book smoke **passed** (venue select, ranged Find-in-library, icon counts). |
+| Classwork | *(tracker in Session 0)* | 🔲 Fall priority ([138](docs/decisions/138-fall-semester-priorities.md)) — Session 0 not started. |
+| Contacts / CRM | *(tracker in Session 0)* | 🔲 Fall priority ([139](docs/decisions/139-lightweight-crm-fall-priority.md)) — meet cadence + Christmas cards; mailing send later; ≠ library `people`. |
+| MCP | *(in-repo server TBD)* | 🔲 Fall priority ([138](docs/decisions/138-fall-semester-priorities.md)) — read-only v1; contacts tools when CRM lands. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -44,9 +49,12 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [141 — Brill Synopsis + Bock BECNT / Marshall TNTC / Schreiner ZECNT](docs/decisions/141-brill-synopsis-bock-marshall-schreiner.md) (2026-07-24) — SPT series + 3 Brill vols; Bock Luke×2 + Acts; Marshall TNTC Acts; Schreiner ZECNT Galatians.
+- [140 — Library search prefix tsquery](docs/decisions/140-library-search-prefix-tsquery.md) (2026-07-24) — `/library` `q` uses prefix `to_tsquery` so partial last names (e.g. `piot` → Piotrowski) hit; drops whole-token `websearch`.
+- [139 — Lightweight CRM on fall priority list](docs/decisions/139-lightweight-crm-fall-priority.md) (2026-07-24) — contacts module for meet cadence + Christmas cards; mailing-list send deferred; never reuse library `people`.
+- [138 — Fall semester priorities (pre–Aug 31)](docs/decisions/138-fall-semester-priorities.md) (2026-07-24) — classwork + MCP read-only v1 ranked ahead of polish; MYN stays due-date-free; Madison shelf QA August-gated; personal `current-priorities.md` refreshed.
 - [137 — ESVEC essay-level bible coverage + by-book signed hits](docs/decisions/137-esvec-essay-bible-coverage.md) (2026-07-23) — 66 essay coverage rows; commentary-parent essays under Commentaries; prefer essay over volume (NIB/ESVEC).
 - [136 — Commentary genre mistags (Calvin + Romans)](docs/decisions/136-commentary-genre-mistags.md) (2026-07-23) — CC vol 19 + 5 Romans series + NICNT Hebrews → Commentary; ESVEC was already correct; by-book “Also on shelf” was the mistag.
-- [135 — Book detail personal-notes focus jump](docs/decisions/135-book-detail-notes-focus-jump.md) (2026-07-23) — gate scripture DOM behind `refsOpen`; defer streams/coverage while notes editing; restore focus after save; scoped coverage invalidate.
 - [132 — Desktop home dashboard](docs/decisions/132-desktop-home-dashboard.md) (2026-07-23) — `/dashboard` md+ two-column (Now tasks right); mobile glance without task list; upcoming sermons + check-in nudge.
 - [131 — B&H free-text publisher link backfill](docs/decisions/131-bh-publisher-link-backfill.md) (2026-07-23) — 25 unlinked + 2 Logos mislinks → `B&H Academic` / Nashville; Lifeway *Praying with Paul* left alone (likely Baker).
 - [130 — Retire Email Inbox; default + inbound → Personal](docs/decisions/130-retire-email-inbox-default-personal.md) (2026-07-23) — soft-delete Email Inbox; refile tasks; `INBOUND_TASK_PROJECT_ID` = Personal.
@@ -100,7 +108,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-23** ([135](docs/decisions/135-book-detail-notes-focus-jump.md); **0 errors**, 303 tests). Prior: [134](docs/decisions/134-sermons-by-book-series-dedupe.md).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([140](docs/decisions/140-library-search-prefix-tsquery.md); **0 errors**, 310 tests). Prior: [135](docs/decisions/135-book-detail-notes-focus-jump.md).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -113,6 +121,95 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ---
 
 ## Session prompts (copy-paste)
+
+### Classwork — Session 0: Phase 0 lock (pre–Aug 31) — from [138](docs/decisions/138-fall-semester-priorities.md)
+
+```
+Session: classwork #0 — Phase 0 structure lock
+Tracker: create docs/POS_Classwork_Build_Tracker.md (or equivalent) this session
+Read: AGENTS.md, docs/MODULE_KICKOFF_PLAYBOOK.md, docs/decisions/041-library-module-retro.md,
+  docs/decisions/000-invoicing-retro.md, docs/decisions/138-fall-semester-priorities.md,
+  docs/MYN_TASKS_DESIGN.md (no due_date on MYN — do not overload project_tasks),
+  docs/POS_Schema_v1.md#projects (Education domain), PLAN.md, latest 3 docs/decisions/
+Supabase: hosted db push only — supabase/README.md
+Goal: Lock classwork Phase 0 before any migration or CRUD. Semester starts 2026-08-31.
+Hard constraint: assignments need due dates; MYN tasks intentionally have none — new entity set.
+Phase 0 gates (owner must answer; agent proposes options, does not invent schema):
+ - [ ] Taxonomy singular — courses / terms / assignments / paper drafts: which are tables vs fields?
+ - [ ] Relationship to projects — under Education root, parallel module, or hybrid (course ↔ project_id)?
+ - [ ] Nullable matrix — required vs optional on primary entities
+ - [ ] Form surfaces — list + Sheet vs /new pages; dashboard “due in 14 days” vs /classwork only
+ - [ ] RLS + viewer plan (or written solo waiver)
+ - [ ] MCP read surface — which fields must be queryable day one (list due-soon, course roster)
+ - [ ] Open Questions on tracker ≤2 per entity
+Out of scope this session: migrations, UI CRUD, MCP implementation (separate prompt).
+End-of-session:
+ - [ ] Tracker + schema sketch filed; Phase 0 checkboxes signed
+ - [ ] docs/decisions/<next-free>-classwork-session-0.md
+ - [ ] PLAN.md Next up + Session 1 prompt
+ - [ ] npm run check N/A if no code; note in decision
+```
+
+### MCP — read-only v1 (pre–Aug 31) — from [138](docs/decisions/138-fall-semester-priorities.md)
+
+```
+Session: cross-cutting — ppp MCP server read-only v1
+Read: AGENTS.md, docs/decisions/138-fall-semester-priorities.md,
+  docs/decisions/139-lightweight-crm-fall-priority.md, PLAN.md,
+  src/lib/projects/server/task-loaders.ts (loadDashboardNowTasks / loadTasks),
+  src/lib/library/server/loaders.ts (search / book detail patterns),
+  src/lib/sermons/server/loaders.ts (loadUpcomingSermons),
+  src/lib/server/auth-session.ts, .cursor/rules/edge-functions.mdc,
+  supabase/README.md (hosted only; service role never to client)
+Goal: Ship a thin MCP server so Cursor/Claude chats can query ppp without clicking the PWA.
+Lock before code (multiple-choice to Parker if ambiguous):
+ - [ ] Transport: local stdio MCP in-repo vs remote hosted — prefer local stdio for v1 unless blocked
+ - [ ] Auth: how the process gets an owner-scoped Supabase client (env service role + assert owner id?
+       user JWT?); document in decision; never expose service role to browser
+ - [ ] Tool list v1 (read-only only) — propose then confirm:
+       list_now_tasks | list_due_soon (classwork stub OK if module not shipped) |
+       search_library | get_book_citation | list_upcoming_sermons | list_project_health |
+       list_contacts_due (stub OK until CRM Session 1 — meet-cadence / Christmas flags)
+ - [ ] Reuse existing server loaders / pure helpers where possible; do not duplicate RLS logic in SQL
+Acceptance:
+ - [ ] MCP package or scripts/ path documented; Cursor mcp.json (or equivalent) wiring steps in decision
+ - [ ] At least 4 read tools work against hosted prod from a local Cursor chat smoke
+ - [ ] No write/mutate tools in v1
+ - [ ] Secrets only via env / Cursor MCP config (gitignored); documented in decision + .env.example stubs
+ - [ ] npm run check (+ tests if logic extracted) pass
+End-of-session: docs/decisions/<next-free>-ppp-mcp-readonly-v1.md, PLAN.md refreshed,
+  AGENTS.md inventory + components.mdc if new helpers
+```
+
+### Contacts / CRM — Session 0: Phase 0 lock (fall) — from [139](docs/decisions/139-lightweight-crm-fall-priority.md)
+
+```
+Session: contacts #0 — Phase 0 structure lock (lightweight CRM)
+Tracker: create docs/POS_Contacts_Build_Tracker.md (or POS_CRM_…) this session
+Read: AGENTS.md, docs/MODULE_KICKOFF_PLAYBOOK.md, docs/decisions/041-library-module-retro.md,
+  docs/decisions/000-invoicing-retro.md, docs/decisions/138-fall-semester-priorities.md,
+  docs/decisions/139-lightweight-crm-fall-priority.md, PLAN.md, latest 3 docs/decisions/
+  Note: library table `people` = authors — DO NOT reuse for CRM contacts.
+  Note: invoicing `clients` = billing — keep separate unless owner explicitly wants a link FK later.
+Supabase: hosted db push only — supabase/README.md
+Goal: Lock a lightweight personal/ministry CRM before schema. Thin v1 target ~Thanksgiving (Christmas cards).
+v1 in scope: contacts + meet cadence (who is due) + seasonal flags (Christmas card) + MCP-readable due list.
+v1 out of scope: mailing-list send / Resend campaigns / unsubscribe compliance (design email fields only).
+Phase 0 gates (owner answers; agent proposes options):
+ - [ ] Taxonomy singular — contact vs household vs tag/list; table name ≠ `people`
+ - [ ] Cadence model — interval + last_met vs explicit next_touch_on vs both
+ - [ ] Christmas / seasonal — boolean flags vs list membership table
+ - [ ] Nullable matrix + address/email/phone fields (mailing-list-ready without send)
+ - [ ] Form surfaces — /contacts list + Sheet vs pages; dashboard “due to meet” strip?
+ - [ ] RLS + viewer plan (or solo waiver); module permission key name
+ - [ ] MCP tools day one — list_contacts_due, search_contacts, (optional) christmas_card_list
+ - [ ] Open Questions on tracker ≤2 per entity
+Out of scope this session: migrations, UI CRUD, mailing send.
+End-of-session:
+ - [ ] Tracker + schema sketch; Phase 0 signed
+ - [ ] docs/decisions/<next-free>-contacts-session-0.md
+ - [ ] PLAN.md Next up + Session 1 prompt
+```
 
 ### Sermons — Session 2: by-book commentary × sermon stats ✅ done ([095](docs/decisions/095-sermons-by-book-stats.md))
 
@@ -304,19 +401,24 @@ Acceptance:
 
 ## Next up
 
-### Do now
-1. **Optional** — OCR matrix when next touching scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
+### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
+1. **Classwork Session 0** — Phase 0 lock (due dates; do not overload MYN). Prompt above.
+2. **ppp MCP read-only v1** — chat query for tasks / library / sermons (+ classwork/contacts stubs OK). Prompt above.
+3. **Contacts / CRM Session 0** — lightweight people tracker (meet cadence + Christmas cards; mailing send later). Prompt above. Thin v1 by ~Thanksgiving.
 
-### Next week
-2. **PWA icons** — branded monogram set (deferred from [057](docs/decisions/057-pwa-consistency.md); see Session prompts).
-3. **Invoicing — first real-client send** (Sarah back in office). If outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) and return the minimum useful set before any further Edge MIME change.
+### Next / parallel
+4. **Invoicing — first real-client send** (Sarah back in office). If outgoing PDF still missing/unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run [`docs/invoice-pdf-email-diagnostics.md`](docs/invoice-pdf-email-diagnostics.md) ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) before further Edge MIME change.
+5. **Optional** — OCR matrix when next touching scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
+6. **Deferred** — PWA branded icons ([057](docs/decisions/057-pwa-consistency.md)); CRM mailing-list **send** pipeline.
 
 ### Wait for Madison / August
-4. **Needs the shelf** — commentary Batch 5 added Calvin imprint / EHS / NIB / Arnold WBC / Berit Olam / Spurgeon Treasury flags ([121](docs/decisions/121-commentary-consistency-batch5.md)); plus prior ~50 + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)) on `/library/review?deck=shelf` ([087](docs/decisions/087-library-review-queue-research-cleanup.md)). Non-shelf research queue already **0**.
-5. **Library Wave 2 — August shelf QA Track B** — physical shelf of all 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)). Track A (Covenant strings) **done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Checklist in session prompt below.
-6. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — shelf-bound; do with other Madison library cleanup.
+7. **Needs the shelf** — commentary Batch 5 flags ([121](docs/decisions/121-commentary-consistency-batch5.md)); plus prior ~50 + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)) on `/library/review?deck=shelf` ([087](docs/decisions/087-library-review-queue-research-cleanup.md)). Non-shelf research queue already **0**.
+8. **Library Wave 2 — August shelf QA Track B** — physical shelf of all 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)). Track A **done** ([102](docs/decisions/102-august-qa-covenant-fixtures.md)).
+9. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
+10. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
 
 ### Done recently (not open work)
+- **Library search prefix FTS** — ✅ ([140](docs/decisions/140-library-search-prefix-tsquery.md)); `piot` → Piotrowski.
 - **Owner glance** — ✅ mobile `/tasks` at-cap banner + Target Now after fall polish ([128](docs/decisions/128-myn-fall-polish.md)).
 - **Form control height consistency** — ✅ ([129](docs/decisions/129-form-control-height-consistency.md)); WebKit date + Select `lg`.
 - **Fall MYN polish** — ✅ ([128](docs/decisions/128-myn-fall-polish.md)); lock [126](docs/decisions/126-myn-fall-backlog-lock.md).
