@@ -28,7 +28,7 @@ The server loads `.env` then `.env.local` from the repo root. Prefer **not** put
 | `search_library` | Keyword search |
 | `get_book_citation` | Turabian footnote + bibliography |
 | `list_upcoming_sermons` | `preached_on >= today` |
-| `list_project_health` | Non-done/archived + latest health |
+| `list_project_health` | Non-done/archived + latest health; optional `root` (id/name subtree) + `changed_only` (WoW health delta) |
 | `list_commentaries_for_bible_book` | `/sermons/by-book` commentaries |
 | `list_sermons_for_bible_book` | Sermons touching a Bible book |
 

@@ -168,11 +168,25 @@ server.registerTool(
 	'list_project_health',
 	{
 		description:
-			'Non-done/archived projects with latest weekly check-in health (and previous when present).'
+			'Non-done/archived projects with latest weekly check-in health (and previous when present). Optional root (id or name) limits to that subtree; changed_only keeps week-over-week health changes only.',
+		inputSchema: {
+			root: z
+				.string()
+				.optional()
+				.describe(
+					'Project id or name — return that project and all descendants (e.g. "Education").'
+				),
+			changed_only: z
+				.boolean()
+				.optional()
+				.describe(
+					'When true, only projects where health_status differs from previous_health.'
+				)
+		}
 	},
-	async () => {
+	async (args) => {
 		const { supabase } = await getPppMcpClient();
-		return listProjectHealth(supabase);
+		return listProjectHealth(supabase, args);
 	}
 );
 

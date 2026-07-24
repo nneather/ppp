@@ -16,6 +16,7 @@ import {
 } from '../../src/lib/library/server/loaders.ts';
 import { formatBibliography, formatFootnote } from '../../src/lib/library/turabian/format.ts';
 import {
+	collectDescendantIds,
 	loadLatestHealth,
 	loadProjectRows
 } from '../../src/lib/projects/server/loaders.ts';
@@ -26,6 +27,11 @@ import {
 import { loadByBookStats, loadSermons, loadUpcomingSermons } from '../../src/lib/sermons/server/loaders.ts';
 import { bibleBookSuggestions, resolveBibleBookName } from '../../src/lib/mcp/bible-book.ts';
 import { courseSuggestions, resolveCourse } from '../../src/lib/mcp/course.ts';
+import {
+	healthChangedThisWeek,
+	projectSuggestions,
+	resolveProject
+} from '../../src/lib/mcp/project.ts';
 import { TASK_PRIORITY_LABELS } from '../../src/lib/types/projects.ts';
 import type { Database } from '../../src/lib/types/database.ts';
 
@@ -271,13 +277,30 @@ export async function listUpcomingSermonsTool(
 	return jsonText({ todayYmd, error, sermons });
 }
 
-export async function listProjectHealth(supabase: Sb) {
+export async function listProjectHealth(
+	supabase: Sb,
+	args: { root?: string; changed_only?: boolean } = {}
+) {
 	const [projects, healthMap] = await Promise.all([
 		loadProjectRows(supabase),
 		loadLatestHealth(supabase)
 	]);
-	const rows = projects
+
+	let allowIds: Set<string> | null = null;
+	if (args.root != null && args.root.trim() !== '') {
+		const resolved = resolveProject(args.root, projects);
+		if (!resolved) {
+			return jsonText({
+				error: `Unknown root project: ${args.root}`,
+				suggestions: projectSuggestions(args.root, projects)
+			});
+		}
+		allowIds = new Set([resolved.id, ...collectDescendantIds(projects, resolved.id)]);
+	}
+
+	let rows = projects
 		.filter((p) => p.lifecycle_status !== 'done' && p.lifecycle_status !== 'archived')
+		.filter((p) => (allowIds ? allowIds.has(p.id) : true))
 		.map((p) => {
 			const h = healthMap.get(p.id);
 			return {
@@ -290,6 +313,11 @@ export async function listProjectHealth(supabase: Sb) {
 				previous_health: h?.previous ?? null
 			};
 		});
+
+	if (args.changed_only) {
+		rows = rows.filter((r) => healthChangedThisWeek(r.health_status, r.previous_health));
+	}
+
 	return jsonText({ count: rows.length, projects: rows });
 }
 

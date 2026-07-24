@@ -55,8 +55,17 @@ async function runTool(name: ToolName): Promise<unknown> {
 		}
 		case 'list_upcoming_sermons':
 			return listUpcomingSermonsTool(supabase, { limit: 3 });
-		case 'list_project_health':
-			return listProjectHealth(supabase);
+		case 'list_project_health': {
+			// Default (full list) + Education subtree + WoW changes (Monday-protocol filters).
+			const full = await listProjectHealth(supabase);
+			const subtree = await listProjectHealth(supabase, { root: 'Education' });
+			const changed = await listProjectHealth(supabase, { changed_only: true });
+			return {
+				full: JSON.parse(full.content[0]!.text),
+				education: JSON.parse(subtree.content[0]!.text),
+				changed_only: JSON.parse(changed.content[0]!.text)
+			};
+		}
 		case 'list_commentaries_for_bible_book':
 			return listCommentariesForBibleBook(supabase, { bible_book: 'Matthew' });
 		case 'list_sermons_for_bible_book':
