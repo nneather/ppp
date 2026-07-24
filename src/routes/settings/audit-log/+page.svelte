@@ -83,14 +83,15 @@
 	}
 
 	const moduleOptions: {
-		value: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons';
+		value: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'classwork';
 		label: string;
 	}[] = [
 		{ value: 'all', label: 'All modules' },
 		{ value: 'invoicing', label: 'Invoicing' },
 		{ value: 'library', label: 'Library' },
 		{ value: 'projects', label: 'Projects' },
-		{ value: 'sermons', label: 'Sermons' }
+		{ value: 'sermons', label: 'Sermons' },
+		{ value: 'classwork', label: 'Classwork' }
 	];
 
 	let recordIdInput = $state('');

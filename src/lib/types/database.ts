@@ -65,6 +65,79 @@ export type Database = {
           },
         ]
       }
+      assignments: {
+        Row: {
+          completed_at: string | null
+          course_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          due_date: string
+          id: string
+          kind: string
+          notes: string | null
+          parent_id: string | null
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          course_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          due_date: string
+          id?: string
+          kind?: string
+          notes?: string | null
+          parent_id?: string | null
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          course_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          due_date?: string
+          id?: string
+          kind?: string
+          notes?: string | null
+          parent_id?: string | null
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           changed_at: string
@@ -675,6 +748,69 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          code: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          instructor: string | null
+          name: string
+          notes: string | null
+          project_id: string | null
+          sort_order: number
+          status: string
+          term: string | null
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          instructor?: string | null
+          name: string
+          notes?: string | null
+          project_id?: string | null
+          sort_order?: number
+          status?: string
+          term?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          instructor?: string | null
+          name?: string
+          notes?: string | null
+          project_id?: string | null
+          sort_order?: number
+          status?: string
+          term?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

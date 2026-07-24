@@ -15,7 +15,8 @@
 		invoicing: 'Invoicing',
 		calendar: 'Calendar',
 		projects: 'Projects',
-		sermons: 'Sermons'
+		sermons: 'Sermons',
+		classwork: 'Classwork'
 	};
 
 	const enhanceRow: SubmitFunction = () => {

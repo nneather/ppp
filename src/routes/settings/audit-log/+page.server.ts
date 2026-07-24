@@ -23,6 +23,8 @@ export const _PROJECTS_TABLES = [
 
 export const _SERMONS_TABLES = ['sermon_venues', 'sermons', 'sermon_passages'] as const;
 
+export const _CLASSWORK_TABLES = ['courses', 'assignments'] as const;
+
 export const _LIBRARY_TABLES = [
 	'ancient_texts',
 	'people',
@@ -77,7 +79,10 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	// sermons
 	'sermon_venues',
 	'sermons',
-	'sermon_passages'
+	'sermon_passages',
+	// classwork
+	'courses',
+	'assignments'
 ]);
 
 // Fields that must not be overwritten by a revert: identity, audit metadata,
@@ -249,6 +254,18 @@ function entityLabelFor(
 			if (vs != null) ref += `:${vs}`;
 			return ref;
 		}
+		case 'courses': {
+			const name = get('name');
+			const code = get('code');
+			if (name && code) return `${code} · ${name}`;
+			return name;
+		}
+		case 'assignments': {
+			const title = get('title');
+			const due = get('due_date');
+			if (title && due) return `${due} · ${title}`;
+			return title;
+		}
 		case 'essays':
 			return get('essay_title');
 		case 'scripture_references': {
@@ -285,13 +302,20 @@ function entityLabelFor(
 }
 
 export type AuditFilters = {
-	module: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons';
+	module: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'classwork';
 	recordId: string;
 	changedBy: string;
 };
 
 function parseModule(v: string | null): AuditFilters['module'] {
-	if (v === 'invoicing' || v === 'library' || v === 'projects' || v === 'sermons') return v;
+	if (
+		v === 'invoicing' ||
+		v === 'library' ||
+		v === 'projects' ||
+		v === 'sermons' ||
+		v === 'classwork'
+	)
+		return v;
 	return 'all';
 }
 
@@ -362,6 +386,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		q = q.in('table_name', _PROJECTS_TABLES as unknown as string[]);
 	} else if (filters.module === 'sermons') {
 		q = q.in('table_name', _SERMONS_TABLES as unknown as string[]);
+	} else if (filters.module === 'classwork') {
+		q = q.in('table_name', _CLASSWORK_TABLES as unknown as string[]);
 	}
 	if (filters.recordId.length > 0) q = q.eq('record_id', filters.recordId);
 	if (filters.changedBy.length > 0) q = q.eq('changed_by', filters.changedBy);

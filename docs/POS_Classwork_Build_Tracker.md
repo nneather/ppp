@@ -1,6 +1,6 @@
 # Personal Operations System — Classwork Module Build Tracker
 
-_Last updated: 2026-07-24 | Module: Classwork (5th) | Session 0 complete_
+_Last updated: 2026-07-24 | Module: Classwork (5th) | Session 1 complete_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [150](decisions/150-classwork-session-0.md).
 
@@ -124,8 +124,8 @@ assignments
 | # | Entity | Q | Resolve by |
 |---|---|---|---|
 | C1 | course | Syllabus/link storage — `notes` v1, or a `course_links` table (project_links pattern) later? | When first syllabus lands (~late Aug) |
-| C2 | course | `project_id` picker: hard-constrain to Education subtree or suggest-only? | Session 1 (default: suggest, don't block) |
-| A1 | assignment | Milestone ordering under a parent — is `due_date` sufficient or does the UI need `sort_order`? | Session 1 |
+| C2 | course | `project_id` picker: hard-constrain to Education subtree or suggest-only? | ✅ Session 1 — suggest-only ([153](decisions/153-classwork-session-1.md)) |
+| A1 | assignment | Milestone ordering under a parent — is `due_date` sufficient or does the UI need `sort_order`? | ✅ Session 1 — `due_date` only; `sort_order` schema-only ([153](decisions/153-classwork-session-1.md)) |
 | A2 | assignment | Time-of-day deadlines (11:59 PM vs in-class) — deferred; revisit only if a real same-day-ordering need appears. | Only if hit |
 
 ---
@@ -135,7 +135,7 @@ assignments
 | Session | Status | Goal |
 |---|---|---|
 | 0 | ✅ 2026-07-24 | Phase 0 lock + this tracker + [150](decisions/150-classwork-session-0.md) |
-| 1 | 🔲 | Migration `ppp_classwork_v1` + gen-types + `/classwork` list (group toggle) + course/assignment Sheets + nav + registry/permissions/audit wiring. Per-session: viewer RLS smoke or waiver note, audit row, mobile pass. Prompt in PLAN.md. |
+| 1 | ✅ 2026-07-24 | Migration `ppp_classwork_v1` + gen-types + `/classwork` (group toggle) + Sheets + nav split (mobile: Dashboard/Tasks/Invoicing/Library/Classwork) + permissions/audit. C2 suggest-only; A1 due_date order. Viewer solo waiver noted. Decision [153](decisions/153-classwork-session-1.md). |
 | 2 | 🔲 | Dashboard "due in 14 days" strip (desktop + mobile glance) + MCP `list_due_soon` real + `get_assignments_for_course` + `npm run mcp:smoke` |
 | — | note | Decision numbers 146–149 were taken by a parallel library publisher session on 2026-07-24 — Session 0 record is **[150](decisions/150-classwork-session-0.md)**, not 146. |
 | — | backlog | Bulk/quick-add UI for syllabus entry — only if manual entry hurts in late August |

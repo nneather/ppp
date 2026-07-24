@@ -17,6 +17,7 @@
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import ListTodo from '@lucide/svelte/icons/list-todo';
 	import Mic from '@lucide/svelte/icons/mic';
+	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
 	import Settings from '@lucide/svelte/icons/settings';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
@@ -30,14 +31,25 @@
 	let navCollapsed = $state(false);
 	let prefsReady = $state(false);
 
-	const navItems = [
+	/** Full module list — desktop sidebar. */
+	const desktopNavItems = [
 		{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/tasks', label: 'Tasks', icon: ListTodo },
+		{ href: '/classwork', label: 'Classwork', icon: GraduationCap },
 		{ href: '/sermons', label: 'Sermons', icon: Mic },
 		{ href: '/invoicing', label: 'Invoicing', icon: Receipt },
 		{ href: '/library', label: 'Library', icon: BookOpen },
 		{ href: '/projects', label: 'Projects', icon: FolderKanban },
 		{ href: '/settings', label: 'Settings', icon: Settings }
+	] as const;
+
+	/** Mobile tab bar — Sermons + Projects stay desktop-sidebar only. */
+	const mobileNavItems = [
+		{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+		{ href: '/tasks', label: 'Tasks', icon: ListTodo },
+		{ href: '/invoicing', label: 'Invoicing', icon: Receipt },
+		{ href: '/library', label: 'Library', icon: BookOpen },
+		{ href: '/classwork', label: 'Classwork', icon: GraduationCap }
 	] as const;
 
 	const pathname = $derived(page.url.pathname);
@@ -46,11 +58,20 @@
 
 	function skeletonModule(
 		path: string
-	): 'dashboard' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'settings' | 'generic' {
+	):
+		| 'dashboard'
+		| 'invoicing'
+		| 'library'
+		| 'projects'
+		| 'sermons'
+		| 'classwork'
+		| 'settings'
+		| 'generic' {
 		if (path.startsWith('/library')) return 'library';
 		if (path.startsWith('/invoicing')) return 'invoicing';
 		if (path.startsWith('/dashboard')) return 'dashboard';
 		if (path.startsWith('/sermons')) return 'sermons';
+		if (path.startsWith('/classwork')) return 'classwork';
 		if (path.startsWith('/tasks')) return 'projects';
 		if (path.startsWith('/projects')) return 'projects';
 		if (path.startsWith('/settings')) return 'settings';
@@ -163,7 +184,7 @@
 			</div>
 
 			<nav class="flex flex-1 flex-col gap-0.5 p-2" aria-label="Main">
-				{#each navItems as { href, label, icon: Icon } (href)}
+				{#each desktopNavItems as { href, label, icon: Icon } (href)}
 					<a
 						{href}
 						data-sveltekit-preload-data="hover"
@@ -225,7 +246,7 @@
 				class="shrink-0 flex border-t border-border bg-card/95 pl-[max(0.5rem,env(safe-area-inset-left,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-0.5 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:hidden"
 				aria-label="Main"
 			>
-				{#each navItems as { href, label, icon: Icon } (href)}
+				{#each mobileNavItems as { href, label, icon: Icon } (href)}
 					<a
 						{href}
 						data-sveltekit-preload-data="hover"

@@ -78,7 +78,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			invoicing: 'none',
 			calendar: 'none',
 			projects: 'none',
-			sermons: 'none'
+			sermons: 'none',
+			classwork: 'none'
 		};
 	}
 	for (const r of permRows) {
