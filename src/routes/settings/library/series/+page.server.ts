@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals, depends, parent }) => {
 	const supabase = locals.supabase;
 	const { data: seriesRaw, error: seriesErr } = await supabase
 		.from('series')
-		.select('id, name, abbreviation')
+		.select('id, name, abbreviation, include_in_citation')
 		.is('deleted_at', null)
 		.order('name', { ascending: true });
 
@@ -37,7 +37,20 @@ export const load: PageServerLoad = async ({ locals, depends, parent }) => {
 		};
 	}
 
-	const rows = (seriesRaw ?? []) as SeriesRow[];
+	const rows = (seriesRaw ?? []).map((s) => {
+		const r = s as {
+			id: string;
+			name: string;
+			abbreviation: string | null;
+			include_in_citation: boolean | null;
+		};
+		return {
+			id: r.id,
+			name: r.name,
+			abbreviation: r.abbreviation ?? null,
+			include_in_citation: r.include_in_citation !== false
+		} satisfies SeriesRow;
+	});
 	const ids = rows.map((s) => s.id);
 	const { map: bookCountMap, error: bookCountError } = await fetchLiveBookCountsBySeriesId(
 		supabase,

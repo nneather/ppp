@@ -27,15 +27,18 @@
 	let createOpen = $state(false);
 	let createName = $state('');
 	let createAbbrev = $state('');
+	let createIncludeInCitation = $state(true);
 
 	let editOpen = $state(false);
 	let editRow = $state<SeriesSettingsListRow | null>(null);
 	let editName = $state('');
 	let editAbbrev = $state('');
+	let editIncludeInCitation = $state(true);
 
 	function openCreate() {
 		createName = '';
 		createAbbrev = '';
+		createIncludeInCitation = true;
 		createOpen = true;
 	}
 
@@ -43,6 +46,7 @@
 		editRow = s;
 		editName = s.name;
 		editAbbrev = s.abbreviation ?? '';
+		editIncludeInCitation = s.include_in_citation !== false;
 		editOpen = true;
 	}
 
@@ -53,6 +57,7 @@
 				createOpen = false;
 				createName = '';
 				createAbbrev = '';
+				createIncludeInCitation = true;
 				editOpen = false;
 				editRow = null;
 				deleteOpen = false;
@@ -139,6 +144,7 @@
 				<tr>
 					<th class="px-4 py-2">Name</th>
 					<th class="px-4 py-2">Abbreviation</th>
+					<th class="px-4 py-2">Cite</th>
 					<th class="px-4 py-2 text-right">Books</th>
 					<th class="px-4 py-2 text-right">Actions</th>
 				</tr>
@@ -148,6 +154,7 @@
 					<tr>
 						<td class="px-4 py-2 font-medium">{s.name}</td>
 						<td class="px-4 py-2 text-muted-foreground">{s.abbreviation ?? '—'}</td>
+						<td class="px-4 py-2 text-muted-foreground">{s.include_in_citation ? 'Yes' : 'No'}</td>
 						<td class="px-4 py-2 text-right tabular-nums text-muted-foreground">{s.book_count}</td>
 						<td class="px-4 py-2 text-right">
 							<div class="flex justify-end gap-1">
@@ -209,6 +216,15 @@
 						maxlength={32}
 					/>
 				</div>
+				<label class="flex items-center gap-2">
+					<input type="hidden" name="include_in_citation" value={createIncludeInCitation ? 'true' : 'false'} />
+					<input
+						type="checkbox"
+						bind:checked={createIncludeInCitation}
+						class="size-4"
+					/>
+					<span class="text-sm">Include in Turabian footnote / bibliography</span>
+				</label>
 			</div>
 			{#if createErr}
 				<p class="text-sm text-destructive" role="alert">{createErr}</p>
@@ -247,6 +263,15 @@
 						<Label for="series-abbrev">Abbreviation</Label>
 						<Input id="series-abbrev" name="abbreviation" bind:value={editAbbrev} maxlength={32} />
 					</div>
+					<label class="flex items-center gap-2">
+						<input type="hidden" name="include_in_citation" value={editIncludeInCitation ? 'true' : 'false'} />
+						<input
+							type="checkbox"
+							bind:checked={editIncludeInCitation}
+							class="size-4"
+						/>
+						<span class="text-sm">Include in Turabian footnote / bibliography</span>
+					</label>
 				</div>
 				{#if updateErr}
 					<p class="text-sm text-destructive" role="alert">{updateErr}</p>

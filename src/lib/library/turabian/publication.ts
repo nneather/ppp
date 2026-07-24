@@ -92,6 +92,8 @@ export function formatSeriesSegment(
 	book: BookCitationInput,
 	mode: 'note' | 'bib'
 ): string {
+	// Flag-only gate — volume_number is not a signal for include/omit ([142]).
+	if (book.series_include_in_citation === false) return '';
 	const name = (book.series_name ?? '').trim();
 	const abbr = (book.series_abbreviation ?? '').trim();
 	const vol = (book.volume_number ?? '').trim();

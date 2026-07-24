@@ -147,6 +147,8 @@ export type SeriesRow = {
 	id: string;
 	name: string;
 	abbreviation: string | null;
+	/** When false, Turabian omits the series segment ([142]). Default true. */
+	include_in_citation: boolean;
 };
 
 export type PublisherRow = {
@@ -193,6 +195,8 @@ export type BookListRow = {
 	series_abbreviation: string | null;
 	/** Full series name; surfaced as a hover tooltip on the abbreviation chip. */
 	series_name: string | null;
+	/** From `series.include_in_citation`; gates Turabian series segment ([142]). */
+	series_include_in_citation: boolean;
 	volume_number: string | null;
 	authors_label: string | null;
 	publisher_id: string | null;
@@ -224,6 +228,8 @@ export type BookDetail = {
 	 * overrides `series.abbreviation` when set).
 	 */
 	series_abbreviation: string | null;
+	/** From `series.include_in_citation`; gates Turabian series segment ([142]). */
+	series_include_in_citation: boolean;
 	/** Raw per-book override; null means fall back to series abbr. */
 	citation_abbreviation: string | null;
 	volume_number: string | null;

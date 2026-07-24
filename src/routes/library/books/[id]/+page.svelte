@@ -407,6 +407,7 @@
 			needs_review: data.book.needs_review,
 			series_abbreviation: data.book.series_abbreviation,
 			series_name: data.book.series_name,
+			series_include_in_citation: data.book.series_include_in_citation,
 			volume_number: data.book.volume_number,
 			publisher_id: data.book.publisher_id,
 			publisher_canonical: data.book.publisher_canonical,

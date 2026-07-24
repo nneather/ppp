@@ -363,6 +363,67 @@ describe('formatFootnote', () => {
 		);
 	});
 
+	it('omits series segment when series_include_in_citation is false (SSBT-like)', () => {
+		const b = book({
+			title: "Return from Exile and the Renewal of God's People",
+			authors: [
+				{ person_id: 'a1', person_label: 'Nicholas G. Piotrowski', role: 'author', sort_order: 0 }
+			],
+			series_name: 'Short Studies in Biblical Theology',
+			series_abbreviation: 'SSBT',
+			series_include_in_citation: false,
+			genre: 'Biblical Theology',
+			publisher: 'Crossway',
+			publisher_location: 'Wheaton, IL',
+			year: 2025
+		});
+		const fn = formatFootnote(b, { page: '42' }).plain;
+		expect(fn).not.toContain('SSBT');
+		expect(fn).not.toContain('Short Studies');
+		expect(fn).toBe(
+			"Nicholas G. Piotrowski, Return from Exile and the Renewal of God's People (Wheaton, IL: Crossway, 2025), 42."
+		);
+		const bib = formatBibliography(b).plain;
+		expect(bib).not.toContain('SSBT');
+		expect(bib).not.toContain('Short Studies');
+	});
+
+	it('omits series segment even when volume_number is set on an opted-out series', () => {
+		const b = book({
+			title: 'All Things New',
+			authors: [
+				{ person_id: 'a1', person_label: 'Brian J. Tabb', role: 'author', sort_order: 0 }
+			],
+			series_name: 'New Studies in Biblical Theology',
+			series_abbreviation: 'NSBT',
+			series_include_in_citation: false,
+			volume_number: '45',
+			genre: 'Biblical Theology',
+			publisher: 'IVP Academic',
+			publisher_location: 'Downers Grove, IL',
+			year: 2019
+		});
+		const fn = formatFootnote(b, { page: '12' }).plain;
+		expect(fn).not.toContain('NSBT');
+		expect(fn).not.toContain('New Studies');
+	});
+
+	it('still cites WBC when series_include_in_citation is true (default)', () => {
+		const b = book({
+			genre: 'Commentary',
+			title: '1, 2, 3 John',
+			authors: [{ person_id: 'a1', person_label: 'Stephen S. Smalley', role: 'author', sort_order: 0 }],
+			series_name: 'Word Biblical Commentary',
+			series_abbreviation: 'WBC',
+			series_include_in_citation: true,
+			publisher: 'Word Books',
+			publisher_location: 'Waco, TX',
+			year: 1984
+		});
+		expect(formatFootnote(b, { page: '82' }).plain).toContain('WBC');
+		expect(formatBibliography(b).plain).toContain('Word Biblical Commentary');
+	});
+
 	it('formats bible footnote only', () => {
 		const fn = formatFootnote(book({ genre: 'Bibles' }), {
 			page: 'Gen 1:1',

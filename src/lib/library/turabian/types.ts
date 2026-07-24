@@ -50,6 +50,12 @@ export type BookCitationInput = {
 	reprint_year: number | null;
 	series_name: string | null;
 	series_abbreviation: string | null;
+	/**
+	 * From `series.include_in_citation`. Default true when unset (fixtures /
+	 * legacy). When false, `formatSeriesSegment` emits nothing — catalog
+	 * series_name/abbr may still be present for UI.
+	 */
+	series_include_in_citation?: boolean;
 	volume_number: string | null;
 	genre: string | null;
 	work_type: WorkType;
@@ -92,6 +98,7 @@ export function bookDetailToCitationInput(book: BookDetail): BookCitationInput {
 		reprint_year: book.reprint_year,
 		series_name: book.series_name,
 		series_abbreviation: book.series_abbreviation,
+		series_include_in_citation: book.series_include_in_citation !== false,
 		volume_number: book.volume_number,
 		genre: book.genre,
 		work_type: book.work_type,

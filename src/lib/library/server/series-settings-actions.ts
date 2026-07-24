@@ -12,6 +12,13 @@ function trimOrNull(v: FormDataEntryValue | null): string | null {
 	return t.length > 0 ? t : null;
 }
 
+/** Absent (e.g. book-form inline create) → true. Explicit "false" → false. */
+function parseIncludeInCitation(fd: FormData): boolean {
+	const raw = fd.get('include_in_citation');
+	if (raw == null) return true;
+	return String(raw) === 'true';
+}
+
 async function findDuplicateSeriesByName(
 	supabase: SupabaseClient,
 	name: string
@@ -57,6 +64,8 @@ export async function createSeriesSettingsAction(
 		return fail(400, { kind: 'createSeries' as const, message: 'Abbreviation is too long.' });
 	}
 
+	const includeInCitation = parseIncludeInCitation(fd);
+
 	const duplicate = await findDuplicateSeriesByName(supabase, name);
 	if (duplicate) {
 		return fail(400, {
@@ -70,9 +79,10 @@ export async function createSeriesSettingsAction(
 		.insert({
 			name,
 			abbreviation,
+			include_in_citation: includeInCitation,
 			created_by: userId
 		} as never)
-		.select('id, name, abbreviation')
+		.select('id, name, abbreviation, include_in_citation')
 		.single();
 
 	if (insErr) {
@@ -83,7 +93,12 @@ export async function createSeriesSettingsAction(
 		});
 	}
 
-	const row = inserted as { id: string; name: string; abbreviation: string | null };
+	const row = inserted as {
+		id: string;
+		name: string;
+		abbreviation: string | null;
+		include_in_citation: boolean | null;
+	};
 
 	return {
 		kind: 'createSeries' as const,
@@ -92,7 +107,8 @@ export async function createSeriesSettingsAction(
 		series: {
 			id: row.id,
 			name: row.name,
-			abbreviation: row.abbreviation
+			abbreviation: row.abbreviation,
+			include_in_citation: row.include_in_citation !== false
 		}
 	};
 }
@@ -126,6 +142,7 @@ export async function updateSeriesSettingsAction(
 	}
 
 	const abbreviation = trimOrNull(fd.get('abbreviation'));
+	const includeInCitation = parseIncludeInCitation(fd);
 
 	const { data: existing, error: exErr } = await supabase
 		.from('series')
@@ -149,7 +166,8 @@ export async function updateSeriesSettingsAction(
 		.from('series')
 		.update({
 			name,
-			abbreviation
+			abbreviation,
+			include_in_citation: includeInCitation
 		} as never)
 		.eq('id', id);
 	if (updErr) {

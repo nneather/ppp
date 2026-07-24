@@ -20,7 +20,7 @@ const people: PersonRow[] = [
 ];
 
 const seriesRows: SeriesRow[] = [
-	{ id: 's1', name: 'New International Commentary', abbreviation: 'NICNT' }
+	{ id: 's1', name: 'New International Commentary', abbreviation: 'NICNT', include_in_citation: true }
 ];
 
 describe('buildOlAuthorRows', () => {

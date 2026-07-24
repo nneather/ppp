@@ -60,7 +60,12 @@ import { getBibleBookNames } from '$lib/library/bible-book-names';
  * shapes here so the .svelte files never see Record<string, unknown>.
  */
 
-type RawSeries = { id: string; name: string; abbreviation: string | null };
+type RawSeries = {
+	id: string;
+	name: string;
+	abbreviation: string | null;
+	include_in_citation?: boolean | null;
+};
 type RawPerson = {
 	id: string;
 	first_name: string | null;
@@ -111,7 +116,7 @@ async function paginateAll<T>(
 export async function loadSeries(supabase: SupabaseClient): Promise<SeriesRow[]> {
 	const { data, error } = await supabase
 		.from('series')
-		.select('id, name, abbreviation')
+		.select('id, name, abbreviation, include_in_citation')
 		.is('deleted_at', null)
 		.order('name', { ascending: true });
 	if (error) {
@@ -120,7 +125,12 @@ export async function loadSeries(supabase: SupabaseClient): Promise<SeriesRow[]>
 	}
 	return (data ?? []).map((s) => {
 		const r = s as RawSeries;
-		return { id: r.id, name: r.name, abbreviation: r.abbreviation ?? null };
+		return {
+			id: r.id,
+			name: r.name,
+			abbreviation: r.abbreviation ?? null,
+			include_in_citation: r.include_in_citation !== false
+		};
 	});
 }
 
@@ -289,7 +299,15 @@ type RawBookListRow = {
 	publisher_location: string | null;
 	publisher_id: string | null;
 	citation_abbreviation: string | null;
-	series: { name: string; abbreviation: string | null } | { name: string; abbreviation: string | null }[] | null;
+	series: {
+		name: string;
+		abbreviation: string | null;
+		include_in_citation?: boolean | null;
+	} | {
+		name: string;
+		abbreviation: string | null;
+		include_in_citation?: boolean | null;
+	}[] | null;
 	publishers: RawPublisherRow | RawPublisherRow[] | null;
 	book_authors:
 		| { person_id: string; sort_order: number; role: string }[]
@@ -319,7 +337,7 @@ export async function loadBookList(
 			needs_review,
 			volume_number,
 			citation_abbreviation,
-			series ( name, abbreviation ),
+			series ( name, abbreviation, include_in_citation ),
 			book_authors ( person_id, sort_order, role )
 		`
 		)
@@ -351,6 +369,7 @@ export async function loadBookList(
 				series_abbreviation: ser?.abbreviation ?? null
 			}),
 			series_name: ser?.name ?? null,
+			series_include_in_citation: ser?.include_in_citation !== false,
 			volume_number: r.volume_number ?? null,
 			authors_label,
 			...mapPublisherCitationFields(
@@ -408,7 +427,7 @@ const BOOK_LIST_SELECT = `
 				publisher_canonical_display,
 				publisher_location_display,
 				citation_abbreviation,
-				series ( name, abbreviation )
+				series ( name, abbreviation, include_in_citation )
 			`;
 
 /** Review queue / legacy paths that still hydrate authors from junction embeds. */
@@ -427,7 +446,7 @@ const BOOK_LIST_SELECT_EMBEDDED = `
 				publisher_id,
 				${PUBLISHER_EMBED},
 				citation_abbreviation,
-				series ( name, abbreviation ),
+				series ( name, abbreviation, include_in_citation ),
 				book_authors (
 					person_id,
 					sort_order,
@@ -566,6 +585,7 @@ function mapBookListRowsFromDenorm(data: unknown[]): BookListRow[] {
 				series_abbreviation: ser?.abbreviation ?? null
 			}),
 			series_name: ser?.name ?? null,
+			series_include_in_citation: ser?.include_in_citation !== false,
 			volume_number: r.volume_number ?? null,
 			authors_label: r.author_display ?? null,
 			publisher_id: r.publisher_id ?? null,
@@ -607,6 +627,7 @@ function mapBookListRows(data: unknown[], people: PersonRow[]): BookListRow[] {
 				series_abbreviation: ser?.abbreviation ?? null
 			}),
 			series_name: ser?.name ?? null,
+			series_include_in_citation: ser?.include_in_citation !== false,
 			volume_number: r.volume_number ?? null,
 			authors_label,
 			...mapPublisherCitationFields(
@@ -1145,7 +1166,12 @@ type RawBookDetail = {
 	deleted_at: string | null;
 	created_at: string;
 	updated_at: string;
-	series: { id: string; name: string; abbreviation: string | null } | null;
+	series: {
+		id: string;
+		name: string;
+		abbreviation: string | null;
+		include_in_citation?: boolean | null;
+	} | null;
 	publishers: RawPublisherRow | RawPublisherRow[] | null;
 	book_authors:
 		| { person_id: string; role: string; sort_order: number }[]
@@ -1198,7 +1224,7 @@ export async function loadBookDetail(
 			created_at,
 			updated_at,
 			${PUBLISHER_EMBED},
-			series ( id, name, abbreviation ),
+			series ( id, name, abbreviation, include_in_citation ),
 			book_authors ( person_id, role, sort_order )
 		`
 		)
@@ -1249,6 +1275,7 @@ export async function loadBookDetail(
 			citation_abbreviation: r.citation_abbreviation,
 			series_abbreviation: r.series?.abbreviation ?? null
 		}),
+		series_include_in_citation: r.series?.include_in_citation !== false,
 		citation_abbreviation: r.citation_abbreviation?.trim() ? r.citation_abbreviation.trim() : null,
 		volume_number: r.volume_number ?? null,
 		copy_count: r.copy_count != null && r.copy_count >= 1 ? r.copy_count : 1,
@@ -1430,7 +1457,7 @@ const REVIEW_CARD_SELECT = `
 	isbn,
 	import_match_type,
 	citation_abbreviation,
-	series ( name, abbreviation ),
+	series ( name, abbreviation, include_in_citation ),
 	book_authors ( person_id, sort_order, role )
 `;
 
@@ -1534,6 +1561,7 @@ export async function loadReviewQueue(
 				series_abbreviation: ser?.abbreviation ?? null
 			}),
 			series_name: ser?.name ?? null,
+			series_include_in_citation: ser?.include_in_citation !== false,
 			volume_number: r.volume_number ?? null,
 			authors_label,
 			...pubFields,

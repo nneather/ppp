@@ -17,6 +17,7 @@ export function reviewCardToCitationInput(card: ReviewCard): BookCitationInput {
 		reprint_year: card.reprint_year,
 		series_name: card.series_name,
 		series_abbreviation: card.series_abbreviation,
+		series_include_in_citation: card.series_include_in_citation !== false,
 		volume_number: card.volume_number,
 		genre: card.genre,
 		work_type: card.work_type,

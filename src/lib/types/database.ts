@@ -1541,6 +1541,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          include_in_citation: boolean
           name: string
           updated_at: string
         }
@@ -1550,6 +1551,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          include_in_citation?: boolean
           name: string
           updated_at?: string
         }
@@ -1559,6 +1561,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          include_in_citation?: boolean
           name?: string
           updated_at?: string
         }
