@@ -12,7 +12,7 @@ alwaysApply: false
 - Canonical example: `loadBookListFiltered` in [`src/lib/library/server/loaders.ts`](mdc:src/lib/library/server/loaders.ts).
 - `?all=true` / export paths may fetch the full filtered set; document why in the decision log if the set can exceed ~2k rows.
 - **Count + page in one PostgREST call** — `{ count: 'exact' | 'estimated' }` on the data `select`, not a parallel `head: true` count query.
-- **Keyword search** — use `books.search_vector` + `.textSearch()` (one round-trip). Do not add author-prelude + `OR` ilike chains for list search.
+- **Keyword search** — use `books.search_vector` + `.textSearch()` with prefix `to_tsquery` via [`toLibrarySearchTsQuery`](mdc:src/lib/library/search-tsquery.ts) (one round-trip; omit `type` so PostgREST uses `fts` / `to_tsquery`). Do not use `websearch`/`plain` (whole-token only — partial last names miss). Do not add author-prelude + `OR` ilike chains for list search.
 - **List rows** — use denormalized `author_display` / `publisher_*_display` columns; no nested `book_authors → people` embed on the paginated list path.
 
 ## SELECT lists

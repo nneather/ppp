@@ -48,6 +48,7 @@ import {
 	type BookCitationInput
 } from '$lib/library/turabian';
 import { authorsLabelForBook } from '$lib/library/authors-label';
+import { toLibrarySearchTsQuery } from '$lib/library/search-tsquery';
 import { filterProposalForBook } from '$lib/library/proposal-filter';
 import { getBibleBookNames } from '$lib/library/bible-book-names';
 
@@ -519,10 +520,12 @@ function applyBookListFilters(
 		q = q.in('id', ctx.narrowBookIds);
 	}
 	if (filters.q && filters.q.trim().length > 0) {
-		q = q.textSearch('search_vector', filters.q.trim(), {
-			type: 'websearch',
-			config: 'simple'
-		});
+		const tsQuery = toLibrarySearchTsQuery(filters.q);
+		if (tsQuery) {
+			// Omit `type` so PostgREST uses to_tsquery (supports prefix `:*`).
+			// websearch/plain match whole tokens only — "piot" missed "Piotrowski".
+			q = q.textSearch('search_vector', tsQuery, { config: 'simple' });
+		}
 	} else if (ctx.orClause) {
 		q = q.or(ctx.orClause);
 	}
