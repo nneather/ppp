@@ -7,6 +7,7 @@ import {
 	loadBookTopicsForBook,
 	loadEssaysForBook,
 	loadPeople,
+	loadPersonBookCounts,
 	loadScriptureRefsForBook
 } from '$lib/library/server/loaders';
 import {
@@ -36,6 +37,7 @@ import {
 } from '$lib/library/server/coverage-actions';
 import {
 	createEssayAction,
+	createEssaysBatchAction,
 	softDeleteEssayAction,
 	updateEssayAction
 } from '$lib/library/server/essay-actions';
@@ -73,9 +75,16 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	const essaysEligible =
 		book.work_type === 'reference_work' || book.work_type === 'edited_volume';
 
+	// PersonAutocomplete on essays needs live book counts; skip the round-trip
+	// on monographs where the essays section never mounts.
+	const personBookCounts = essaysEligible
+		? Object.fromEntries(await loadPersonBookCounts(supabase))
+		: ({} as Record<string, number>);
+
 	return {
 		book,
 		people,
+		personBookCounts,
 		series,
 		bibleBookNames,
 		scriptureRefsPromise: loadScriptureRefsForBook(supabase, id),
@@ -290,6 +299,12 @@ export const actions: Actions = {
 		if (!user) return fail(401, { kind: 'createEssay' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return createEssayAction(locals.supabase, user.id, fd);
+	},
+	createEssaysBatch: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'createEssaysBatch' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return createEssaysBatchAction(locals.supabase, user.id, fd);
 	},
 	updateEssay: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

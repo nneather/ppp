@@ -348,6 +348,7 @@
 		if (!f) return null;
 		if (
 			f.kind === 'createEssay' ||
+			f.kind === 'createEssaysBatch' ||
 			f.kind === 'updateEssay' ||
 			f.kind === 'softDeleteEssay'
 		) {
@@ -359,15 +360,6 @@
 	async function onEssaySaved() {
 		await invalidateBook();
 	}
-
-	function essayPreviewLabel(essay: EssayRow): string {
-		const author = essay.authors[0]?.person_label?.trim();
-		if (author) return `${essay.essay_title} (${author})`;
-		return essay.essay_title;
-	}
-
-	const essayPreviewRows = $derived(essays.slice(0, 3));
-	const essayPreviewExtra = $derived(Math.max(0, essays.length - essayPreviewRows.length));
 
 	async function copyTurabian(kind: 'footnote' | 'bibliography' | 'short') {
 		if (!browser) return;
@@ -1259,45 +1251,6 @@
 		</p>
 	{/if}
 
-	{#if showEssaysSection && essays.length > 0}
-		<div
-			class="mt-4 rounded-lg border border-border bg-muted/25 px-3 py-2.5 text-sm"
-			aria-label="Articles in this volume"
-		>
-			<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-				Essays &amp; articles
-				<span class="font-normal normal-case tracking-normal">({essays.length})</span>
-			</p>
-			<ul class="mt-1.5 flex flex-col gap-0.5">
-				{#each essayPreviewRows as essay (essay.id)}
-					<li>
-						<a
-							href={`#essay-${essay.id}`}
-							class="text-foreground underline-offset-2 hover:underline"
-						>
-							{essayPreviewLabel(essay)}
-						</a>
-					</li>
-				{/each}
-			</ul>
-			{#if essayPreviewExtra > 0}
-				<a
-					href="#book-essays-heading"
-					class="mt-1 inline-block text-xs text-primary underline-offset-2 hover:underline"
-				>
-					and {essayPreviewExtra} more
-				</a>
-			{:else}
-				<a
-					href="#book-essays-heading"
-					class="mt-1 inline-block text-xs text-muted-foreground underline-offset-2 hover:underline"
-				>
-					View all
-				</a>
-			{/if}
-		</div>
-	{/if}
-
 	<div class="mt-4 grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_17.5rem]">
 		<dl class="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5 text-sm leading-snug sm:grid-cols-[7.5rem_1fr]">
 			<dt class="font-medium text-muted-foreground">Publication</dt>
@@ -1382,6 +1335,7 @@
 			{essays}
 			volumeCitation={citationInput}
 			people={data.people}
+			personBookCounts={data.personBookCounts}
 			parentBookId={data.book.id}
 			isOwner={data.isOwner}
 			formMessage={essayFormMessage}

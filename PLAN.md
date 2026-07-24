@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — **Classwork Session 0 Phase 0 lock** ([150](docs/decisions/150-classwork-session-0.md)); all NIBC → Hendrickson ([149](docs/decisions/149-nibc-all-hendrickson.md)); Paternoster remint ([148](docs/decisions/148-paternoster-nibc-nigtc-remint.md)); publisher batches ([146](docs/decisions/146-publisher-link-batch1-registry.md)/[147](docs/decisions/147-publisher-link-batch2-create.md)).
+**Last updated:** 2026-07-24 — **Batch essay entry** ([155](docs/decisions/155-batch-essay-entry.md)); essay author book counts ([152](docs/decisions/152-essay-author-book-counts.md)); Classwork Session 0 ([150](docs/decisions/150-classwork-session-0.md)).
 **How to use this file:**
 - Cursor reads it automatically.
 - For the Claude.ai "Parker's Platform" project, paste the contents of this file at the start of any session that needs current state.
@@ -49,6 +49,8 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 3 — full archive in `docs/decisions/`)
 
+- [155 — Batch essay entry + remove top preview](docs/decisions/155-batch-essay-entry.md) (2026-07-24) — multi-row essay create (`?/createEssaysBatch`); dropped near-title essays preview card; edit stays single-row.
+- [152 — Essay author autocomplete book counts](docs/decisions/152-essay-author-book-counts.md) (2026-07-24) — book detail never passed `personBookCounts` into `<BookEssaysEditor>`, so every author showed 0 books; load counts when essays eligible and wire the prop.
 - [150 — Classwork Session 0 (Phase 0 lock)](docs/decisions/150-classwork-session-0.md) (2026-07-24) — `courses` + `assignments` only; nullable `term` label (non-academic-friendly); self-ref `parent_id` for iterative deadlines; status not_started/in_progress/done, no grades; `due_date DATE NOT NULL`; hybrid `courses.project_id` → Education node; `?group=date|course` toggle + dashboard 14-day strip; MCP `list_due_soon` + `get_assignments_for_course`.
 - [149 — All NIBC vols → Hendrickson](docs/decisions/149-nibc-all-hendrickson.md) (2026-07-24) — series-decisive remint; Baker/Harper leftovers cleared.
 - [148 — Paternoster NIBC → Hendrickson; NIGTC 1 Cor → Eerdmans](docs/decisions/148-paternoster-nibc-nigtc-remint.md) (2026-07-24) — four NIBCs + Thiselton reminted; other Paternoster left alone.
@@ -112,7 +114,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md); **0 errors**, 324 tests; `npm run mcp:smoke` all 9 tools OK). DML-only publisher passes ([145](docs/decisions/145-eerdmans-publisher-link-pass.md)–[149](docs/decisions/149-nibc-all-hendrickson.md)) — no app/types change. Classwork Session 0 ([150](docs/decisions/150-classwork-session-0.md)) docs-only — check N/A.
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([155](docs/decisions/155-batch-essay-entry.md) + [152](docs/decisions/152-essay-author-book-counts.md); **0 errors**, 335 tests).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

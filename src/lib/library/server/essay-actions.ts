@@ -5,10 +5,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * Server-side helpers for `essays` + `essay_authors`. Mirrors scripture-actions
  * shape — per-route handlers are thin wrappers on the book detail page.
  *
- * Form-action result: `{ kind, success?, message?, essayId? }`
+ * Form-action result: `{ kind, success?, message?, essayId? | essayIds? }`
  */
 
-export type EssayActionKind = 'createEssay' | 'updateEssay' | 'softDeleteEssay';
+export type EssayActionKind =
+	| 'createEssay'
+	| 'createEssaysBatch'
+	| 'updateEssay'
+	| 'softDeleteEssay';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -25,11 +29,30 @@ export type EssayFormPayload = {
 	authors: EssayAuthorInput[];
 };
 
+/** Per-row payload inside a batch (parent book is shared at the form level). */
+export type EssayBatchRowPayload = {
+	essay_title: string;
+	page_start: number | null;
+	page_end: number | null;
+	authors: EssayAuthorInput[];
+};
+
 export type EssayParseResult =
 	| { ok: true; payload: EssayFormPayload; essayId?: string }
 	| { ok: false; message: string };
 
-function parseOptionalPage(raw: FormDataEntryValue | null): number | null {
+export type EssayBatchParseResult =
+	| { ok: true; parent_book_id: string; rows: EssayBatchRowPayload[] }
+	| { ok: false; message: string };
+
+type RawBatchRow = {
+	essay_title?: unknown;
+	page_start?: unknown;
+	page_end?: unknown;
+	authors?: unknown;
+};
+
+function parseOptionalPage(raw: unknown): number | null {
 	const t = String(raw ?? '').trim();
 	if (t.length === 0) return null;
 	const n = Number(t);
@@ -37,22 +60,23 @@ function parseOptionalPage(raw: FormDataEntryValue | null): number | null {
 	return n;
 }
 
-function parseAuthorsJson(raw: FormDataEntryValue | null): EssayAuthorInput[] | { error: string } {
-	const t = String(raw ?? '').trim();
-	if (t.length === 0) return [];
-
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(t);
-	} catch {
-		return { error: 'Authors payload is malformed.' };
+function parseAuthorsArray(raw: unknown): EssayAuthorInput[] | { error: string } {
+	if (raw == null) return [];
+	if (typeof raw === 'string') {
+		const t = raw.trim();
+		if (t.length === 0) return [];
+		try {
+			return parseAuthorsArray(JSON.parse(t));
+		} catch {
+			return { error: 'Authors payload is malformed.' };
+		}
 	}
-	if (!Array.isArray(parsed)) return { error: 'Authors payload must be an array.' };
+	if (!Array.isArray(raw)) return { error: 'Authors payload must be an array.' };
 
 	const out: EssayAuthorInput[] = [];
 	const seen = new Set<string>();
-	for (let i = 0; i < parsed.length; i++) {
-		const row = parsed[i];
+	for (let i = 0; i < raw.length; i++) {
+		const row = raw[i];
 		if (!row || typeof row !== 'object') {
 			return { error: `Author row ${i + 1}: malformed.` };
 		}
@@ -70,30 +94,73 @@ function parseAuthorsJson(raw: FormDataEntryValue | null): EssayAuthorInput[] | 
 	return out.map((a, idx) => ({ ...a, sort_order: idx }));
 }
 
-export function parseEssayForm(fd: FormData, opts?: { essayId?: string }): EssayParseResult {
-	const parent_book_id = String(fd.get('parent_book_id') ?? '').trim();
-	if (!UUID_RE.test(parent_book_id)) {
-		return { ok: false, message: 'Parent book is required.' };
-	}
+function parseAuthorsJson(raw: FormDataEntryValue | null): EssayAuthorInput[] | { error: string } {
+	return parseAuthorsArray(raw == null ? null : String(raw));
+}
 
-	const essay_title = String(fd.get('essay_title') ?? '').trim();
+/** Shared title/pages/authors validation for single-row and batch create. */
+export function parseEssayRowFields(input: {
+	essay_title: unknown;
+	page_start: unknown;
+	page_end: unknown;
+	authors: unknown;
+}): { ok: true; row: EssayBatchRowPayload } | { ok: false; message: string } {
+	const essay_title = String(input.essay_title ?? '').trim();
 	if (!essay_title) return { ok: false, message: 'Essay title is required.' };
 	if (essay_title.length > 500) return { ok: false, message: 'Essay title is too long.' };
 
-	const page_start = parseOptionalPage(fd.get('page_start'));
-	if (fd.get('page_start') != null && String(fd.get('page_start')).trim() !== '' && page_start == null) {
+	const pageStartRaw = input.page_start;
+	const page_start = parseOptionalPage(pageStartRaw);
+	if (
+		pageStartRaw != null &&
+		String(pageStartRaw).trim() !== '' &&
+		page_start == null
+	) {
 		return { ok: false, message: 'page_start must be a non-negative integer.' };
 	}
-	const page_end = parseOptionalPage(fd.get('page_end'));
-	if (fd.get('page_end') != null && String(fd.get('page_end')).trim() !== '' && page_end == null) {
+	const pageEndRaw = input.page_end;
+	const page_end = parseOptionalPage(pageEndRaw);
+	if (pageEndRaw != null && String(pageEndRaw).trim() !== '' && page_end == null) {
 		return { ok: false, message: 'page_end must be a non-negative integer.' };
 	}
 	if (page_start != null && page_end != null && page_end < page_start) {
 		return { ok: false, message: 'page_end must be greater than or equal to page_start.' };
 	}
 
+	const authorsParsed = parseAuthorsArray(input.authors);
+	if ('error' in authorsParsed) return { ok: false, message: authorsParsed.error };
+
+	return {
+		ok: true,
+		row: {
+			essay_title,
+			page_start,
+			page_end,
+			authors: authorsParsed
+		}
+	};
+}
+
+function isEmptyBatchRow(row: RawBatchRow): boolean {
+	return String(row.essay_title ?? '').trim().length === 0;
+}
+
+export function parseEssayForm(fd: FormData, opts?: { essayId?: string }): EssayParseResult {
+	const parent_book_id = String(fd.get('parent_book_id') ?? '').trim();
+	if (!UUID_RE.test(parent_book_id)) {
+		return { ok: false, message: 'Parent book is required.' };
+	}
+
 	const authorsParsed = parseAuthorsJson(fd.get('authors_json'));
 	if ('error' in authorsParsed) return { ok: false, message: authorsParsed.error };
+
+	const rowParsed = parseEssayRowFields({
+		essay_title: fd.get('essay_title'),
+		page_start: fd.get('page_start'),
+		page_end: fd.get('page_end'),
+		authors: authorsParsed
+	});
+	if (!rowParsed.ok) return { ok: false, message: rowParsed.message };
 
 	const essayId = opts?.essayId ?? String(fd.get('id') ?? '').trim();
 	if (opts?.essayId !== undefined && !UUID_RE.test(essayId)) {
@@ -105,12 +172,79 @@ export function parseEssayForm(fd: FormData, opts?: { essayId?: string }): Essay
 		essayId: essayId && UUID_RE.test(essayId) ? essayId : undefined,
 		payload: {
 			parent_book_id,
-			essay_title,
-			page_start,
-			page_end,
-			authors: authorsParsed
+			...rowParsed.row
 		}
 	};
+}
+
+export function parseEssaysBatchForm(fd: FormData): EssayBatchParseResult {
+	const parent_book_id = String(fd.get('parent_book_id') ?? '').trim();
+	if (!UUID_RE.test(parent_book_id)) {
+		return { ok: false, message: 'Parent book is required.' };
+	}
+
+	const rowsRaw = String(fd.get('rows_json') ?? '').trim();
+	if (!rowsRaw) return { ok: false, message: 'Add at least one essay before saving.' };
+
+	let parsedJson: unknown;
+	try {
+		parsedJson = JSON.parse(rowsRaw);
+	} catch {
+		return { ok: false, message: 'Batch payload is malformed.' };
+	}
+	if (!Array.isArray(parsedJson)) {
+		return { ok: false, message: 'Batch payload must be an array.' };
+	}
+
+	const out: EssayBatchRowPayload[] = [];
+	for (let i = 0; i < parsedJson.length; i++) {
+		const raw = parsedJson[i];
+		if (!raw || typeof raw !== 'object') {
+			return { ok: false, message: `Row ${i + 1}: malformed.` };
+		}
+		const row = raw as RawBatchRow;
+		if (isEmptyBatchRow(row)) continue;
+		const parsedRow = parseEssayRowFields({
+			essay_title: row.essay_title,
+			page_start: row.page_start,
+			page_end: row.page_end,
+			authors: row.authors ?? []
+		});
+		if (!parsedRow.ok) {
+			return { ok: false, message: `Row ${i + 1}: ${parsedRow.message}` };
+		}
+		out.push(parsedRow.row);
+	}
+
+	if (out.length === 0) {
+		return { ok: false, message: 'Add at least one essay before saving.' };
+	}
+
+	return { ok: true, parent_book_id, rows: out };
+}
+
+async function assertEssayParent(
+	supabase: SupabaseClient,
+	parentBookId: string
+): Promise<{ ok: true } | { ok: false; status: 400 | 404; message: string }> {
+	const { data: parent, error: parentErr } = await supabase
+		.from('books')
+		.select('id, work_type')
+		.eq('id', parentBookId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (parentErr || !parent) {
+		return { ok: false, status: 404, message: 'Parent book not found.' };
+	}
+	const workType = parent.work_type as string | null;
+	if (workType !== 'reference_work' && workType !== 'edited_volume') {
+		return {
+			ok: false,
+			status: 400,
+			message: 'Essays are only supported on reference works and edited volumes.'
+		};
+	}
+	return { ok: true };
 }
 
 async function syncEssayAuthors(
@@ -184,20 +318,11 @@ export async function createEssayAction(
 		return fail(400, { kind: 'createEssay' as const, message: parsed.message });
 	}
 
-	const { data: parent, error: parentErr } = await supabase
-		.from('books')
-		.select('id, work_type')
-		.eq('id', parsed.payload.parent_book_id)
-		.is('deleted_at', null)
-		.maybeSingle();
-	if (parentErr || !parent) {
-		return fail(404, { kind: 'createEssay' as const, message: 'Parent book not found.' });
-	}
-	const workType = parent.work_type as string | null;
-	if (workType !== 'reference_work' && workType !== 'edited_volume') {
-		return fail(400, {
+	const parentOk = await assertEssayParent(supabase, parsed.payload.parent_book_id);
+	if (!parentOk.ok) {
+		return fail(parentOk.status, {
 			kind: 'createEssay' as const,
-			message: 'Essays are only supported on reference works and edited volumes.'
+			message: parentOk.message
 		});
 	}
 
@@ -230,6 +355,90 @@ export async function createEssayAction(
 	}
 
 	return { kind: 'createEssay' as const, success: true as const, essayId };
+}
+
+export async function createEssaysBatchAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const parsed = parseEssaysBatchForm(fd);
+	if (!parsed.ok) {
+		return fail(400, {
+			kind: 'createEssaysBatch' as const,
+			message: parsed.message
+		});
+	}
+
+	const parentOk = await assertEssayParent(supabase, parsed.parent_book_id);
+	if (!parentOk.ok) {
+		return fail(parentOk.status, {
+			kind: 'createEssaysBatch' as const,
+			message: parentOk.message
+		});
+	}
+
+	const essayIds: string[] = [];
+	const authorRows: {
+		essay_id: string;
+		person_id: string;
+		role: 'author';
+		sort_order: number;
+	}[] = [];
+
+	// Sequential inserts keep author pairing reliable (batch sizes are TOC-scale).
+	for (const row of parsed.rows) {
+		const { data: inserted, error: insErr } = await supabase
+			.from('essays')
+			.insert({
+				essay_title: row.essay_title,
+				parent_book_id: parsed.parent_book_id,
+				page_start: row.page_start,
+				page_end: row.page_end,
+				created_by: userId
+			} as never)
+			.select('id')
+			.single();
+
+		if (insErr || !inserted) {
+			console.error('[createEssaysBatch]', insErr);
+			return fail(500, {
+				kind: 'createEssaysBatch' as const,
+				essayIds,
+				message: insErr?.message ?? 'Could not create essays.'
+			});
+		}
+
+		const essayId = (inserted as { id: string }).id;
+		essayIds.push(essayId);
+		for (const a of row.authors) {
+			authorRows.push({
+				essay_id: essayId,
+				person_id: a.person_id,
+				role: 'author',
+				sort_order: a.sort_order
+			});
+		}
+	}
+
+	if (authorRows.length > 0) {
+		const { error: authErr } = await supabase.from('essay_authors').insert(authorRows);
+		if (authErr) {
+			console.error('[createEssaysBatch] authors', authErr);
+			return fail(500, {
+				kind: 'createEssaysBatch' as const,
+				essayIds,
+				message: authErr.message ?? 'Could not save essay authors.'
+			});
+		}
+	}
+
+	return {
+		kind: 'createEssaysBatch' as const,
+		success: true as const,
+		essayIds,
+		count: essayIds.length
+	};
 }
 
 export async function updateEssayAction(supabase: SupabaseClient, fd: FormData) {

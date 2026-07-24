@@ -114,7 +114,7 @@ End-of-session deliverables:
   - `src/lib/library/ocr-scripture-refs.ts` — OCR candidate/response types shared by client + batch form (distinct from `ocr-invoke-client.ts`).
   - `src/lib/library/server/coverage-actions.ts` — bible/ancient coverage create + soft-delete actions, inline `ancient_texts` create.
   - `src/lib/library/server/topic-actions.ts` — `book_topics` CRUD + `parseBookTopicForm` (batch-capable).
-  - `src/lib/library/server/essay-actions.ts` — `essays` + `essay_authors` CRUD (`createEssayAction`, `updateEssayAction`, `softDeleteEssayAction`); `parseEssayForm` + diff-based `syncEssayAuthors`. Used by `/library/books/[id]` essays section (Wave 2 Session 2).
+  - `src/lib/library/server/essay-actions.ts` — `essays` + `essay_authors` CRUD (`createEssayAction`, `createEssaysBatchAction`, `updateEssayAction`, `softDeleteEssayAction`); `parseEssayForm` / `parseEssaysBatchForm` + diff-based `syncEssayAuthors`. Used by `/library/books/[id]` essays section (Wave 2 Session 2; batch create [155](docs/decisions/155-batch-essay-entry.md)).
   - `src/lib/library/server/people-actions.ts` — `findOrCreatePerson`, `parseTypedName`, B14 dedup helpers (`b14BucketKey`, `b14PairMayBeDuplicate`).
   - `src/lib/library/server/books-csv.ts` — TSV/CSV export + import headers, row caps, delete-on-import notes (`/settings/library/export`).
   - `src/lib/library/server/url-params.ts` — `parseBookListFilters` / `bookListFiltersToSearchParams` (URL is source of truth for `/library` filters; `include_unowned` → `includeUnowned` — [103](docs/decisions/103-library-not-owned-session-1.md); `bible_book` coverage facet — [123](docs/decisions/123-library-bible-coverage-filter.md)).

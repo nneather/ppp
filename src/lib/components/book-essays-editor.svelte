@@ -27,7 +27,7 @@
 
 	/**
 	 * Essays & articles CRUD on book detail (reference_work + edited_volume parents).
-	 * Single-row create/edit — not batch-capable (unlike scripture refs).
+	 * Batch create (N draft rows → `?/createEssaysBatch`); single-row edit.
 	 */
 
 	type FormMessage = {
@@ -40,6 +40,14 @@
 	type AuthorRow = {
 		key: string;
 		person_id: string;
+	};
+
+	type DraftEssayRow = {
+		key: string;
+		essay_title: string;
+		page_start: string;
+		page_end: string;
+		authors: AuthorRow[];
 	};
 
 	const ESSAY_HASH_RE =
@@ -79,10 +87,15 @@
 	let deleteFormEl = $state<HTMLFormElement | null>(null);
 	let deleteIdField = $state<HTMLInputElement | null>(null);
 
+	/** Edit-mode single-row fields. */
 	let essayTitle = $state('');
 	let pageStart = $state('');
 	let pageEnd = $state('');
 	let authorRows = $state<AuthorRow[]>([]);
+
+	/** Create-mode batch drafts. */
+	let draftRows = $state<DraftEssayRow[]>([]);
+
 	let pending = $state(false);
 
 	function freshKey(): string {
@@ -95,11 +108,25 @@
 		return { key: freshKey(), person_id: '' };
 	}
 
-	function resetForm() {
+	function blankDraftRow(): DraftEssayRow {
+		return {
+			key: freshKey(),
+			essay_title: '',
+			page_start: '',
+			page_end: '',
+			authors: [blankAuthorRow()]
+		};
+	}
+
+	function resetEditForm() {
 		essayTitle = '';
 		pageStart = '';
 		pageEnd = '';
 		authorRows = [blankAuthorRow()];
+	}
+
+	function resetDrafts() {
+		draftRows = [blankDraftRow()];
 	}
 
 	function seedFromEssay(essay: EssayRow) {
@@ -114,7 +141,8 @@
 
 	function startAdd() {
 		editingId = null;
-		resetForm();
+		resetEditForm();
+		resetDrafts();
 		addOpen = true;
 		essaysOpen = true;
 	}
@@ -131,7 +159,63 @@
 	function cancelForm() {
 		addOpen = false;
 		editingId = null;
-		resetForm();
+		resetEditForm();
+		resetDrafts();
+	}
+
+	function addDraftRow() {
+		draftRows = [...draftRows, blankDraftRow()];
+	}
+
+	function duplicateDraftRow(idx: number) {
+		const src = draftRows[idx];
+		if (!src) return;
+		const copy: DraftEssayRow = {
+			key: freshKey(),
+			essay_title: src.essay_title,
+			page_start: src.page_start,
+			page_end: src.page_end,
+			authors: src.authors.map((a) => ({ key: freshKey(), person_id: a.person_id }))
+		};
+		const next = draftRows.slice();
+		next.splice(idx + 1, 0, copy);
+		draftRows = next;
+	}
+
+	function removeDraftRow(idx: number) {
+		if (draftRows.length <= 1) {
+			draftRows = [blankDraftRow()];
+			return;
+		}
+		draftRows = draftRows.filter((_, i) => i !== idx);
+	}
+
+	function addAuthorToDraft(rowKey: string) {
+		draftRows = draftRows.map((r) =>
+			r.key === rowKey ? { ...r, authors: [...r.authors, blankAuthorRow()] } : r
+		);
+	}
+
+	function removeAuthorFromDraft(rowKey: string, authorKey: string) {
+		draftRows = draftRows.map((r) => {
+			if (r.key !== rowKey) return r;
+			const authors = r.authors.filter((a) => a.key !== authorKey);
+			return { ...r, authors: authors.length > 0 ? authors : [blankAuthorRow()] };
+		});
+	}
+
+	function moveAuthorInDraft(rowKey: string, authorKey: string, delta: number) {
+		draftRows = draftRows.map((r) => {
+			if (r.key !== rowKey) return r;
+			const idx = r.authors.findIndex((a) => a.key === authorKey);
+			if (idx < 0) return r;
+			const target = idx + delta;
+			if (target < 0 || target >= r.authors.length) return r;
+			const next = r.authors.slice();
+			const [row] = next.splice(idx, 1);
+			next.splice(target, 0, row);
+			return { ...r, authors: next };
+		});
 	}
 
 	function addAuthorRow() {
@@ -154,20 +238,37 @@
 		authorRows = next;
 	}
 
-	function authorsJson(): string {
+	function authorsJsonFrom(rows: AuthorRow[]): string {
 		return JSON.stringify(
-			authorRows
+			rows
 				.filter((a) => a.person_id.trim().length > 0)
 				.map((a, idx) => ({ person_id: a.person_id, sort_order: idx }))
 		);
 	}
+
+	function authorsJson(): string {
+		return authorsJsonFrom(authorRows);
+	}
+
+	const rowsJson = $derived(
+		JSON.stringify(
+			draftRows.map((r) => ({
+				essay_title: r.essay_title,
+				page_start: r.page_start,
+				page_end: r.page_end,
+				authors: r.authors
+					.filter((a) => a.person_id.trim().length > 0)
+					.map((a, idx) => ({ person_id: a.person_id, sort_order: idx }))
+			}))
+		)
+	);
 
 	function authorsLabel(essay: EssayRow): string | null {
 		const labels = essay.authors.map((a) => a.person_label).filter(Boolean);
 		return labels.length > 0 ? labels.join(', ') : null;
 	}
 
-	/** Shared page override for essay note copy; empty keeps article range / `[page]`. */
+	/** Shared page override for essay note/short copy; empty → `[page]` (not stored range). */
 	let essayCitationPage = $state('');
 
 	function pageLabel(essay: EssayRow): string | null {
@@ -216,8 +317,7 @@
 		return formatEssayBibliography(essayInput(essay), volumeCitation).plain.length > 0;
 	}
 
-	const saveEnhance: SubmitFunction = ({ formData }) => {
-		formData.set('authors_json', authorsJson());
+	const saveEnhance: SubmitFunction = () => {
 		pending = true;
 		return async ({ result, update }) => {
 			await update({ reset: false });
@@ -225,7 +325,8 @@
 			if (result.type === 'success') {
 				addOpen = false;
 				editingId = null;
-				resetForm();
+				resetEditForm();
+				resetDrafts();
 				onSaved?.();
 			}
 		};
@@ -258,9 +359,11 @@
 	}
 
 	const isEdit = $derived(editingId != null);
-	const formAction = $derived(isEdit ? '?/updateEssay' : '?/createEssay');
+	const formAction = $derived(isEdit ? '?/updateEssay' : '?/createEssaysBatch');
 	const saveHotkey = $derived(isEdit ? 'u' : 's');
-	const saveLabel = $derived(pending ? 'Saving…' : isEdit ? 'Update essay' : 'Save essay');
+	const saveLabel = $derived(
+		pending ? 'Saving…' : isEdit ? 'Update essay' : 'Save essays'
+	);
 
 	$effect(() => {
 		if (addOpen || editingId != null || essays.length === 0) essaysOpen = true;
@@ -296,6 +399,7 @@
 		if (isEdit && formMessage.essayId && formMessage.essayId !== editingId) return null;
 		if (
 			formMessage.kind === 'createEssay' ||
+			formMessage.kind === 'createEssaysBatch' ||
 			formMessage.kind === 'updateEssay' ||
 			formMessage.kind === 'softDeleteEssay'
 		) {
@@ -348,243 +452,412 @@
 					/>
 				</div>
 				<p class="pb-2 text-xs text-muted-foreground">
-					Empty keeps the essay’s page range (or [page]).
+					Empty uses [page] for Footnote / Short form. Bibliography still uses the essay’s page range.
 				</p>
 			</div>
 		{/if}
 		{#if isOwner && !addOpen && editingId == null}
 			<div class="mb-3 flex justify-end">
 				<Button type="button" variant="outline" size="sm" onclick={startAdd}>
-					<Plus class="size-4" /> Add essay
+					<Plus class="size-4" /> Add essays
 				</Button>
 			</div>
 		{/if}
 
-	{#if essays.length === 0 && !addOpen && editingId == null}
-		<p
-			class="mt-4 rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground"
-		>
-			{#if isOwner}
-				No essays yet. Click <strong class="font-semibold text-foreground">Add essay</strong> to
-				log a dictionary article or chapter entry for Turabian copy.
-			{:else}
-				No essays recorded for this volume yet.
-			{/if}
-		</p>
-	{/if}
+		{#if essays.length === 0 && !addOpen && editingId == null}
+			<p
+				class="mt-4 rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground"
+			>
+				{#if isOwner}
+					No essays yet. Click <strong class="font-semibold text-foreground">Add essays</strong> to
+					log dictionary articles or chapter entries for Turabian copy.
+				{:else}
+					No essays recorded for this volume yet.
+				{/if}
+			</p>
+		{/if}
 
-	{#if essays.length > 0}
-		<ul class="mt-4 flex flex-col gap-3">
-			{#each essays as essay (essay.id)}
-				<li id={`essay-${essay.id}`}>
-					{#if editingId === essay.id}
-						<!-- inline edit form rendered below list item slot -->
-					{:else}
-						<article
-							class={cn(
-								'flex flex-col gap-3 rounded-lg border border-border bg-card p-3 text-card-foreground sm:flex-row sm:items-start sm:justify-between',
-								highlightedEssayId === essay.id &&
-									'ring-2 ring-primary/60 ring-offset-2 ring-offset-background'
-							)}
-						>
-							<div class="min-w-0 flex-1">
-								<div class="font-medium text-foreground">{essay.essay_title}</div>
-								{#if authorsLabel(essay)}
-									<div class="mt-0.5 text-sm text-muted-foreground">{authorsLabel(essay)}</div>
-								{/if}
-								{#if pageLabel(essay)}
-									<div class="mt-0.5 text-sm text-muted-foreground">{pageLabel(essay)}</div>
-								{/if}
-							</div>
-							<div class="flex flex-wrap shrink-0 gap-1">
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									onclick={() => copyEssayCitation(essay, 'footnote')}
-								>
-									<Copy class="size-4" /> Footnote
-								</Button>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									onclick={() => copyEssayCitation(essay, 'short')}
-								>
-									<Copy class="size-4" /> Short form
-								</Button>
-								{#if bibAvailable(essay)}
+		{#if essays.length > 0}
+			<ul class="mt-4 flex flex-col gap-3">
+				{#each essays as essay (essay.id)}
+					<li id={`essay-${essay.id}`}>
+						{#if editingId === essay.id}
+							<!-- inline edit form rendered below list -->
+						{:else}
+							<article
+								class={cn(
+									'flex flex-col gap-3 rounded-lg border border-border bg-card p-3 text-card-foreground sm:flex-row sm:items-start sm:justify-between',
+									highlightedEssayId === essay.id &&
+										'ring-2 ring-primary/60 ring-offset-2 ring-offset-background'
+								)}
+							>
+								<div class="min-w-0 flex-1">
+									<div class="font-medium text-foreground">{essay.essay_title}</div>
+									{#if authorsLabel(essay)}
+										<div class="mt-0.5 text-sm text-muted-foreground">{authorsLabel(essay)}</div>
+									{/if}
+									{#if pageLabel(essay)}
+										<div class="mt-0.5 text-sm text-muted-foreground">{pageLabel(essay)}</div>
+									{/if}
+								</div>
+								<div class="flex flex-wrap shrink-0 gap-1">
 									<Button
 										type="button"
 										variant="outline"
 										size="sm"
-										onclick={() => copyEssayCitation(essay, 'bibliography')}
+										onclick={() => copyEssayCitation(essay, 'footnote')}
 									>
-										<Copy class="size-4" /> Bibliography
-									</Button>
-								{/if}
-								{#if isOwner}
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										onclick={() => startEdit(essay.id)}
-										aria-label={`Edit essay ${essay.essay_title}`}
-									>
-										<Pencil class="size-4" /> Edit
+										<Copy class="size-4" /> Footnote
 									</Button>
 									<Button
 										type="button"
-										variant="ghost"
+										variant="outline"
 										size="sm"
-										class="text-destructive hover:text-destructive"
-										onclick={() => requestDelete(essay.id)}
-										aria-label={`Delete essay ${essay.essay_title}`}
+										onclick={() => copyEssayCitation(essay, 'short')}
 									>
-										<Trash2 class="size-4" />
+										<Copy class="size-4" /> Short form
 									</Button>
-								{/if}
-							</div>
-						</article>
-					{/if}
-				</li>
-			{/each}
-		</ul>
-	{/if}
-
-	{#if addOpen || editingId != null}
-		<div class="mt-4 rounded-lg border border-border bg-card p-4 text-card-foreground">
-			<h3 class="text-sm font-semibold text-foreground">
-				{isEdit ? 'Edit essay' : 'New essay'}
-			</h3>
-			<form method="POST" action={formAction} use:enhance={saveEnhance} class="mt-4 space-y-4">
-				{#if isEdit && editingId}
-					<input type="hidden" name="id" value={editingId} />
-				{/if}
-				<input type="hidden" name="parent_book_id" value={parentBookId} />
-				<input type="hidden" name="authors_json" value={authorsJson()} />
-
-				<div class="space-y-2">
-					<Label for="essay-title">Title</Label>
-					<Input
-						id="essay-title"
-						name="essay_title"
-						bind:value={essayTitle}
-						placeholder="Canon, ἀγάπη, chapter title…"
-						required
-						class="min-h-11"
-					/>
-				</div>
-
-				<div class="grid gap-4 sm:grid-cols-2">
-					<div class="space-y-2">
-						<Label for="essay-page-start">Page start</Label>
-						<Input
-							id="essay-page-start"
-							name="page_start"
-							type="number"
-							min="0"
-							step="1"
-							bind:value={pageStart}
-							placeholder="Optional"
-							class="min-h-11"
-						/>
-					</div>
-					<div class="space-y-2">
-						<Label for="essay-page-end">Page end</Label>
-						<Input
-							id="essay-page-end"
-							name="page_end"
-							type="number"
-							min="0"
-							step="1"
-							bind:value={pageEnd}
-							placeholder="Optional"
-							class="min-h-11"
-						/>
-					</div>
-				</div>
-
-				<fieldset class="space-y-2">
-					<legend class="text-sm font-medium text-foreground">Authors</legend>
-					<p class="text-xs text-muted-foreground">
-						Leave empty for unsigned dictionary entries (e.g. BDAG <em>s.v.</em>). Add authors for
-						signed articles or chapters.
-					</p>
-					<div class="space-y-2">
-						{#each authorRows as row, idx (row.key)}
-							<div class="flex items-center gap-1">
-								<div class="min-w-0 flex-1">
-									<PersonAutocomplete
-										{people}
-										{personBookCounts}
-										bind:value={row.person_id}
-										placeholder="Search author…"
-									/>
+									{#if bibAvailable(essay)}
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onclick={() => copyEssayCitation(essay, 'bibliography')}
+										>
+											<Copy class="size-4" /> Bibliography
+										</Button>
+									{/if}
+									{#if isOwner}
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											onclick={() => startEdit(essay.id)}
+											aria-label={`Edit essay ${essay.essay_title}`}
+										>
+											<Pencil class="size-4" /> Edit
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											class="text-destructive hover:text-destructive"
+											onclick={() => requestDelete(essay.id)}
+											aria-label={`Delete essay ${essay.essay_title}`}
+										>
+											<Trash2 class="size-4" />
+										</Button>
+									{/if}
 								</div>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									class={cn('min-h-11 min-w-11 shrink-0', authorRows.length === 1 && 'invisible')}
-									disabled={idx === 0}
-									onclick={() => moveAuthor(row.key, -1)}
-									aria-label="Move author up"
-								>
-									<ChevronUp class="size-4" />
-								</Button>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									class={cn('min-h-11 min-w-11 shrink-0', authorRows.length === 1 && 'invisible')}
-									disabled={idx === authorRows.length - 1}
-									onclick={() => moveAuthor(row.key, 1)}
-									aria-label="Move author down"
-								>
-									<ChevronDown class="size-4" />
-								</Button>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									class="min-h-11 min-w-11 shrink-0 text-destructive hover:text-destructive"
-									onclick={() => removeAuthorRow(row.key)}
-									aria-label="Remove author"
-								>
-									<X class="size-4" />
-								</Button>
+							</article>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+
+		{#if addOpen || editingId != null}
+			<div class="mt-4 rounded-lg border border-border bg-card p-4 text-card-foreground">
+				<header class="mb-4">
+					<h3 class="text-sm font-semibold text-foreground">
+						{isEdit ? 'Edit essay' : 'Add essays'}
+					</h3>
+					{#if !isEdit}
+						<p class="mt-0.5 text-xs text-muted-foreground">
+							Add as many rows as you like — one save commits the whole batch. Leave authors empty
+							for unsigned dictionary entries (e.g. BDAG <em>s.v.</em>).
+						</p>
+					{/if}
+				</header>
+				<form method="POST" action={formAction} use:enhance={saveEnhance} class="space-y-4">
+					{#if isEdit && editingId}
+						<input type="hidden" name="id" value={editingId} />
+						<input type="hidden" name="authors_json" value={authorsJson()} />
+					{:else}
+						<input type="hidden" name="rows_json" value={rowsJson} />
+					{/if}
+					<input type="hidden" name="parent_book_id" value={parentBookId} />
+
+					{#if isEdit}
+						<div class="space-y-2">
+							<Label for="essay-title">Title</Label>
+							<Input
+								id="essay-title"
+								name="essay_title"
+								bind:value={essayTitle}
+								placeholder="Canon, ἀγάπη, chapter title…"
+								required
+								class="min-h-11"
+							/>
+						</div>
+
+						<div class="grid gap-4 sm:grid-cols-2">
+							<div class="space-y-2">
+								<Label for="essay-page-start">Page start</Label>
+								<Input
+									id="essay-page-start"
+									name="page_start"
+									type="number"
+									min="0"
+									step="1"
+									bind:value={pageStart}
+									placeholder="Optional"
+									class="min-h-11"
+								/>
 							</div>
-						{/each}
+							<div class="space-y-2">
+								<Label for="essay-page-end">Page end</Label>
+								<Input
+									id="essay-page-end"
+									name="page_end"
+									type="number"
+									min="0"
+									step="1"
+									bind:value={pageEnd}
+									placeholder="Optional"
+									class="min-h-11"
+								/>
+							</div>
+						</div>
+
+						<fieldset class="space-y-2">
+							<legend class="text-sm font-medium text-foreground">Authors</legend>
+							<p class="text-xs text-muted-foreground">
+								Leave empty for unsigned dictionary entries. Add authors for signed articles or
+								chapters.
+							</p>
+							<div class="space-y-2">
+								{#each authorRows as row, idx (row.key)}
+									<div class="flex items-center gap-1">
+										<div class="min-w-0 flex-1">
+											<PersonAutocomplete
+												{people}
+												{personBookCounts}
+												bind:value={row.person_id}
+												placeholder="Search author…"
+											/>
+										</div>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											class={cn(
+												'min-h-11 min-w-11 shrink-0',
+												authorRows.length === 1 && 'invisible'
+											)}
+											disabled={idx === 0}
+											onclick={() => moveAuthor(row.key, -1)}
+											aria-label="Move author up"
+										>
+											<ChevronUp class="size-4" />
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											class={cn(
+												'min-h-11 min-w-11 shrink-0',
+												authorRows.length === 1 && 'invisible'
+											)}
+											disabled={idx === authorRows.length - 1}
+											onclick={() => moveAuthor(row.key, 1)}
+											aria-label="Move author down"
+										>
+											<ChevronDown class="size-4" />
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											class="min-h-11 min-w-11 shrink-0 text-destructive hover:text-destructive"
+											onclick={() => removeAuthorRow(row.key)}
+											aria-label="Remove author"
+										>
+											<X class="size-4" />
+										</Button>
+									</div>
+								{/each}
+							</div>
+							<Button type="button" variant="outline" size="sm" onclick={addAuthorRow}>
+								<Plus class="size-4" /> Add author
+							</Button>
+						</fieldset>
+					{:else}
+						<div class="flex flex-col gap-3">
+							{#each draftRows as row, idx (row.key)}
+								<div
+									class="flex flex-col gap-3 rounded-lg border border-border/70 bg-muted/20 p-3"
+									aria-label={`Essay row ${idx + 1}`}
+								>
+									<div class="flex items-center justify-between">
+										<span
+											class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+										>
+											Row {idx + 1}
+										</span>
+										<div class="flex gap-1">
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												onclick={() => duplicateDraftRow(idx)}
+												aria-label="Duplicate row"
+											>
+												<Copy class="size-3.5" /> Duplicate
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												onclick={() => removeDraftRow(idx)}
+												aria-label="Remove row"
+												class="text-destructive hover:text-destructive"
+											>
+												<X class="size-3.5" />
+											</Button>
+										</div>
+									</div>
+
+									<div class="space-y-2">
+										<Label for={`essay-title-${row.key}`}>Title</Label>
+										<Input
+											id={`essay-title-${row.key}`}
+											bind:value={row.essay_title}
+											placeholder="Chapter or article title…"
+											class="min-h-11"
+										/>
+									</div>
+
+									<div class="grid gap-3 sm:grid-cols-2">
+										<div class="space-y-2">
+											<Label for={`essay-ps-${row.key}`}>Page start</Label>
+											<Input
+												id={`essay-ps-${row.key}`}
+												type="number"
+												min="0"
+												step="1"
+												bind:value={row.page_start}
+												placeholder="Optional"
+												class="min-h-11"
+											/>
+										</div>
+										<div class="space-y-2">
+											<Label for={`essay-pe-${row.key}`}>Page end</Label>
+											<Input
+												id={`essay-pe-${row.key}`}
+												type="number"
+												min="0"
+												step="1"
+												bind:value={row.page_end}
+												placeholder="Optional"
+												class="min-h-11"
+											/>
+										</div>
+									</div>
+
+									<div class="space-y-2">
+										<span class="text-sm font-medium text-foreground">Authors</span>
+										<div class="space-y-2">
+											{#each row.authors as author, aIdx (author.key)}
+												<div class="flex items-center gap-1">
+													<div class="min-w-0 flex-1">
+														<PersonAutocomplete
+															{people}
+															{personBookCounts}
+															bind:value={author.person_id}
+															placeholder="Search author…"
+														/>
+													</div>
+													<Button
+														type="button"
+														variant="ghost"
+														size="icon"
+														class={cn(
+															'min-h-11 min-w-11 shrink-0',
+															row.authors.length === 1 && 'invisible'
+														)}
+														disabled={aIdx === 0}
+														onclick={() => moveAuthorInDraft(row.key, author.key, -1)}
+														aria-label="Move author up"
+													>
+														<ChevronUp class="size-4" />
+													</Button>
+													<Button
+														type="button"
+														variant="ghost"
+														size="icon"
+														class={cn(
+															'min-h-11 min-w-11 shrink-0',
+															row.authors.length === 1 && 'invisible'
+														)}
+														disabled={aIdx === row.authors.length - 1}
+														onclick={() => moveAuthorInDraft(row.key, author.key, 1)}
+														aria-label="Move author down"
+													>
+														<ChevronDown class="size-4" />
+													</Button>
+													<Button
+														type="button"
+														variant="ghost"
+														size="icon"
+														class="min-h-11 min-w-11 shrink-0 text-destructive hover:text-destructive"
+														onclick={() => removeAuthorFromDraft(row.key, author.key)}
+														aria-label="Remove author"
+													>
+														<X class="size-4" />
+													</Button>
+												</div>
+											{/each}
+										</div>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onclick={() => addAuthorToDraft(row.key)}
+										>
+											<Plus class="size-4" /> Add author
+										</Button>
+									</div>
+								</div>
+							{/each}
+						</div>
+
+						<Button type="button" variant="outline" size="sm" onclick={addDraftRow}>
+							<Plus class="size-4" /> Add row
+						</Button>
+					{/if}
+
+					{#if scopedMessage?.message}
+						<p
+							class={cn(
+								'text-sm',
+								scopedMessage.success
+									? 'text-emerald-700 dark:text-emerald-300'
+									: 'text-destructive'
+							)}
+							role="alert"
+						>
+							{scopedMessage.message}
+						</p>
+					{/if}
+
+					<div class="flex flex-wrap gap-2">
+						<Button type="submit" hotkey={saveHotkey} label={saveLabel} disabled={pending}>
+							{saveLabel}
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							hotkey="Escape"
+							label="Cancel"
+							onclick={cancelForm}
+						>
+							Cancel
+						</Button>
 					</div>
-					<Button type="button" variant="outline" size="sm" onclick={addAuthorRow}>
-						<Plus class="size-4" /> Add author
-					</Button>
-				</fieldset>
-
-				{#if scopedMessage?.message}
-					<p
-						class={cn(
-							'text-sm',
-							scopedMessage.success ? 'text-emerald-700 dark:text-emerald-300' : 'text-destructive'
-						)}
-						role="alert"
-					>
-						{scopedMessage.message}
-					</p>
-				{/if}
-
-				<div class="flex flex-wrap gap-2">
-					<Button type="submit" hotkey={saveHotkey} label={saveLabel} disabled={pending}>
-						{saveLabel}
-					</Button>
-					<Button type="button" variant="outline" hotkey="Escape" label="Cancel" onclick={cancelForm}>
-						Cancel
-					</Button>
-				</div>
-			</form>
-		</div>
-	{/if}
+				</form>
+			</div>
+		{/if}
 	</div>
 </details>
 
