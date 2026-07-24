@@ -13,6 +13,9 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import X from '@lucide/svelte/icons/x';
 	import PersonAutocomplete from '$lib/components/person-autocomplete.svelte';
+	import PersonEditDialog, {
+		type PersonNamePrefill
+	} from '$lib/components/person-edit-dialog.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import type { BookCitationInput, EssayCitationInput } from '$lib/library/turabian';
 	import {
@@ -21,6 +24,7 @@
 		formatEssayBibliography,
 		formatEssayFootnote
 	} from '$lib/library/turabian';
+	import { invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { EssayRow, PersonRow } from '$lib/types/library';
 	import { cn } from '$lib/utils.js';
@@ -56,7 +60,7 @@
 	let {
 		essays,
 		volumeCitation,
-		people,
+		people: peopleProp,
 		personBookCounts = {},
 		parentBookId,
 		isOwner,
@@ -74,6 +78,14 @@
 		onSaved?: () => void;
 		onCopied?: (message: string) => void;
 	} = $props();
+
+	/** Local overlay so inline create chips before peopleProp refreshes. */
+	let peopleOverlay = $state<PersonRow[] | null>(null);
+	$effect(() => {
+		peopleProp;
+		peopleOverlay = null;
+	});
+	const people = $derived(peopleOverlay ?? peopleProp);
 
 	/** Open by default so articles are visible; user can still collapse. */
 	let essaysOpen = $state(true);
@@ -98,6 +110,14 @@
 
 	let pending = $state(false);
 
+	/** Inline person create (PersonAutocomplete onCreate). */
+	let personCreateOpen = $state(false);
+	let personCreatePrefill = $state<PersonNamePrefill | null>(null);
+	/** Edit-mode author row key, or null when targeting a draft author. */
+	let pendingAuthorKey = $state<string | null>(null);
+	/** Draft essay row key when creating from batch mode. */
+	let pendingDraftRowKey = $state<string | null>(null);
+
 	function freshKey(): string {
 		return typeof crypto !== 'undefined' && 'randomUUID' in crypto
 			? crypto.randomUUID()
@@ -106,6 +126,45 @@
 
 	function blankAuthorRow(): AuthorRow {
 		return { key: freshKey(), person_id: '' };
+	}
+
+	/** Client-side name parse for create-dialog prefill (mirrors book-form-authors). */
+	function prefillFromTypedName(text: string): PersonNamePrefill {
+		const trimmed = text.trim();
+		if (!trimmed) return {};
+		const isInitial = (s: string) => /^[A-Za-z]\.?$/.test(s);
+		const stripDot = (s: string) => s.replace(/\.$/, '');
+		if (trimmed.includes(',')) {
+			const commaIdx = trimmed.indexOf(',');
+			const last = trimmed.slice(0, commaIdx).trim();
+			const after = trimmed.slice(commaIdx + 1).trim();
+			if (!last) return { last_name: trimmed };
+			const tokens = after.split(/\s+/).filter(Boolean);
+			if (tokens.length === 0) return { last_name: last };
+			if (tokens.length === 1) return { first_name: tokens[0], last_name: last };
+			const lastTok = tokens[tokens.length - 1];
+			if (isInitial(lastTok)) {
+				return {
+					first_name: tokens.slice(0, -1).join(' '),
+					middle_name: stripDot(lastTok),
+					last_name: last
+				};
+			}
+			return { first_name: tokens.join(' '), last_name: last };
+		}
+		const tokens = trimmed.split(/\s+/);
+		if (tokens.length === 1) return { last_name: tokens[0] };
+		if (tokens.length === 2) return { first_name: tokens[0], last_name: tokens[1] };
+		const last = tokens[tokens.length - 1];
+		const maybeMiddle = tokens[tokens.length - 2];
+		if (isInitial(maybeMiddle)) {
+			return {
+				first_name: tokens.slice(0, -2).join(' '),
+				middle_name: stripDot(maybeMiddle),
+				last_name: last
+			};
+		}
+		return { first_name: tokens.slice(0, -1).join(' '), last_name: last };
 	}
 
 	function blankDraftRow(): DraftEssayRow {
@@ -238,10 +297,49 @@
 		authorRows = next;
 	}
 
+	function openPersonCreate(
+		rawText: string,
+		opts: { authorKey: string; draftRowKey?: string | null }
+	) {
+		personCreatePrefill = prefillFromTypedName(rawText);
+		pendingAuthorKey = opts.authorKey;
+		pendingDraftRowKey = opts.draftRowKey ?? null;
+		personCreateOpen = true;
+	}
+
+	async function onPersonCreated(created: PersonRow) {
+		const base = peopleOverlay ?? peopleProp;
+		peopleOverlay = [...base.filter((p) => p.id !== created.id), created].sort((a, b) =>
+			a.last_name.localeCompare(b.last_name)
+		);
+		const authorKey = pendingAuthorKey;
+		const draftKey = pendingDraftRowKey;
+		pendingAuthorKey = null;
+		pendingDraftRowKey = null;
+		personCreatePrefill = null;
+		if (authorKey && draftKey) {
+			draftRows = draftRows.map((r) =>
+				r.key !== draftKey
+					? r
+					: {
+							...r,
+							authors: r.authors.map((a) =>
+								a.key === authorKey ? { ...a, person_id: created.id } : a
+							)
+						}
+			);
+		} else if (authorKey) {
+			authorRows = authorRows.map((a) =>
+				a.key === authorKey ? { ...a, person_id: created.id } : a
+			);
+		}
+		await invalidate('app:library:people').catch(() => {});
+	}
+
 	function authorsJsonFrom(rows: AuthorRow[]): string {
 		return JSON.stringify(
 			rows
-				.filter((a) => a.person_id.trim().length > 0)
+				.filter((a) => (a.person_id ?? '').trim().length > 0)
 				.map((a, idx) => ({ person_id: a.person_id, sort_order: idx }))
 		);
 	}
@@ -257,7 +355,7 @@
 				page_start: r.page_start,
 				page_end: r.page_end,
 				authors: r.authors
-					.filter((a) => a.person_id.trim().length > 0)
+					.filter((a) => (a.person_id ?? '').trim().length > 0)
 					.map((a, idx) => ({ person_id: a.person_id, sort_order: idx }))
 			}))
 		)
@@ -635,6 +733,8 @@
 												{personBookCounts}
 												bind:value={row.person_id}
 												placeholder="Search author…"
+												onCreate={(text) =>
+													openPersonCreate(text, { authorKey: row.key })}
 											/>
 										</div>
 										<Button
@@ -766,6 +866,11 @@
 															{personBookCounts}
 															bind:value={author.person_id}
 															placeholder="Search author…"
+															onCreate={(text) =>
+																openPersonCreate(text, {
+																	authorKey: author.key,
+																	draftRowKey: row.key
+																})}
 														/>
 													</div>
 													<Button
@@ -883,4 +988,13 @@
 	onCancel={() => {
 		pendingDeleteId = null;
 	}}
+/>
+
+<PersonEditDialog
+	bind:open={personCreateOpen}
+	person={null}
+	prefill={personCreatePrefill}
+	{people}
+	createActionPath="?/createPerson"
+	onSaved={onPersonCreated}
 />

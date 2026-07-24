@@ -14,6 +14,7 @@ import {
 } from '$lib/library/server/loaders';
 import { primaryAuthorPersonIds } from '$lib/library/book-detail-related';
 import {
+	createPersonAction,
 	softDeleteBookAction,
 	undoSoftDeleteBookAction,
 	updateBookPersonalFieldsAction,
@@ -60,6 +61,7 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 
 	depends(`app:library:book:${id}`);
 	depends('app:library:ancient_texts');
+	depends('app:library:people');
 
 	const supabase = locals.supabase;
 	const { series, bibleBookNames } = await parent();
@@ -325,6 +327,11 @@ export const actions: Actions = {
 		if (!user) return fail(401, { kind: 'softDeleteEssay' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return softDeleteEssayAction(locals.supabase, fd);
+	},
+	createPerson: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'createPerson' as const, message: 'Unauthorized' });
+		return createPersonAction(locals.supabase, user.id, await request.formData());
 	},
 	updatePerson: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

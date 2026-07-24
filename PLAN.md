@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — Classwork Session 2 due-soon + MCP ([161](docs/decisions/161-classwork-session-2.md)); TDNT/HALAT/LSJ ([160](docs/decisions/160-tdnt-halat-lsj-consistency.md)); PLAN trim ([159](docs/decisions/159-plan-md-trim-and-conventions.md)).
+**Last updated:** 2026-07-24 — Essay author inline create ([162](docs/decisions/162-essay-author-inline-create.md)); Classwork Session 2 ([161](docs/decisions/161-classwork-session-2.md)); TDNT/HALAT/LSJ ([160](docs/decisions/160-tdnt-halat-lsj-consistency.md)).
 
 **How to use this file — read this first:**
 
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [162 — Essay author inline create](docs/decisions/162-essay-author-inline-create.md) (2026-07-24) — essay autocomplete `onCreate` → PersonEditDialog create; book detail `?/createPerson`.
 - [161 — Classwork Session 2 (dashboard due-soon + MCP)](docs/decisions/161-classwork-session-2.md) (2026-07-24) — D1=B Due soon under Now; mobile Classwork tile; `list_due_soon` + `get_assignments_for_course`.
 - [160 — TDNT / HALAT consistency + LSJ](docs/decisions/160-tdnt-halat-lsj-consistency.md) (2026-07-24) — TDNT Eerdmans remint; German HAL→HALAT; add LSJ; fix abridged Liddell & Scott.
 - [159 — PLAN.md trim + conventions](docs/decisions/159-plan-md-trim-and-conventions.md) (2026-07-24) — lean PLAN; history in decisions/trackers.
 - [158 — Book detail polish + in-page author edit](docs/decisions/158-book-detail-polish-author-edit.md) (2026-07-24) — drop book icon; quieter cite/facts; On the shelf; owner author tap → Edit person dialog + View books.
-- [157 — Multi-volume systematics credits + set bibliography](docs/decisions/157-multivol-systematics-credits-set-bib.md) (2026-07-24) — Calvin/Synopsis/Mastricht/Bavinck/Turretin editors+translators; house-style titles; Turabian §17.1.4 cite-set checkbox on book detail.
 
 ---
 
@@ -79,7 +79,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([161](docs/decisions/161-classwork-session-2.md); **0 errors**, 350 tests). `npm run mcp:smoke` green (10 tools).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([162](docs/decisions/162-essay-author-inline-create.md); **0 errors**, 350 tests).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
