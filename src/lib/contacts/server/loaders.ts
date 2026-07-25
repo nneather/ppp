@@ -149,6 +149,7 @@ export async function loadContacts(
 					.from('contact_touches')
 					.select('contact_id, touched_on')
 					.in('contact_id', contactIds)
+					.eq('kind', 'meet')
 					.is('deleted_at', null)
 			: Promise.resolve({ data: [] as { contact_id: string; touched_on: string }[], error: null }),
 		householdIds.length
@@ -430,6 +431,7 @@ export async function loadContactsDue(
 					.from('contact_touches')
 					.select('contact_id, touched_on')
 					.in('contact_id', contactIds)
+					.eq('kind', 'meet')
 					.is('deleted_at', null)
 			: Promise.resolve({ data: [] as { contact_id: string; touched_on: string }[], error: null }),
 		householdIds.length
@@ -537,6 +539,7 @@ export async function searchContacts(
 				.from('contact_touches')
 				.select('contact_id, touched_on')
 				.in('contact_id', contactIds)
+				.eq('kind', 'meet')
 				.is('deleted_at', null)
 		: { data: [] as { contact_id: string; touched_on: string }[], error: null };
 

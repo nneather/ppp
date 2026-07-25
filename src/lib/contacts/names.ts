@@ -1,7 +1,9 @@
 import {
 	DEFAULT_CONTACT_CADENCE_DAYS,
-	type ContactStatus
+	type ContactStatus,
+	type ContactTouchKind
 } from '$lib/types/contacts';
+import { formatCadenceLabel } from '$lib/contacts/cadence';
 
 /** Display name: first + optional last. */
 export function contactDisplayName(c: {
@@ -33,6 +35,15 @@ export function effectiveCadenceDays(
 		return Math.floor(profileDefault);
 	}
 	return DEFAULT_CONTACT_CADENCE_DAYS;
+}
+
+/** List/dashboard cadence caption — "every 3 months". */
+export function formatEffectiveCadence(days: number): string {
+	return `every ${formatCadenceLabel(days)}`;
+}
+
+export function isContactTouchKind(v: string): v is ContactTouchKind {
+	return v === 'meet' || v === 'card';
 }
 
 /** One-line address summary for list/cards. */

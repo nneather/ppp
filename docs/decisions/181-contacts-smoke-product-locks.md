@@ -40,5 +40,5 @@
 
 - [x] Tracker smoke ticks + Session 3 row + Phase 0 note pointers
 - [x] PLAN.md — smoke prompt trimmed; Session 3 prompt live; Recent decisions
-- [ ] components.mdc / AGENTS.md — update when Session 3 ships helpers
+- [x] components.mdc / AGENTS.md — updated in [182](182-contacts-session-3-lists-cadence-touch-kinds.md)
 - [ ] new env vars — none

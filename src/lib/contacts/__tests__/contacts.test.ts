@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+	cadenceToDays,
+	daysToCadence,
+	formatCadenceLabel
+} from '$lib/contacts/cadence';
+import {
 	contactDisplayName,
 	effectiveCadenceDays,
+	formatEffectiveCadence,
 	formatHouseholdAddress,
 	householdNameFromContact
 } from '$lib/contacts/names';
@@ -42,6 +48,28 @@ describe('effectiveCadenceDays', () => {
 	});
 	it('ignores non-positive values', () => {
 		expect(effectiveCadenceDays(0, -5)).toBe(90);
+	});
+});
+
+describe('cadence months/years ↔ days', () => {
+	it('converts months and years to day-equivalent', () => {
+		expect(cadenceToDays(3, 'months')).toBe(90);
+		expect(cadenceToDays(1, 'years')).toBe(365);
+		expect(cadenceToDays(2, 'years')).toBe(730);
+	});
+	it('rejects non-positive amounts', () => {
+		expect(() => cadenceToDays(0, 'months')).toThrow();
+	});
+	it('round-trips exact multiples', () => {
+		expect(daysToCadence(90)).toEqual({ amount: 3, unit: 'months' });
+		expect(daysToCadence(365)).toEqual({ amount: 1, unit: 'years' });
+		expect(daysToCadence(null)).toBeNull();
+	});
+	it('formats labels for UI', () => {
+		expect(formatCadenceLabel(90)).toBe('3 months');
+		expect(formatCadenceLabel(365)).toBe('1 year');
+		expect(formatCadenceLabel(30)).toBe('1 month');
+		expect(formatEffectiveCadence(90)).toBe('every 3 months');
 	});
 });
 
@@ -103,7 +131,7 @@ describe('validateListMemberXor', () => {
 	});
 });
 
-describe('isContactDue / daysOverdueForContact', () => {
+describe('isContactDue / daysOverdueForContact (meet-touch last_touched_on)', () => {
 	const today = '2026-07-24';
 
 	it('treats never-touched active as due', () => {
@@ -140,7 +168,7 @@ describe('isContactDue / daysOverdueForContact', () => {
 		).toBe(false);
 	});
 
-	it('is due when last touch is exactly cadence days ago', () => {
+	it('is due when last meet is exactly cadence days ago', () => {
 		expect(daysOverdueForContact('2026-04-25', 90, today)).toBe(0);
 		expect(
 			isContactDue({
@@ -153,7 +181,7 @@ describe('isContactDue / daysOverdueForContact', () => {
 		).toBe(true);
 	});
 
-	it('is not due inside the cadence window', () => {
+	it('is not due inside the cadence window after a meet', () => {
 		expect(daysOverdueForContact('2026-07-01', 90, today)).toBeLessThan(0);
 		expect(
 			isContactDue({
@@ -164,6 +192,19 @@ describe('isContactDue / daysOverdueForContact', () => {
 				todayYmd: today
 			})
 		).toBe(false);
+	});
+
+	it('stays due when only card touches exist (caller passes null last meet)', () => {
+		// Loaders filter kind=card out; due helpers see null last_touched_on.
+		expect(
+			isContactDue({
+				status: 'active',
+				no_reminders: false,
+				last_touched_on: null,
+				effective_cadence_days: 90,
+				todayYmd: today
+			})
+		).toBe(true);
 	});
 });
 

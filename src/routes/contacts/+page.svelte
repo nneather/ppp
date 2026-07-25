@@ -4,6 +4,7 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import ContactFormSheet from '$lib/components/contact-form-sheet.svelte';
+	import ContactsListsPanel from '$lib/components/contacts-lists-panel.svelte';
 	import HouseholdFormSheet from '$lib/components/household-form-sheet.svelte';
 	import LogContactDialog from '$lib/components/log-contact-dialog.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
@@ -16,9 +17,10 @@
 		type ContactListRow,
 		type HouseholdRow
 	} from '$lib/types/contacts';
-	import { formatHouseholdAddress } from '$lib/contacts/names';
+	import { formatEffectiveCadence, formatHouseholdAddress } from '$lib/contacts/names';
 	import { cn } from '$lib/utils';
 	import Home from '@lucide/svelte/icons/home';
+	import List from '@lucide/svelte/icons/list';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -33,10 +35,11 @@
 		success?: boolean;
 		contactId?: string;
 		householdId?: string;
+		listId?: string;
+		memberId?: string;
 	};
 	const f = $derived((form ?? null) as FormShape | null);
 
-	let tab = $state<'contacts' | 'households'>('contacts');
 	let searchQ = $state('');
 
 	$effect(() => {
@@ -91,6 +94,9 @@
 		if (!f || f.success !== true) return null;
 		if (f.kind === 'logContactQuick' || f.kind === 'logContactDetailed') return 'Contact logged.';
 		if (f.kind === 'logHouseholdTouch') return 'Household touch logged.';
+		if (f.kind === 'logListCards') {
+			return 'Cards logged (does not clear due-to-meet).';
+		}
 		return null;
 	});
 
@@ -186,10 +192,25 @@
 
 	function pushFilters(next: { status?: ContactListFilter; q?: string | null }) {
 		const params = new URLSearchParams();
+		params.set('tab', 'contacts');
 		const status = next.status !== undefined ? next.status : data.filters.status;
 		const q = next.q !== undefined ? next.q : data.filters.q;
 		if (status !== 'active') params.set('status', status);
 		if (q) params.set('q', q);
+		const qs = params.toString();
+		void goto(`/contacts?${qs}`, { keepFocus: true, noScroll: true });
+	}
+
+	function setTab(tab: 'contacts' | 'households' | 'lists') {
+		const params = new URLSearchParams();
+		if (tab !== 'contacts') params.set('tab', tab);
+		if (tab === 'contacts') {
+			if (data.filters.status !== 'active') params.set('status', data.filters.status);
+			if (data.filters.q) params.set('q', data.filters.q);
+		}
+		if (tab === 'lists' && data.selectedListId) {
+			params.set('list', data.selectedListId);
+		}
 		const qs = params.toString();
 		void goto(`/contacts${qs ? `?${qs}` : ''}`, { keepFocus: true, noScroll: true });
 	}
@@ -218,6 +239,8 @@
 		}
 		return 'This cannot be undone from this screen (audit log can restore).';
 	});
+
+	const tab = $derived(data.tab);
 </script>
 
 <svelte:head>
@@ -255,32 +278,45 @@
 		<p class="mt-3 text-sm text-destructive" role="alert">{deleteError}</p>
 	{/if}
 
-	<div class="mt-4 flex gap-2 border-b border-border">
+	<div class="mt-4 flex gap-1 overflow-x-auto border-b border-border sm:gap-2">
 		<button
 			type="button"
 			class={cn(
-				'-mb-px border-b-2 px-3 py-2 text-sm font-medium',
+				'-mb-px shrink-0 border-b-2 px-2.5 py-2 text-sm font-medium sm:px-3',
 				tab === 'contacts'
 					? 'border-foreground text-foreground'
 					: 'border-transparent text-muted-foreground'
 			)}
-			onclick={() => (tab = 'contacts')}
+			onclick={() => setTab('contacts')}
 		>
 			<Users class="mr-1 inline size-4" />
-			Contacts ({data.contacts.length})
+			Contacts
 		</button>
 		<button
 			type="button"
 			class={cn(
-				'-mb-px border-b-2 px-3 py-2 text-sm font-medium',
+				'-mb-px shrink-0 border-b-2 px-2.5 py-2 text-sm font-medium sm:px-3',
 				tab === 'households'
 					? 'border-foreground text-foreground'
 					: 'border-transparent text-muted-foreground'
 			)}
-			onclick={() => (tab = 'households')}
+			onclick={() => setTab('households')}
 		>
 			<Home class="mr-1 inline size-4" />
-			Households ({data.households.length})
+			Households
+		</button>
+		<button
+			type="button"
+			class={cn(
+				'-mb-px shrink-0 border-b-2 px-2.5 py-2 text-sm font-medium sm:px-3',
+				tab === 'lists'
+					? 'border-foreground text-foreground'
+					: 'border-transparent text-muted-foreground'
+			)}
+			onclick={() => setTab('lists')}
+		>
+			<List class="mr-1 inline size-4" />
+			Lists
 		</button>
 	</div>
 
@@ -340,8 +376,8 @@
 								{/if}
 							</p>
 							<p class="mt-0.5 text-xs text-muted-foreground">
-								Last touch: {formatTouch(c.last_touched_on)}
-								· every {c.effective_cadence_days}d
+								Last meet: {formatTouch(c.last_touched_on)}
+								· {formatEffectiveCadence(c.effective_cadence_days)}
 							</p>
 							{#if c.email || c.phone}
 								<p class="mt-0.5 truncate text-xs text-muted-foreground">
@@ -396,7 +432,7 @@
 				</li>
 			{/each}
 		</ul>
-	{:else}
+	{:else if tab === 'households'}
 		<ul class="mt-4 space-y-2">
 			{#each data.households as h (h.id)}
 				{@const addr = formatHouseholdAddress(h)}
@@ -448,13 +484,20 @@
 				</li>
 			{/each}
 		</ul>
+	{:else}
+		<ContactsListsPanel
+			lists={data.lists}
+			selectedListId={data.selectedListId}
+			members={data.members}
+			hiddenRetiredOnlyCount={data.hiddenRetiredOnlyCount}
+			contacts={data.contacts}
+			households={data.households}
+			profileCadenceDefault={data.profileCadenceDefault}
+			todayYmd={data.todayYmd}
+			isOwner={data.isOwner}
+			form={f}
+		/>
 	{/if}
-
-	<p class="mt-6 text-xs text-muted-foreground">
-		<a href="/settings/contacts/lists" class="underline-offset-4 hover:underline">
-			Manage Christmas card lists →
-		</a>
-	</p>
 </div>
 
 {#if data.isOwner}
@@ -463,6 +506,7 @@
 		mode={contactSheetMode}
 		contact={editingContact}
 		households={data.households}
+		profileCadenceDefault={data.profileCadenceDefault}
 		errorMessage={contactSheetError}
 		onSaved={onSaved}
 	/>

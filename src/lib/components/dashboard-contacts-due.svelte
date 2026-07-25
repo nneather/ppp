@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatYmdMediumChicago } from '$lib/invoicing/chicago-date';
+	import { formatEffectiveCadence } from '$lib/contacts/names';
 	import type { ContactDueRow } from '$lib/types/contacts';
 	import { cn } from '$lib/utils';
 
@@ -81,7 +82,7 @@
 						</p>
 						<p class="mt-0.5 text-sm font-medium text-foreground">{c.display_name}</p>
 						<p class="mt-0.5 text-xs text-muted-foreground">
-							Every {c.effective_cadence_days}d
+							{formatEffectiveCadence(c.effective_cadence_days)}
 							{#if c.household_name}
 								<span aria-hidden="true"> · </span>
 								{c.household_name}

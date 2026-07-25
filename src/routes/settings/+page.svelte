@@ -68,9 +68,9 @@
 						: 'Venues'
 			},
 			{
-				href: '/settings/contacts/lists',
+				href: '/contacts?tab=lists',
 				title: 'Contacts',
-				description: 'Christmas cards and other contact lists',
+				description: 'Christmas cards, lists, and default meet cadence',
 				icon: Users,
 				summary:
 					data.contactListCount != null

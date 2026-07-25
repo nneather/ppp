@@ -1,6 +1,7 @@
 /**
  * Cadence-due helpers for dashboard + MCP (pure; unit-tested).
- * Due = active, !no_reminders, and (never touched OR last touch older than effective cadence).
+ * Due = active, !no_reminders, and (never meet-touched OR last *meet* older than effective cadence).
+ * Callers must pass last_touched_on from kind=meet touches only ([181]).
  */
 
 import { addDaysYmd } from '$lib/invoicing/chicago-date';

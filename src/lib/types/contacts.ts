@@ -1,6 +1,6 @@
 /** Closed enums and view-models for the contacts / CRM module. */
 
-/** App fallback when contact override and profile default are both null. */
+/** App fallback when contact override and profile default are both null (3 months). */
 export const DEFAULT_CONTACT_CADENCE_DAYS = 90;
 
 export const CONTACT_STATUSES = ['active', 'retired'] as const;
@@ -9,6 +9,15 @@ export type ContactStatus = (typeof CONTACT_STATUSES)[number];
 export const CONTACT_STATUS_LABELS: Record<ContactStatus, string> = {
 	active: 'Active',
 	retired: 'Retired'
+};
+
+/** Meet resets due-to-meet; card does not ([181] / Session 3). */
+export const CONTACT_TOUCH_KINDS = ['meet', 'card'] as const;
+export type ContactTouchKind = (typeof CONTACT_TOUCH_KINDS)[number];
+
+export const CONTACT_TOUCH_KIND_LABELS: Record<ContactTouchKind, string> = {
+	meet: 'Meet',
+	card: 'Card'
 };
 
 export const CONTACT_LIST_FILTERS = ['active', 'retired', 'all'] as const;
@@ -51,6 +60,7 @@ export type ContactTouchRow = {
 	contact_id: string;
 	touched_on: string;
 	note: string | null;
+	kind: ContactTouchKind;
 };
 
 export type ContactListDef = {

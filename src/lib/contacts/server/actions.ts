@@ -1,6 +1,8 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
+import { cadenceToDays, isCadenceUnit } from '$lib/contacts/cadence';
+import { householdEligibleForCardList } from '$lib/contacts/due';
 import {
 	listMemberToColumns,
 	validateListMemberXor,
@@ -24,10 +26,27 @@ function parseBool(v: FormDataEntryValue | null): boolean {
 	return s === 'on' || s === 'true' || s === '1' || s === 'yes';
 }
 
-function parsePositiveIntOrNull(v: FormDataEntryValue | null): number | null | 'invalid' {
-	const raw = trimOrNull(v);
-	if (!raw) return null;
-	const n = Number.parseInt(raw, 10);
+/**
+ * Months/years picker → day-equivalent, or null when amount empty (use default).
+ * Accepts legacy `cadence_days` only as fallback if amount/unit absent.
+ */
+function parseCadenceDaysFromForm(fd: FormData): number | null | 'invalid' {
+	const amountRaw = trimOrNull(fd.get('cadence_amount'));
+	const unitRaw = trimOrNull(fd.get('cadence_unit'));
+	if (amountRaw || unitRaw) {
+		if (!amountRaw) return null;
+		const amount = Number.parseInt(amountRaw, 10);
+		if (!Number.isFinite(amount) || amount < 1) return 'invalid';
+		if (!unitRaw || !isCadenceUnit(unitRaw)) return 'invalid';
+		try {
+			return cadenceToDays(amount, unitRaw);
+		} catch {
+			return 'invalid';
+		}
+	}
+	const legacy = trimOrNull(fd.get('cadence_days'));
+	if (!legacy) return null;
+	const n = Number.parseInt(legacy, 10);
 	if (!Number.isFinite(n) || n < 1) return 'invalid';
 	return n;
 }
@@ -240,11 +259,11 @@ export async function createContactAction(
 	}
 	const status = statusRaw as ContactStatus;
 
-	const cadence = parsePositiveIntOrNull(fd.get('cadence_days'));
+	const cadence = parseCadenceDaysFromForm(fd);
 	if (cadence === 'invalid') {
 		return fail(400, {
 			kind: 'createContact' as const,
-			message: 'Cadence must be a positive number of days.'
+			message: 'Cadence must be a positive number of months or years.'
 		});
 	}
 
@@ -328,12 +347,12 @@ export async function updateContactAction(
 	}
 	const status = statusRaw as ContactStatus;
 
-	const cadence = parsePositiveIntOrNull(fd.get('cadence_days'));
+	const cadence = parseCadenceDaysFromForm(fd);
 	if (cadence === 'invalid') {
 		return fail(400, {
 			kind: 'updateContact' as const,
 			contactId,
-			message: 'Cadence must be a positive number of days.'
+			message: 'Cadence must be a positive number of months or years.'
 		});
 	}
 
@@ -449,7 +468,7 @@ export async function softDeleteContactAction(supabase: SupabaseClient, fd: Form
 
 // ─── Touches ───────────────────────────────────────────────────────────────
 
-/** One-tap Log Contact — today (Chicago), null note. */
+/** One-tap Log Contact — today (Chicago), null note, kind=meet. */
 export async function logContactQuickAction(
 	supabase: SupabaseClient,
 	userId: string,
@@ -465,6 +484,7 @@ export async function logContactQuickAction(
 		contact_id: contactId,
 		touched_on,
 		note: null,
+		kind: 'meet',
 		created_by: userId
 	} as never);
 
@@ -485,7 +505,7 @@ export async function logContactQuickAction(
 	};
 }
 
-/** Detailed touch — optional note + optional backdate (T1). */
+/** Detailed meet touch — optional note + optional backdate (T1). */
 export async function logContactDetailedAction(
 	supabase: SupabaseClient,
 	userId: string,
@@ -504,6 +524,7 @@ export async function logContactDetailedAction(
 		contact_id: contactId,
 		touched_on,
 		note,
+		kind: 'meet',
 		created_by: userId
 	} as never);
 
@@ -524,7 +545,7 @@ export async function logContactDetailedAction(
 	};
 }
 
-/** Household-level log — fan out one touch per live member. */
+/** Household-level meet log — fan out one kind=meet touch per live member. */
 export async function logHouseholdTouchAction(
 	supabase: SupabaseClient,
 	userId: string,
@@ -567,6 +588,7 @@ export async function logHouseholdTouchAction(
 		contact_id,
 		touched_on,
 		note,
+		kind: 'meet' as const,
 		created_by: userId
 	}));
 
@@ -586,6 +608,159 @@ export async function logHouseholdTouchAction(
 		householdId,
 		touched_on,
 		count: ids.length
+	};
+}
+
+/**
+ * Christmas-card (list) bulk log — kind=card for every live member of every
+ * C2-eligible household currently on the list. Does not affect due-to-meet.
+ */
+export async function logListCardsAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const listId = trimOrNull(fd.get('list_id'));
+	if (!listId || !UUID_RE.test(listId)) {
+		return fail(400, { kind: 'logListCards' as const, message: 'Invalid list.' });
+	}
+
+	const touchedRaw = trimOrNull(fd.get('touched_on'));
+	const touched_on = touchedRaw && DATE_RE.test(touchedRaw) ? touchedRaw : ymdInChicago();
+	const note = trimOrNull(fd.get('note'));
+
+	const { data: memberRows, error: memErr } = await supabase
+		.from('contact_list_members')
+		.select('household_id')
+		.eq('list_id', listId)
+		.is('deleted_at', null)
+		.not('household_id', 'is', null);
+
+	if (memErr) {
+		console.error('[contacts] logListCards members', memErr);
+		return fail(500, {
+			kind: 'logListCards' as const,
+			listId,
+			message: memErr.message
+		});
+	}
+
+	const householdIds = [
+		...new Set(
+			((memberRows ?? []) as { household_id: string | null }[])
+				.map((r) => r.household_id)
+				.filter((id): id is string => id != null)
+		)
+	];
+
+	if (householdIds.length === 0) {
+		return fail(400, {
+			kind: 'logListCards' as const,
+			listId,
+			message: 'No households on this list to log cards for.'
+		});
+	}
+
+	const { data: contacts, error: contactErr } = await supabase
+		.from('contacts')
+		.select('id, household_id, status')
+		.in('household_id', householdIds)
+		.is('deleted_at', null);
+
+	if (contactErr) {
+		console.error('[contacts] logListCards contacts', contactErr);
+		return fail(500, {
+			kind: 'logListCards' as const,
+			listId,
+			message: contactErr.message
+		});
+	}
+
+	const liveByHousehold = new Map<string, { id: string; status: ContactStatus }[]>();
+	for (const raw of (contacts ?? []) as {
+		id: string;
+		household_id: string;
+		status: string;
+	}[]) {
+		if (!isContactStatus(raw.status)) continue;
+		const list = liveByHousehold.get(raw.household_id) ?? [];
+		list.push({ id: raw.id, status: raw.status });
+		liveByHousehold.set(raw.household_id, list);
+	}
+
+	const contactIds: string[] = [];
+	for (const hid of householdIds) {
+		const live = liveByHousehold.get(hid) ?? [];
+		if (!householdEligibleForCardList({ liveMembers: live })) continue;
+		for (const m of live) contactIds.push(m.id);
+	}
+
+	if (contactIds.length === 0) {
+		return fail(400, {
+			kind: 'logListCards' as const,
+			listId,
+			message: 'No eligible household members to log cards for.'
+		});
+	}
+
+	const rows = contactIds.map((contact_id) => ({
+		contact_id,
+		touched_on,
+		note,
+		kind: 'card' as const,
+		created_by: userId
+	}));
+
+	const { error: insErr } = await supabase.from('contact_touches').insert(rows as never);
+	if (insErr) {
+		console.error('[contacts] logListCards insert', insErr);
+		return fail(500, {
+			kind: 'logListCards' as const,
+			listId,
+			message: insErr.message
+		});
+	}
+
+	return {
+		kind: 'logListCards' as const,
+		success: true as const,
+		listId,
+		touched_on,
+		count: contactIds.length
+	};
+}
+
+/** Profile default meet cadence (months/years → days). Empty amount clears to app default. */
+export async function updateContactCadenceDefaultAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const cadence = parseCadenceDaysFromForm(fd);
+	if (cadence === 'invalid') {
+		return fail(400, {
+			kind: 'updateContactCadenceDefault' as const,
+			message: 'Cadence must be a positive number of months or years.'
+		});
+	}
+
+	const { error: updErr } = await supabase
+		.from('profiles')
+		.update({ contact_cadence_days_default: cadence } as never)
+		.eq('id', userId);
+
+	if (updErr) {
+		console.error('[contacts] updateContactCadenceDefault', updErr);
+		return fail(500, {
+			kind: 'updateContactCadenceDefault' as const,
+			message: updErr.message
+		});
+	}
+
+	return {
+		kind: 'updateContactCadenceDefault' as const,
+		success: true as const,
+		contact_cadence_days_default: cadence
 	};
 }
 

@@ -4,10 +4,12 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
+	import ContactCadenceFields from '$lib/components/contact-cadence-fields.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as Select from '$lib/components/ui/select';
+	import { daysToCadence, formatCadenceLabel, type CadenceUnit } from '$lib/contacts/cadence';
 	import {
 		CONTACT_STATUSES,
 		CONTACT_STATUS_LABELS,
@@ -23,6 +25,7 @@
 		mode,
 		contact = null,
 		households = [],
+		profileCadenceDefault = null,
 		errorMessage = null,
 		onSaved
 	}: {
@@ -30,6 +33,7 @@
 		mode: 'create' | 'edit';
 		contact?: ContactListRow | null;
 		households?: HouseholdRow[];
+		profileCadenceDefault?: number | null;
 		errorMessage?: string | null;
 		onSaved?: () => void | Promise<void>;
 	} = $props();
@@ -42,7 +46,8 @@
 	let email = $state('');
 	let phone = $state('');
 	let householdId = $state('');
-	let cadenceDays = $state('');
+	let cadenceAmount = $state('');
+	let cadenceUnit = $state<CadenceUnit>('months');
 	let noReminders = $state(false);
 	let status = $state<ContactStatus>('active');
 	let notes = $state('');
@@ -56,12 +61,26 @@
 
 	const formAction = $derived(mode === 'create' ? '?/createContact' : '?/updateContact');
 	const sheetTitle = $derived(mode === 'create' ? 'New contact' : 'Edit contact');
+	const cadenceHint = $derived(
+		`Blank uses the profile default (every ${formatCadenceLabel(profileCadenceDefault ?? 90)}).`
+	);
 
 	const householdSelectValue = $derived(householdId || NONE);
 	const householdLabel = $derived.by(() => {
 		if (!householdId) return 'No household';
 		return households.find((h) => h.id === householdId)?.name ?? 'Select household';
 	});
+
+	function seedCadence(days: number | null) {
+		if (days == null) {
+			cadenceAmount = '';
+			cadenceUnit = 'months';
+			return;
+		}
+		const parsed = daysToCadence(days);
+		cadenceAmount = parsed ? String(parsed.amount) : '';
+		cadenceUnit = parsed?.unit ?? 'months';
+	}
 
 	function seedFromContact() {
 		if (mode === 'edit' && contact) {
@@ -70,7 +89,7 @@
 			email = contact.email ?? '';
 			phone = contact.phone ?? '';
 			householdId = contact.household_id ?? '';
-			cadenceDays = contact.cadence_days != null ? String(contact.cadence_days) : '';
+			seedCadence(contact.cadence_days);
 			noReminders = contact.no_reminders;
 			status = contact.status;
 			notes = contact.notes ?? '';
@@ -87,7 +106,7 @@
 			email = '';
 			phone = '';
 			householdId = '';
-			cadenceDays = '';
+			seedCadence(null);
 			noReminders = false;
 			status = 'active';
 			notes = '';
@@ -244,18 +263,15 @@
 				</div>
 			{/if}
 
-			<div class="grid grid-cols-2 gap-3">
-				<div class="space-y-2">
-					<Label for="contact_cadence">Cadence (days)</Label>
-					<Input
-						id="contact_cadence"
-						name="cadence_days"
-						type="number"
-						min="1"
-						bind:value={cadenceDays}
-						placeholder="Default"
-					/>
-				</div>
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+				<ContactCadenceFields
+					bind:amount={cadenceAmount}
+					bind:unit={cadenceUnit}
+					amountId="contact_cadence_amount"
+					unitId="contact_cadence_unit"
+					label="Meet cadence"
+					hint={cadenceHint}
+				/>
 				<div class="space-y-2">
 					<Label>Status</Label>
 					<input type="hidden" name="status" value={status} />

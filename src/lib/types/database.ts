@@ -862,6 +862,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          kind: string
           note: string | null
           touched_on: string
           updated_at: string
@@ -872,6 +873,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          kind?: string
           note?: string | null
           touched_on: string
           updated_at?: string
@@ -882,6 +884,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          kind?: string
           note?: string | null
           touched_on?: string
           updated_at?: string
