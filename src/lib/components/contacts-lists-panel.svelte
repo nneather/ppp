@@ -4,18 +4,20 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import ContactCadenceFields from '$lib/components/contact-cadence-fields.svelte';
+	import ContactListAddPanel from '$lib/components/contact-list-add-panel.svelte';
 	import LogCardsDialog from '$lib/components/log-cards-dialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
 	import { daysToCadence, formatCadenceLabel, type CadenceUnit } from '$lib/contacts/cadence';
 	import type {
+		ContactListCandidate,
+		HouseholdListCandidate
+	} from '$lib/contacts/list-candidates';
+	import type {
 		ContactListDef,
-		ContactListMemberRow,
-		ContactListRow,
-		HouseholdRow
+		ContactListMemberRow
 	} from '$lib/types/contacts';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -26,8 +28,8 @@
 		selectedListId,
 		members,
 		hiddenRetiredOnlyCount,
-		contacts,
-		households,
+		householdCandidates = [],
+		contactCandidates = [],
 		profileCadenceDefault,
 		todayYmd,
 		isOwner,
@@ -37,8 +39,8 @@
 		selectedListId: string | null;
 		members: ContactListMemberRow[];
 		hiddenRetiredOnlyCount: number;
-		contacts: ContactListRow[];
-		households: HouseholdRow[];
+		householdCandidates?: HouseholdListCandidate[];
+		contactCandidates?: ContactListCandidate[];
 		profileCadenceDefault: number | null;
 		todayYmd: string;
 		isOwner: boolean;
@@ -48,6 +50,7 @@
 			success?: boolean;
 			listId?: string;
 			memberId?: string;
+			count?: number;
 		} | null;
 	} = $props();
 
@@ -64,9 +67,6 @@
 	let deleteTarget = $state<ContactListDef | null>(null);
 	let deletePending = $state(false);
 	let deleteFormEl = $state<HTMLFormElement | null>(null);
-
-	let memberKind = $state<'household' | 'contact'>('household');
-	let memberId = $state('');
 
 	let cardsDialogOpen = $state(false);
 
@@ -90,10 +90,20 @@
 			? (form.message ?? null)
 			: null
 	);
-	const memberErr = $derived(
-		(form?.kind === 'addContactListMember' || form?.kind === 'softDeleteContactListMember') &&
+	const batchErr = $derived(
+		(form?.kind === 'addContactListMembersBatch' || form?.kind === 'addContactListMember') &&
 			form.success !== true
 			? (form.message ?? null)
+			: null
+	);
+	const removeMemberErr = $derived(
+		form?.kind === 'softDeleteContactListMember' && form.success !== true
+			? (form.message ?? null)
+			: null
+	);
+	const batchOk = $derived(
+		form?.kind === 'addContactListMembersBatch' && form.success === true
+			? `Added ${form.count ?? 0} to the list.`
 			: null
 	);
 	const cardsErr = $derived(
@@ -109,13 +119,6 @@
 	);
 
 	const selectedList = $derived(lists.find((l) => l.id === selectedListId) ?? null);
-
-	const memberOptions = $derived.by(() => {
-		if (memberKind === 'household') {
-			return households.map((h) => ({ id: h.id, label: h.name }));
-		}
-		return contacts.map((c) => ({ id: c.id, label: c.display_name }));
-	});
 
 	const defaultLabel = $derived(
 		formatCadenceLabel(profileCadenceDefault ?? 90)
@@ -152,7 +155,6 @@
 				editRow = null;
 				deleteOpen = false;
 				deleteTarget = null;
-				memberId = '';
 				await invalidate('app:contacts:list');
 			}
 		};
@@ -191,6 +193,10 @@
 	}
 
 	async function onCardsSaved() {
+		await invalidate('app:contacts:list');
+	}
+
+	async function onMembersAdded() {
 		await invalidate('app:contacts:list');
 	}
 </script>
@@ -338,66 +344,23 @@
 				</div>
 			</div>
 
-			{#if memberErr}
-				<p class="mt-3 text-sm text-destructive" role="alert">{memberErr}</p>
+			{#if batchErr}
+				<p class="mt-3 text-sm text-destructive" role="alert">{batchErr}</p>
+			{/if}
+			{#if removeMemberErr}
+				<p class="mt-3 text-sm text-destructive" role="alert">{removeMemberErr}</p>
+			{/if}
+			{#if batchOk}
+				<p class="mt-3 text-sm text-emerald-700 dark:text-emerald-400" role="status">{batchOk}</p>
 			{/if}
 
-			<form
-				method="POST"
-				action="?/addContactListMember"
-				use:enhance={enhanceMutation}
-				class="mt-4 flex flex-wrap items-end gap-2"
-			>
-				<input type="hidden" name="list_id" value={selectedList.id} />
-				<input type="hidden" name="member_kind" value={memberKind} />
-				<div class="space-y-1">
-					<Label>Type</Label>
-					<Select.Root
-						type="single"
-						value={memberKind}
-						onValueChange={(v) => {
-							if (v === 'contact' || v === 'household') {
-								memberKind = v;
-								memberId = '';
-							}
-						}}
-					>
-						<Select.Trigger class="w-36" size="lg">
-							{memberKind === 'household' ? 'Household' : 'Contact'}
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="household">Household</Select.Item>
-							<Select.Item value="contact">Contact</Select.Item>
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="min-w-[12rem] flex-1 space-y-1">
-					<Label>Member</Label>
-					{#if memberKind === 'household'}
-						<input type="hidden" name="household_id" value={memberId} />
-					{:else}
-						<input type="hidden" name="contact_id" value={memberId} />
-					{/if}
-					<Select.Root
-						type="single"
-						value={memberId || '__none__'}
-						onValueChange={(v) => {
-							memberId = !v || v === '__none__' ? '' : v;
-						}}
-					>
-						<Select.Trigger class="w-full" size="lg">
-							{memberOptions.find((o) => o.id === memberId)?.label ?? 'Select…'}
-						</Select.Trigger>
-						<Select.Content class="max-h-72">
-							<Select.Item value="__none__">Select…</Select.Item>
-							{#each memberOptions as o (o.id)}
-								<Select.Item value={o.id}>{o.label}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<Button type="submit" hotkey="s" label="Add" disabled={!memberId} />
-			</form>
+			<ContactListAddPanel
+				listId={selectedList.id}
+				{householdCandidates}
+				{contactCandidates}
+				errorMessage={batchErr}
+				onAdded={onMembersAdded}
+			/>
 
 			<ul class="mt-4 space-y-2">
 				{#each members as m (m.id)}

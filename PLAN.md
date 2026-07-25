@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-25 — Contacts Session 3 shipped ([182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md)); MCP smoke still open.
+**Last updated:** 2026-07-25 — Contacts list mass-add ([183](docs/decisions/183-contacts-list-mass-add.md)); MCP smoke still open.
 
 **How to use this file — read this first:**
 
@@ -19,7 +19,7 @@
 **Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later).
 
 - **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)) — `/classwork` CRUD, dashboard Due soon (D1=B), MCP `list_due_soon` + `get_assignments_for_course`.
-- **Contacts / CRM** — Sessions 1–3 shipped ([182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md)). Lists tab + cadence months/years + touch kinds + card bulk log. Thin v1 target ~Thanksgiving; mailing send later.
+- **Contacts / CRM** — Sessions 1–3 + list mass-add ([183](docs/decisions/183-contacts-list-mass-add.md)). Lists checklist + sheet list toggles. Thin v1 target ~Thanksgiving; mailing send later.
 - **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + `list_project_health` filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)) + contacts ([180](docs/decisions/180-contacts-session-2.md)).
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard. Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 ([153](docs/decisions/153-classwork-session-1.md)/[161](docs/decisions/161-classwork-session-2.md)) — CRUD + dashboard Due soon (D1=B) + MCP tools. Backlog: bulk syllabus entry if needed late Aug. |
-| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 ([182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md)) — Lists tab, months/years cadence, meet vs card touches, card bulk log. MCP smoke open. Mailing send later; **≠ library `people`.** |
+| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + mass-add ([183](docs/decisions/183-contacts-list-mass-add.md)) — Lists checklist, sheet toggles, meet vs card, card bulk log. MCP smoke open. Mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork ([161](docs/decisions/161-classwork-session-2.md)) + health filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)) + contacts ([180](docs/decisions/180-contacts-session-2.md)). |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [183 — Contacts list mass-add](docs/decisions/183-contacts-list-mass-add.md) (2026-07-25) — Lists multi-select checklist + household/contact Sheet list toggles.
 - [182 — Contacts Session 3 Lists + cadence + touch kinds](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md) (2026-07-25) — Lists tab; months/years cadence; meet vs card; card bulk log; settings lists redirect.
 - [181 — Contacts smoke product locks](docs/decisions/181-contacts-smoke-product-locks.md) (2026-07-25) — Product locks that Session 3 built.
 - [180 — Contacts Session 2 dashboard due + MCP](docs/decisions/180-contacts-session-2.md) (2026-07-24) — Due to meet strip; `list_contacts_due` + `search_contacts`; C2 card-list filter.
-- [177 — Catalog consistency audit (post Track B)](docs/decisions/177-catalog-consistency-audit-track-b.md) (2026-07-24) — Alter/ABD/TWOT/BDAG/BDB/IVP + Vermes DML applied (`20260725040000_…`).
-- [179 — Essay bib locus before imprint (restore) + TDNT/ABD notes](docs/decisions/179-essay-bib-locus-before-imprint.md) (2026-07-24) — Covenant Christman bib order restored; clear stale TDNT/ABD `needs_review_note`.
+- [177 — Catalog consistency audit (post Track B)](docs/decisions/177-catalog-consistency-audit-track-b.md) (2026-07-24) — Alter/ABD/TWOT remint + BDB series.
 
 ---
 
@@ -73,7 +73,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; migration `20260724220000_ppp_classwork_v1.sql`.
 
-**Contacts:** `/contacts` tabs Contacts \| Households \| Lists + Sheets + Log Contact / Log cards; `/settings/contacts/lists` redirects to Lists tab; dashboard Due to meet ([180](docs/decisions/180-contacts-session-2.md), [182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md)); helpers `src/lib/contacts/`; migrations `20260725020000_ppp_contacts_v1.sql`, `20260725180115_contacts_touch_kind_and_cadence_ui.sql`. Desktop sidebar only.
+**Contacts:** `/contacts` tabs Contacts \| Households \| Lists (multi-add checklist + Log cards) + Sheets with list toggles; `/settings/contacts/lists` redirects to Lists tab; dashboard Due to meet ([180](docs/decisions/180-contacts-session-2.md), [182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md), [183](docs/decisions/183-contacts-list-mass-add.md)); helpers `src/lib/contacts/`; migrations `20260725020000_ppp_contacts_v1.sql`, `20260725180115_contacts_touch_kind_and_cadence_ui.sql`. Desktop sidebar only.
 
 **Invoicing helpers:** `src/lib/invoicing/` — `chicago-date.ts`, `hours.ts`, `consultation-lines.ts` ([050]). Loaders/actions live inline in route `+page.server.ts` files **by design** (see AGENTS.md › Module structure).
 
@@ -81,7 +81,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-25** ([182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md); **0 errors**, 396 tests).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-25** ([183](docs/decisions/183-contacts-list-mass-add.md); **0 errors**, 403 tests).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

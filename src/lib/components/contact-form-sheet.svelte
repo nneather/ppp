@@ -5,6 +5,7 @@
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import ContactCadenceFields from '$lib/components/contact-cadence-fields.svelte';
+	import ContactListToggles from '$lib/components/contact-list-toggles.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -13,6 +14,7 @@
 	import {
 		CONTACT_STATUSES,
 		CONTACT_STATUS_LABELS,
+		type ContactListDef,
 		type ContactListRow,
 		type ContactStatus,
 		type HouseholdRow
@@ -25,6 +27,8 @@
 		mode,
 		contact = null,
 		households = [],
+		lists = [],
+		memberListIds = [],
 		profileCadenceDefault = null,
 		errorMessage = null,
 		onSaved
@@ -33,6 +37,8 @@
 		mode: 'create' | 'edit';
 		contact?: ContactListRow | null;
 		households?: HouseholdRow[];
+		lists?: ContactListDef[];
+		memberListIds?: string[];
 		profileCadenceDefault?: number | null;
 		errorMessage?: string | null;
 		onSaved?: () => void | Promise<void>;
@@ -58,6 +64,7 @@
 	let stateAbbr = $state('');
 	let postalCode = $state('');
 	let country = $state('');
+	let selectedListIds = $state<string[]>([]);
 
 	const formAction = $derived(mode === 'create' ? '?/createContact' : '?/updateContact');
 	const sheetTitle = $derived(mode === 'create' ? 'New contact' : 'Edit contact');
@@ -93,6 +100,7 @@
 			noReminders = contact.no_reminders;
 			status = contact.status;
 			notes = contact.notes ?? '';
+			selectedListIds = [...memberListIds];
 			showMailing = false;
 			addressLine1 = '';
 			addressLine2 = '';
@@ -110,6 +118,7 @@
 			noReminders = false;
 			status = 'active';
 			notes = '';
+			selectedListIds = [];
 			showMailing = false;
 			addressLine1 = '';
 			addressLine2 = '';
@@ -314,6 +323,8 @@
 					class="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				></textarea>
 			</div>
+
+			<ContactListToggles lists={lists} bind:selectedIds={selectedListIds} />
 
 			<div class="sticky bottom-0 mt-auto flex gap-2 border-t border-border bg-background pt-4 pb-1">
 				<Button

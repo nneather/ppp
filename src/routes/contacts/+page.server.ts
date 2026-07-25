@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
 import {
 	addContactListMemberAction,
+	addContactListMembersBatchAction,
 	createContactAction,
 	createContactListAction,
 	createHouseholdAction,
@@ -23,9 +24,12 @@ import {
 	loadContactListMembers,
 	loadContactLists,
 	loadContacts,
+	loadHouseholdListCandidates,
 	loadHouseholds,
+	loadListMembershipMaps,
 	parseContactsListFilters
 } from '$lib/contacts/server/loaders';
+import type { ContactListCandidate } from '$lib/contacts/list-candidates';
 
 const TABS = ['contacts', 'households', 'lists'] as const;
 export type ContactsTab = (typeof TABS)[number];
@@ -47,14 +51,15 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const todayYmd = ymdInChicago();
 	const supabase = locals.supabase;
 
-	const [profileRes, householdsRes, listsRes] = await Promise.all([
+	const [profileRes, householdsRes, listsRes, membershipMapsRes] = await Promise.all([
 		supabase
 			.from('profiles')
 			.select('role, contact_cadence_days_default')
 			.eq('id', user.id)
 			.maybeSingle(),
 		loadHouseholds(supabase),
-		loadContactLists(supabase)
+		loadContactLists(supabase),
+		loadListMembershipMaps(supabase)
 	]);
 
 	if (profileRes.error) console.error('[contacts] profile', profileRes.error);
@@ -74,10 +79,41 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 			? selectedParam
 			: (listsRes.lists[0]?.id ?? null);
 
-	const membersRes =
+	const onListHouseholdIds = new Set(
+		selectedListId
+			? (membershipMapsRes.maps.householdIdsByListId[selectedListId] ?? [])
+			: []
+	);
+	const onListContactIds = new Set(
+		selectedListId
+			? (membershipMapsRes.maps.contactIdsByListId[selectedListId] ?? [])
+			: []
+	);
+
+	const [membersRes, householdCandidatesRes] = await Promise.all([
 		tab === 'lists' && selectedListId
-			? await loadContactListMembers(supabase, selectedListId)
-			: { members: [], hiddenRetiredOnlyCount: 0, error: null as string | null };
+			? loadContactListMembers(supabase, selectedListId)
+			: Promise.resolve({
+					members: [],
+					hiddenRetiredOnlyCount: 0,
+					error: null as string | null
+				}),
+		tab === 'lists' && selectedListId
+			? loadHouseholdListCandidates(supabase, {
+					listId: selectedListId,
+					onListHouseholdIds
+				})
+			: Promise.resolve({ candidates: [], error: null as string | null })
+	]);
+
+	const contactCandidates: ContactListCandidate[] =
+		tab === 'lists'
+			? contactsRes.contacts.map((c) => ({
+					id: c.id,
+					display_name: c.display_name,
+					onList: onListContactIds.has(c.id)
+				}))
+			: [];
 
 	return {
 		contacts: contactsRes.contacts,
@@ -86,6 +122,10 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		selectedListId,
 		members: membersRes.members,
 		hiddenRetiredOnlyCount: membersRes.hiddenRetiredOnlyCount,
+		householdCandidates: householdCandidatesRes.candidates,
+		contactCandidates,
+		listIdsByHouseholdId: membershipMapsRes.maps.listIdsByHouseholdId,
+		listIdsByContactId: membershipMapsRes.maps.listIdsByContactId,
 		filters,
 		tab,
 		todayYmd,
@@ -95,7 +135,9 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 			contactsRes.error ??
 			householdsRes.error ??
 			listsRes.error ??
-			membersRes.error
+			membersRes.error ??
+			membershipMapsRes.error ??
+			householdCandidatesRes.error
 	};
 };
 
@@ -123,7 +165,7 @@ export const actions: Actions = {
 	updateHousehold: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'updateHousehold' as const, message: 'Unauthorized' });
-		return updateHouseholdAction(locals.supabase, await request.formData());
+		return updateHouseholdAction(locals.supabase, user.id, await request.formData());
 	},
 	softDeleteHousehold: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
@@ -186,6 +228,19 @@ export const actions: Actions = {
 		if (!user)
 			return fail(401, { kind: 'addContactListMember' as const, message: 'Unauthorized' });
 		return addContactListMemberAction(locals.supabase, user.id, await request.formData());
+	},
+	addContactListMembersBatch: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, {
+				kind: 'addContactListMembersBatch' as const,
+				message: 'Unauthorized'
+			});
+		return addContactListMembersBatchAction(
+			locals.supabase,
+			user.id,
+			await request.formData()
+		);
 	},
 	softDeleteContactListMember: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

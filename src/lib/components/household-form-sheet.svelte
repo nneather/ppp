@@ -4,21 +4,26 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
+	import ContactListToggles from '$lib/components/contact-list-toggles.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
-	import type { HouseholdRow } from '$lib/types/contacts';
+	import type { ContactListDef, HouseholdRow } from '$lib/types/contacts';
 
 	let {
 		open = $bindable(false),
 		mode,
 		household = null,
+		lists = [],
+		memberListIds = [],
 		errorMessage = null,
 		onSaved
 	}: {
 		open?: boolean;
 		mode: 'create' | 'edit';
 		household?: HouseholdRow | null;
+		lists?: ContactListDef[];
+		memberListIds?: string[];
 		errorMessage?: string | null;
 		onSaved?: () => void | Promise<void>;
 	} = $props();
@@ -34,6 +39,7 @@
 	let postalCode = $state('');
 	let country = $state('');
 	let notes = $state('');
+	let selectedListIds = $state<string[]>([]);
 
 	const formAction = $derived(mode === 'create' ? '?/createHousehold' : '?/updateHousehold');
 	const sheetTitle = $derived(mode === 'create' ? 'New household' : 'Edit household');
@@ -48,6 +54,7 @@
 			postalCode = household.postal_code ?? '';
 			country = household.country ?? '';
 			notes = household.notes ?? '';
+			selectedListIds = [...memberListIds];
 		} else {
 			name = '';
 			addressLine1 = '';
@@ -57,6 +64,7 @@
 			postalCode = '';
 			country = '';
 			notes = '';
+			selectedListIds = [];
 		}
 	}
 
@@ -167,6 +175,8 @@
 					class="flex min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				></textarea>
 			</div>
+
+			<ContactListToggles lists={lists} bind:selectedIds={selectedListIds} />
 
 			<div class="sticky bottom-0 mt-auto flex gap-2 border-t border-border bg-background pt-4 pb-1">
 				<Button

@@ -1,6 +1,6 @@
 # Personal Operations System — Contacts / CRM Module Build Tracker
 
-_Last updated: 2026-07-25 | Module: Contacts / CRM (6th) | Sessions 1–3 shipped ([182](decisions/182-contacts-session-3-lists-cadence-touch-kinds.md)); MCP smoke still open_
+_Last updated: 2026-07-25 | Module: Contacts / CRM (6th) | Sessions 1–3 + mass-add ([183](decisions/183-contacts-list-mass-add.md)); MCP smoke still open_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [139](decisions/139-lightweight-crm-fall-priority.md), [175](decisions/175-contacts-session-0.md).
 
@@ -213,7 +213,7 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | 0 | ✅ 2026-07-24 | Phase 0 lock + this tracker + [175](decisions/175-contacts-session-0.md) |
 | 1 | ✅ 2026-07-24 | Migration `ppp_contacts_v1` + `/contacts` CRUD + Log Contact + lists + nav/permissions/audit — [178](decisions/178-contacts-session-1.md) |
 | 2 | ✅ 2026-07-24 | Dashboard "due to meet" + MCP `list_contacts_due` / `search_contacts`; C2 — [180](decisions/180-contacts-session-2.md) |
-| 3 | ✅ 2026-07-25 | Lists tab + cadence months/years + touch kinds + Christmas-card bulk log — [182](decisions/182-contacts-session-3-lists-cadence-touch-kinds.md) |
+| 3 | ✅ 2026-07-25 | Lists tab + cadence months/years + touch kinds + Christmas-card bulk log — [182](decisions/182-contacts-session-3-lists-cadence-touch-kinds.md); mass-add checklist + sheet toggles — [183](decisions/183-contacts-list-mass-add.md) |
 | — | note | Decision number **174** was taken by a parallel library session ([174-everlasting-man-original-1925](decisions/174-everlasting-man-original-1925.md)) — Session 0 record is **[175](decisions/175-contacts-session-0.md)**, not 174. |
 | — | backlog | Mailing-list send pipeline (Resend campaigns + unsubscribe) — designed-for, not built ([139](decisions/139-lightweight-crm-fall-priority.md)). |
 | — | backlog | Optional FK contact → library person or invoicing client — only if owner asks. |

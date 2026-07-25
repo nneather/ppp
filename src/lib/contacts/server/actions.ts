@@ -109,14 +109,31 @@ export async function createHouseholdAction(
 		});
 	}
 
+	const householdId = (inserted as { id: string }).id;
+	const sync = await syncEntityListMemberships(supabase, userId, {
+		kind: 'household',
+		entityId: householdId,
+		desiredListIds: parseDesiredListIds(fd)
+	});
+	if (sync.error) {
+		return fail(500, {
+			kind: 'createHousehold' as const,
+			message: sync.error
+		});
+	}
+
 	return {
 		kind: 'createHousehold' as const,
 		success: true as const,
-		householdId: (inserted as { id: string }).id
+		householdId
 	};
 }
 
-export async function updateHouseholdAction(supabase: SupabaseClient, fd: FormData) {
+export async function updateHouseholdAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
 	const householdId = trimOrNull(fd.get('household_id'));
 	if (!householdId || !UUID_RE.test(householdId)) {
 		return fail(400, { kind: 'updateHousehold' as const, message: 'Invalid household.' });
@@ -148,6 +165,19 @@ export async function updateHouseholdAction(supabase: SupabaseClient, fd: FormDa
 			kind: 'updateHousehold' as const,
 			householdId,
 			message: updErr.message
+		});
+	}
+
+	const sync = await syncEntityListMemberships(supabase, userId, {
+		kind: 'household',
+		entityId: householdId,
+		desiredListIds: parseDesiredListIds(fd)
+	});
+	if (sync.error) {
+		return fail(500, {
+			kind: 'updateHousehold' as const,
+			householdId,
+			message: sync.error
 		});
 	}
 
@@ -309,10 +339,23 @@ export async function createContactAction(
 		});
 	}
 
+	const contactId = (inserted as { id: string }).id;
+	const sync = await syncEntityListMemberships(supabase, userId, {
+		kind: 'contact',
+		entityId: contactId,
+		desiredListIds: parseDesiredListIds(fd)
+	});
+	if (sync.error) {
+		return fail(500, {
+			kind: 'createContact' as const,
+			message: sync.error
+		});
+	}
+
 	return {
 		kind: 'createContact' as const,
 		success: true as const,
-		contactId: (inserted as { id: string }).id,
+		contactId,
 		householdId: household_id
 	};
 }
@@ -430,6 +473,19 @@ export async function updateContactAction(
 			kind: 'updateContact' as const,
 			contactId,
 			message: updErr.message
+		});
+	}
+
+	const sync = await syncEntityListMemberships(supabase, userId, {
+		kind: 'contact',
+		entityId: contactId,
+		desiredListIds: parseDesiredListIds(fd)
+	});
+	if (sync.error) {
+		return fail(500, {
+			kind: 'updateContact' as const,
+			contactId,
+			message: sync.error
 		});
 	}
 
@@ -883,6 +939,91 @@ export async function softDeleteContactListAction(supabase: SupabaseClient, fd: 
  * Add member — contact XOR household.
  * Footgun NEW-D: revive soft-deleted membership by PK instead of onConflict.
  */
+async function upsertListMember(
+	supabase: SupabaseClient,
+	userId: string,
+	opts: {
+		listId: string;
+		contact_id: string | null;
+		household_id: string | null;
+	}
+): Promise<{ memberId: string; created: boolean; alreadyLive: boolean; error: string | null }> {
+	let existingQ = supabase
+		.from('contact_list_members')
+		.select('id, deleted_at')
+		.eq('list_id', opts.listId);
+	if (opts.contact_id) {
+		existingQ = existingQ.eq('contact_id', opts.contact_id);
+	} else {
+		existingQ = existingQ.eq('household_id', opts.household_id!);
+	}
+	const { data: existingRows, error: existErr } = await existingQ.limit(1);
+	if (existErr) {
+		return { memberId: '', created: false, alreadyLive: false, error: existErr.message };
+	}
+
+	const existing = (existingRows?.[0] ?? null) as {
+		id: string;
+		deleted_at: string | null;
+	} | null;
+
+	if (existing) {
+		if (existing.deleted_at == null) {
+			return {
+				memberId: existing.id,
+				created: false,
+				alreadyLive: true,
+				error: null
+			};
+		}
+		const { error: reviveErr } = await supabase
+			.from('contact_list_members')
+			.update({ deleted_at: null } as never)
+			.eq('id', existing.id);
+		if (reviveErr) {
+			return {
+				memberId: '',
+				created: false,
+				alreadyLive: false,
+				error: reviveErr.message
+			};
+		}
+		return {
+			memberId: existing.id,
+			created: false,
+			alreadyLive: false,
+			error: null
+		};
+	}
+
+	const { data: inserted, error: insErr } = await supabase
+		.from('contact_list_members')
+		.insert({
+			list_id: opts.listId,
+			contact_id: opts.contact_id,
+			household_id: opts.household_id,
+			created_by: userId
+		} as never)
+		.select('id')
+		.single();
+
+	if (insErr || !inserted) {
+		return {
+			memberId: '',
+			created: false,
+			alreadyLive: false,
+			error: insErr?.message ?? 'Could not add member.'
+		};
+	}
+
+	return {
+		memberId: (inserted as { id: string }).id,
+		created: true,
+		alreadyLive: false,
+		error: null
+	};
+}
+
 export async function addContactListMemberAction(
 	supabase: SupabaseClient,
 	userId: string,
@@ -921,76 +1062,25 @@ export async function addContactListMemberAction(
 	}
 
 	const cols = listMemberToColumns(parent);
+	const result = await upsertListMember(supabase, userId, {
+		listId,
+		contact_id: cols.contact_id,
+		household_id: cols.household_id
+	});
 
-	// Look for existing (incl. soft-deleted) membership to revive.
-	let existingQ = supabase
-		.from('contact_list_members')
-		.select('id, deleted_at')
-		.eq('list_id', listId);
-	if (cols.contact_id) {
-		existingQ = existingQ.eq('contact_id', cols.contact_id);
-	} else {
-		existingQ = existingQ.eq('household_id', cols.household_id!);
-	}
-	const { data: existingRows, error: existErr } = await existingQ.limit(1);
-	if (existErr) {
-		console.error('[contacts] addContactListMember lookup', existErr);
+	if (result.error) {
+		console.error('[contacts] addContactListMember', result.error);
 		return fail(500, {
 			kind: 'addContactListMember' as const,
 			listId,
-			message: existErr.message
+			message: result.error
 		});
 	}
-
-	const existing = (existingRows?.[0] ?? null) as {
-		id: string;
-		deleted_at: string | null;
-	} | null;
-
-	if (existing) {
-		if (existing.deleted_at == null) {
-			return fail(400, {
-				kind: 'addContactListMember' as const,
-				listId,
-				message: 'Already on this list.'
-			});
-		}
-		const { error: reviveErr } = await supabase
-			.from('contact_list_members')
-			.update({ deleted_at: null } as never)
-			.eq('id', existing.id);
-		if (reviveErr) {
-			console.error('[contacts] addContactListMember revive', reviveErr);
-			return fail(500, {
-				kind: 'addContactListMember' as const,
-				listId,
-				message: reviveErr.message
-			});
-		}
-		return {
-			kind: 'addContactListMember' as const,
-			success: true as const,
-			listId,
-			memberId: existing.id
-		};
-	}
-
-	const { data: inserted, error: insErr } = await supabase
-		.from('contact_list_members')
-		.insert({
-			list_id: listId,
-			...cols,
-			created_by: userId
-		} as never)
-		.select('id')
-		.single();
-
-	if (insErr || !inserted) {
-		console.error('[contacts] addContactListMember', insErr);
-		return fail(500, {
+	if (result.alreadyLive) {
+		return fail(400, {
 			kind: 'addContactListMember' as const,
 			listId,
-			message: insErr?.message ?? 'Could not add member.'
+			message: 'Already on this list.'
 		});
 	}
 
@@ -998,8 +1088,159 @@ export async function addContactListMemberAction(
 		kind: 'addContactListMember' as const,
 		success: true as const,
 		listId,
-		memberId: (inserted as { id: string }).id
+		memberId: result.memberId
 	};
+}
+
+const BATCH_MEMBER_CAP = 200;
+
+/** Mass-add households or contacts to a list (one kind per submit). */
+export async function addContactListMembersBatchAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const listId = trimOrNull(fd.get('list_id'));
+	if (!listId || !UUID_RE.test(listId)) {
+		return fail(400, {
+			kind: 'addContactListMembersBatch' as const,
+			message: 'Invalid list.'
+		});
+	}
+
+	const kindRaw = trimOrNull(fd.get('member_kind'));
+	if (kindRaw !== 'contact' && kindRaw !== 'household') {
+		return fail(400, {
+			kind: 'addContactListMembersBatch' as const,
+			listId,
+			message: 'Choose contact or household members.'
+		});
+	}
+
+	const field = kindRaw === 'household' ? 'household_id' : 'contact_id';
+	const rawIds = fd.getAll(field).map((v) => String(v).trim()).filter(Boolean);
+	const ids = [...new Set(rawIds)].filter((id) => UUID_RE.test(id));
+
+	if (ids.length === 0) {
+		return fail(400, {
+			kind: 'addContactListMembersBatch' as const,
+			listId,
+			message: 'Select at least one member to add.'
+		});
+	}
+	if (ids.length > BATCH_MEMBER_CAP) {
+		return fail(400, {
+			kind: 'addContactListMembersBatch' as const,
+			listId,
+			message: `Add at most ${BATCH_MEMBER_CAP} at a time.`
+		});
+	}
+
+	let added = 0;
+	let skipped = 0;
+	for (const id of ids) {
+		const result = await upsertListMember(supabase, userId, {
+			listId,
+			contact_id: kindRaw === 'contact' ? id : null,
+			household_id: kindRaw === 'household' ? id : null
+		});
+		if (result.error) {
+			console.error('[contacts] addContactListMembersBatch', result.error);
+			return fail(500, {
+				kind: 'addContactListMembersBatch' as const,
+				listId,
+				message: result.error
+			});
+		}
+		if (result.alreadyLive) skipped += 1;
+		else added += 1;
+	}
+
+	return {
+		kind: 'addContactListMembersBatch' as const,
+		success: true as const,
+		listId,
+		count: added,
+		skipped
+	};
+}
+
+/**
+ * Sync list memberships for one contact or household to match desired list ids.
+ * Adds/revives missing; soft-deletes extras (same XOR parent).
+ */
+export async function syncEntityListMemberships(
+	supabase: SupabaseClient,
+	userId: string,
+	opts: {
+		kind: 'contact' | 'household';
+		entityId: string;
+		desiredListIds: string[];
+	}
+): Promise<{ error: string | null }> {
+	const desired = [
+		...new Set(opts.desiredListIds.filter((id) => UUID_RE.test(id)))
+	];
+
+	let liveQ = supabase
+		.from('contact_list_members')
+		.select('id, list_id')
+		.is('deleted_at', null);
+	if (opts.kind === 'contact') {
+		liveQ = liveQ.eq('contact_id', opts.entityId);
+	} else {
+		liveQ = liveQ.eq('household_id', opts.entityId);
+	}
+
+	const { data: liveRows, error: liveErr } = await liveQ;
+	if (liveErr) {
+		console.error('[contacts] syncEntityListMemberships load', liveErr);
+		return { error: liveErr.message };
+	}
+
+	const live = (liveRows ?? []) as { id: string; list_id: string }[];
+	const liveByList = new Map(live.map((r) => [r.list_id, r.id]));
+	const desiredSet = new Set(desired);
+
+	const now = new Date().toISOString();
+	for (const row of live) {
+		if (desiredSet.has(row.list_id)) continue;
+		const { error: delErr } = await supabase
+			.from('contact_list_members')
+			.update({ deleted_at: now } as never)
+			.eq('id', row.id)
+			.is('deleted_at', null);
+		if (delErr) {
+			console.error('[contacts] syncEntityListMemberships remove', delErr);
+			return { error: delErr.message };
+		}
+	}
+
+	for (const listId of desired) {
+		if (liveByList.has(listId)) continue;
+		const result = await upsertListMember(supabase, userId, {
+			listId,
+			contact_id: opts.kind === 'contact' ? opts.entityId : null,
+			household_id: opts.kind === 'household' ? opts.entityId : null
+		});
+		if (result.error) {
+			console.error('[contacts] syncEntityListMemberships add', result.error);
+			return { error: result.error };
+		}
+	}
+
+	return { error: null };
+}
+
+function parseDesiredListIds(fd: FormData): string[] {
+	return [
+		...new Set(
+			fd
+				.getAll('member_list_id')
+				.map((v) => String(v).trim())
+				.filter((id) => UUID_RE.test(id))
+		)
+	];
 }
 
 export async function softDeleteContactListMemberAction(
@@ -1036,3 +1277,5 @@ export async function softDeleteContactListMemberAction(
 		memberId
 	};
 }
+
+export { parseDesiredListIds };

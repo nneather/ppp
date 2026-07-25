@@ -490,8 +490,8 @@
 			selectedListId={data.selectedListId}
 			members={data.members}
 			hiddenRetiredOnlyCount={data.hiddenRetiredOnlyCount}
-			contacts={data.contacts}
-			households={data.households}
+			householdCandidates={data.householdCandidates}
+			contactCandidates={data.contactCandidates}
 			profileCadenceDefault={data.profileCadenceDefault}
 			todayYmd={data.todayYmd}
 			isOwner={data.isOwner}
@@ -506,6 +506,10 @@
 		mode={contactSheetMode}
 		contact={editingContact}
 		households={data.households}
+		lists={data.lists}
+		memberListIds={editingContact
+			? (data.listIdsByContactId[editingContact.id] ?? [])
+			: []}
 		profileCadenceDefault={data.profileCadenceDefault}
 		errorMessage={contactSheetError}
 		onSaved={onSaved}
@@ -514,6 +518,10 @@
 		bind:open={householdSheetOpen}
 		mode={householdSheetMode}
 		household={editingHousehold}
+		lists={data.lists}
+		memberListIds={editingHousehold
+			? (data.listIdsByHouseholdId[editingHousehold.id] ?? [])
+			: []}
 		errorMessage={householdSheetError}
 		onSaved={onSaved}
 	/>

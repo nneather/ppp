@@ -9,13 +9,18 @@ import {
 	type ContactSearchHit,
 	type ContactStatus,
 	type ContactsListFilters,
-	type HouseholdRow
+	type HouseholdRow,
+	type ListMembershipMaps
 } from '$lib/types/contacts';
 import {
 	householdEligibleForCardList,
 	selectContactsDue,
 	type ContactDueCandidate
 } from '$lib/contacts/due';
+import {
+	householdHasMailingAddress,
+	type HouseholdListCandidate
+} from '$lib/contacts/list-candidates';
 import {
 	contactDisplayName,
 	effectiveCadenceDays,
@@ -252,6 +257,118 @@ export async function loadContactLists(supabase: SupabaseClient): Promise<{
 	}));
 
 	return { lists, error: null };
+}
+
+/** Live membership maps for sheet toggles + Lists-tab candidate onList flags. */
+export async function loadListMembershipMaps(supabase: SupabaseClient): Promise<{
+	maps: ListMembershipMaps;
+	error: string | null;
+}> {
+	const empty: ListMembershipMaps = {
+		householdIdsByListId: {},
+		contactIdsByListId: {},
+		listIdsByHouseholdId: {},
+		listIdsByContactId: {}
+	};
+
+	const { data, error } = await supabase
+		.from('contact_list_members')
+		.select('list_id, contact_id, household_id')
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error('[contacts] loadListMembershipMaps', error);
+		return { maps: empty, error: error.message };
+	}
+
+	const maps: ListMembershipMaps = {
+		householdIdsByListId: {},
+		contactIdsByListId: {},
+		listIdsByHouseholdId: {},
+		listIdsByContactId: {}
+	};
+
+	for (const raw of data ?? []) {
+		const row = raw as {
+			list_id: string;
+			contact_id: string | null;
+			household_id: string | null;
+		};
+		if (row.household_id) {
+			const byList = maps.householdIdsByListId[row.list_id] ?? [];
+			byList.push(row.household_id);
+			maps.householdIdsByListId[row.list_id] = byList;
+			const byHh = maps.listIdsByHouseholdId[row.household_id] ?? [];
+			byHh.push(row.list_id);
+			maps.listIdsByHouseholdId[row.household_id] = byHh;
+		} else if (row.contact_id) {
+			const byList = maps.contactIdsByListId[row.list_id] ?? [];
+			byList.push(row.contact_id);
+			maps.contactIdsByListId[row.list_id] = byList;
+			const byCt = maps.listIdsByContactId[row.contact_id] ?? [];
+			byCt.push(row.list_id);
+			maps.listIdsByContactId[row.contact_id] = byCt;
+		}
+	}
+
+	return { maps, error: null };
+}
+
+/**
+ * Household candidates for Lists mass-add (includes onList + C2 + address flags).
+ */
+export async function loadHouseholdListCandidates(
+	supabase: SupabaseClient,
+	opts: { listId: string; onListHouseholdIds: ReadonlySet<string> }
+): Promise<{
+	candidates: HouseholdListCandidate[];
+	error: string | null;
+}> {
+	const [hhRes, membersRes] = await Promise.all([
+		supabase
+			.from('households')
+			.select(
+				'id, name, address_line_1, address_line_2, city, state, postal_code, country'
+			)
+			.is('deleted_at', null)
+			.order('name', { ascending: true }),
+		supabase
+			.from('contacts')
+			.select('household_id, status')
+			.is('deleted_at', null)
+			.not('household_id', 'is', null)
+	]);
+
+	if (hhRes.error) {
+		console.error('[contacts] loadHouseholdListCandidates', hhRes.error);
+		return { candidates: [], error: hhRes.error.message };
+	}
+	if (membersRes.error) {
+		console.error('[contacts] loadHouseholdListCandidates members', membersRes.error);
+	}
+
+	const liveByHousehold = new Map<string, { status: ContactStatus }[]>();
+	for (const m of membersRes.data ?? []) {
+		const row = m as { household_id: string; status: string };
+		if (!isContactStatus(row.status)) continue;
+		const list = liveByHousehold.get(row.household_id) ?? [];
+		list.push({ status: row.status });
+		liveByHousehold.set(row.household_id, list);
+	}
+
+	const candidates: HouseholdListCandidate[] = [];
+	for (const h of (hhRes.data ?? []) as HouseholdDb[]) {
+		const live = liveByHousehold.get(h.id) ?? [];
+		candidates.push({
+			id: h.id,
+			name: h.name,
+			onList: opts.onListHouseholdIds.has(h.id),
+			cardEligible: householdEligibleForCardList({ liveMembers: live }),
+			hasAddress: householdHasMailingAddress(h)
+		});
+	}
+
+	return { candidates, error: null };
 }
 
 /**

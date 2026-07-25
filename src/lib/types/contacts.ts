@@ -117,3 +117,12 @@ export type ContactSearchHit = {
 	status: ContactStatus;
 	no_reminders: boolean;
 };
+
+/** listId → set of entity ids currently on the list (live memberships). */
+export type ListMembershipMaps = {
+	householdIdsByListId: Record<string, string[]>;
+	contactIdsByListId: Record<string, string[]>;
+	/** entityId → list ids (for sheet toggles). */
+	listIdsByHouseholdId: Record<string, string[]>;
+	listIdsByContactId: Record<string, string[]>;
+};

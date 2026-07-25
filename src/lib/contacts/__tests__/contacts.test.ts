@@ -17,6 +17,11 @@ import {
 	isContactDue,
 	selectContactsDue
 } from '$lib/contacts/due';
+import {
+	filterContactListCandidates,
+	filterHouseholdListCandidates,
+	householdHasMailingAddress
+} from '$lib/contacts/list-candidates';
 import { listMemberToColumns, validateListMemberXor } from '$lib/contacts/list-member';
 
 describe('contactDisplayName', () => {
@@ -261,5 +266,106 @@ describe('householdEligibleForCardList (C2)', () => {
 			})
 		).toBe(true);
 		expect(householdEligibleForCardList({ liveMembers: [] })).toBe(false);
+	});
+});
+
+describe('filterHouseholdListCandidates', () => {
+	const base = [
+		{
+			id: 'h1',
+			name: 'Adams',
+			onList: false,
+			cardEligible: true,
+			hasAddress: true
+		},
+		{
+			id: 'h2',
+			name: 'Baker',
+			onList: true,
+			cardEligible: true,
+			hasAddress: true
+		},
+		{
+			id: 'h3',
+			name: 'Clark',
+			onList: false,
+			cardEligible: true,
+			hasAddress: false
+		},
+		{
+			id: 'h4',
+			name: 'Retired Only',
+			onList: false,
+			cardEligible: false,
+			hasAddress: true
+		}
+	];
+
+	it('excludes C2-ineligible always', () => {
+		const rows = filterHouseholdListCandidates(base, { scope: 'all' });
+		expect(rows.map((r) => r.id)).toEqual(['h1', 'h2', 'h3']);
+	});
+
+	it('not_on_list drops already-on', () => {
+		const rows = filterHouseholdListCandidates(base, { scope: 'not_on_list' });
+		expect(rows.map((r) => r.id)).toEqual(['h1', 'h3']);
+	});
+
+	it('has_address requires address and not on list', () => {
+		const rows = filterHouseholdListCandidates(base, { scope: 'has_address' });
+		expect(rows.map((r) => r.id)).toEqual(['h1']);
+	});
+
+	it('filters by search query', () => {
+		const rows = filterHouseholdListCandidates(base, {
+			scope: 'not_on_list',
+			q: 'ada'
+		});
+		expect(rows.map((r) => r.id)).toEqual(['h1']);
+	});
+});
+
+describe('filterContactListCandidates', () => {
+	const base = [
+		{ id: 'c1', display_name: 'Tom Jones', onList: false },
+		{ id: 'c2', display_name: 'Sarah Lee', onList: true },
+		{ id: 'c3', display_name: 'Tom Brady', onList: false }
+	];
+
+	it('not_on_list excludes members', () => {
+		expect(
+			filterContactListCandidates(base, { scope: 'not_on_list' }).map((r) => r.id)
+		).toEqual(['c3', 'c1']);
+	});
+
+	it('all keeps on-list rows and searches', () => {
+		expect(
+			filterContactListCandidates(base, { scope: 'all', q: 'tom' }).map((r) => r.id)
+		).toEqual(['c3', 'c1']);
+	});
+});
+
+describe('householdHasMailingAddress', () => {
+	it('detects any address field', () => {
+		expect(
+			householdHasMailingAddress({
+				address_line_1: null,
+				address_line_2: null,
+				city: 'Madison',
+				state: null,
+				postal_code: null,
+				country: null
+			})
+		).toBe(true);
+		expect(
+			householdHasMailingAddress({
+				address_line_1: null,
+				address_line_2: null,
+				city: null,
+				state: null,
+				postal_code: null,
+				country: null
+			})
+		).toBe(false);
 	});
 });
