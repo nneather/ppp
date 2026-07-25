@@ -998,11 +998,11 @@ describe('formatBibliography', () => {
 			'Piper, "The Perseverance of the Saints," [page].'
 		);
 		expect(formatEssayBibliography(essay, volume).plain).toBe(
-			'Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells, 123–145. Grand Rapids, MI: Baker Academic, 2004.'
+			'Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells. Grand Rapids, MI: Baker Academic, 2004. 123–145.'
 		);
 	});
 
-	it('essay bibliography includes vol:page for multi-volume reference works', () => {
+	it('essay bibliography puts vol:page after imprint (Covenant encyclopedia locus)', () => {
 		const volume = book({
 			work_type: 'reference_work',
 			title: 'Theological Dictionary of the New Testament',
@@ -1033,7 +1033,35 @@ describe('formatBibliography', () => {
 				volume
 			).plain
 		).toBe(
-			'Kittel, Gerhard. "λέγω." In Theological Dictionary of the New Testament, edited by Gerhard Kittel, 4:100. Grand Rapids, MI: William B. Eerdmans, 1967.'
+			'Kittel, Gerhard. "λέγω." In Theological Dictionary of the New Testament, edited by Gerhard Kittel. Grand Rapids, MI: William B. Eerdmans, 1967. 4:100.'
+		);
+	});
+
+	it('essay bibliography matches Christman encyclopedia locus-at-end', () => {
+		const volume = book({
+			work_type: 'reference_work',
+			title: 'Encyclopedia of Applied Ethics',
+			volume_number: '3',
+			authors: [
+				{ person_id: 'e1', person_label: 'Ruth Chadwick', role: 'editor', sort_order: 0 }
+			],
+			publisher: 'Academic Press',
+			publisher_location: 'San Diego',
+			year: 1998
+		});
+		expect(
+			formatEssayBibliography(
+				{
+					essay_title: 'Property Rights',
+					page_start: 689,
+					authors: [
+						{ person_id: 'a1', person_label: 'John Christman', role: 'author' as const, sort_order: 0 }
+					]
+				},
+				volume
+			).plain
+		).toBe(
+			'Christman, John. "Property Rights." In Encyclopedia of Applied Ethics, edited by Ruth Chadwick. San Diego: Academic Press, 1998. 3:689.'
 		);
 	});
 
