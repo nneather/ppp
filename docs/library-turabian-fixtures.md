@@ -118,18 +118,18 @@
 ### 17 — Signed dictionary article
 
 - **Footnote:** `James A. Sanders, "Canon," in ABD, 1:835.` (Covenant §17.9.1 abbreviated; requires `series_abbreviation = 'ABD'`)
-- **Bibliography:** `Sanders, James A. "Canon." In Anchor Bible Dictionary, edited by David Noel Freedman. New York: Doubleday, 1992. 1:835.` (locus after imprint — [176](decisions/176-essay-bib-locus-after-imprint.md))
+- **Bibliography:** `Sanders, James A. "Canon." In Anchor Bible Dictionary, edited by David Noel Freedman, 1:835. New York: Doubleday, 1992.` (locus before imprint — [179](decisions/179-essay-bib-locus-before-imprint.md) restores [176](decisions/176-essay-bib-locus-after-imprint.md))
 
 ### 18 — TDNT signed article
 
 - **Footnote:** `Gerhard Kittel, "λέγω," in TDNT, 4:100.` (abbreviated; locus already terminal)
-- **Bibliography:** `Kittel, Gerhard. "λέγω." In Theological Dictionary of the New Testament, edited by Gerhard Kittel. Grand Rapids, MI: William B. Eerdmans, 1967. 4:100.`
-- **Carrier:** parent `series_abbreviation = 'TDNT'` + `volume_number` for abbreviated `in ABBR, vol:page` note form. Full essay-in-book notes (no abbr) match Christman: `…, ed. Name (Place: Pub, year), vol:page.`
+- **Bibliography:** `Kittel, Gerhard. "λέγω." In Theological Dictionary of the New Testament, edited by Gerhard Kittel, 4:100. Grand Rapids, MI: William B. Eerdmans, 1967.`
+- **Carrier:** parent `series_abbreviation = 'TDNT'` + `volume_number` for abbreviated `in ABBR, vol:page` note form. Full essay-in-book notes (no abbr): `…, ed. Name (Place: Pub, year), vol:page.`
 
 ### 19 — Chapter in edited volume
 
 - **Footnote:** `John Piper, "The Perseverance of the Saints," in The Glory of the Atonement, eds. David G. Peterson and David F. Wells (Grand Rapids, MI: Baker Academic, 2004), 123.`
-- **Bibliography:** `Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells. Grand Rapids, MI: Baker Academic, 2004. 123.`
+- **Bibliography:** `Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells, 123. Grand Rapids, MI: Baker Academic, 2004.`
 
 ### 20 — Short footnote
 

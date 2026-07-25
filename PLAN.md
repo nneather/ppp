@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — Essay bib locus after imprint ([176](docs/decisions/176-essay-bib-locus-after-imprint.md)).
+**Last updated:** 2026-07-24 — Essay bib locus before imprint restore + TDNT/ABD notes ([179](docs/decisions/179-essay-bib-locus-before-imprint.md)).
 
 **How to use this file — read this first:**
 
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
-- [176 — Essay bibliography locus after imprint](docs/decisions/176-essay-bib-locus-after-imprint.md) (2026-07-24) — essay/chapter bib ends with `vol:page` / pages (Christman parallel); notes already terminal.
+- [179 — Essay bib locus before imprint (restore) + TDNT/ABD notes](docs/decisions/179-essay-bib-locus-before-imprint.md) (2026-07-24) — Covenant Christman bib order restored; clear stale TDNT/ABD `needs_review_note`.
+- [176 — Essay bibliography locus after imprint](docs/decisions/176-essay-bib-locus-after-imprint.md) (2026-07-24) — **overturned by [179](docs/decisions/179-essay-bib-locus-before-imprint.md).**
 - [175 — Contacts Session 0 Phase 0 lock](docs/decisions/175-contacts-session-0.md) (2026-07-24) — contacts + households + touches + lists; cadence on person; Christmas cards = list of households.
 - [174 — Everlasting Man original publication 1925](docs/decisions/174-everlasting-man-original-1925.md) (2026-07-24) — first live full-reprint row: `original_year=1925` + `reprint_*` = Image Books 1974 → `(1925; repr., …)`.
 - [173 — Canvas classwork import (deferred)](docs/decisions/173-canvas-classwork-import-deferred.md) (2026-07-24) — API smoke OK; late-August one-shot import; semester-start token; preview→confirm for week-1–3 churn.
-- [172 — Loeb series number ≠ multi-vol; translator `et al.` period](docs/decisions/172-loeb-series-number-not-multivol.md) (2026-07-24) — Loeb 560 is series enum not `560:[page]`; no `et al..`.
 
 ---
 

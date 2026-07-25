@@ -253,15 +253,20 @@ export function formatEssayBibliography(
 					? `${vol}:${page}`
 					: page;
 
-	// Covenant encyclopedia shape: editors, then imprint, then locus at the end
-	// (`… edited by Chadwick. San Diego: Academic Press, 1998. 3:689.` — note form puts
-	// `vol:page` after `(Place: Pub, year)` in {@link formatEssayInBookFootnote}).
+	// Covenant encyclopedia bib: locus after editors, before imprint
+	// (`… edited by Chadwick, 3:683–692. San Diego: Academic Press, 1998.`).
+	// Note form still puts locus after `(Place: Pub, year)` in {@link formatEssayInBookFootnote}.
 	let plain = `${authorLead} ${quotedTitleBib(article, 'plain')} In ${volTitle}`;
 	let html = `${escapeHtml(authorLead)} ${quotedTitleBib(article, 'html')} In ${volTitleHtml}`;
 
 	if (editors) {
 		plain += `, ${editors}`;
 		html += `, ${escapeHtml(editors)}`;
+	}
+
+	if (loc) {
+		plain += `, ${loc}`;
+		html += `, ${escapeHtml(loc)}`;
 	}
 
 	plain += '.';
@@ -271,11 +276,6 @@ export function formatEssayBibliography(
 		const pubPlain = pub.plain.endsWith('.') ? pub.plain : `${pub.plain}.`;
 		plain += ` ${pubPlain}`;
 		html += ` ${pub.html}`;
-	}
-
-	if (loc) {
-		plain += ` ${loc}.`;
-		html += ` ${escapeHtml(loc)}.`;
 	}
 
 	return { plain: plain.replace(/\s+/g, ' ').trim(), html: html.replace(/\s+/g, ' ').trim(), sourceType };

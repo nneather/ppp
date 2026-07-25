@@ -998,11 +998,11 @@ describe('formatBibliography', () => {
 			'Piper, "The Perseverance of the Saints," [page].'
 		);
 		expect(formatEssayBibliography(essay, volume).plain).toBe(
-			'Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells. Grand Rapids, MI: Baker Academic, 2004. 123–145.'
+			'Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells, 123–145. Grand Rapids, MI: Baker Academic, 2004.'
 		);
 	});
 
-	it('essay bibliography puts vol:page after imprint (Covenant encyclopedia locus)', () => {
+	it('essay bibliography includes vol:page before imprint (Covenant encyclopedia bib)', () => {
 		const volume = book({
 			work_type: 'reference_work',
 			title: 'Theological Dictionary of the New Testament',
@@ -1033,11 +1033,11 @@ describe('formatBibliography', () => {
 				volume
 			).plain
 		).toBe(
-			'Kittel, Gerhard. "λέγω." In Theological Dictionary of the New Testament, edited by Gerhard Kittel. Grand Rapids, MI: William B. Eerdmans, 1967. 4:100.'
+			'Kittel, Gerhard. "λέγω." In Theological Dictionary of the New Testament, edited by Gerhard Kittel, 4:100. Grand Rapids, MI: William B. Eerdmans, 1967.'
 		);
 	});
 
-	it('essay bibliography matches Christman encyclopedia locus-at-end', () => {
+	it('essay bibliography matches Christman encyclopedia (locus before imprint)', () => {
 		const volume = book({
 			work_type: 'reference_work',
 			title: 'Encyclopedia of Applied Ethics',
@@ -1053,7 +1053,8 @@ describe('formatBibliography', () => {
 			formatEssayBibliography(
 				{
 					essay_title: 'Property Rights',
-					page_start: 689,
+					page_start: 683,
+					page_end: 692,
 					authors: [
 						{ person_id: 'a1', person_label: 'John Christman', role: 'author' as const, sort_order: 0 }
 					]
@@ -1061,7 +1062,7 @@ describe('formatBibliography', () => {
 				volume
 			).plain
 		).toBe(
-			'Christman, John. "Property Rights." In Encyclopedia of Applied Ethics, edited by Ruth Chadwick. San Diego: Academic Press, 1998. 3:689.'
+			'Christman, John. "Property Rights." In Encyclopedia of Applied Ethics, edited by Ruth Chadwick, 3:683–692. San Diego: Academic Press, 1998.'
 		);
 	});
 
