@@ -192,14 +192,15 @@ End-of-session deliverables:
  - Routes: `/classwork` (list + Sheets; `?group=date|course`); `/dashboard` due-soon (desktop Now column + mobile glance — [161](docs/decisions/161-classwork-session-2.md)). Nav: mobile tab bar = Dashboard/Tasks/Invoicing/Library/Classwork; Sermons+Projects+Contacts desktop sidebar only.
  - Audit: `_CLASSWORK_TABLES`; soft-delete revert for courses/assignments. Permissions slug `classwork`.
 
-- **Contacts helpers** at `src/lib/contacts/` (schema migration `20260725020000_ppp_contacts_v1.sql`; Session 0 [175](docs/decisions/175-contacts-session-0.md), Session 1 [178](docs/decisions/178-contacts-session-1.md)):
- - `src/lib/types/contacts.ts` — `CONTACT_STATUSES`, list/filter view-models, `DEFAULT_CONTACT_CADENCE_DAYS` (90).
- - `src/lib/contacts/names.ts` — `contactDisplayName`, `householdNameFromContact`, `effectiveCadenceDays`, `formatHouseholdAddress`.
- - `src/lib/contacts/list-member.ts` — `validateListMemberXor` / `listMemberToColumns` (contact XOR household for list membership).
- - `src/lib/contacts/server/loaders.ts` — `loadContacts`, `loadHouseholds`, `loadContactLists`, `loadContactListMembers`, `parseContactsListFilters`.
- - `src/lib/contacts/server/actions.ts` — contact/household/list CRUD; one-tap + detailed touch; household touch fan-out; list-member add (revive soft-deleted by PK).
- - Routes: `/contacts` (list + Sheets + Log Contact); `/settings/contacts/lists`. Desktop sidebar only (mobile tab bar stays at 5).
- - Audit: `_CONTACTS_TABLES`; soft-delete revert for households/contacts/touches/lists/members. Permissions slug `contacts`. **≠ library `people`, ≠ invoicing `clients`.** Viewer write solo-waivered v1.
+- **Contacts helpers** at `src/lib/contacts/` (schema migration `20260725020000_ppp_contacts_v1.sql`; Session 0 [175](docs/decisions/175-contacts-session-0.md), Session 1 [178](docs/decisions/178-contacts-session-1.md), Session 2 [180](docs/decisions/180-contacts-session-2.md)):
+  - `src/lib/types/contacts.ts` — `CONTACT_STATUSES`, list/filter view-models, `DEFAULT_CONTACT_CADENCE_DAYS` (90), `ContactDueRow` / `ContactSearchHit`.
+  - `src/lib/contacts/names.ts` — `contactDisplayName`, `householdNameFromContact`, `effectiveCadenceDays`, `formatHouseholdAddress`.
+  - `src/lib/contacts/due.ts` — `isContactDue` / `selectContactsDue` / `householdEligibleForCardList` (C2) ([180](docs/decisions/180-contacts-session-2.md)).
+  - `src/lib/contacts/list-member.ts` — `validateListMemberXor` / `listMemberToColumns` (contact XOR household for list membership).
+  - `src/lib/contacts/server/loaders.ts` — `loadContacts`, `loadContactsDue`, `searchContacts`, `loadHouseholds`, `loadContactLists`, `loadContactListMembers` (C2 filter), `parseContactsListFilters`.
+  - `src/lib/contacts/server/actions.ts` — contact/household/list CRUD; one-tap + detailed touch; household touch fan-out; list-member add (revive soft-deleted by PK).
+  - Routes: `/contacts` (list + Sheets + Log Contact); `/settings/contacts/lists`; dashboard Due to meet ([180](docs/decisions/180-contacts-session-2.md)). Desktop sidebar only (mobile tab bar stays at 5).
+  - Audit: `_CONTACTS_TABLES`; soft-delete revert for households/contacts/touches/lists/members. Permissions slug `contacts`. **≠ library `people`, ≠ invoicing `clients`.** Viewer write solo-waivered v1.
 
 ### Scripts
 
@@ -218,7 +219,7 @@ End-of-session deliverables:
 - **`npm run ship-library`** / **`ship-library:apply`** — library schema gate: `check` → `db:push:dry` (or full push + `gen-types` + `test` + `deploy-functions` on apply). Use after any library migration or OCR Edge change.
 - **`library:language-audit`** — dry-run / optional `--apply` English→German hints; uses `LIBRARY_AUDIT_DATABASE_URL` or **`LIBRARY_DST_DATABASE_URL`** / `LIBRARY_SRC_DATABASE_URL` (same migrate vars). See [`scripts/library-language-audit/README.md`](scripts/library-language-audit/README.md).
 - **`library:review-research`** — AI research pass ([068](docs/decisions/068-library-review-ai-research-pass.md)): OL + optional Anthropic genre proposals into `book_metadata_proposals` (pending; owner confirms on `/library/review`). Dry-run default; `LIBRARY_RESEARCH_CONFIRM=yes … --apply`. IPv4 networks need the **Session Pooler** URI (`LIBRARY_RESEARCH_DATABASE_URL`; derive via `scripts/backup-restore-verify/derive-pooler-url.ts`) — the Direct host is IPv6-only. See [`scripts/library-review-research/README.md`](scripts/library-review-research/README.md).
-- **`mcp:smoke` / [`scripts/ppp-mcp/`](scripts/ppp-mcp/)** — local stdio **read-only** MCP for Cursor + Claude Code ([144](docs/decisions/144-ppp-mcp-readonly-v1.md), filters [164](docs/decisions/164-mcp-list-project-health-filters.md), week horizon [165](docs/decisions/165-mcp-list-week-tasks.md)). Loads `.env` + `.env.local`; requires `PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `POS_OWNER_ID` (owner assert). Tools wrap existing loaders. Wiring: [`scripts/ppp-mcp/README.md`](scripts/ppp-mcp/README.md). Helpers: [`src/lib/mcp/bible-book.ts`](src/lib/mcp/bible-book.ts), [`course.ts`](src/lib/mcp/course.ts), [`project.ts`](src/lib/mcp/project.ts).
+- **`mcp:smoke` / [`scripts/ppp-mcp/`](scripts/ppp-mcp/)** — local stdio **read-only** MCP for Cursor + Claude Code ([144](docs/decisions/144-ppp-mcp-readonly-v1.md), filters [164](docs/decisions/164-mcp-list-project-health-filters.md), week horizon [165](docs/decisions/165-mcp-list-week-tasks.md), contacts [180](docs/decisions/180-contacts-session-2.md)). Loads `.env` + `.env.local`; requires `PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `POS_OWNER_ID` (owner assert). Tools wrap existing loaders. Wiring: [`scripts/ppp-mcp/README.md`](scripts/ppp-mcp/README.md). Helpers: [`src/lib/mcp/bible-book.ts`](src/lib/mcp/bible-book.ts), [`course.ts`](src/lib/mcp/course.ts), [`project.ts`](src/lib/mcp/project.ts).
 
 ## Git / ship (solo)
 

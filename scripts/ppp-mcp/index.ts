@@ -23,6 +23,7 @@ import {
 	listSermonsForBibleBook,
 	listUpcomingSermonsTool,
 	listWeekTasks,
+	searchContactsTool,
 	searchLibrary
 } from './tools.ts';
 
@@ -106,11 +107,42 @@ server.registerTool(
 	'list_contacts_due',
 	{
 		description:
-			'Contacts due for a meet / Christmas card. Stub until the contacts CRM module ships.'
+			'Active contacts due for a meet (no_reminders=false; never touched or last touch older than effective cadence). Sorted never-touched first, then most overdue.',
+		inputSchema: {
+			limit: z
+				.number()
+				.int()
+				.min(1)
+				.max(100)
+				.optional()
+				.describe('Max rows (default 25).')
+		}
 	},
-	async () => {
+	async (args) => {
 		const { supabase } = await getPppMcpClient();
-		return listContactsDue(supabase);
+		return listContactsDue(supabase, args);
+	}
+);
+
+server.registerTool(
+	'search_contacts',
+	{
+		description:
+			'Search contacts by name, household name, email, or phone. Returns card fields including address summary and last touch.',
+		inputSchema: {
+			q: z.string().describe('Search query (partial names OK)'),
+			limit: z
+				.number()
+				.int()
+				.min(1)
+				.max(50)
+				.optional()
+				.describe('Max rows (default 20).')
+		}
+	},
+	async (args) => {
+		const { supabase } = await getPppMcpClient();
+		return searchContactsTool(supabase, args);
 	}
 );
 

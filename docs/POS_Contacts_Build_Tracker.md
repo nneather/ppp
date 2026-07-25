@@ -1,6 +1,6 @@
 # Personal Operations System — Contacts / CRM Module Build Tracker
 
-_Last updated: 2026-07-24 | Module: Contacts / CRM (6th) | Session 1 shipped_
+_Last updated: 2026-07-24 | Module: Contacts / CRM (6th) | Session 2 shipped_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [139](decisions/139-lightweight-crm-fall-priority.md), [175](decisions/175-contacts-session-0.md).
 
@@ -196,7 +196,7 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | H1 | household | Singles household-of-one UX — auto-create household named from contact on first address save, vs explicit "Create household" in Sheet? | ✅ Session 1 — address section on contact Sheet auto-creates; also explicit Household Sheet |
 | H2 | household | Soft-delete household while members live — block (venues pattern) or null out `contacts.household_id`? | ✅ Session 1 — block while members live |
 | C1 | contact | Keep nullable `birthday DATE` or strike before migration? | ✅ Session 1 — struck (not in schema) |
-| C2 | contact | Do retired contacts' households stay on Christmas card list, or should list queries exclude households whose only members are retired? | Session 2 / first card-list pass |
+| C2 | contact | Do retired contacts' households stay on Christmas card list, or should list queries exclude households whose only members are retired? | ✅ Session 2 — exclude from effective roster; membership rows kept |
 | T1 | touch | Backdating `touched_on` — detailed log only (recommended), or also one-tap? | ✅ Session 1 — detailed only |
 | L1 | list | Seed `Christmas cards` in migration vs create-on-first-use? | ✅ Session 1 — seeded |
 
@@ -208,7 +208,7 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 |---|---|---|
 | 0 | ✅ 2026-07-24 | Phase 0 lock + this tracker + [175](decisions/175-contacts-session-0.md) |
 | 1 | ✅ 2026-07-24 | Migration `ppp_contacts_v1` + `/contacts` CRUD + Log Contact + lists + nav/permissions/audit — [178](decisions/178-contacts-session-1.md) |
-| 2 | 🔲 | Dashboard "due to meet" (desktop + mobile glance) + MCP `list_contacts_due` / `search_contacts`. Resolve C2. |
+| 2 | ✅ 2026-07-24 | Dashboard "due to meet" + MCP `list_contacts_due` / `search_contacts`; C2 — [180](decisions/180-contacts-session-2.md) |
 | — | note | Decision number **174** was taken by a parallel library session ([174-everlasting-man-original-1925](decisions/174-everlasting-man-original-1925.md)) — Session 0 record is **[175](decisions/175-contacts-session-0.md)**, not 174. |
 | — | backlog | Mailing-list send pipeline (Resend campaigns + unsubscribe) — designed-for, not built ([139](decisions/139-lightweight-crm-fall-priority.md)). |
 | — | backlog | Optional FK contact → library person or invoicing client — only if owner asks. |

@@ -224,7 +224,16 @@
 				<h2 class="text-lg font-semibold tracking-tight">{selectedList.name} — members</h2>
 				<p class="mt-1 text-sm text-muted-foreground">
 					Christmas cards should use households. Contact membership is for future email lists.
+					Households with no active members are hidden from this roster (membership kept if you
+					un-retire someone).
 				</p>
+				{#if data.hiddenRetiredOnlyCount > 0}
+					<p class="mt-2 text-xs text-muted-foreground">
+						{data.hiddenRetiredOnlyCount} retired-only household{data.hiddenRetiredOnlyCount === 1
+							? ''
+							: 's'} hidden.
+					</p>
+				{/if}
 
 				{#if memberErr}
 					<p class="mt-3 text-sm text-destructive" role="alert">{memberErr}</p>

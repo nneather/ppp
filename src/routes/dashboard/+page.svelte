@@ -5,7 +5,9 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
+	import Users from '@lucide/svelte/icons/users';
 	import Plus from '@lucide/svelte/icons/plus';
+	import DashboardContactsDue from '$lib/components/dashboard-contacts-due.svelte';
 	import DashboardDueSoon from '$lib/components/dashboard-due-soon.svelte';
 	import DashboardLibraryTileFooter from '$lib/components/dashboard-library-tile-footer.svelte';
 	import DashboardInvoicingTileFooter from '$lib/components/dashboard-invoicing-tile-footer.svelte';
@@ -291,6 +293,46 @@
 							<p class="mt-3 text-sm font-medium text-primary">Open classwork →</p>
 						</a>
 					</li>
+
+					<!-- Mobile / narrow: contacts due-to-meet glance -->
+					<li class="md:hidden">
+						<a
+							href="/contacts"
+							class={cn(
+								cardClass,
+								'p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
+							)}
+						>
+							<div class="mb-3 flex items-center gap-2 text-muted-foreground">
+								<Users class="size-4 shrink-0" />
+								<span class="text-sm font-semibold tracking-tight text-foreground"
+									>Contacts</span
+								>
+							</div>
+							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+								Due to meet
+							</p>
+							<p
+								class={cn(
+									'mt-1.5 text-2xl font-semibold tabular-nums',
+									data.contactsDue.length > 0
+										? 'text-destructive'
+										: 'text-foreground'
+								)}
+								aria-live="polite"
+							>
+								{data.contactsDue.length}
+							</p>
+							{#if data.contactsDueNeverCount > 0}
+								<p class="mt-1 text-sm text-destructive">
+									{data.contactsDueNeverCount} never logged
+								</p>
+							{:else if data.contactsDue.length === 0}
+								<p class="mt-1 text-sm text-muted-foreground">Nobody due</p>
+							{/if}
+							<p class="mt-3 text-sm font-medium text-primary">Open contacts →</p>
+						</a>
+					</li>
 				</ul>
 			</section>
 
@@ -299,7 +341,7 @@
 
 		<aside
 			class="mt-6 hidden min-h-0 space-y-4 md:sticky md:top-0 md:mt-0 md:block md:max-h-[calc(100dvh-5rem)] md:overflow-y-auto"
-			aria-label="Now and classwork"
+			aria-label="Now, classwork, and contacts"
 		>
 			<section
 				class="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm"
@@ -337,6 +379,7 @@
 			</section>
 
 			<DashboardDueSoon assignments={data.dueSoonAssignments} />
+			<DashboardContactsDue contacts={data.contactsDue} />
 		</aside>
 	</div>
 </div>

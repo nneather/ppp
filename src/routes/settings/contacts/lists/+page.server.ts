@@ -36,6 +36,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 			lists: [],
 			selectedListId: null as string | null,
 			members: [],
+			hiddenRetiredOnlyCount: 0,
 			contacts: [],
 			households: [],
 			loadError: null as string | null
@@ -52,7 +53,11 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const [membersRes, contactsRes, householdsRes] = await Promise.all([
 		selectedListId
 			? loadContactListMembers(supabase, selectedListId)
-			: Promise.resolve({ members: [], error: null as string | null }),
+			: Promise.resolve({
+					members: [],
+					hiddenRetiredOnlyCount: 0,
+					error: null as string | null
+				}),
 		loadContacts(supabase, {
 			filters: parseContactsListFilters(new URL('http://x/?status=all')),
 			profileCadenceDefault:
@@ -66,6 +71,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		lists: listsRes.lists,
 		selectedListId,
 		members: membersRes.members,
+		hiddenRetiredOnlyCount: membersRes.hiddenRetiredOnlyCount,
 		contacts: contactsRes.contacts,
 		households: householdsRes.households,
 		loadError:

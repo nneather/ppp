@@ -35,6 +35,7 @@ import {
 	undoSoftDeleteTaskAction
 } from '$lib/projects/server/task-actions';
 import { loadDueSoonAssignments } from '$lib/classwork/server/loaders';
+import { loadContactsDue } from '$lib/contacts/server/loaders';
 import { loadUpcomingSermons } from '$lib/sermons/server/loaders';
 import type { LatestHealth } from '$lib/types/projects';
 import type { LastWeekInvoiceCandidate } from '$lib/types/invoicing';
@@ -92,6 +93,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 
 	depends('app:projects:tasks');
 	depends('app:classwork:list');
+	depends('app:contacts:list');
 
 	const supabase = locals.supabase;
 	const today = ymdInChicago();
@@ -137,7 +139,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		loadProjectRows(supabase),
 		supabase
 			.from('profiles')
-			.select('default_task_project_id')
+			.select('default_task_project_id, contact_cadence_days_default')
 			.eq('id', user.id)
 			.maybeSingle()
 	]);
@@ -145,6 +147,15 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 	if (profileRes.error) console.error(profileRes.error);
 	if (upcomingSermonsRes.error) console.error(upcomingSermonsRes.error);
 	if (dueSoonRes.error) console.error(dueSoonRes.error);
+
+	const contactsDueRes = await locals.perf.measure('db', () =>
+		loadContactsDue(supabase, {
+			todayYmd: today,
+			profileCadenceDefault: profileRes.data?.contact_cadence_days_default ?? null,
+			limit: 25
+		})
+	);
+	if (contactsDueRes.error) console.error(contactsDueRes.error);
 
 	const latestHealth = Object.fromEntries(latestHealthMap) as Record<string, LatestHealth>;
 	const missingCheckInCount = countMissingWeekCheckIns(projectTree, latestHealth, weekOf);
@@ -191,6 +202,8 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 
 	const dueSoonAssignments = dueSoonRes.assignments;
 	const dueSoonOverdueCount = dueSoonAssignments.filter((a) => a.days_until < 0).length;
+	const contactsDue = contactsDueRes.contacts;
+	const contactsDueNeverCount = contactsDue.filter((c) => c.days_overdue == null).length;
 
 	if (unbilledRes.error) {
 		console.error(unbilledRes.error);
@@ -211,6 +224,8 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 			upcomingSermons: upcomingSermonsRes.sermons,
 			dueSoonAssignments,
 			dueSoonOverdueCount,
+			contactsDue,
+			contactsDueNeverCount,
 			missingCheckInCount,
 			weekOf,
 			dashboardError: 'Could not load unbilled count.' as string | null
@@ -234,6 +249,8 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		upcomingSermons: upcomingSermonsRes.sermons,
 		dueSoonAssignments,
 		dueSoonOverdueCount,
+		contactsDue,
+		contactsDueNeverCount,
 		missingCheckInCount,
 		weekOf,
 		dashboardError: null as string | null

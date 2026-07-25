@@ -18,6 +18,7 @@ import {
 	listSermonsForBibleBook,
 	listUpcomingSermonsTool,
 	listWeekTasks,
+	searchContactsTool,
 	searchLibrary,
 	TOOL_NAMES,
 	type ToolName
@@ -41,7 +42,9 @@ async function runTool(name: ToolName): Promise<unknown> {
 			return getAssignmentsForCourse(supabase, { course });
 		}
 		case 'list_contacts_due':
-			return listContactsDue(supabase);
+			return listContactsDue(supabase, { limit: 10 });
+		case 'search_contacts':
+			return searchContactsTool(supabase, { q: 'a', limit: 5 });
 		case 'search_library':
 			return searchLibrary(supabase, { q: 'piot', limit: 5 });
 		case 'get_book_citation': {

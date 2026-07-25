@@ -69,9 +69,41 @@ export type ContactListMemberRow = {
 	/** Display label for the member (contact name or household name). */
 	label: string;
 	kind: 'contact' | 'household';
+	/**
+	 * Household members only (C2): false when every live member is retired
+	 * (or household empty). Filtered out of the effective Christmas card roster
+	 * unless `includeIneligible` is set on the loader.
+	 */
+	cardEligible?: boolean;
 };
 
 export type ContactsListFilters = {
 	status: ContactListFilter;
 	q: string | null;
+};
+
+/** Dashboard / MCP due-to-meet row. */
+export type ContactDueRow = {
+	id: string;
+	display_name: string;
+	effective_cadence_days: number;
+	last_touched_on: string | null;
+	/** Days past cadence due date; null = never touched. */
+	days_overdue: number | null;
+	household_name: string | null;
+};
+
+/** MCP search_contacts card. */
+export type ContactSearchHit = {
+	id: string;
+	display_name: string;
+	email: string | null;
+	phone: string | null;
+	household_id: string | null;
+	household_name: string | null;
+	address_summary: string | null;
+	effective_cadence_days: number;
+	last_touched_on: string | null;
+	status: ContactStatus;
+	no_reminders: boolean;
 };

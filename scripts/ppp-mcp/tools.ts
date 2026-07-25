@@ -10,6 +10,10 @@ import {
 	loadDueSoonAssignments
 } from '../../src/lib/classwork/server/loaders.ts';
 import {
+	loadContactsDue,
+	searchContacts
+} from '../../src/lib/contacts/server/loaders.ts';
+import {
 	loadBookCitationInputs,
 	loadBookListFiltered,
 	loadPeople
@@ -43,12 +47,19 @@ function jsonText(data: unknown): { content: { type: 'text'; text: string }[] } 
 	};
 }
 
-function stubResult(tool: string, reason: string) {
-	return jsonText({
-		stub: true,
-		tool,
-		message: reason
-	});
+async function loadOwnerCadenceDefault(supabase: Sb): Promise<number | null> {
+	const ownerId = process.env.POS_OWNER_ID?.trim();
+	if (!ownerId) return null;
+	const { data, error } = await supabase
+		.from('profiles')
+		.select('contact_cadence_days_default')
+		.eq('id', ownerId)
+		.maybeSingle();
+	if (error) {
+		console.error('[ppp-mcp] profile cadence', error);
+		return null;
+	}
+	return data?.contact_cadence_days_default ?? null;
 }
 
 export async function listNowTasks(supabase: Sb) {
@@ -203,11 +214,67 @@ export async function getAssignmentsForCourse(
 	});
 }
 
-export async function listContactsDue(_supabase: Sb) {
-	return stubResult(
-		'list_contacts_due',
-		'Contacts / CRM module not shipped yet. See docs/decisions/139-lightweight-crm-fall-priority.md.'
-	);
+export async function listContactsDue(
+	supabase: Sb,
+	args: { limit?: number } = {}
+) {
+	const todayYmd = ymdInChicago();
+	const limit = Math.min(Math.max(args.limit ?? 25, 1), 100);
+	const profileCadenceDefault = await loadOwnerCadenceDefault(supabase);
+	const { contacts, error } = await loadContactsDue(supabase, {
+		todayYmd,
+		profileCadenceDefault,
+		limit
+	});
+	return jsonText({
+		todayYmd,
+		limit,
+		error,
+		count: contacts.length,
+		contacts: contacts.map((c) => ({
+			id: c.id,
+			display_name: c.display_name,
+			effective_cadence_days: c.effective_cadence_days,
+			last_touched_on: c.last_touched_on,
+			days_overdue: c.days_overdue,
+			household_name: c.household_name
+		}))
+	});
+}
+
+export async function searchContactsTool(
+	supabase: Sb,
+	args: { q: string; limit?: number }
+) {
+	const q = args.q?.trim() ?? '';
+	if (!q) {
+		return jsonText({ error: 'q is required', contacts: [], count: 0 });
+	}
+	const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
+	const profileCadenceDefault = await loadOwnerCadenceDefault(supabase);
+	const { contacts, error } = await searchContacts(supabase, {
+		q,
+		profileCadenceDefault,
+		limit
+	});
+	return jsonText({
+		q,
+		limit,
+		error,
+		count: contacts.length,
+		contacts: contacts.map((c) => ({
+			id: c.id,
+			display_name: c.display_name,
+			email: c.email,
+			phone: c.phone,
+			household_name: c.household_name,
+			address_summary: c.address_summary,
+			effective_cadence_days: c.effective_cadence_days,
+			last_touched_on: c.last_touched_on,
+			status: c.status,
+			no_reminders: c.no_reminders
+		}))
+	});
 }
 
 export async function searchLibrary(
@@ -416,6 +483,7 @@ export const TOOL_NAMES = [
 	'list_due_soon',
 	'get_assignments_for_course',
 	'list_contacts_due',
+	'search_contacts',
 	'search_library',
 	'get_book_citation',
 	'list_upcoming_sermons',

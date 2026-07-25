@@ -24,7 +24,8 @@ The server loads `.env` then `.env.local` from the repo root. Prefer **not** put
 | `list_week_tasks` | Coming-week horizon: all MYN zones; `start_date` in `[today .. today+days]` Chicago (default `days=7`) |
 | `list_due_soon` | Open classwork due within `horizon_days` (default 14; overdue included) |
 | `get_assignments_for_course` | All assignments for a course (fuzzy name/code resolve) |
-| `list_contacts_due` | Stub (CRM not shipped) |
+| `list_contacts_due` | Active contacts due for a meet (`limit` default 25) |
+| `search_contacts` | Fuzzy name / household / email / phone search |
 | `search_library` | Keyword search |
 | `get_book_citation` | Turabian footnote + bibliography |
 | `list_upcoming_sermons` | `preached_on >= today` |
