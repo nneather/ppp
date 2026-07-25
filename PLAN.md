@@ -47,6 +47,8 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [172 — Loeb series number ≠ multi-vol; translator `et al.` period](docs/decisions/172-loeb-series-number-not-multivol.md) (2026-07-24) — Loeb 560 is series enum not `560:[page]`; no `et al..`.
+- [163 — BDAG s.v. volume cite + essay bib vol:page + Greek NFC](docs/decisions/163-bdag-sv-essay-bib-greek-nfc.md) (2026-07-24) — lexicon volume Footnote is s.v. placeholders; essay bib gets `4:100`; NFC for breathing+accent.
 - [171 — Hermeneia cite full name](docs/decisions/171-hermeneia-cite-full-name.md) (2026-07-24) — series abbr `Herm` → `Hermeneia` so footnotes match Covenant / house style (not acronym).
 - [170 — Hermeneia Bultmann Johannine Epistles](docs/decisions/170-hermeneia-bultmann-johannine.md) (2026-07-24) — create Hermeneia series; *The Johannine Epistles* Fortress 1973; Rudolf rename; translators + Funk editor; 1–3 John coverage.
 - [169 — Cost of Discipleship R. H. Fuller translator](docs/decisions/169-cost-of-discipleship-fuller-translator.md) (2026-07-24) — attach Fuller as `translator` on Scribner 1995 English; Booth reviser not stored.
