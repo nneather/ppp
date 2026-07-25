@@ -4,6 +4,7 @@ export const MODULE_SLUGS = [
 	'calendar',
 	'projects',
 	'sermons',
-	'classwork'
+	'classwork',
+	'contacts'
 ] as const;
 export type ModuleSlug = (typeof MODULE_SLUGS)[number];

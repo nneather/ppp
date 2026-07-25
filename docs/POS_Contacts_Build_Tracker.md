@@ -1,6 +1,6 @@
 # Personal Operations System — Contacts / CRM Module Build Tracker
 
-_Last updated: 2026-07-24 | Module: Contacts / CRM (6th) | Session 0 Phase 0 lock_
+_Last updated: 2026-07-24 | Module: Contacts / CRM (6th) | Session 1 shipped_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [139](decisions/139-lightweight-crm-fall-priority.md), [175](decisions/175-contacts-session-0.md).
 
@@ -87,7 +87,7 @@ contacts
   cadence_days    INT                             -- nullable; NULL → profiles.contact_cadence_days_default → app constant
   no_reminders    BOOLEAN NOT NULL DEFAULT false  -- exclude from due list; still active / list-eligible
   status          TEXT NOT NULL CHECK (status IN ('active','retired')) DEFAULT 'active'
-  birthday        DATE                            -- nullable; strike in Session 1 if unused (C1)
+  birthday        DATE                            -- STRUCK Session 1 (C1) — not in live schema
   notes           TEXT
   deleted_at      TIMESTAMPTZ
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -162,7 +162,7 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | Table | Required | Nullable |
 |---|---|---|
 | `households` | `name` | address fields, `notes`, `created_by` |
-| `contacts` | `first_name`, `no_reminders` (default), `status` (default) | `last_name`, `household_id`, `email`, `phone`, `cadence_days`, `birthday`, `notes`, `created_by` |
+| `contacts` | `first_name`, `no_reminders` (default), `status` (default) | `last_name`, `household_id`, `email`, `phone`, `cadence_days`, `notes`, `created_by` |
 | `contact_touches` | `contact_id`, `touched_on` | `note`, `created_by` |
 | `contact_lists` | `name`, `sort_order` (default) | `notes`, `created_by` |
 | `contact_list_members` | `list_id` + exactly one of `contact_id` / `household_id` | the other FK, `created_by` |
@@ -193,12 +193,12 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 
 | # | Entity | Q | Resolve by |
 |---|---|---|---|
-| H1 | household | Singles household-of-one UX — auto-create household named from contact on first address save, vs explicit "Create household" in Sheet? | Session 1 — must be clean before data entry |
-| H2 | household | Soft-delete household while members live — block (venues pattern) or null out `contacts.household_id`? | Session 1 |
-| C1 | contact | Keep nullable `birthday DATE` or strike before migration? | Session 1 (or strike now if unused) |
+| H1 | household | Singles household-of-one UX — auto-create household named from contact on first address save, vs explicit "Create household" in Sheet? | ✅ Session 1 — address section on contact Sheet auto-creates; also explicit Household Sheet |
+| H2 | household | Soft-delete household while members live — block (venues pattern) or null out `contacts.household_id`? | ✅ Session 1 — block while members live |
+| C1 | contact | Keep nullable `birthday DATE` or strike before migration? | ✅ Session 1 — struck (not in schema) |
 | C2 | contact | Do retired contacts' households stay on Christmas card list, or should list queries exclude households whose only members are retired? | Session 2 / first card-list pass |
-| T1 | touch | Backdating `touched_on` — detailed log only (recommended), or also one-tap? | Session 1 — recommend detailed only |
-| L1 | list | Seed `Christmas cards` in migration vs create-on-first-use? | Session 1 — prefer seed |
+| T1 | touch | Backdating `touched_on` — detailed log only (recommended), or also one-tap? | ✅ Session 1 — detailed only |
+| L1 | list | Seed `Christmas cards` in migration vs create-on-first-use? | ✅ Session 1 — seeded |
 
 ---
 
@@ -207,7 +207,7 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | Session | Status | Goal |
 |---|---|---|
 | 0 | ✅ 2026-07-24 | Phase 0 lock + this tracker + [175](decisions/175-contacts-session-0.md) |
-| 1 | 🔲 | Migration `ppp_contacts_v1` + gen-types + `/contacts` (list + Sheets) + Log Contact + household CRUD + `/settings/contacts/lists` + nav (desktop sidebar) + permissions/audit. Resolve H1/H2/C1/T1/L1. Viewer solo waiver noted. |
+| 1 | ✅ 2026-07-24 | Migration `ppp_contacts_v1` + `/contacts` CRUD + Log Contact + lists + nav/permissions/audit — [178](decisions/178-contacts-session-1.md) |
 | 2 | 🔲 | Dashboard "due to meet" (desktop + mobile glance) + MCP `list_contacts_due` / `search_contacts`. Resolve C2. |
 | — | note | Decision number **174** was taken by a parallel library session ([174-everlasting-man-original-1925](decisions/174-everlasting-man-original-1925.md)) — Session 0 record is **[175](decisions/175-contacts-session-0.md)**, not 174. |
 | — | backlog | Mailing-list send pipeline (Resend campaigns + unsubscribe) — designed-for, not built ([139](decisions/139-lightweight-crm-fall-priority.md)). |

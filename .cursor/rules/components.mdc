@@ -64,6 +64,9 @@ If you reach for one of these capabilities, use the existing component.
 | MYN task create/edit Sheet (project, zone, start date, notes; Outlook-like weekly/monthly recurrence; sticky save bar; series scope dialog) | [src/lib/components/project-task-sheet.svelte](mdc:src/lib/components/project-task-sheet.svelte) |
 | Sermon create/edit Sheet (date, venue, context C/P/A, topic, passage display + structured rows, notes; inline venue create) | [src/lib/components/sermon-form-sheet.svelte](mdc:src/lib/components/sermon-form-sheet.svelte) |
 | Course create/edit Sheet (name, code/instructor/term, status, Education-suggested `project_id`, notes) | [src/lib/components/course-form-sheet.svelte](mdc:src/lib/components/course-form-sheet.svelte) |
+| Contact create/edit Sheet (name, email/phone, household picker, optional mailing → household-of-one, cadence, status, no_reminders) | [src/lib/components/contact-form-sheet.svelte](mdc:src/lib/components/contact-form-sheet.svelte) |
+| Household create/edit Sheet (envelope name + structured address) | [src/lib/components/household-form-sheet.svelte](mdc:src/lib/components/household-form-sheet.svelte) |
+| Detailed Log Contact dialog (note + optional backdate) | [src/lib/components/log-contact-dialog.svelte](mdc:src/lib/components/log-contact-dialog.svelte) |
 | Assignment create/edit Sheet (course, title, kind, status, due_date, same-course parent, notes) | [src/lib/components/assignment-form-sheet.svelte](mdc:src/lib/components/assignment-form-sheet.svelte) |
 | Sermons List \| By book view toggle (shared by `/sermons` + `/sermons/by-book`) | [src/lib/components/sermons-view-toggle.svelte](mdc:src/lib/components/sermons-view-toggle.svelte) |
 | Project links inline editor (metadata Sheet, edit mode) | [src/lib/components/project-links-editor.svelte](mdc:src/lib/components/project-links-editor.svelte) |

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — Essay bib locus before imprint restore + TDNT/ABD notes ([179](docs/decisions/179-essay-bib-locus-before-imprint.md)).
+**Last updated:** 2026-07-24 — Catalog consistency audit queues ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)); DML blocked on owner MC.
 
 **How to use this file — read this first:**
 
@@ -19,7 +19,7 @@
 **Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later).
 
 - **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)) — `/classwork` CRUD, dashboard Due soon (D1=B), MCP `list_due_soon` + `get_assignments_for_course`.
-- **Contacts / CRM** — Session 0 Phase 0 locked ([175](docs/decisions/175-contacts-session-0.md)); Session 1 next (schema + `/contacts` CRUD). Thin v1 target ~Thanksgiving.
+- **Contacts / CRM** — Session 1 shipped ([178](docs/decisions/178-contacts-session-1.md)) — `/contacts` CRUD + Log Contact + lists; Session 2 next (dashboard due + MCP). Thin v1 target ~Thanksgiving.
 - **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + `list_project_health` filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)); contacts stub until Session 2.
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
 
@@ -34,11 +34,11 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. **Open:** outgoing-PDF diagnostics (prompt below / [083](docs/decisions/083-invoice-pdf-email-diagnostics.md)); first real-client send pending Sarah. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅ (essays/Articles, PWA resume, megacomponent core; OCR deferred). **Open:** August shelf QA Track B + "Needs the shelf" (50) — Madison; ISBN Google Books cross-check ([151](docs/decisions/151-book-metadata-source-strategy.md)). |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅ (essays/Articles, PWA resume, megacomponent core; OCR deferred). **Open:** catalog consistency DML after [177](docs/decisions/177-catalog-consistency-audit-track-b.md) MC; August shelf QA Track B + "Needs the shelf" (50) — Madison; ISBN GB cross-check ([151](docs/decisions/151-book-metadata-source-strategy.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard. Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 ([153](docs/decisions/153-classwork-session-1.md)/[161](docs/decisions/161-classwork-session-2.md)) — CRUD + dashboard Due soon (D1=B) + MCP tools. Backlog: bulk syllabus entry if needed late Aug. |
-| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Session 0 Phase 0 lock ([175](docs/decisions/175-contacts-session-0.md)) — contacts + households + touches + lists; Session 1 next. Mailing send later; **≠ library `people`.** |
+| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Session 1 ([178](docs/decisions/178-contacts-session-1.md)) — schema + `/contacts` CRUD + Log Contact + lists; Session 2 = dashboard due + MCP. Mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork ([161](docs/decisions/161-classwork-session-2.md)) + health filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)); contacts stub remains. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [177 — Catalog consistency audit (post Track B)](docs/decisions/177-catalog-consistency-audit-track-b.md) (2026-07-24) — P0 Alter/ABD/TWOT + P1 BDB/BDAG; DML waiting on owner MC Q1–Q8.
 - [179 — Essay bib locus before imprint (restore) + TDNT/ABD notes](docs/decisions/179-essay-bib-locus-before-imprint.md) (2026-07-24) — Covenant Christman bib order restored; clear stale TDNT/ABD `needs_review_note`.
+- [178 — Contacts Session 1 schema + `/contacts` CRUD](docs/decisions/178-contacts-session-1.md) (2026-07-24) — households/contacts/touches/lists; Log Contact; Christmas cards seeded; birthday struck.
 - [176 — Essay bibliography locus after imprint](docs/decisions/176-essay-bib-locus-after-imprint.md) (2026-07-24) — **overturned by [179](docs/decisions/179-essay-bib-locus-before-imprint.md).**
 - [175 — Contacts Session 0 Phase 0 lock](docs/decisions/175-contacts-session-0.md) (2026-07-24) — contacts + households + touches + lists; cadence on person; Christmas cards = list of households.
-- [174 — Everlasting Man original publication 1925](docs/decisions/174-everlasting-man-original-1925.md) (2026-07-24) — first live full-reprint row: `original_year=1925` + `reprint_*` = Image Books 1974 → `(1925; repr., …)`.
-- [173 — Canvas classwork import (deferred)](docs/decisions/173-canvas-classwork-import-deferred.md) (2026-07-24) — API smoke OK; late-August one-shot import; semester-start token; preview→confirm for week-1–3 churn.
 
 ---
 
@@ -73,13 +73,15 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; migration `20260724220000_ppp_classwork_v1.sql`.
 
+**Contacts:** `/contacts` list + Sheets + Log Contact; `/settings/contacts/lists`; helpers `src/lib/contacts/`; migration `20260725020000_ppp_contacts_v1.sql` ([178](docs/decisions/178-contacts-session-1.md)). Desktop sidebar only.
+
 **Invoicing helpers:** `src/lib/invoicing/` — `chicago-date.ts`, `hours.ts`, `consultation-lines.ts` ([050]). Loaders/actions live inline in route `+page.server.ts` files **by design** (see AGENTS.md › Module structure).
 
 **Library (maintenance only):** [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) — complete; viewer §B still deferred without collaborator.
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([174](docs/decisions/174-everlasting-man-original-1925.md); **0 errors**, 371 tests).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([178](docs/decisions/178-contacts-session-1.md); **0 errors**, 385 tests).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -95,33 +97,44 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
 
-### Contacts / CRM — Session 1: schema + `/contacts` CRUD — from [175](docs/decisions/175-contacts-session-0.md)
+### Contacts / CRM — Session 2: dashboard due + MCP — from [178](docs/decisions/178-contacts-session-1.md)
 
 ```
-Session: contacts #1 — schema + list/Sheets + Log Contact
-Tracker: docs/POS_Contacts_Build_Tracker.md, Session 1
-Read: AGENTS.md, docs/MODULE_KICKOFF_PLAYBOOK.md, docs/POS_Contacts_Build_Tracker.md,
-  docs/decisions/175-contacts-session-0.md, docs/decisions/153-classwork-session-1.md (pattern),
-  docs/decisions/000-invoicing-retro.md, .cursor/rules/db-changes.mdc
+Session: contacts #2 — dashboard due strip + MCP list_contacts_due / search_contacts
+Tracker: docs/POS_Contacts_Build_Tracker.md, Session 2
+Read: AGENTS.md, docs/POS_Contacts_Build_Tracker.md,
+  docs/decisions/178-contacts-session-1.md, docs/decisions/161-classwork-session-2.md (pattern),
+  docs/decisions/144-ppp-mcp-readonly-v1.md, scripts/ppp-mcp/README.md
   Note: library `people` = authors; invoicing `clients` = billing — do not reuse.
-Supabase: hosted db push only — supabase/README.md
-Goal: Ship contacts v1 data entry — migration + CRUD so Christmas-card / meet data can land before Thanksgiving.
+  Keep MCP tool name `list_contacts_due` (replace stub).
+Supabase: no schema expected unless C2 needs a view
+Goal: Surface who is due for a meet on dashboard + make contacts readable from Cursor/Claude via MCP.
 Acceptance:
- - [ ] Migration `ppp_contacts_v1`: households, contacts, contact_touches, contact_lists,
-       contact_list_members (+ profiles.contact_cadence_days_default); RLS helpers; GRANTs;
-       module_registry slug `contacts`; seed Christmas cards list (L1)
- - [ ] npm run supabase:gen-types; npm run supabase:db:push (after dry)
- - [ ] /contacts list (default Active) + Sheet create/edit for contacts + households
- - [ ] One-tap Log Contact + detailed touch (nullable note; backdate on detailed only — T1)
- - [ ] Household soft-delete policy resolved (H2); singles household-of-one UX clean (H1)
- - [ ] Birthday keep or strike (C1) before migrate
- - [ ] /settings/contacts/lists + membership (contact XOR household via validateXor)
- - [ ] Desktop sidebar nav only (mobile tab bar stays at 5); permissions slug + audit whitelist
- - [ ] Viewer solo waiver noted; audit_log row on example write; mobile-width pass
- - [ ] npm run check + npm run test pass
-Out of scope: dashboard due strip, MCP tools (Session 2), mailing send.
-End-of-session: tracker Session 1 done; docs/decisions/<next-free>-contacts-session-1.md;
-  PLAN.md + AGENTS.md inventory + components.mdc updated
+ - [ ] Dashboard "due to meet" (desktop card under Now + mobile glance tile) — active, !no_reminders,
+       last touch null or older than effective cadence
+ - [ ] MCP `list_contacts_due` real implementation (same name as stub) + `search_contacts`
+ - [ ] Resolve C2 (retired members vs Christmas card list queries)
+ - [ ] npm run check + npm run test + mcp:smoke pass
+Out of scope: mailing-list send.
+End-of-session: tracker Session 2 done; docs/decisions/<next-free>-contacts-session-2.md;
+  PLAN.md + AGENTS.md inventory updated
+```
+
+### Library — apply catalog consistency DML (after [177](docs/decisions/177-catalog-consistency-audit-track-b.md) MC)
+
+```
+Session: library — catalog consistency DML (post-177 approval)
+Read: AGENTS.md, docs/decisions/177-catalog-consistency-audit-track-b.md,
+  docs/decisions/142,160,163,172,174
+Supabase: hosted db push only — no supabase start
+Goal: Apply owner-approved rows from 177 (P0 Alter/ABD/TWOT; optional P1 BDB/BDAG/IVP).
+Acceptance:
+ - [ ] Parker answers Q1–Q8 in 177 (paste choices into chat)
+ - [ ] DML migration(s) only for approved items; dry-run then push
+ - [ ] Spot-check Copy Footnote/Bib on Alter vol 1, ABD vol 1, TWOT vol 1, BDAG, BDB if touched
+ - [ ] Reload ppp MCP if get_book_citation still shows pre-163 BDAG long-form
+ - [ ] Append outcomes to 177 or file next NNN; PLAN.md refresh
+Out of scope: Brockhaus/COQG hygiene; Needs-the-shelf UI; bulk 1427 rewrite.
 ```
 
 ### Library — ISBN prefill: Google Books cross-check — from [151](docs/decisions/151-book-metadata-source-strategy.md)
@@ -226,23 +239,24 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Contacts / CRM Session 1** — schema + `/contacts` CRUD + Log Contact + lists ([175](docs/decisions/175-contacts-session-0.md)). Prompt above. Thin v1 by ~Thanksgiving.
-2. **Owner:** reload `ppp` MCP clients after [164](docs/decisions/164-mcp-list-project-health-filters.md)/[165](docs/decisions/165-mcp-list-week-tasks.md); smoke `list_week_tasks`, `list_project_health` (`root`/`changed_only`), `list_due_soon`.
-3. **Owner glance:** `/dashboard` Due soon under Now (desktop) + Classwork tile (mobile).
+1. **Contacts / CRM Session 2** — dashboard due-to-meet + MCP `list_contacts_due` / `search_contacts` ([178](docs/decisions/178-contacts-session-1.md)). Prompt above. Thin v1 by ~Thanksgiving.
+2. **Owner:** answer [177](docs/decisions/177-catalog-consistency-audit-track-b.md) Q1–Q8 → apply DML prompt above (Alter/ABD/TWOT P0).
+3. **Owner:** reload `ppp` MCP clients after [164](docs/decisions/164-mcp-list-project-health-filters.md)/[165](docs/decisions/165-mcp-list-week-tasks.md); smoke `list_week_tasks`, `list_project_health` (`root`/`changed_only`), `list_due_soon`.
+4. **Owner glance:** `/dashboard` Due soon under Now (desktop) + Classwork tile (mobile).
 
 ### Next / parallel
-4. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
-5. **Invoicing — first real-client send** (Sarah back in office). If the outgoing PDF is unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run the diagnostics prompt above ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) before further Edge MIME change.
-6. **Security hardening (051 R2)** — open medium findings; prompt above.
-7. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
-8. **Classwork backlog** — bulk/quick-add if syllabus entry hurts; prefer Canvas one-shot import first ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
+5. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
+6. **Invoicing — first real-client send** (Sarah back in office). If the outgoing PDF is unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run the diagnostics prompt above ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) before further Edge MIME change.
+7. **Security hardening (051 R2)** — open medium findings; prompt above.
+8. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
+9. **Classwork backlog** — bulk/quick-add if syllabus entry hurts; prefer Canvas one-shot import first ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
 
 ### Wait for Madison / August
-9. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.
-10. **Needs the shelf** — 50 shelf-bound needs_review ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)); plus Research-deck phone smoke at ~673 proposals + the 45 no-AI-signal books ([068](docs/decisions/068-library-review-ai-research-pass.md)). Prompt above.
-11. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
-12. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
-13. **Classwork — Canvas one-shot import** ([173](docs/decisions/173-canvas-classwork-import-deferred.md)) — late August after first Fall syllabi/bibliographies; mint semester token (≈1 mo life); preview→confirm into `courses`/`assignments`; expect week-1–3 re-pull for drops/adds and professor due-date reloads. Not live sync.
+10. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.
+11. **Needs the shelf** — 50 shelf-bound needs_review ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)); plus Research-deck phone smoke at ~673 proposals + the 45 no-AI-signal books ([068](docs/decisions/068-library-review-ai-research-pass.md)). Prompt above.
+12. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
+13. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
+14. **Classwork — Canvas one-shot import** ([173](docs/decisions/173-canvas-classwork-import-deferred.md)) — late August after first Fall syllabi/bibliographies; mint semester token (≈1 mo life); preview→confirm into `courses`/`assignments`; expect week-1–3 re-pull for drops/adds and professor due-date reloads. Not live sync.
 
 ### Deferred / someday (pointer only — detail in the cited decision doc)
 - **PWA branded icons** ([057](docs/decisions/057-pwa-consistency.md)) — replace placeholder squares with a monogram set.

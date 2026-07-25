@@ -9,6 +9,7 @@
 			| 'projects'
 			| 'sermons'
 			| 'classwork'
+			| 'contacts'
 			| 'settings'
 			| 'generic';
 		class?: string;

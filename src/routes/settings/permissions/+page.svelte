@@ -16,7 +16,8 @@
 		calendar: 'Calendar',
 		projects: 'Projects',
 		sermons: 'Sermons',
-		classwork: 'Classwork'
+		classwork: 'Classwork',
+		contacts: 'Contacts'
 	};
 
 	const enhanceRow: SubmitFunction = () => {

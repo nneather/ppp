@@ -25,6 +25,14 @@ export const _SERMONS_TABLES = ['sermon_venues', 'sermons', 'sermon_passages'] a
 
 export const _CLASSWORK_TABLES = ['courses', 'assignments'] as const;
 
+export const _CONTACTS_TABLES = [
+	'households',
+	'contacts',
+	'contact_touches',
+	'contact_lists',
+	'contact_list_members'
+] as const;
+
 export const _LIBRARY_TABLES = [
 	'ancient_texts',
 	'people',
@@ -82,7 +90,13 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'sermon_passages',
 	// classwork
 	'courses',
-	'assignments'
+	'assignments',
+	// contacts
+	'households',
+	'contacts',
+	'contact_touches',
+	'contact_lists',
+	'contact_list_members'
 ]);
 
 // Fields that must not be overwritten by a revert: identity, audit metadata,
@@ -266,6 +280,23 @@ function entityLabelFor(
 			if (title && due) return `${due} · ${title}`;
 			return title;
 		}
+		case 'contacts': {
+			const first = get('first_name');
+			const last = get('last_name');
+			return [first, last].filter(Boolean).join(' ') || null;
+		}
+		case 'households':
+			return get('name');
+		case 'contact_lists':
+			return get('name');
+		case 'contact_touches': {
+			const date = get('touched_on');
+			const note = get('note');
+			if (date && note) return `${date} · ${note.slice(0, 40)}`;
+			return date;
+		}
+		case 'contact_list_members':
+			return null;
 		case 'essays':
 			return get('essay_title');
 		case 'scripture_references': {
@@ -302,7 +333,7 @@ function entityLabelFor(
 }
 
 export type AuditFilters = {
-	module: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'classwork';
+	module: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'classwork' | 'contacts';
 	recordId: string;
 	changedBy: string;
 };
@@ -313,7 +344,8 @@ function parseModule(v: string | null): AuditFilters['module'] {
 		v === 'library' ||
 		v === 'projects' ||
 		v === 'sermons' ||
-		v === 'classwork'
+		v === 'classwork' ||
+		v === 'contacts'
 	)
 		return v;
 	return 'all';
@@ -388,6 +420,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		q = q.in('table_name', _SERMONS_TABLES as unknown as string[]);
 	} else if (filters.module === 'classwork') {
 		q = q.in('table_name', _CLASSWORK_TABLES as unknown as string[]);
+	} else if (filters.module === 'contacts') {
+		q = q.in('table_name', _CONTACTS_TABLES as unknown as string[]);
 	}
 	if (filters.recordId.length > 0) q = q.eq('record_id', filters.recordId);
 	if (filters.changedBy.length > 0) q = q.eq('changed_by', filters.changedBy);

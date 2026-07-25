@@ -189,8 +189,17 @@ End-of-session deliverables:
  - `src/lib/classwork/server/actions.ts` — course + assignment CRUD soft-delete; `completed_at` stamp; parent same-course + cycle guard.
  - `src/lib/mcp/course.ts` — fuzzy course name/code resolve for MCP `get_assignments_for_course` ([161](docs/decisions/161-classwork-session-2.md)).
  - `src/lib/mcp/project.ts` — fuzzy project id/name resolve + WoW health delta helper for MCP `list_project_health` (`root` / `changed_only` — [164](docs/decisions/164-mcp-list-project-health-filters.md)).
- - Routes: `/classwork` (list + Sheets; `?group=date|course`); `/dashboard` due-soon (desktop Now column + mobile glance — [161](docs/decisions/161-classwork-session-2.md)). Nav: mobile tab bar = Dashboard/Tasks/Invoicing/Library/Classwork; Sermons+Projects desktop sidebar only.
+ - Routes: `/classwork` (list + Sheets; `?group=date|course`); `/dashboard` due-soon (desktop Now column + mobile glance — [161](docs/decisions/161-classwork-session-2.md)). Nav: mobile tab bar = Dashboard/Tasks/Invoicing/Library/Classwork; Sermons+Projects+Contacts desktop sidebar only.
  - Audit: `_CLASSWORK_TABLES`; soft-delete revert for courses/assignments. Permissions slug `classwork`.
+
+- **Contacts helpers** at `src/lib/contacts/` (schema migration `20260725020000_ppp_contacts_v1.sql`; Session 0 [175](docs/decisions/175-contacts-session-0.md), Session 1 [178](docs/decisions/178-contacts-session-1.md)):
+ - `src/lib/types/contacts.ts` — `CONTACT_STATUSES`, list/filter view-models, `DEFAULT_CONTACT_CADENCE_DAYS` (90).
+ - `src/lib/contacts/names.ts` — `contactDisplayName`, `householdNameFromContact`, `effectiveCadenceDays`, `formatHouseholdAddress`.
+ - `src/lib/contacts/list-member.ts` — `validateListMemberXor` / `listMemberToColumns` (contact XOR household for list membership).
+ - `src/lib/contacts/server/loaders.ts` — `loadContacts`, `loadHouseholds`, `loadContactLists`, `loadContactListMembers`, `parseContactsListFilters`.
+ - `src/lib/contacts/server/actions.ts` — contact/household/list CRUD; one-tap + detailed touch; household touch fan-out; list-member add (revive soft-deleted by PK).
+ - Routes: `/contacts` (list + Sheets + Log Contact); `/settings/contacts/lists`. Desktop sidebar only (mobile tab bar stays at 5).
+ - Audit: `_CONTACTS_TABLES`; soft-delete revert for households/contacts/touches/lists/members. Permissions slug `contacts`. **≠ library `people`, ≠ invoicing `clients`.** Viewer write solo-waivered v1.
 
 ### Scripts
 

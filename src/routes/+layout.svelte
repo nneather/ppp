@@ -18,6 +18,7 @@
 	import ListTodo from '@lucide/svelte/icons/list-todo';
 	import Mic from '@lucide/svelte/icons/mic';
 	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+	import Users from '@lucide/svelte/icons/users';
 	import Settings from '@lucide/svelte/icons/settings';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
@@ -36,6 +37,7 @@
 		{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/tasks', label: 'Tasks', icon: ListTodo },
 		{ href: '/classwork', label: 'Classwork', icon: GraduationCap },
+		{ href: '/contacts', label: 'Contacts', icon: Users },
 		{ href: '/sermons', label: 'Sermons', icon: Mic },
 		{ href: '/invoicing', label: 'Invoicing', icon: Receipt },
 		{ href: '/library', label: 'Library', icon: BookOpen },
@@ -43,7 +45,7 @@
 		{ href: '/settings', label: 'Settings', icon: Settings }
 	] as const;
 
-	/** Mobile tab bar — Sermons + Projects stay desktop-sidebar only. */
+	/** Mobile tab bar — Sermons + Projects + Contacts stay desktop-sidebar only. */
 	const mobileNavItems = [
 		{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/tasks', label: 'Tasks', icon: ListTodo },
@@ -65,6 +67,7 @@
 		| 'projects'
 		| 'sermons'
 		| 'classwork'
+		| 'contacts'
 		| 'settings'
 		| 'generic' {
 		if (path.startsWith('/library')) return 'library';
@@ -72,6 +75,7 @@
 		if (path.startsWith('/dashboard')) return 'dashboard';
 		if (path.startsWith('/sermons')) return 'sermons';
 		if (path.startsWith('/classwork')) return 'classwork';
+		if (path.startsWith('/contacts')) return 'contacts';
 		if (path.startsWith('/tasks')) return 'projects';
 		if (path.startsWith('/projects')) return 'projects';
 		if (path.startsWith('/settings')) return 'settings';

@@ -6,6 +6,7 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import Mic from '@lucide/svelte/icons/mic';
+	import Users from '@lucide/svelte/icons/users';
 	import { cn } from '$lib/utils';
 	import type { PageProps } from './$types';
 
@@ -65,6 +66,16 @@
 					data.sermonVenueCount != null
 						? `${data.sermonVenueCount} venue${data.sermonVenueCount === 1 ? '' : 's'}`
 						: 'Venues'
+			},
+			{
+				href: '/settings/contacts/lists',
+				title: 'Contacts',
+				description: 'Christmas cards and other contact lists',
+				icon: Users,
+				summary:
+					data.contactListCount != null
+						? `${data.contactListCount} list${data.contactListCount === 1 ? '' : 's'}`
+						: 'Lists'
 			}
 		];
 		if (data.isOwner) {
