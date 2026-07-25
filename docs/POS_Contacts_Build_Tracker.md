@@ -1,6 +1,6 @@
 # Personal Operations System — Contacts / CRM Module Build Tracker
 
-_Last updated: 2026-07-24 | Module: Contacts / CRM (6th) | Session 2 shipped; owner smoke checklist parked_
+_Last updated: 2026-07-25 | Module: Contacts / CRM (6th) | Owner smoke UI cleared; Session 3 locked in [181](decisions/181-contacts-smoke-product-locks.md)_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [139](decisions/139-lightweight-crm-fall-priority.md), [175](decisions/175-contacts-session-0.md).
 
@@ -17,8 +17,9 @@ Core value — **who is due for a meet, and who gets a Christmas card**: cadence
 
 - **End of Session 1** = schema + `/contacts` CRUD (list + Sheets) + one-tap Log Contact + detailed touch log + households + settings lists — usable for data entry.
 - **End of Session 2** = dashboard "due to meet" strip + real MCP tools (`list_contacts_due`, `search_contacts`).
+- **End of Session 3** = Lists third tab + cadence months/years + touch `kind` (meet vs card) + Christmas-card bulk log — [181](decisions/181-contacts-smoke-product-locks.md).
 
-**v1 out of scope:** mailing-list send / Resend campaigns / unsubscribe compliance (email + address fields designed for later; no send pipeline).
+**v1 out of scope:** mailing-list send / Resend campaigns / unsubscribe compliance (email + address fields designed for later; no send pipeline). Card **logging** at send time is in scope for Session 3 (not email send).
 
 ---
 
@@ -27,13 +28,13 @@ Core value — **who is due for a meet, and who gets a Christmas card**: cadence
 | Gate | Resolution |
 |---|---|
 | **Taxonomy singular** | Two core tables: `contacts` (1:1 outreach) + `households` (cards / invites / mailing address). Marriages merge contacts into a household; splits reverse that. **≠** library `people`, **≠** invoicing `clients`. |
-| **Cadence** | Interval model: nullable `contacts.cadence_days` override → fallback `profiles.contact_cadence_days_default` → app constant. Never set on households. A household touch fans out a `contact_touches` row to every live member. Due = never touched, or last touch older than effective cadence. |
-| **Touch history** | `contact_touches` day one (`touched_on` + nullable `note`). UI: one-tap "Log Contact" **and** detailed option (detail-only kills usage). Last touch = `MAX(touched_on)` in loaders — no denormalized column. |
+| **Cadence** | Interval on the **person** (not lists). Override → profile default → app constant. Never on households. UI units = **months or years** ([181](decisions/181-contacts-smoke-product-locks.md)); storage may stay day-equivalent. Household meet-touch fans out to live members. Due = never touched **with a meet-kind touch**, or last **meet** touch older than effective cadence. |
+| **Touch history** | `contact_touches` (`touched_on` + nullable `note` + **`kind`** meet\|card per [181](decisions/181-contacts-smoke-product-locks.md)). UI: one-tap + detailed (note; backdate detailed-only). Last **meet** touch drives due; card bulk log does not. |
 | **Reminders vs lifecycle** | Two axes: `no_reminders` bool (close family seen weekly — still active, still on card lists) + `status` `active`/`retired` (moved away). Default list filter = Active. |
 | **Seasonal / lists** | `contact_lists` + `contact_list_members` day one; Christmas cards = first list. Membership = **contact XOR household** (`validateXor` / library polymorphic pattern) — card list holds households; future email lists hold people. |
 | **Names** | Contacts: `first_name` NOT NULL + nullable `last_name`. Envelope / card display name on `households.name`. |
 | **Address / email** | Structured address on **households only** (line1/2, city, state, postal, country). Contacts carry single `email` + `phone`. Singles who get mail = household of one (create flow must be clean — H1). |
-| **Form delivery** | Both contact + household ≪15 fields → Sheets. List at `/contacts`. Lists at `/settings/contacts/lists`. Dashboard "due to meet" (desktop card + mobile glance tile). **Desktop sidebar nav only** — mobile tab bar stays at 5 (classwork already occupies the fifth slot). |
+| **Form delivery** | Both contact + household ≪15 fields → Sheets. List at `/contacts` with tabs **Contacts \| Households \| Lists** ([181](decisions/181-contacts-smoke-product-locks.md); settings lists may remain for CRUD). Dashboard "due to meet" (desktop card + mobile glance tile). **Desktop sidebar nav only** — mobile tab bar stays at 5. |
 | **RLS + viewer** | SELECT via `app_is_owner() OR app_has_module_read('contacts')`; INSERT/UPDATE/DELETE owner-only. **Solo waiver:** viewer write untested/unsupported v1. |
 | **MCP read surface (day one)** | `list_contacts_due` (replaces stub, **same tool name** per [144](decisions/144-ppp-mcp-readonly-v1.md)) + `search_contacts`. `christmas_card_list` rejected. Contracts locked below; implementation Session 2. |
 | **Edge Function ↔ `deleted_at`** | N/A — no Edge Functions planned for v1. |
@@ -199,6 +200,9 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | C2 | contact | Do retired contacts' households stay on Christmas card list, or should list queries exclude households whose only members are retired? | ✅ Session 2 — exclude from effective roster; membership rows kept |
 | T1 | touch | Backdating `touched_on` — detailed log only (recommended), or also one-tap? | ✅ Session 1 — detailed only |
 | L1 | list | Seed `Christmas cards` in migration vs create-on-first-use? | ✅ Session 1 — seeded |
+| T2 | touch | Do Christmas-card logs reset due-to-meet? | ✅ [181](decisions/181-contacts-smoke-product-locks.md) — **No**; touch `kind` meet vs card |
+| C3 | cadence | Days vs months/years; list-driven vs person? | ✅ [181](decisions/181-contacts-smoke-product-locks.md) — months/years UI; **person**-owned |
+| L2 | list | Settings-only lists vs third tab on `/contacts`? | ✅ [181](decisions/181-contacts-smoke-product-locks.md) — Lists third tab + card bulk log |
 
 ---
 
@@ -209,12 +213,13 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | 0 | ✅ 2026-07-24 | Phase 0 lock + this tracker + [175](decisions/175-contacts-session-0.md) |
 | 1 | ✅ 2026-07-24 | Migration `ppp_contacts_v1` + `/contacts` CRUD + Log Contact + lists + nav/permissions/audit — [178](decisions/178-contacts-session-1.md) |
 | 2 | ✅ 2026-07-24 | Dashboard "due to meet" + MCP `list_contacts_due` / `search_contacts`; C2 — [180](decisions/180-contacts-session-2.md) |
+| 3 | ⏳ next | Lists tab + cadence months/years + touch kinds + Christmas-card bulk log — [181](decisions/181-contacts-smoke-product-locks.md) |
 | — | note | Decision number **174** was taken by a parallel library session ([174-everlasting-man-original-1925](decisions/174-everlasting-man-original-1925.md)) — Session 0 record is **[175](decisions/175-contacts-session-0.md)**, not 174. |
 | — | backlog | Mailing-list send pipeline (Resend campaigns + unsubscribe) — designed-for, not built ([139](decisions/139-lightweight-crm-fall-priority.md)). |
 | — | backlog | Optional FK contact → library person or invoicing client — only if owner asks. |
 | — | backlog | Merge UI for marrying contacts into one household (beyond assigning `household_id`). |
 
-**Timeline:** Sessions 1–2 before Thanksgiving so Christmas card list + due meets are live; mailing send stays deferred.
+**Timeline:** Sessions 1–3 before Thanksgiving so Christmas card list + due meets + card bulk log are live; mailing **email** send stays deferred.
 
 ---
 
@@ -226,25 +231,25 @@ Parked from [178](decisions/178-contacts-session-1.md) + [180](decisions/180-con
 
 ### Session 1 — CRUD + Log Contact + lists ([178](decisions/178-contacts-session-1.md))
 
-- [ ] **Desktop nav** — Contacts in sidebar; opens `/contacts`
-- [ ] **Create contact** — Sheet save; appears under Active filter; search by name works
-- [ ] **Household** — create household (or contact Sheet mailing → household-of-one); assign contact; soft-delete blocked while members live
-- [ ] **One-tap Log Contact** — stamps Chicago today, null note; list shows last touch
-- [ ] **Detailed Log Contact** — note + optional backdate; household **Log all** fans out to live members
-- [ ] **`/settings/contacts/lists`** — Christmas cards list present; add a household member; remove member
-- [ ] **Audit log** — after a write, `/settings/audit-log?module=contacts` shows a row (trigger-driven)
-- [ ] **Mobile width (~390px)** — `/contacts` list + Sheets usable; no tab-bar collision on sticky actions
+- [x] **Desktop nav** — Contacts in sidebar; opens `/contacts`
+- [x] **Create contact** — Sheet save; appears under Active filter; search by name works
+- [x] **Household** — create household (or contact Sheet mailing → household-of-one); assign contact; soft-delete blocked while members live
+- [x] **One-tap Log Contact** — stamps Chicago today, null note; list shows last touch
+- [x] **Detailed Log Contact** — note + optional backdate; household **Log all** fans out to live members
+- [x] **`/settings/contacts/lists`** — Christmas cards list present; add a household member; remove member _(UI path OK; primary surface moves to Lists tab in Session 3 — [181](decisions/181-contacts-smoke-product-locks.md))_
+- [x] **Audit log** — after a write, `/settings/audit-log?module=contacts` shows a row (trigger-driven)
+- [x] **Mobile width (~390px)** — `/contacts` list + Sheets usable; no tab-bar collision on sticky actions
 
 ### Session 2 — dashboard due + MCP ([180](decisions/180-contacts-session-2.md))
 
-- [ ] **Seed at least one due contact** — active, `no_reminders` off, never touched (or last touch older than cadence) so dashboard/MCP aren’t empty
-- [ ] **Desktop `/dashboard`** — **Due to meet** card under Now (below Due soon); links to `/contacts`; overdue / “Never logged” labels sensible
-- [ ] **Mobile `/dashboard`** — Contacts glance tile (count + never-logged hint); opens `/contacts`
-- [ ] **After Log Contact** — due strip refreshes (`depends('app:contacts:list')`); contact drops off when still inside cadence
+- [x] **Seed at least one due contact** — active, `no_reminders` off, never touched (or last touch older than cadence) so dashboard/MCP aren’t empty
+- [x] **Desktop `/dashboard`** — **Due to meet** card under Now (below Due soon); links to `/contacts`; overdue / “Never logged” labels sensible
+- [x] **Mobile `/dashboard`** — Contacts glance tile (count + never-logged hint); opens `/contacts`
+- [x] **After Log Contact** — due strip refreshes (`depends('app:contacts:list')`); contact drops off when still inside cadence
 - [ ] **C2 (optional)** — put a household with only retired members on Christmas cards; settings roster hides it and shows “N retired-only … hidden”; un-retire restores without re-add
 - [ ] **MCP client reload** — restart/`Reload` `ppp` MCP; tools include `list_contacts_due` + `search_contacts` (not stub)
 - [ ] **MCP smoke (manual)** — `list_contacts_due` returns the seeded due row; `search_contacts` with a known name returns card fields (email/phone/household/address when set)
 
 **Out of scope for this smoke:** mailing-list send; viewer write path (solo-waivered).
 
-_Last smoked: — (owner)_
+_Last smoked: 2026-07-25 (owner) — UI cleared; MCP still open_
