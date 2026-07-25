@@ -170,9 +170,10 @@
 			</form>
 			<div class="min-w-0 flex-1">
 				<div class="flex min-w-0 items-start gap-1.5">
-					<p
+					<button
+						type="button"
 						class={cn(
-							'min-w-0 flex-1 break-words text-sm font-medium',
+							'min-w-0 flex-1 break-words text-left text-sm font-medium hover:underline',
 							activeToday &&
 								task.priority === 'critical_now' &&
 								'underline decoration-red-600/70 underline-offset-2',
@@ -181,9 +182,11 @@
 								'underline decoration-amber-600/70 underline-offset-2',
 							isCompleted && 'line-through'
 						)}
+						title="View / edit task"
+						onclick={() => onEdit(task)}
 					>
 						{task.title}
-					</p>
+					</button>
 					{#if task.series_id}
 						<span
 							class="mt-0.5 shrink-0 text-muted-foreground"
