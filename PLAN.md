@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — Canvas classwork import deferred ([173](docs/decisions/173-canvas-classwork-import-deferred.md)); BDAG s.v. / Loeb ([163](docs/decisions/163-bdag-sv-essay-bib-greek-nfc.md)/[172](docs/decisions/172-loeb-series-number-not-multivol.md)).
+**Last updated:** 2026-07-24 — Everlasting Man 1925 reprint fields ([174](docs/decisions/174-everlasting-man-original-1925.md)); Canvas classwork import deferred ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
 
 **How to use this file — read this first:**
 
@@ -47,14 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [174 — Everlasting Man original publication 1925](docs/decisions/174-everlasting-man-original-1925.md) (2026-07-24) — first live full-reprint row: `original_year=1925` + `reprint_*` = Image Books 1974 → `(1925; repr., …)`.
 - [172 — Loeb series number ≠ multi-vol; translator `et al.` period](docs/decisions/172-loeb-series-number-not-multivol.md) (2026-07-24) — Loeb 560 is series enum not `560:[page]`; no `et al..`.
 - [163 — BDAG s.v. volume cite + essay bib vol:page + Greek NFC](docs/decisions/163-bdag-sv-essay-bib-greek-nfc.md) (2026-07-24) — lexicon volume Footnote is s.v. placeholders; essay bib gets `4:100`; NFC for breathing+accent.
 - [173 — Canvas classwork import (deferred)](docs/decisions/173-canvas-classwork-import-deferred.md) (2026-07-24) — API smoke OK; late-August one-shot import; semester-start token; preview→confirm for week-1–3 churn.
 - [171 — Hermeneia cite full name](docs/decisions/171-hermeneia-cite-full-name.md) (2026-07-24) — series abbr `Herm` → `Hermeneia` so footnotes match Covenant / house style (not acronym).
-- [170 — Hermeneia Bultmann Johannine Epistles](docs/decisions/170-hermeneia-bultmann-johannine.md) (2026-07-24) — create Hermeneia series; *The Johannine Epistles* Fortress 1973; Rudolf rename; translators + Funk editor; 1–3 John coverage.
-- [169 — Cost of Discipleship R. H. Fuller translator](docs/decisions/169-cost-of-discipleship-fuller-translator.md) (2026-07-24) — attach Fuller as `translator` on Scribner 1995 English; Booth reviser not stored.
-- [168 — Cost of Discipleship Scribner 1995](docs/decisions/168-cost-of-discipleship-scribner-1995.md) (2026-07-24) — remint ISBN 9780684815008; `copy_count=2`; soft-delete import twin; `original_year=1937`.
-- [167 — Nachfolge Brunnen 2016 remint](docs/decisions/167-nachfolge-brunnen-2016.md) (2026-07-24) — Bonhoeffer *Nachfolge* → Brunnen Verlag / Gießen / 2016 / ISBN 9783765509483; language german; original_year 1937.
 
 ---
 
@@ -82,7 +79,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([164](docs/decisions/164-mcp-list-project-health-filters.md)/[165](docs/decisions/165-mcp-list-week-tasks.md); **0 errors**, 368 tests).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-24** ([174](docs/decisions/174-everlasting-man-original-1925.md); **0 errors**, 371 tests).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
