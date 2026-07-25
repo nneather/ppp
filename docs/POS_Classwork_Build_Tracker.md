@@ -1,6 +1,6 @@
 # Personal Operations System — Classwork Module Build Tracker
 
-_Last updated: 2026-07-24 | Module: Classwork (5th) | Session 2 complete_
+_Last updated: 2026-07-24 | Module: Classwork (5th) | Session 2 complete; Canvas import deferred ([173](decisions/173-canvas-classwork-import-deferred.md))_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [150](decisions/150-classwork-session-0.md).
 
@@ -140,5 +140,6 @@ assignments
 | 2 | ✅ 2026-07-24 | Dashboard due-soon (D1=B) + MCP `list_due_soon` / `get_assignments_for_course`. Decision [161](decisions/161-classwork-session-2.md). |
 | — | note | Decision numbers 146–149 were taken by a parallel library publisher session on 2026-07-24 — Session 0 record is **[150](decisions/150-classwork-session-0.md)**, not 146. |
 | — | backlog | Bulk/quick-add UI for syllabus entry — only if manual entry hurts in late August |
+| — | backlog | **Canvas one-shot import** ([173](decisions/173-canvas-classwork-import-deferred.md)) — late August after first Fall syllabi; semester-start token mint; preview→confirm; re-pull OK for week-1–3 due-date churn. Not live sync. |
 
-**Timeline:** Sessions 1–2 done before syllabi land; semester start **2026-08-31**.
+**Timeline:** Sessions 1–2 done before syllabi land; semester start **2026-08-31**. Canvas import parked for late August ([173](decisions/173-canvas-classwork-import-deferred.md)).

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — BDAG s.v. + essay bib locus + Greek NFC ([163](docs/decisions/163-bdag-sv-essay-bib-greek-nfc.md)); Loeb series number not multi-vol ([172](docs/decisions/172-loeb-series-number-not-multivol.md)).
+**Last updated:** 2026-07-24 — Canvas classwork import deferred ([173](docs/decisions/173-canvas-classwork-import-deferred.md)); BDAG s.v. / Loeb ([163](docs/decisions/163-bdag-sv-essay-bib-greek-nfc.md)/[172](docs/decisions/172-loeb-series-number-not-multivol.md)).
 
 **How to use this file — read this first:**
 
@@ -49,6 +49,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 - [172 — Loeb series number ≠ multi-vol; translator `et al.` period](docs/decisions/172-loeb-series-number-not-multivol.md) (2026-07-24) — Loeb 560 is series enum not `560:[page]`; no `et al..`.
 - [163 — BDAG s.v. volume cite + essay bib vol:page + Greek NFC](docs/decisions/163-bdag-sv-essay-bib-greek-nfc.md) (2026-07-24) — lexicon volume Footnote is s.v. placeholders; essay bib gets `4:100`; NFC for breathing+accent.
+- [173 — Canvas classwork import (deferred)](docs/decisions/173-canvas-classwork-import-deferred.md) (2026-07-24) — API smoke OK; late-August one-shot import; semester-start token; preview→confirm for week-1–3 churn.
 - [171 — Hermeneia cite full name](docs/decisions/171-hermeneia-cite-full-name.md) (2026-07-24) — series abbr `Herm` → `Hermeneia` so footnotes match Covenant / house style (not acronym).
 - [170 — Hermeneia Bultmann Johannine Epistles](docs/decisions/170-hermeneia-bultmann-johannine.md) (2026-07-24) — create Hermeneia series; *The Johannine Epistles* Fortress 1973; Rudolf rename; translators + Funk editor; 1–3 John coverage.
 - [169 — Cost of Discipleship R. H. Fuller translator](docs/decisions/169-cost-of-discipleship-fuller-translator.md) (2026-07-24) — attach Fuller as `translator` on Scribner 1995 English; Booth reviser not stored.
@@ -238,16 +239,18 @@ Acceptance:
 5. **Invoicing — first real-client send** (Sarah back in office). If the outgoing PDF is unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run the diagnostics prompt above ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) before further Edge MIME change.
 6. **Security hardening (051 R2)** — open medium findings; prompt above.
 7. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
-8. **Classwork backlog** — bulk/quick-add if syllabus entry hurts late August ([POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md)).
+8. **Classwork backlog** — bulk/quick-add if syllabus entry hurts; prefer Canvas one-shot import first ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
 
 ### Wait for Madison / August
 9. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.
 10. **Needs the shelf** — 50 shelf-bound needs_review ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)); plus Research-deck phone smoke at ~673 proposals + the 45 no-AI-signal books ([068](docs/decisions/068-library-review-ai-research-pass.md)). Prompt above.
 11. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
 12. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
+13. **Classwork — Canvas one-shot import** ([173](docs/decisions/173-canvas-classwork-import-deferred.md)) — late August after first Fall syllabi/bibliographies; mint semester token (≈1 mo life); preview→confirm into `courses`/`assignments`; expect week-1–3 re-pull for drops/adds and professor due-date reloads. Not live sync.
 
 ### Deferred / someday (pointer only — detail in the cited decision doc)
 - **PWA branded icons** ([057](docs/decisions/057-pwa-consistency.md)) — replace placeholder squares with a monogram set.
 - **CRM mailing-list send pipeline** (Resend campaigns + unsubscribe) — designed-for in Contacts v1, not built.
 - **MARC-source prefill proxy** (LoC SRU / Harvard LibraryCloud) — only if GB cross-check + registries leave gaps ([151](docs/decisions/151-book-metadata-source-strategy.md)).
 - **Ops phone smoke** — cold-start / nav watchdog / chunk recovery ([072](docs/decisions/072-pwa-cold-start-resilience.md)); glance backup Actions after a Monday 08:00 UTC run.
+- **Classwork Canvas OAuth / continuous sync** — rejected for now; semester-start token + occasional re-pull ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
