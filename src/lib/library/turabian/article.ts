@@ -7,9 +7,12 @@ import {
 	parseAuthorAssignment
 } from './names';
 import { formatPublicationFacts, formatTitleWithSubtitle } from './publication';
+import { normalizeCitationText } from './text-normalize';
 import type { BookCitationInput, CitationFormatted, CitationSourceType } from './types';
 
 import type { EssayRow } from '$lib/types/library';
+
+export { isUnsignedLexiconVolume, UNSIGNED_LEXICON_ABBREVS } from './lexicon';
 
 /** Essay / dictionary article row (parent volume is the reference work). */
 export type EssayCitationInput = {
@@ -41,17 +44,19 @@ function escapeHtml(s: string): string {
 }
 
 function quotedTitle(article: string, mode: 'plain' | 'html'): string {
+	const normalized = normalizeCitationText(article);
 	if (mode === 'html') {
-		return `&ldquo;${escapeHtml(article)},&rdquo;`;
+		return `&ldquo;${escapeHtml(normalized)},&rdquo;`;
 	}
-	return `"${article},"`;
+	return `"${normalized},"`;
 }
 
 function quotedTitleBib(article: string, mode: 'plain' | 'html'): string {
+	const normalized = normalizeCitationText(article);
 	if (mode === 'html') {
-		return `&ldquo;${escapeHtml(article)}.&rdquo;`;
+		return `&ldquo;${escapeHtml(normalized)}.&rdquo;`;
 	}
-	return `"${article}."`;
+	return `"${normalized}."`;
 }
 
 /** Note/short-form locus: typed override, else `[page]` — never the essay’s stored range (094 overturned for notes; bib still uses {@link bibPageSegment}). */
@@ -235,7 +240,18 @@ export function formatEssayBibliography(
 	const pub = formatPublicationFacts(volume, 'bib');
 
 	const isChapter = volume.work_type === 'edited_volume';
+	const isReferenceArticle = volume.work_type === 'reference_work';
 	const page = bibPageSegment(essay);
+	const vol = (volume.volume_number ?? '').trim();
+	/** Chapter span, or dictionary locus (`4:100` / `835`). */
+	const loc =
+		page === '[page]'
+			? ''
+			: !(isChapter || isReferenceArticle)
+				? ''
+				: vol
+					? `${vol}:${page}`
+					: page;
 
 	let plain = `${authorLead} ${quotedTitleBib(article, 'plain')} In ${volTitle}`;
 	let html = `${escapeHtml(authorLead)} ${quotedTitleBib(article, 'html')} In ${volTitleHtml}`;
@@ -245,9 +261,9 @@ export function formatEssayBibliography(
 		html += `, ${escapeHtml(editors)}`;
 	}
 
-	if (isChapter && page !== '[page]') {
-		plain += `, ${page}`;
-		html += `, ${escapeHtml(page)}`;
+	if (loc) {
+		plain += `, ${loc}`;
+		html += `, ${escapeHtml(loc)}`;
 	}
 
 	plain += '.';

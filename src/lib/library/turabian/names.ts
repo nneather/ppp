@@ -205,7 +205,7 @@ export function formatEditorsCreditBibliography(authors: BookAuthorAssignment[])
 							.slice(1, -1)
 							.map(noteNameOrder)
 							.join(', ')}, and ${noteNameOrder(parsed[parsed.length - 1]!)}`;
-	return `Edited by ${names}.`;
+	return names.endsWith('.') ? `Edited by ${names}` : `Edited by ${names}.`;
 }
 
 export function formatTranslatorsNote(authors: BookAuthorAssignment[]): string {
@@ -227,7 +227,10 @@ export function formatTranslatorsBibliography(authors: BookAuthorAssignment[]): 
 		parsed.length === 1
 			? noteNameOrder(parsed[0]!)
 			: `${noteNameOrder(parsed[0]!)} et al.`;
-	return `Translated by ${names}.`;
+	// names may already end with "et al." — avoid "et al.."
+	return names.endsWith('.')
+		? `Translated by ${names}`
+		: `Translated by ${names}.`;
 }
 
 /** First author last name for bibliography sort. */

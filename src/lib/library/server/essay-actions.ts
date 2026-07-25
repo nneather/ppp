@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizeCitationText } from '$lib/library/turabian/text-normalize';
 
 /**
  * Server-side helpers for `essays` + `essay_authors`. Mirrors scripture-actions
@@ -105,7 +106,7 @@ export function parseEssayRowFields(input: {
 	page_end: unknown;
 	authors: unknown;
 }): { ok: true; row: EssayBatchRowPayload } | { ok: false; message: string } {
-	const essay_title = String(input.essay_title ?? '').trim();
+	const essay_title = normalizeCitationText(String(input.essay_title ?? '').trim());
 	if (!essay_title) return { ok: false, message: 'Essay title is required.' };
 	if (essay_title.length > 500) return { ok: false, message: 'Essay title is too long.' };
 

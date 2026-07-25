@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — Hermeneia cite full name ([171](docs/decisions/171-hermeneia-cite-full-name.md)); Hermeneia Bultmann Johannine ([170](docs/decisions/170-hermeneia-bultmann-johannine.md)); Cost of Discipleship Fuller translator ([169](docs/decisions/169-cost-of-discipleship-fuller-translator.md)).
+**Last updated:** 2026-07-24 — BDAG s.v. + essay bib locus + Greek NFC ([163](docs/decisions/163-bdag-sv-essay-bib-greek-nfc.md)); Loeb series number not multi-vol ([172](docs/decisions/172-loeb-series-number-not-multivol.md)).
 
 **How to use this file — read this first:**
 

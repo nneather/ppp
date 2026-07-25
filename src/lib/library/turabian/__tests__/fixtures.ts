@@ -454,7 +454,7 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 		page: '835',
 		expectedFootnote: 'James A. Sanders, "Canon," in ABD, 1:835.',
 		expectedBibliography:
-			'Sanders, James A. "Canon." In Anchor Bible Dictionary, edited by David Noel Freedman. New York: Doubleday, 1992.'
+			'Sanders, James A. "Canon." In Anchor Bible Dictionary, edited by David Noel Freedman, 1:835. New York: Doubleday, 1992.'
 	},
 	{
 		id: 18,
@@ -485,7 +485,9 @@ export const WAVE2_FIXTURES: Wave2FixtureRow[] = [
 			]
 		},
 		page: '100',
-		expectedFootnote: 'Gerhard Kittel, "λέγω," in TDNT, 4:100.'
+		expectedFootnote: 'Gerhard Kittel, "λέγω," in TDNT, 4:100.',
+		expectedBibliography:
+			'Kittel, Gerhard. "λέγω." In Theological Dictionary of the New Testament, edited by Gerhard Kittel, 4:100. Grand Rapids, MI: William B. Eerdmans, 1967.'
 	},
 	{
 		id: 19,

@@ -20,6 +20,7 @@ import {
 	formatVolumeBibliography,
 	formatVolumePageNote
 } from './publication';
+import { isUnsignedLexiconVolume } from './lexicon';
 import { stripLeadingArticleDisplay } from '../title-sort';
 import type { BookCitationInput, CitationFormatted, CitationSourceType } from './types';
 
@@ -213,6 +214,12 @@ function formatShortFootnote(
 		const html = page && page !== '[page]' ? `Ibid., ${escapeHtml(page)}.` : 'Ibid.';
 		return buildPair(plain, html, sourceType);
 	}
+	if (isUnsignedLexiconVolume(book)) {
+		const abbr = (book.series_abbreviation ?? '').trim();
+		const plain = `${abbr}, s.v. "[lemma]," ${page}.`;
+		const html = `${escapeHtml(abbr)}, s.v. &ldquo;[lemma],&rdquo; ${escapeHtml(page)}.`;
+		return buildPair(plain, html, sourceType);
+	}
 	const authorRows = authorsByRole(book.authors, 'author');
 	const editorRows = authorsByRole(book.authors, 'editor');
 	const primary = authorRows.length > 0 ? authorRows : editorRows;
@@ -239,6 +246,14 @@ export function formatFootnote(book: BookCitationInput, opts?: FormatOptions): C
 		const version = ` (${versionLabel})`;
 		const plain = `${page}${version}.`;
 		const html = `${escapeHtml(page)}${escapeHtml(version)}.`;
+		return buildPair(plain, html, sourceType);
+	}
+
+	// BDAG / LSJ / etc. — never emit author+title long form at volume level.
+	if (isUnsignedLexiconVolume(book)) {
+		const abbr = (book.series_abbreviation ?? '').trim();
+		const plain = `${abbr}, s.v. "[lemma]," ${page}.`;
+		const html = `${escapeHtml(abbr)}, s.v. &ldquo;[lemma],&rdquo; ${escapeHtml(page)}.`;
 		return buildPair(plain, html, sourceType);
 	}
 
@@ -303,6 +318,11 @@ export function formatBibliography(
 	const citeSet = Boolean(opts?.citeSet && (book.total_volumes ?? 0) > 1);
 
 	if (sourceType === 'bible') {
+		return buildPair('', '', sourceType);
+	}
+
+	// Well-known unsigned lexica — notes only (Covenant).
+	if (isUnsignedLexiconVolume(book)) {
 		return buildPair('', '', sourceType);
 	}
 

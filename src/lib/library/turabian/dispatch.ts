@@ -20,7 +20,6 @@ export function resolveCitationSourceType(book: BookCitationInput): CitationSour
 	const authors = authorsByRole(book.authors, 'author');
 	const editors = authorsByRole(book.authors, 'editor');
 	const hasSeries = Boolean((book.series_name ?? book.series_abbreviation ?? '').trim());
-	const hasVol = Boolean((book.volume_number ?? '').trim()) || (book.total_volumes ?? 0) > 1;
 	const hasTranslator = book.authors.some((a) => a.role === 'translator');
 
 	if (genre === 'Bibles') return 'bible';
@@ -41,6 +40,12 @@ export function resolveCitationSourceType(book: BookCitationInput): CitationSour
 	}
 
 	if (authors.length === 0 && editors.length > 0) return 'edited-volume';
+
+	// Series enumeration (Loeb 560) is not a multi-volume work — that needs
+	// total_volumes > 1, or volume_number without a series (Hodge ST).
+	const volNum = (book.volume_number ?? '').trim();
+	const total = book.total_volumes ?? 0;
+	const hasVol = total > 1 || (Boolean(volNum) && !hasSeries);
 
 	if (hasVol && genre !== 'Commentary') return 'multi-volume';
 

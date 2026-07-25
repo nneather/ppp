@@ -134,12 +134,12 @@ export function formatVolumePageNote(book: BookCitationInput, page?: string): st
 	const vol = (book.volume_number ?? '').trim();
 	const pagePart = (page ?? '[page]').trim();
 	const pageClean = pagePart.replace(/^p\.?\s*/i, '');
-	// Series-only commentary volumes: page alone (not "27:12" for Interpretation 27).
-	// Multi-vol work inside a series (Zimmerli): keep vol:page when total_volumes > 1.
-	const isSeriesOnly =
-		resolveCitationSourceType(book) === 'commentary-in-series' &&
-		!(book.total_volumes != null && book.total_volumes > 1);
-	if (vol && pageClean && !isSeriesOnly) return `${vol}:${pageClean}`;
+	const total = book.total_volumes ?? 0;
+	const hasSeries = Boolean((book.series_name ?? book.series_abbreviation ?? '').trim());
+	// Series enumeration only (Loeb 560, Interpretation 27): page alone, not "560:12".
+	// Multi-vol work: total_volumes > 1, or volume_number without a series (Hodge).
+	const useVolPage = Boolean(vol) && (total > 1 || !hasSeries);
+	if (useVolPage && pageClean) return `${vol}:${pageClean}`;
 	if (pageClean) return pageClean;
 	return '';
 }
@@ -164,6 +164,9 @@ export function formatVolumeBibliography(
 		if (total != null && total > 1) return `${total} vols.`;
 		return '';
 	}
+	const hasSeries = Boolean((book.series_name ?? book.series_abbreviation ?? '').trim());
+	// Loeb / other series numbers are not "Vol. 560."
+	if (hasSeries && !(total != null && total > 1)) return '';
 	if (vol) return `Vol. ${vol}.`;
 	if (total != null && total > 1) return `${total} vols.`;
 	return '';

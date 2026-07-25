@@ -1,9 +1,10 @@
 import type { CitationFormatted } from './types';
+import { normalizeCitationText } from './text-normalize';
 
 /** Write Turabian HTML + plain-text to the clipboard (Q4 resolution). */
 export async function copyCitationToClipboard(citation: CitationFormatted): Promise<void> {
-	const plain = citation.plain.trim();
-	const html = citation.html.trim();
+	const plain = normalizeCitationText(citation.plain.trim());
+	const html = normalizeCitationText(citation.html.trim());
 	if (!plain && !html) {
 		throw new Error('Nothing to copy');
 	}

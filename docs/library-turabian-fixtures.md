@@ -24,7 +24,7 @@
 | 15 | `bible` | bible | ESV | pass | empty | **pass** |
 | 16 | `unsigned-sv-lexicon` | reference-work (unsigned s.v.) | BDAG lemma | pass | n/a | **pass** |
 | 17 | `signed-dictionary-article` | article-in-reference-work | ABD — Sanders, "Canon" | pass | pass | **pass** |
-| 18 | `tdnt-signed-article` | article-in-reference-work | TDNT — Kittel, "λέγω" | pass | n/a | **pass** |
+| 18 | `tdnt-signed-article` | article-in-reference-work | TDNT — Kittel, "λέγω" | pass | pass | **pass** |
 | 19 | `chapter-edited-volume` | chapter-in-edited-volume | Piper in Peterson/Wells | pass | pass | **pass** |
 | 20 | `short-footnote` | short-form (§16.4.1) | Long, shortened title | pass | n/a | **pass** |
 
@@ -118,11 +118,12 @@
 ### 17 — Signed dictionary article
 
 - **Footnote:** `James A. Sanders, "Canon," in ABD, 1:835.` (Covenant §17.9.1 abbreviated; requires `series_abbreviation = 'ABD'`)
-- **Bibliography:** `Sanders, James A. "Canon." In Anchor Bible Dictionary, edited by David Noel Freedman. New York: Doubleday, 1992.`
+- **Bibliography:** `Sanders, James A. "Canon." In Anchor Bible Dictionary, edited by David Noel Freedman, 1:835. New York: Doubleday, 1992.`
 
 ### 18 — TDNT signed article
 
 - **Footnote:** `Gerhard Kittel, "λέγω," in TDNT, 4:100.`
+- **Bibliography:** `Kittel, Gerhard. "λέγω." In Theological Dictionary of the New Testament, edited by Gerhard Kittel, 4:100. Grand Rapids, MI: William B. Eerdmans, 1967.`
 - **Carrier:** parent `series_abbreviation = 'TDNT'` + `volume_number` for abbreviated `in ABBR, vol:page` form.
 
 ### 19 — Chapter in edited volume

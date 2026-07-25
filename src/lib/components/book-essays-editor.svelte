@@ -22,7 +22,8 @@
 		copyCitationToClipboard,
 		essayRowToCitationInput,
 		formatEssayBibliography,
-		formatEssayFootnote
+		formatEssayFootnote,
+		normalizeCitationText
 	} from '$lib/library/turabian';
 	import { invalidate } from '$app/navigation';
 	import { page } from '$app/state';
@@ -590,7 +591,9 @@
 								)}
 							>
 								<div class="min-w-0 flex-1">
-									<div class="font-medium text-foreground">{essay.essay_title}</div>
+									<div class="font-medium text-foreground">
+										{normalizeCitationText(essay.essay_title)}
+									</div>
 									{#if authorsLabel(essay)}
 										<div class="mt-0.5 text-sm text-muted-foreground">{authorsLabel(essay)}</div>
 									{/if}

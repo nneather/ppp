@@ -24,6 +24,8 @@ export {
 	type EssayCitationInput,
 	type EssayFormatOptions
 } from './article';
+export { isUnsignedLexiconVolume, UNSIGNED_LEXICON_ABBREVS } from './lexicon';
+export { normalizeCitationText } from './text-normalize';
 export {
 	sortBibliographyInputs,
 	formatBibliographyEntries,

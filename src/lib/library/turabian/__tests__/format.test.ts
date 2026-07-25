@@ -153,6 +153,49 @@ describe('resolveCitationSourceType', () => {
 			)
 		).toBe('book-with-editor');
 	});
+
+	it('does not treat Loeb series number as multi-volume', () => {
+		expect(
+			resolveCitationSourceType(
+				book({
+					genre: 'Church Fathers',
+					title: 'The Teacher. Teaching Christianity',
+					series_name: 'Loeb Classical Library',
+					series_abbreviation: 'LCL',
+					volume_number: '560',
+					authors: [
+						{
+							person_id: 'a1',
+							person_label: 'Saint Augustine',
+							role: 'author',
+							sort_order: 0
+						}
+					]
+				})
+			)
+		).toBe('single-author-book');
+	});
+
+	it('Loeb footnote/bib use page only — not 560:[page] or Vol. 560', () => {
+		const b = book({
+			genre: 'Church Fathers',
+			title: 'The Teacher. Teaching Christianity',
+			series_name: 'Loeb Classical Library',
+			series_abbreviation: 'LCL',
+			series_include_in_citation: false,
+			volume_number: '560',
+			authors: [
+				{ person_id: 'a1', person_label: 'Saint Augustine', role: 'author', sort_order: 0 }
+			],
+			publisher: 'Harvard University Press',
+			publisher_location: 'Cambridge, MA',
+			year: 2025
+		});
+		const fn = formatFootnote(b, { page: '12' }).plain;
+		expect(fn).toContain(', 12.');
+		expect(fn).not.toContain('560:');
+		expect(formatBibliography(b).plain).not.toContain('Vol. 560');
+	});
 });
 
 describe('formatFootnote', () => {
@@ -470,6 +513,43 @@ describe('formatFootnote', () => {
 		expect(fn.plain).toContain('Gerhard Maier');
 		expect(fn.plain).toContain('trans. Robert W. Yarbrough');
 		expect(fn.html).toContain('<i>');
+	});
+
+	it('unsigned lexicon volume footnote uses s.v. placeholders, not author long form', () => {
+		const b = book({
+			work_type: 'reference_work',
+			genre: 'Greek Language Tools',
+			title: 'A Greek-English Lexicon of the New Testament and Other Early Christian Literature',
+			series_abbreviation: 'BDAG',
+			authors: [
+				{ person_id: 'a1', person_label: 'Walter Bauer', role: 'author', sort_order: 0 },
+				{ person_id: 'e1', person_label: 'Frederick William Danker', role: 'editor', sort_order: 1 }
+			],
+			publisher: 'University of Chicago Press',
+			publisher_location: 'Chicago',
+			year: 2000
+		});
+		expect(formatFootnote(b, { page: '12' }).plain).toBe('BDAG, s.v. "[lemma]," 12.');
+		expect(formatBibliography(b).plain).toBe('');
+	});
+
+	it('translator bibliography does not double-period after et al.', () => {
+		const b = book({
+			title: 'The Johannine Epistles',
+			genre: 'Commentary',
+			series_name: 'Hermeneia',
+			series_abbreviation: 'Hermeneia',
+			authors: [
+				{ person_id: 'a1', person_label: 'Rudolf Bultmann', role: 'author', sort_order: 0 },
+				{ person_id: 't1', person_label: "R. Philip O'Hara", role: 'translator', sort_order: 1 },
+				{ person_id: 't2', person_label: 'Lane C. McGaughy', role: 'translator', sort_order: 2 },
+				{ person_id: 'e1', person_label: 'Robert W. Funk', role: 'editor', sort_order: 3 }
+			],
+			publisher: 'Fortress Press',
+			year: 1973
+		});
+		expect(formatBibliography(b).plain).toContain("Translated by R. Philip O'Hara et al.");
+		expect(formatBibliography(b).plain).not.toContain('et al..');
 	});
 });
 
@@ -919,6 +999,41 @@ describe('formatBibliography', () => {
 		);
 		expect(formatEssayBibliography(essay, volume).plain).toBe(
 			'Piper, John. "The Perseverance of the Saints." In The Glory of the Atonement, edited by David G. Peterson and David F. Wells, 123–145. Grand Rapids, MI: Baker Academic, 2004.'
+		);
+	});
+
+	it('essay bibliography includes vol:page for multi-volume reference works', () => {
+		const volume = book({
+			work_type: 'reference_work',
+			title: 'Theological Dictionary of the New Testament',
+			series_abbreviation: 'TDNT',
+			volume_number: '4',
+			total_volumes: 10,
+			authors: [
+				{ person_id: 'e1', person_label: 'Gerhard Kittel', role: 'editor', sort_order: 0 }
+			],
+			publisher: 'William B. Eerdmans',
+			publisher_location: 'Grand Rapids, MI',
+			year: 1967
+		});
+		expect(
+			formatEssayBibliography(
+				{
+					essay_title: 'λέγω',
+					page_start: 100,
+					authors: [
+						{
+							person_id: 'a1',
+							person_label: 'Gerhard Kittel',
+							role: 'author' as const,
+							sort_order: 0
+						}
+					]
+				},
+				volume
+			).plain
+		).toBe(
+			'Kittel, Gerhard. "λέγω." In Theological Dictionary of the New Testament, edited by Gerhard Kittel, 4:100. Grand Rapids, MI: William B. Eerdmans, 1967.'
 		);
 	});
 
