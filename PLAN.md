@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — Everlasting Man 1925 reprint fields ([174](docs/decisions/174-everlasting-man-original-1925.md)); Canvas classwork import deferred ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
+**Last updated:** 2026-07-24 — Contacts Session 0 Phase 0 lock ([175](docs/decisions/175-contacts-session-0.md)); Everlasting Man 1925 ([174](docs/decisions/174-everlasting-man-original-1925.md)).
 
 **How to use this file — read this first:**
 
@@ -19,8 +19,8 @@
 **Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later).
 
 - **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)) — `/classwork` CRUD, dashboard Due soon (D1=B), MCP `list_due_soon` + `get_assignments_for_course`.
-- **Contacts / CRM** — Session 0 (Phase 0 lock) not started — prompt below. Thin v1 target ~Thanksgiving.
-- **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + `list_project_health` filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)); contacts stub remains. Reload MCP clients after this session.
+- **Contacts / CRM** — Session 0 Phase 0 locked ([175](docs/decisions/175-contacts-session-0.md)); Session 1 next (schema + `/contacts` CRUD). Thin v1 target ~Thanksgiving.
+- **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + `list_project_health` filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)); contacts stub until Session 2.
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
 
 Nearest hard dates:
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard. Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 ([153](docs/decisions/153-classwork-session-1.md)/[161](docs/decisions/161-classwork-session-2.md)) — CRUD + dashboard Due soon (D1=B) + MCP tools. Backlog: bulk syllabus entry if needed late Aug. |
-| Contacts / CRM | *(tracker created in Session 0)* | 🔲 Fall priority ([139](docs/decisions/139-lightweight-crm-fall-priority.md)) — meet cadence + Christmas cards; mailing send later; **≠ library `people`.** |
+| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Session 0 Phase 0 lock ([175](docs/decisions/175-contacts-session-0.md)) — contacts + households + touches + lists; Session 1 next. Mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork ([161](docs/decisions/161-classwork-session-2.md)) + health filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)); contacts stub remains. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [175 — Contacts Session 0 Phase 0 lock](docs/decisions/175-contacts-session-0.md) (2026-07-24) — contacts + households + touches + lists; cadence on person; Christmas cards = list of households.
 - [174 — Everlasting Man original publication 1925](docs/decisions/174-everlasting-man-original-1925.md) (2026-07-24) — first live full-reprint row: `original_year=1925` + `reprint_*` = Image Books 1974 → `(1925; repr., …)`.
+- [173 — Canvas classwork import (deferred)](docs/decisions/173-canvas-classwork-import-deferred.md) (2026-07-24) — API smoke OK; late-August one-shot import; semester-start token; preview→confirm for week-1–3 churn.
 - [172 — Loeb series number ≠ multi-vol; translator `et al.` period](docs/decisions/172-loeb-series-number-not-multivol.md) (2026-07-24) — Loeb 560 is series enum not `560:[page]`; no `et al..`.
 - [163 — BDAG s.v. volume cite + essay bib vol:page + Greek NFC](docs/decisions/163-bdag-sv-essay-bib-greek-nfc.md) (2026-07-24) — lexicon volume Footnote is s.v. placeholders; essay bib gets `4:100`; NFC for breathing+accent.
-- [173 — Canvas classwork import (deferred)](docs/decisions/173-canvas-classwork-import-deferred.md) (2026-07-24) — API smoke OK; late-August one-shot import; semester-start token; preview→confirm for week-1–3 churn.
-- [171 — Hermeneia cite full name](docs/decisions/171-hermeneia-cite-full-name.md) (2026-07-24) — series abbr `Herm` → `Hermeneia` so footnotes match Covenant / house style (not acronym).
 
 ---
 
@@ -95,34 +95,33 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
 
-### Contacts / CRM — Session 0: Phase 0 lock (fall) — from [139](docs/decisions/139-lightweight-crm-fall-priority.md)
+### Contacts / CRM — Session 1: schema + `/contacts` CRUD — from [175](docs/decisions/175-contacts-session-0.md)
 
 ```
-Session: contacts #0 — Phase 0 structure lock (lightweight CRM)
-Tracker: create docs/POS_Contacts_Build_Tracker.md (or POS_CRM_…) this session
-Read: AGENTS.md, docs/MODULE_KICKOFF_PLAYBOOK.md, docs/decisions/041-library-module-retro.md,
-  docs/decisions/000-invoicing-retro.md, docs/decisions/138-fall-semester-priorities.md,
-  docs/decisions/139-lightweight-crm-fall-priority.md, PLAN.md, latest 3 docs/decisions/
-  Note: library table `people` = authors — DO NOT reuse for CRM contacts.
-  Note: invoicing `clients` = billing — keep separate unless owner explicitly wants a link FK later.
+Session: contacts #1 — schema + list/Sheets + Log Contact
+Tracker: docs/POS_Contacts_Build_Tracker.md, Session 1
+Read: AGENTS.md, docs/MODULE_KICKOFF_PLAYBOOK.md, docs/POS_Contacts_Build_Tracker.md,
+  docs/decisions/175-contacts-session-0.md, docs/decisions/153-classwork-session-1.md (pattern),
+  docs/decisions/000-invoicing-retro.md, .cursor/rules/db-changes.mdc
+  Note: library `people` = authors; invoicing `clients` = billing — do not reuse.
 Supabase: hosted db push only — supabase/README.md
-Goal: Lock a lightweight personal/ministry CRM before schema. Thin v1 target ~Thanksgiving (Christmas cards).
-v1 in scope: contacts + meet cadence (who is due) + seasonal flags (Christmas card) + MCP-readable due list.
-v1 out of scope: mailing-list send / Resend campaigns / unsubscribe compliance (design email fields only).
-Phase 0 gates (owner answers; agent proposes options):
- - [ ] Taxonomy singular — contact vs household vs tag/list; table name ≠ `people`
- - [ ] Cadence model — interval + last_met vs explicit next_touch_on vs both
- - [ ] Christmas / seasonal — boolean flags vs list membership table
- - [ ] Nullable matrix + address/email/phone fields (mailing-list-ready without send)
- - [ ] Form surfaces — /contacts list + Sheet vs pages; dashboard “due to meet” strip?
- - [ ] RLS + viewer plan (or solo waiver); module permission key name
- - [ ] MCP tools day one — list_contacts_due, search_contacts, (optional) christmas_card_list
- - [ ] Open Questions on tracker ≤2 per entity
-Out of scope this session: migrations, UI CRUD, mailing send.
-End-of-session:
- - [ ] Tracker + schema sketch; Phase 0 signed
- - [ ] docs/decisions/<next-free>-contacts-session-0.md
- - [ ] PLAN.md Next up + Session 1 prompt
+Goal: Ship contacts v1 data entry — migration + CRUD so Christmas-card / meet data can land before Thanksgiving.
+Acceptance:
+ - [ ] Migration `ppp_contacts_v1`: households, contacts, contact_touches, contact_lists,
+       contact_list_members (+ profiles.contact_cadence_days_default); RLS helpers; GRANTs;
+       module_registry slug `contacts`; seed Christmas cards list (L1)
+ - [ ] npm run supabase:gen-types; npm run supabase:db:push (after dry)
+ - [ ] /contacts list (default Active) + Sheet create/edit for contacts + households
+ - [ ] One-tap Log Contact + detailed touch (nullable note; backdate on detailed only — T1)
+ - [ ] Household soft-delete policy resolved (H2); singles household-of-one UX clean (H1)
+ - [ ] Birthday keep or strike (C1) before migrate
+ - [ ] /settings/contacts/lists + membership (contact XOR household via validateXor)
+ - [ ] Desktop sidebar nav only (mobile tab bar stays at 5); permissions slug + audit whitelist
+ - [ ] Viewer solo waiver noted; audit_log row on example write; mobile-width pass
+ - [ ] npm run check + npm run test pass
+Out of scope: dashboard due strip, MCP tools (Session 2), mailing send.
+End-of-session: tracker Session 1 done; docs/decisions/<next-free>-contacts-session-1.md;
+  PLAN.md + AGENTS.md inventory + components.mdc updated
 ```
 
 ### Library — ISBN prefill: Google Books cross-check — from [151](docs/decisions/151-book-metadata-source-strategy.md)
@@ -227,7 +226,7 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Contacts / CRM Session 0** — lightweight people tracker (meet cadence + Christmas cards; mailing send later). Prompt above. Thin v1 by ~Thanksgiving.
+1. **Contacts / CRM Session 1** — schema + `/contacts` CRUD + Log Contact + lists ([175](docs/decisions/175-contacts-session-0.md)). Prompt above. Thin v1 by ~Thanksgiving.
 2. **Owner:** reload `ppp` MCP clients after [164](docs/decisions/164-mcp-list-project-health-filters.md)/[165](docs/decisions/165-mcp-list-week-tasks.md); smoke `list_week_tasks`, `list_project_health` (`root`/`changed_only`), `list_due_soon`.
 3. **Owner glance:** `/dashboard` Due soon under Now (desktop) + Classwork tile (mobile).
 

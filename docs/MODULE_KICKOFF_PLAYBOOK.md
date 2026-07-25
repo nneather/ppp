@@ -134,4 +134,4 @@ When opening a new `docs/POS_<Module>_Build_Tracker.md`:
 5. Add `npm run ship-<module>` when the module has schema + Edge (pattern: `ship-library`).
 6. File `docs/decisions/NNN-<module>-session-0-audit.md` before Session 1 code.
 
-**Active module (2026-07-24):** Classwork **Sessions 0–2 done** ([150](decisions/150-classwork-session-0.md)/[153](decisions/153-classwork-session-1.md)/[161](decisions/161-classwork-session-2.md)). Next kickoff: **Contacts/CRM Session 0** ([139](decisions/139-lightweight-crm-fall-priority.md)).
+**Active module (2026-07-24):** Contacts / CRM **Session 0 done** ([175](decisions/175-contacts-session-0.md)); Session 1 next. Classwork Sessions 0–2 done ([150](decisions/150-classwork-session-0.md)/[153](decisions/153-classwork-session-1.md)/[161](decisions/161-classwork-session-2.md)).
