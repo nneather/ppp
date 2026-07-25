@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — Cost of Discipleship Scribner 1995 ([168](docs/decisions/168-cost-of-discipleship-scribner-1995.md)); Nachfolge Brunnen ([167](docs/decisions/167-nachfolge-brunnen-2016.md)); Loeb LCL ([166](docs/decisions/166-loeb-classical-library.md)).
+**Last updated:** 2026-07-24 — Cost of Discipleship Fuller translator ([169](docs/decisions/169-cost-of-discipleship-fuller-translator.md)); Scribner remint ([168](docs/decisions/168-cost-of-discipleship-scribner-1995.md)); Nachfolge Brunnen ([167](docs/decisions/167-nachfolge-brunnen-2016.md)).
 
 **How to use this file — read this first:**
 
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [169 — Cost of Discipleship R. H. Fuller translator](docs/decisions/169-cost-of-discipleship-fuller-translator.md) (2026-07-24) — attach Fuller as `translator` on Scribner 1995 English; Booth reviser not stored.
 - [168 — Cost of Discipleship Scribner 1995](docs/decisions/168-cost-of-discipleship-scribner-1995.md) (2026-07-24) — remint ISBN 9780684815008; `copy_count=2`; soft-delete import twin; `original_year=1937`.
 - [167 — Nachfolge Brunnen 2016 remint](docs/decisions/167-nachfolge-brunnen-2016.md) (2026-07-24) — Bonhoeffer *Nachfolge* → Brunnen Verlag / Gießen / 2016 / ISBN 9783765509483; language german; original_year 1937.
 - [166 — Loeb Classical Library series + remint](docs/decisions/166-loeb-classical-library.md) (2026-07-24) — `LCL` omit-from-citation; remint Confessions I–II, Teacher, Boethius (were mislabeled New City/Digireads).
 - [165 — MCP list_week_tasks](docs/decisions/165-mcp-list-week-tasks.md) (2026-07-24) — coming-week MYN horizon (all zones; `days` 1–31 default 7) for Monday-protocol week-ahead.
-- [164 — MCP list_project_health root + changed_only](docs/decisions/164-mcp-list-project-health-filters.md) (2026-07-24) — optional subtree + WoW health delta for Monday-protocol week-ahead.
 
 ---
 
