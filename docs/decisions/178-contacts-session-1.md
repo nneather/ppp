@@ -35,8 +35,7 @@
 
 ## Open questions surfaced
 
-- C2 — retired members vs Christmas card list filtering (Session 2 / first card-list pass).
-- Owner: confirm audit_log row + mobile-width after first UI write.
+- Owner smoke (Sessions 1–2) parked in [POS_Contacts_Build_Tracker.md](../POS_Contacts_Build_Tracker.md) › Owner smoke — do when time; includes audit_log + mobile-width from Session 1.
 - Weekly R2 backup dump does not yet include contacts tables — ops follow-up.
 
 ## Surprises (read these before the next session)

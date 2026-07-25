@@ -29,7 +29,8 @@
 
 ## Open questions surfaced
 
-- None blocking. Mailing-list send remains backlog.
+- Owner smoke checklist parked in [POS_Contacts_Build_Tracker.md](../POS_Contacts_Build_Tracker.md) › Owner smoke (Sessions 1–2) + PLAN session prompt — UI/MCP client verification when Parker has time.
+- None blocking product. Mailing-list send remains backlog.
 - Weekly R2 backup dump still does not include contacts tables (ops follow-up from [178](178-contacts-session-1.md)).
 
 ## Surprises (read these before the next session)

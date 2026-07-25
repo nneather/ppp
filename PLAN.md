@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-24 — Contacts Session 2 ([180](docs/decisions/180-contacts-session-2.md)): dashboard due-to-meet + MCP `list_contacts_due` / `search_contacts`.
+**Last updated:** 2026-07-24 — Contacts owner smoke checklist parked (Sessions 1–2; [tracker](docs/POS_Contacts_Build_Tracker.md)).
 
 **How to use this file — read this first:**
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard. Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 ([153](docs/decisions/153-classwork-session-1.md)/[161](docs/decisions/161-classwork-session-2.md)) — CRUD + dashboard Due soon (D1=B) + MCP tools. Backlog: bulk syllabus entry if needed late Aug. |
-| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–2 ([178](docs/decisions/178-contacts-session-1.md)/[180](docs/decisions/180-contacts-session-2.md)) — CRUD + dashboard due + MCP. Mailing send later; **≠ library `people`.** |
+| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–2 ([178](docs/decisions/178-contacts-session-1.md)/[180](docs/decisions/180-contacts-session-2.md)) — CRUD + dashboard due + MCP. **Open:** owner smoke checklist (tracker). Mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork ([161](docs/decisions/161-classwork-session-2.md)) + health filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)) + contacts ([180](docs/decisions/180-contacts-session-2.md)). |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -96,6 +96,23 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ## Session prompts (copy-paste) — LIVE only
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
+
+### Contacts / CRM — owner smoke (Sessions 1–2) — from [178](docs/decisions/178-contacts-session-1.md) / [180](docs/decisions/180-contacts-session-2.md)
+
+Checklist lives in the tracker (tick there). Copy-paste when ready:
+
+```
+Session: contacts — owner smoke (Sessions 1–2)
+Tracker: docs/POS_Contacts_Build_Tracker.md › Owner smoke — Sessions 1–2
+Read: docs/decisions/178-contacts-session-1.md, docs/decisions/180-contacts-session-2.md
+Goal: Owner UI + MCP client verification deferred from build sessions (agent check/test/mcp:smoke already green).
+Do:
+ - [ ] Work the checklist in docs/POS_Contacts_Build_Tracker.md › Owner smoke (Session 1 CRUD/Log/lists/audit/mobile + Session 2 dashboard due + MCP)
+ - [ ] Seed ≥1 due contact so dashboard/MCP aren’t empty
+ - [ ] Reload ppp MCP client; confirm list_contacts_due + search_contacts (not stub)
+ - [ ] Note date under “Last smoked” on the tracker; tick PLAN.md Do-now when done
+Out of scope: mailing-list send; viewer write.
+```
 
 ### Library — ISBN prefill: Google Books cross-check — from [151](docs/decisions/151-book-metadata-source-strategy.md)
 
@@ -199,23 +216,22 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Owner:** reload `ppp` MCP clients after [180](docs/decisions/180-contacts-session-2.md)/[164](docs/decisions/164-mcp-list-project-health-filters.md)/[165](docs/decisions/165-mcp-list-week-tasks.md); smoke `list_contacts_due`, `search_contacts`, `list_week_tasks`.
-2. **Owner glance:** `/dashboard` Due soon + Due to meet under Now (desktop) + Classwork/Contacts tiles (mobile).
-3. **Contacts data entry** — seed real people before Thanksgiving card pass.
+1. **Owner — Contacts smoke (Sessions 1–2)** — checklist in [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) › Owner smoke; prompt above. Includes CRUD/Log/audit/mobile + dashboard due + MCP reload.
+2. **Contacts data entry** — seed real people before Thanksgiving card pass (also unblocks due-strip smoke).
 
 ### Next / parallel
-4. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
-5. **Invoicing — first real-client send** (Sarah back in office). If the outgoing PDF is unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run the diagnostics prompt above ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) before further Edge MIME change.
-6. **Security hardening (051 R2)** — open medium findings; prompt above.
-7. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
-8. **Classwork backlog** — bulk/quick-add if syllabus entry hurts; prefer Canvas one-shot import first ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
+3. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
+4. **Invoicing — first real-client send** (Sarah back in office). If the outgoing PDF is unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run the diagnostics prompt above ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) before further Edge MIME change.
+5. **Security hardening (051 R2)** — open medium findings; prompt above.
+6. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
+7. **Classwork backlog** — bulk/quick-add if syllabus entry hurts; prefer Canvas one-shot import first ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
 
 ### Wait for Madison / August
-9. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.
-10. **Needs the shelf** — 50 shelf-bound needs_review ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)); plus Research-deck phone smoke at ~673 proposals + the 45 no-AI-signal books ([068](docs/decisions/068-library-review-ai-research-pass.md)). Prompt above.
-11. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
-12. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
-13. **Classwork — Canvas one-shot import** ([173](docs/decisions/173-canvas-classwork-import-deferred.md)) — late August after first Fall syllabi/bibliographies; mint semester token (≈1 mo life); preview→confirm into `courses`/`assignments`; expect week-1–3 re-pull for drops/adds and professor due-date reloads. Not live sync.
+8. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.
+9. **Needs the shelf** — 50 shelf-bound needs_review ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)); plus Research-deck phone smoke at ~673 proposals + the 45 no-AI-signal books ([068](docs/decisions/068-library-review-ai-research-pass.md)). Prompt above.
+10. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
+11. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
+12. **Classwork — Canvas one-shot import** ([173](docs/decisions/173-canvas-classwork-import-deferred.md)) — late August after first Fall syllabi/bibliographies; mint semester token (≈1 mo life); preview→confirm into `courses`/`assignments`; expect week-1–3 re-pull for drops/adds and professor due-date reloads. Not live sync.
 
 ### Deferred / someday (pointer only — detail in the cited decision doc)
 - **PWA branded icons** ([057](docs/decisions/057-pwa-consistency.md)) — replace placeholder squares with a monogram set.

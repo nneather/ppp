@@ -1,6 +1,6 @@
 # Personal Operations System — Contacts / CRM Module Build Tracker
 
-_Last updated: 2026-07-24 | Module: Contacts / CRM (6th) | Session 2 shipped_
+_Last updated: 2026-07-24 | Module: Contacts / CRM (6th) | Session 2 shipped; owner smoke checklist parked_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [139](decisions/139-lightweight-crm-fall-priority.md), [175](decisions/175-contacts-session-0.md).
 
@@ -215,3 +215,36 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | — | backlog | Merge UI for marrying contacts into one household (beyond assigning `household_id`). |
 
 **Timeline:** Sessions 1–2 before Thanksgiving so Christmas card list + due meets are live; mailing send stays deferred.
+
+---
+
+## Owner smoke — Sessions 1–2 (do when you have time)
+
+Parked from [178](decisions/178-contacts-session-1.md) + [180](decisions/180-contacts-session-2.md). Agent gates (`npm run check` / `test` / `mcp:smoke`) already green; this is **owner UI + MCP client** verification. Tick in place; when done, note the date here and in PLAN.md › Repo gate / Recent decisions as needed.
+
+**Prereqs:** logged in as owner on prod (or preview); phone or ~390px viewport for mobile items; reload Cursor/`ppp` MCP after [180] so `search_contacts` appears.
+
+### Session 1 — CRUD + Log Contact + lists ([178](decisions/178-contacts-session-1.md))
+
+- [ ] **Desktop nav** — Contacts in sidebar; opens `/contacts`
+- [ ] **Create contact** — Sheet save; appears under Active filter; search by name works
+- [ ] **Household** — create household (or contact Sheet mailing → household-of-one); assign contact; soft-delete blocked while members live
+- [ ] **One-tap Log Contact** — stamps Chicago today, null note; list shows last touch
+- [ ] **Detailed Log Contact** — note + optional backdate; household **Log all** fans out to live members
+- [ ] **`/settings/contacts/lists`** — Christmas cards list present; add a household member; remove member
+- [ ] **Audit log** — after a write, `/settings/audit-log?module=contacts` shows a row (trigger-driven)
+- [ ] **Mobile width (~390px)** — `/contacts` list + Sheets usable; no tab-bar collision on sticky actions
+
+### Session 2 — dashboard due + MCP ([180](decisions/180-contacts-session-2.md))
+
+- [ ] **Seed at least one due contact** — active, `no_reminders` off, never touched (or last touch older than cadence) so dashboard/MCP aren’t empty
+- [ ] **Desktop `/dashboard`** — **Due to meet** card under Now (below Due soon); links to `/contacts`; overdue / “Never logged” labels sensible
+- [ ] **Mobile `/dashboard`** — Contacts glance tile (count + never-logged hint); opens `/contacts`
+- [ ] **After Log Contact** — due strip refreshes (`depends('app:contacts:list')`); contact drops off when still inside cadence
+- [ ] **C2 (optional)** — put a household with only retired members on Christmas cards; settings roster hides it and shows “N retired-only … hidden”; un-retire restores without re-add
+- [ ] **MCP client reload** — restart/`Reload` `ppp` MCP; tools include `list_contacts_due` + `search_contacts` (not stub)
+- [ ] **MCP smoke (manual)** — `list_contacts_due` returns the seeded due row; `search_contacts` with a known name returns card fields (email/phone/household/address when set)
+
+**Out of scope for this smoke:** mailing-list send; viewer write path (solo-waivered).
+
+_Last smoked: — (owner)_
