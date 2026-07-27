@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-27 — MCP Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)).
+**Last updated:** 2026-07-27 — Invoice PDF received; outgoing diagnostics closed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)).
 
 **How to use this file — read this first:**
 
@@ -33,7 +33,7 @@ Nearest hard dates:
 
 | Module | Tracker | State |
 |---|---|---|
-| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. **Open:** outgoing-PDF diagnostics (prompt below / [083](docs/decisions/083-invoice-pdf-email-diagnostics.md)); first real-client send pending Sarah. |
+| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. Outgoing PDF + first real-client send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). **Open:** key rotation (#4 on tracker, Sep 2026). |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅ (essays/Articles, PWA resume, megacomponent core; OCR deferred). **Open:** August shelf QA Track B + "Needs the shelf" (50) — Madison; ISBN GB cross-check ([151](docs/decisions/151-book-metadata-source-strategy.md)). Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [185 — Invoice PDF received](docs/decisions/185-invoice-pdf-received-resolved.md) (2026-07-27) — Outgoing PDF / first real-client send confirmed; diagnostics closed.
 - [184 — MCP Monday-protocol finetune](docs/decisions/184-mcp-monday-protocol-finetune.md) (2026-07-27) — Week split + deferred_until + task↔assignment + contacts_with_cadence.
 - [183 — Contacts list mass-add](docs/decisions/183-contacts-list-mass-add.md) (2026-07-25) — Lists multi-select checklist + household/contact Sheet list toggles.
 - [182 — Contacts Session 3 Lists + cadence + touch kinds](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md) (2026-07-25) — Lists tab; months/years cadence; meet vs card; card bulk log; settings lists redirect.
 - [181 — Contacts smoke product locks](docs/decisions/181-contacts-smoke-product-locks.md) (2026-07-25) — Product locks that Session 3 built.
-- [180 — Contacts Session 2 dashboard due + MCP](docs/decisions/180-contacts-session-2.md) (2026-07-24) — Due to meet strip; `list_contacts_due` + `search_contacts`; C2 card-list filter.
 
 ---
 
@@ -135,20 +135,6 @@ End-of-session: docs/decisions/<next-free>-*.md; PLAN.md refreshed; AGENTS.md in
   updated for the new helper
 ```
 
-### Invoicing — outgoing PDF diagnostics (owner; conditional — after [078](docs/decisions/078-invoice-email-pdf-mime.md) / [083](docs/decisions/083-invoice-pdf-email-diagnostics.md))
-
-```
-Goal: Diagnose same-org asymmetric invoice PDF (one recipient opens, one does not).
-Read: docs/invoice-pdf-email-diagnostics.md, docs/decisions/078-invoice-email-pdf-mime.md,
-  docs/decisions/083-invoice-pdf-email-diagnostics.md
-Do NOT change send-invoice MIME until the minimum useful set is collected:
- - [ ] Resend email id + attachment filename / content_type / size screenshot
- - [ ] Failing user symptom + client (web/iOS/Android) + screenshot
- - [ ] Show original from failing mailbox: PDF part present or not
- - [ ] Manual Gmail attach A/B (download from invoice page → email both people) vs app Resend
-Bring those four into chat; then decide MIME tweak vs org/client fix.
-```
-
 ### Library Wave 2 — August shelf QA Track B (owner + agent; Madison)
 
 Track A (Covenant expected strings) ✅ [102](docs/decisions/102-august-qa-covenant-fixtures.md). **Track B = physical books only.**
@@ -216,10 +202,10 @@ Acceptance:
 
 ### Next / parallel
 4. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
-5. **Invoicing — first real-client send** (Sarah back in office). If the outgoing PDF is unopenable for one same-org recipient after [078](docs/decisions/078-invoice-email-pdf-mime.md), run the diagnostics prompt above ([083](docs/decisions/083-invoice-pdf-email-diagnostics.md)) before further Edge MIME change.
-6. **Security hardening (051 R2)** — open medium findings; prompt above.
-7. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
-8. **Classwork backlog** — bulk/quick-add if syllabus entry hurts; prefer Canvas one-shot import first ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
+5. **Security hardening (051 R2)** — open medium findings; prompt above.
+6. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
+7. **Classwork backlog** — bulk/quick-add if syllabus entry hurts; prefer Canvas one-shot import first ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
+8. **Invoicing — key rotation** (tracker #4, Sep 2026) — JWT + Resend when convenient; runbook in [Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md#key-rotation-runbook).
 
 ### Wait for Madison / August
 9. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.
