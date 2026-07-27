@@ -24,6 +24,7 @@ function node(
 		end_date: null,
 		sort_order: 0,
 		color: null,
+		deferred_until: null,
 		depth: 0,
 		children: [],
 		...overrides
@@ -220,5 +221,26 @@ describe('countMissingWeekCheckIns', () => {
 			c2: { health_status: 'watch', week_of: '2026-05-31', previous: null }
 		};
 		expect(countMissingWeekCheckIns([domain], latest, '2026-06-07')).toBe(1);
+	});
+
+	it('skips projects deferred past today', () => {
+		const domain = node({
+			id: 'd',
+			name: 'Education',
+			parent_id: null,
+			depth: 0,
+			lifecycle_status: 'active',
+			deferred_until: '2026-08-09'
+		});
+		const child = node({
+			id: 'c1',
+			name: 'Live',
+			parent_id: 'd',
+			depth: 1,
+			lifecycle_status: 'active'
+		});
+		domain.children = [child];
+		const latest: Record<string, LatestHealth> = {};
+		expect(countMissingWeekCheckIns([domain], latest, '2026-07-26', '2026-07-27')).toBe(1);
 	});
 });

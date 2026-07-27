@@ -113,7 +113,7 @@ assignments
 
 | Tool | Contract |
 |---|---|
-| `list_due_soon` | Replaces stub in `scripts/ppp-mcp/` — **same name**. Param `horizon_days` (default 14). Returns open (`status != 'done'`) assignments: title, kind, status, due_date, days_until (negative = overdue), course name + code. Overdue included. ✅ Session 2 |
+| `list_due_soon` | Replaces stub in `scripts/ppp-mcp/` — **same name**. Param `horizon_days` (default 14). Returns open (`status != 'done'`) assignments: title, kind, status, due_date, days_until (negative = overdue), course name + code, **`linked_task_ids`** (MYN tasks with `assignment_id` — [184](decisions/184-mcp-monday-protocol-finetune.md)). Overdue included. ✅ Session 2 / finetune 184 |
 | `get_assignments_for_course` | Resolve course by name/code (fuzzy, like `src/lib/mcp/bible-book.ts` resolver). Returns full assignment list: status, due_date, kind, parent grouping. ✅ Session 2 |
 | (join path) | `courses.project_id` lets a weekly review join `list_project_health` → upcoming/behind assignments for a course at `watch`/`serious`. No new tool needed — just keep `project_id` in the course payload. |
 

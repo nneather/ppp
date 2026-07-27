@@ -1587,6 +1587,7 @@ export type Database = {
       }
       project_tasks: {
         Row: {
+          assignment_id: string | null
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -1604,6 +1605,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assignment_id?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -1621,6 +1623,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assignment_id?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -1638,6 +1641,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_tasks_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_tasks_created_by_fkey"
             columns: ["created_by"]
@@ -1729,6 +1739,7 @@ export type Database = {
           color: string | null
           created_at: string
           created_by: string | null
+          deferred_until: string | null
           deleted_at: string | null
           description: string | null
           end_date: string | null
@@ -1744,6 +1755,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           created_by?: string | null
+          deferred_until?: string | null
           deleted_at?: string | null
           description?: string | null
           end_date?: string | null
@@ -1759,6 +1771,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           created_by?: string | null
+          deferred_until?: string | null
           deleted_at?: string | null
           description?: string | null
           end_date?: string | null

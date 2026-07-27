@@ -48,7 +48,7 @@ server.registerTool(
 	'list_week_tasks',
 	{
 		description:
-			"Coming week's MYN task horizon (all zones incl. Over-the-Horizon). Non-done tasks whose start_date falls in [today .. today+days] America/Chicago. Not just Critical/Opportunity Now — use list_now_tasks for that.",
+			"Week task picture: starting_this_week (start_date in [today..today+days], all zones) + carried_over (start_date < today, Critical/Opportunity only — OTH excluded). Excludes done/archived parents. Prefer this over unioning with list_now_tasks.",
 		inputSchema: {
 			days: z
 				.number()
@@ -69,7 +69,7 @@ server.registerTool(
 	'list_due_soon',
 	{
 		description:
-			'Open classwork assignments due within horizon_days (default 14). Overdue included first. MYN tasks have no due_date.',
+			'Open classwork assignments due within horizon_days (default 14). Overdue included first. Includes linked_task_ids when a MYN task points at the assignment (dedupe with list_now_tasks / list_week_tasks).',
 		inputSchema: {
 			horizon_days: z
 				.number()
@@ -107,7 +107,7 @@ server.registerTool(
 	'list_contacts_due',
 	{
 		description:
-			'Active contacts due for a meet (no_reminders=false; never touched or last touch older than effective cadence). Sorted never-touched first, then most overdue.',
+			'Active contacts due for a meet (no_reminders=false; never touched or last touch older than effective cadence). Includes contacts_with_cadence (eligible pool) so count=0 is unambiguous. Sorted never-touched first, then most overdue.',
 		inputSchema: {
 			limit: z
 				.number()
@@ -200,7 +200,7 @@ server.registerTool(
 	'list_project_health',
 	{
 		description:
-			'Non-done/archived projects with latest weekly check-in health (and previous when present). Optional root (id or name) limits to that subtree; changed_only keeps week-over-week health changes only.',
+			'Non-done/archived projects with latest weekly check-in health (and previous when present). Includes deferred_until + is_deferred (parked when deferred_until > today — suppress from degraded reads; health_status unchanged). Optional root (id or name) limits to that subtree; changed_only keeps week-over-week health changes only.',
 		inputSchema: {
 			root: z
 				.string()

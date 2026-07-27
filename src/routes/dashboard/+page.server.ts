@@ -158,7 +158,12 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 	if (contactsDueRes.error) console.error(contactsDueRes.error);
 
 	const latestHealth = Object.fromEntries(latestHealthMap) as Record<string, LatestHealth>;
-	const missingCheckInCount = countMissingWeekCheckIns(projectTree, latestHealth, weekOf);
+	const missingCheckInCount = countMissingWeekCheckIns(
+		projectTree,
+		latestHealth,
+		weekOf,
+		today
+	);
 
 	const colored = attachTaskDomainColors(
 		{

@@ -1,6 +1,10 @@
 /**
  * Pure helpers for the week-horizon task window (MCP `list_week_tasks`).
  * Window is inclusive Chicago civil days: [todayYmd .. todayYmd + days].
+ *
+ * Response splits:
+ *   - starting_this_week: start_date in [today .. today+days], all MYN zones
+ *   - carried_over: start_date < today, Critical + Opportunity only (OTH capped out)
  */
 
 import {
@@ -11,6 +15,18 @@ import {
 export const WEEK_TASK_DAYS_DEFAULT = 7;
 export const WEEK_TASK_DAYS_MIN = 1;
 export const WEEK_TASK_DAYS_MAX = 31;
+
+/** Zones eligible for carried_over (excludes Over-the-Horizon backlog). */
+export const CARRIED_OVER_PRIORITIES: readonly TaskPriority[] = [
+	'critical_now',
+	'opportunity_now'
+];
+
+export function isCarriedOverPriority(priority: TaskPriority): boolean {
+	return (
+		priority === 'critical_now' || priority === 'opportunity_now'
+	);
+}
 
 /** Clamp `days` to 1–31 (default 7). Truncates non-integers toward zero. */
 export function clampWeekTaskDays(days: number | undefined): number {

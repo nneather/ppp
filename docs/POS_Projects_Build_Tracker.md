@@ -224,3 +224,4 @@ _Reworked mid-session: tasks follow **MYN** (Master Your Now), not lean checklis
 - Hierarchy is one self-referential table — domains are parentless projects; add a fifth anytime. Cleanest application of 022 (no enum + tree duplication).
 - The earlier `research_projects` idea is absorbed: a research project is a project under Education/Ministry; its `project_links` are the dossier seed.
 - **Viewer access:** owner-only **by design** (not deferred debt); revisit only if a collaborator is added. SELECT is permission-gated — granting read later is a one-row `user_permissions` change, no migration.
+- **2026-07-27 MCP finetune ([184](decisions/184-mcp-monday-protocol-finetune.md)):** `projects.deferred_until` (Sheet + check-in skip + health payload); `project_tasks.assignment_id` → classwork (MCP dedupe; no task-sheet UI yet); `list_week_tasks` split starting/carried_over.

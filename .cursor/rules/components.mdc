@@ -54,7 +54,7 @@ If you reach for one of these capabilities, use the existing component.
 | Dashboard contacts due-to-meet panel (cadence overdue / never logged; desktop Now column) | [src/lib/components/dashboard-contacts-due.svelte](mdc:src/lib/components/dashboard-contacts-due.svelte) |
 | Dashboard invoicing tile "Generate last week's invoice" footer (weekly clients with unbilled prior week) | [src/lib/components/dashboard-invoicing-tile-footer.svelte](mdc:src/lib/components/dashboard-invoicing-tile-footer.svelte) |
 | Inline project tree + weekly 5-segment health picker (carry-forward seed uses `untrack` in `$effect`; optional URL filters + latest-health trend badge; domain color dot + child left rail) | [src/lib/components/project-tree.svelte](mdc:src/lib/components/project-tree.svelte) |
-| Project metadata create/edit Sheet (~6 fields; cycle-safe parent picker) | [src/lib/components/project-form-sheet.svelte](mdc:src/lib/components/project-form-sheet.svelte) |
+| Project metadata create/edit Sheet (~6 fields + Deferred until; cycle-safe parent picker) | [src/lib/components/project-form-sheet.svelte](mdc:src/lib/components/project-form-sheet.svelte) |
 | Domain color swatch dialog (`?/setProjectColor`) for root projects | [src/lib/components/project-color-picker.svelte](mdc:src/lib/components/project-color-picker.svelte) |
 | Epic PR health shape icon (circle / half-circle / inverted triangle / diamonds) | [src/lib/components/health-status-icon.svelte](mdc:src/lib/components/health-status-icon.svelte) |
 | Week-over-week trend triangles (green up / red down) | [src/lib/components/health-trend-arrow.svelte](mdc:src/lib/components/health-trend-arrow.svelte) |

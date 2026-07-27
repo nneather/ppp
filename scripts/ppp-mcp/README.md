@@ -20,16 +20,16 @@ The server loads `.env` then `.env.local` from the repo root. Prefer **not** put
 
 | Tool | Notes |
 |---|---|
-| `list_now_tasks` | Critical + Opportunity Now |
-| `list_week_tasks` | Coming-week horizon: all MYN zones; `start_date` in `[today .. today+days]` Chicago (default `days=7`) |
-| `list_due_soon` | Open classwork due within `horizon_days` (default 14; overdue included) |
+| `list_now_tasks` | Critical + Opportunity Now; includes `assignment_id` when linked |
+| `list_week_tasks` | Split: `starting_this_week` (`start_date` in `[today .. today+days]`, all zones) + `carried_over` (`start_date < today`, Critical/Opportunity only) |
+| `list_due_soon` | Open classwork due within `horizon_days` (default 14; overdue included); `linked_task_ids` for MYN links |
 | `get_assignments_for_course` | All assignments for a course (fuzzy name/code resolve) |
-| `list_contacts_due` | Active contacts due for a meet (`limit` default 25) |
+| `list_contacts_due` | Active contacts due for a meet (`limit` default 25); `contacts_with_cadence` = eligible pool |
 | `search_contacts` | Fuzzy name / household / email / phone search |
 | `search_library` | Keyword search |
 | `get_book_citation` | Turabian footnote + bibliography |
 | `list_upcoming_sermons` | `preached_on >= today` |
-| `list_project_health` | Non-done/archived + latest health; optional `root` (id/name subtree) + `changed_only` (WoW health delta) |
+| `list_project_health` | Non-done/archived + latest health; `deferred_until` / `is_deferred`; optional `root` + `changed_only` |
 | `list_commentaries_for_bible_book` | `/sermons/by-book` commentaries |
 | `list_sermons_for_bible_book` | Sermons touching a Bible book |
 

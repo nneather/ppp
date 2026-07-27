@@ -53,6 +53,11 @@ export type ProjectRow = {
 	sort_order: number;
 	/** Domain color palette key (e.g. ocean); typically set on roots. */
 	color: string | null;
+	/**
+	 * Intentional park until this Chicago civil date (exclusive).
+	 * When set and strictly after today, suppress degraded/check-in nag; health unchanged.
+	 */
+	deferred_until: string | null;
 };
 
 export type ProjectNode = ProjectRow & {
@@ -147,6 +152,8 @@ export type ProjectTaskRow = {
 	notes: string | null;
 	series_id: string | null;
 	series_occurrence: number | null;
+	/** Optional classwork assignment this task tracks (MCP dedupe). */
+	assignment_id: string | null;
 };
 
 export type ProjectTaskView = ProjectTaskRow & {

@@ -56,6 +56,7 @@
 	let lifecycleStatus = $state<LifecycleStatus>('active');
 	let startDate = $state('');
 	let endDate = $state('');
+	let deferredUntil = $state('');
 	let description = $state('');
 
 	const excludedParentIds = $derived.by(() => {
@@ -105,6 +106,7 @@
 			lifecycleStatus = project.lifecycle_status;
 			startDate = project.start_date ?? '';
 			endDate = project.end_date ?? '';
+			deferredUntil = project.deferred_until ?? '';
 			description = project.description ?? '';
 		} else {
 			name = '';
@@ -112,6 +114,7 @@
 			lifecycleStatus = 'active';
 			startDate = '';
 			endDate = '';
+			deferredUntil = '';
 			description = '';
 		}
 	});
@@ -149,7 +152,8 @@
 		<Sheet.Header class="border-b border-border px-4 pt-2 pb-4">
 			<Sheet.Title>{title}</Sheet.Title>
 			<Sheet.Description class="text-muted-foreground">
-				Name, parent, lifecycle, and dates. Weekly health is edited inline on the tree.
+				Name, parent, lifecycle, and dates. Park with Deferred until to silence check-in
+				nags. Weekly health is edited inline on the tree.
 			</Sheet.Description>
 		</Sheet.Header>
 
@@ -226,6 +230,20 @@
 						<Label for="proj-end">End date</Label>
 						<Input id="proj-end" name="end_date" type="date" bind:value={endDate} />
 					</div>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="proj-deferred">Deferred until</Label>
+					<Input
+						id="proj-deferred"
+						name="deferred_until"
+						type="date"
+						bind:value={deferredUntil}
+					/>
+					<p class="text-muted-foreground text-xs">
+						While this date is in the future, skip check-in nags and treat the project as
+						intentionally parked (health rating kept). Clear to resume.
+					</p>
 				</div>
 
 				<div class="space-y-2">

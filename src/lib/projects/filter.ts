@@ -10,6 +10,7 @@ import {
 	type ProjectNode,
 	type TrendDirection
 } from '$lib/types/projects';
+import { isProjectDeferred } from '$lib/projects/deferred';
 
 export const ATTENTION_HEALTH = new Set<HealthStatus>(['watch', 'serious', 'critical']);
 
@@ -205,21 +206,28 @@ export function countActiveProjects(tree: ProjectNode[]): number {
 /**
  * Active + paused projects (any depth) whose latest health `week_of` is not
  * the given Chicago Sunday — used for the dashboard check-in nudge.
+ * Skips projects intentionally parked (`deferred_until` > today).
  */
 export function countMissingWeekCheckIns(
 	tree: ProjectNode[],
 	latestHealth: Map<string, LatestHealth> | Record<string, LatestHealth>,
-	weekOf: string
+	weekOf: string,
+	todayYmd?: string
 ): number {
 	const get = (id: string): LatestHealth | undefined =>
 		latestHealth instanceof Map ? latestHealth.get(id) : latestHealth[id];
+	const today = todayYmd ?? weekOf;
 
 	let missing = 0;
 	function walk(nodes: ProjectNode[]) {
 		for (const n of nodes) {
 			if (n.lifecycle_status === 'active' || n.lifecycle_status === 'paused') {
-				const h = get(n.id);
-				if (!h || h.week_of !== weekOf) missing++;
+				if (isProjectDeferred(n.deferred_until, today)) {
+					// Intentionally parked — do not nag for a health rating.
+				} else {
+					const h = get(n.id);
+					if (!h || h.week_of !== weekOf) missing++;
+				}
 			}
 			if (n.children.length) walk(n.children);
 		}

@@ -24,8 +24,10 @@ import {
 	loadLatestHealth,
 	loadProjectRows
 } from '../../src/lib/projects/server/loaders.ts';
+import { isProjectDeferred } from '../../src/lib/projects/deferred.ts';
 import {
 	loadDashboardNowTasks,
+	loadOpenTaskIdsByAssignmentId,
 	loadWeekTasks
 } from '../../src/lib/projects/server/task-loaders.ts';
 import { loadByBookStats, loadSermons, loadUpcomingSermons } from '../../src/lib/sermons/server/loaders.ts';
@@ -36,7 +38,7 @@ import {
 	projectSuggestions,
 	resolveProject
 } from '../../src/lib/mcp/project.ts';
-import { TASK_PRIORITY_LABELS } from '../../src/lib/types/projects.ts';
+import { TASK_PRIORITY_LABELS, type ProjectTaskView } from '../../src/lib/types/projects.ts';
 import type { Database } from '../../src/lib/types/database.ts';
 
 type Sb = SupabaseClient<Database>;
@@ -44,6 +46,20 @@ type Sb = SupabaseClient<Database>;
 function jsonText(data: unknown): { content: { type: 'text'; text: string }[] } {
 	return {
 		content: [{ type: 'text', text: JSON.stringify(data, null, 2) }]
+	};
+}
+
+function mapMcpTask(t: ProjectTaskView) {
+	return {
+		id: t.id,
+		title: t.title,
+		project_id: t.project_id,
+		project_name: t.project_name,
+		priority: t.priority,
+		priority_label: TASK_PRIORITY_LABELS[t.priority],
+		start_date: t.start_date,
+		notes: t.notes,
+		assignment_id: t.assignment_id
 	};
 }
 
@@ -72,22 +88,14 @@ export async function listNowTasks(supabase: Sb) {
 			priority: z.priority,
 			label: z.label,
 			count: z.count,
-			tasks: z.tasks.map((t) => ({
-				id: t.id,
-				title: t.title,
-				project_id: t.project_id,
-				project_name: t.project_name,
-				priority: t.priority,
-				start_date: t.start_date,
-				notes: t.notes
-			}))
+			tasks: z.tasks.map(mapMcpTask)
 		}))
 	});
 }
 
 /**
- * Coming-week task horizon (all MYN zones). Distinct from list_now_tasks
- * (Critical + Opportunity Now only).
+ * Week-horizon task picture (all MYN zones for starts; Critical+Opportunity for carry-over).
+ * Distinct from list_now_tasks (Critical + Opportunity Now only, no upcoming window).
  */
 export async function listWeekTasks(supabase: Sb, args: { days?: number } = {}) {
 	const result = await loadWeekTasks(supabase, { days: args.days });
@@ -96,17 +104,11 @@ export async function listWeekTasks(supabase: Sb, args: { days?: number } = {}) 
 		windowDays: result.windowDays,
 		windowEndYmd: result.windowEndYmd,
 		count: result.count,
+		starting_count: result.starting_this_week.length,
+		carried_over_count: result.carried_over.length,
 		by_project: result.by_project,
-		tasks: result.tasks.map((t) => ({
-			id: t.id,
-			title: t.title,
-			project_id: t.project_id,
-			project_name: t.project_name,
-			priority: t.priority,
-			priority_label: TASK_PRIORITY_LABELS[t.priority],
-			start_date: t.start_date,
-			notes: t.notes
-		}))
+		starting_this_week: result.starting_this_week.map(mapMcpTask),
+		carried_over: result.carried_over.map(mapMcpTask)
 	});
 }
 
@@ -120,6 +122,10 @@ export async function listDueSoon(
 		todayYmd,
 		horizonDays
 	});
+	const linkedByAssignment = await loadOpenTaskIdsByAssignmentId(
+		supabase,
+		assignments.map((a) => a.id)
+	);
 	return jsonText({
 		todayYmd,
 		horizon_days: horizonDays,
@@ -136,7 +142,8 @@ export async function listDueSoon(
 			course_id: a.course_id,
 			course_name: a.course_name,
 			course_code: a.course_code,
-			parent_id: a.parent_id
+			parent_id: a.parent_id,
+			linked_task_ids: linkedByAssignment.get(a.id) ?? []
 		}))
 	});
 }
@@ -221,7 +228,7 @@ export async function listContactsDue(
 	const todayYmd = ymdInChicago();
 	const limit = Math.min(Math.max(args.limit ?? 25, 1), 100);
 	const profileCadenceDefault = await loadOwnerCadenceDefault(supabase);
-	const { contacts, error } = await loadContactsDue(supabase, {
+	const { contacts, contacts_with_cadence, error } = await loadContactsDue(supabase, {
 		todayYmd,
 		profileCadenceDefault,
 		limit
@@ -231,6 +238,7 @@ export async function listContactsDue(
 		limit,
 		error,
 		count: contacts.length,
+		contacts_with_cadence,
 		contacts: contacts.map((c) => ({
 			id: c.id,
 			display_name: c.display_name,
@@ -348,6 +356,7 @@ export async function listProjectHealth(
 	supabase: Sb,
 	args: { root?: string; changed_only?: boolean } = {}
 ) {
+	const todayYmd = ymdInChicago();
 	const [projects, healthMap] = await Promise.all([
 		loadProjectRows(supabase),
 		loadLatestHealth(supabase)
@@ -370,6 +379,7 @@ export async function listProjectHealth(
 		.filter((p) => (allowIds ? allowIds.has(p.id) : true))
 		.map((p) => {
 			const h = healthMap.get(p.id);
+			const deferred = isProjectDeferred(p.deferred_until, todayYmd);
 			return {
 				id: p.id,
 				name: p.name,
@@ -377,7 +387,9 @@ export async function listProjectHealth(
 				lifecycle_status: p.lifecycle_status,
 				health_status: h?.health_status ?? null,
 				health_week_of: h?.week_of ?? null,
-				previous_health: h?.previous ?? null
+				previous_health: h?.previous ?? null,
+				deferred_until: p.deferred_until,
+				is_deferred: deferred
 			};
 		});
 
@@ -385,7 +397,7 @@ export async function listProjectHealth(
 		rows = rows.filter((r) => healthChangedThisWeek(r.health_status, r.previous_health));
 	}
 
-	return jsonText({ count: rows.length, projects: rows });
+	return jsonText({ todayYmd, count: rows.length, projects: rows });
 }
 
 export async function listCommentariesForBibleBook(

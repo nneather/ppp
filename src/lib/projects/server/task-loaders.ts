@@ -4,6 +4,7 @@ import { truncateTasksToSoftCap } from '$lib/projects/task-views';
 import {
 	clampWeekTaskDays,
 	compareWeekHorizonTasks,
+	isCarriedOverPriority,
 	summarizeWeekTasksByProject,
 	type WeekTaskProjectGroup
 } from '$lib/projects/week-tasks';
@@ -22,7 +23,7 @@ import {
 } from '$lib/types/projects';
 
 const TASK_COLUMNS =
-	'id, project_id, title, priority, start_date, completed_at, sort_order, notes, series_id, series_occurrence, created_at';
+	'id, project_id, title, priority, start_date, completed_at, sort_order, notes, series_id, series_occurrence, assignment_id, created_at';
 
 function isTaskPriority(v: string): v is TaskPriority {
 	return (TASK_PRIORITIES as readonly string[]).includes(v);
@@ -46,6 +47,7 @@ function mapTaskRow(raw: {
 	notes: string | null;
 	series_id: string | null;
 	series_occurrence: number | null;
+	assignment_id: string | null;
 	projects: { name: string } | { name: string }[] | null;
 }): ProjectTaskView | null {
 	if (!isTaskPriority(raw.priority)) return null;
@@ -63,6 +65,7 @@ function mapTaskRow(raw: {
 		notes: raw.notes,
 		series_id: raw.series_id,
 		series_occurrence: raw.series_occurrence,
+		assignment_id: raw.assignment_id,
 		project_name,
 		domain_color: null
 	};
@@ -201,6 +204,7 @@ export async function loadTasks(
 				notes: string | null;
 				series_id: string | null;
 				series_occurrence: number | null;
+				assignment_id: string | null;
 				projects: { name: string } | { name: string }[] | null;
 			}
 		);
@@ -281,14 +285,19 @@ export type LoadWeekTasksResult = {
 	todayYmd: string;
 	windowDays: number;
 	windowEndYmd: string;
+	/** starting_this_week + carried_over */
 	count: number;
-	tasks: ProjectTaskView[];
+	starting_this_week: ProjectTaskView[];
+	carried_over: ProjectTaskView[];
 	by_project: WeekTaskProjectGroup[];
 };
 
 /**
- * Non-done tasks whose start_date falls in [today .. today+days] (Chicago civil),
- * all MYN zones. Excludes projects with lifecycle done/archived.
+ * Week-horizon task picture for MCP / Monday protocol.
+ * - starting_this_week: non-done, start_date in [today .. today+days], all MYN zones
+ * - carried_over: non-done, start_date < today, Critical + Opportunity only
+ *   (OTH with old start dates stay out so the backlog cannot flood the week view)
+ * Excludes projects with lifecycle done/archived.
  */
 export async function loadWeekTasks(
 	supabase: SupabaseClient,
@@ -298,6 +307,16 @@ export async function loadWeekTasks(
 	const windowDays = clampWeekTaskDays(opts.days);
 	const windowEndYmd = addDaysYmd(todayYmd, windowDays) ?? todayYmd;
 
+	const empty: LoadWeekTasksResult = {
+		todayYmd,
+		windowDays,
+		windowEndYmd,
+		count: 0,
+		starting_this_week: [],
+		carried_over: [],
+		by_project: []
+	};
+
 	const { data, error } = await supabase
 		.from('project_tasks')
 		.select(
@@ -305,7 +324,6 @@ export async function loadWeekTasks(
 		)
 		.is('deleted_at', null)
 		.is('completed_at', null)
-		.gte('start_date', todayYmd)
 		.lte('start_date', windowEndYmd)
 		.order('start_date', { ascending: true })
 		.order('sort_order', { ascending: true })
@@ -313,17 +331,12 @@ export async function loadWeekTasks(
 
 	if (error) {
 		console.error('loadWeekTasks', error);
-		return {
-			todayYmd,
-			windowDays,
-			windowEndYmd,
-			count: 0,
-			tasks: [],
-			by_project: []
-		};
+		return empty;
 	}
 
-	const tasks: ProjectTaskView[] = [];
+	const starting_this_week: ProjectTaskView[] = [];
+	const carried_over: ProjectTaskView[] = [];
+
 	for (const raw of data ?? []) {
 		const proj = raw.projects as
 			| { name: string; lifecycle_status: string }
@@ -348,20 +361,32 @@ export async function loadWeekTasks(
 			notes: raw.notes,
 			series_id: raw.series_id,
 			series_occurrence: raw.series_occurrence,
+			assignment_id: raw.assignment_id,
 			projects: { name: project.name }
 		});
-		if (row) tasks.push(row);
+		if (!row) continue;
+
+		if (row.start_date >= todayYmd) {
+			starting_this_week.push(row);
+		} else if (isCarriedOverPriority(row.priority)) {
+			carried_over.push(row);
+		}
 	}
 
-	tasks.sort(compareWeekHorizonTasks);
-	const by_project = summarizeWeekTasksByProject(tasks);
+	starting_this_week.sort(compareWeekHorizonTasks);
+	carried_over.sort(compareWeekHorizonTasks);
+	const by_project = summarizeWeekTasksByProject([
+		...starting_this_week,
+		...carried_over
+	]);
 
 	return {
 		todayYmd,
 		windowDays,
 		windowEndYmd,
-		count: tasks.length,
-		tasks,
+		count: starting_this_week.length + carried_over.length,
+		starting_this_week,
+		carried_over,
 		by_project
 	};
 }
@@ -416,6 +441,7 @@ export async function loadDashboardNowTasks(
 				notes: string | null;
 				series_id: string | null;
 				series_occurrence: number | null;
+				assignment_id: string | null;
 				projects: { name: string } | { name: string }[] | null;
 			}
 		);
@@ -448,6 +474,36 @@ export async function loadDashboardNowTasks(
 }
 
 const LINK_COLUMNS = 'id, project_id, url, label, sort_order';
+
+/** Open (non-done, live) task ids keyed by assignment_id — for MCP list_due_soon dedupe. */
+export async function loadOpenTaskIdsByAssignmentId(
+	supabase: SupabaseClient,
+	assignmentIds: readonly string[]
+): Promise<Map<string, string[]>> {
+	const map = new Map<string, string[]>();
+	if (assignmentIds.length === 0) return map;
+
+	const { data, error } = await supabase
+		.from('project_tasks')
+		.select('id, assignment_id')
+		.is('deleted_at', null)
+		.is('completed_at', null)
+		.in('assignment_id', [...assignmentIds]);
+
+	if (error) {
+		console.error('loadOpenTaskIdsByAssignmentId', error);
+		return map;
+	}
+
+	for (const row of data ?? []) {
+		const aid = row.assignment_id;
+		if (!aid) continue;
+		const list = map.get(aid);
+		if (list) list.push(row.id);
+		else map.set(aid, [row.id]);
+	}
+	return map;
+}
 
 export async function loadProjectLinks(
 	supabase: SupabaseClient,

@@ -230,6 +230,7 @@ export async function createProjectAction(
 			description: trimOrNull(fd.get('description')),
 			start_date: parseDateOrNull(fd.get('start_date')),
 			end_date: parseDateOrNull(fd.get('end_date')),
+			deferred_until: parseDateOrNull(fd.get('deferred_until')),
 			created_by: userId
 		} as never)
 		.select('id')
@@ -303,7 +304,8 @@ export async function updateProjectAction(supabase: SupabaseClient, fd: FormData
 			lifecycle_status,
 			description: trimOrNull(fd.get('description')),
 			start_date: parseDateOrNull(fd.get('start_date')),
-			end_date: parseDateOrNull(fd.get('end_date'))
+			end_date: parseDateOrNull(fd.get('end_date')),
+			deferred_until: parseDateOrNull(fd.get('deferred_until'))
 		} as never)
 		.eq('id', id);
 

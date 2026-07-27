@@ -43,7 +43,8 @@ function row(id: string, parent_id: string | null, name: string): ProjectRow {
 		start_date: null,
 		end_date: null,
 		sort_order: 0,
-		color: null
+		color: null,
+		deferred_until: null
 	};
 }
 
@@ -111,6 +112,7 @@ function task(
 		notes: null,
 		series_id: null,
 		series_occurrence: null,
+		assignment_id: null,
 		project_name: 'Work',
 		domain_color: null
 	};

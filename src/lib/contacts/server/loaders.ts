@@ -510,6 +510,9 @@ export async function loadContactListMembers(
 
 /**
  * Active contacts due for a meet (dashboard + MCP list_contacts_due).
+ * `contacts_with_cadence` = eligible pool size (active, reminders on) so
+ * count=0 with contacts_with_cadence=0 means empty/unconfigured CRM,
+ * while count=0 with contacts_with_cadence>0 means none currently due.
  */
 export async function loadContactsDue(
 	supabase: SupabaseClient,
@@ -520,6 +523,7 @@ export async function loadContactsDue(
 	}
 ): Promise<{
 	contacts: ContactDueRow[];
+	contacts_with_cadence: number;
 	error: string | null;
 }> {
 	const limit = Math.min(Math.max(opts.limit ?? 25, 1), 100);
@@ -533,7 +537,7 @@ export async function loadContactsDue(
 
 	if (contactsRes.error) {
 		console.error('[contacts] loadContactsDue', contactsRes.error);
-		return { contacts: [], error: contactsRes.error.message };
+		return { contacts: [], contacts_with_cadence: 0, error: contactsRes.error.message };
 	}
 
 	const rows = (contactsRes.data ?? []) as ContactDb[];
@@ -592,6 +596,7 @@ export async function loadContactsDue(
 
 	return {
 		contacts: selectContactsDue(candidates, { todayYmd: opts.todayYmd, limit }),
+		contacts_with_cadence: candidates.length,
 		error: null
 	};
 }
