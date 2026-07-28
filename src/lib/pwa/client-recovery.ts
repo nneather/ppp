@@ -1,4 +1,6 @@
-/** Chunk-load recovery — auto clear SW/caches + reload; card only if that already failed. */
+/** Chunk-load recovery — auto clear SW/caches + reload; card only if that already failed or mid-edit. */
+
+import { isUserBusy } from './user-busy';
 
 const RECOVERY_ID = 'ppp-client-recovery';
 const RECOVERY_ATTEMPTED_KEY = 'ppp-chunk-recovery-at';
@@ -136,7 +138,10 @@ async function recoverFromChunkFailure(): Promise<void> {
 	if (recovering || dismissed) return;
 	recovering = true;
 
-	if (recentlyAttemptedRecovery()) {
+	// Mid-edit (open sheet / focused field): never silent-reload — show the card so the
+	// owner can finish (desktop tab return + mobile PWA). Idle path still auto-recovers.
+	// Leave recovering=true while the card is up; Later resets it.
+	if (isUserBusy() || recentlyAttemptedRecovery()) {
 		showRecoveryCard();
 		return;
 	}

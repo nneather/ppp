@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-07-27 — Invoice PDF received; outgoing diagnostics closed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)).
+**Last updated:** 2026-07-27 — Defer client reload while editing ([186](docs/decisions/186-pwa-defer-reload-while-editing.md)).
 
 **How to use this file — read this first:**
 
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [186 — Defer client reload while editing](docs/decisions/186-pwa-defer-reload-while-editing.md) (2026-07-27) — Skip silent SW/chunk reload mid-form (desktop + PWA); show banner instead.
 - [185 — Invoice PDF received](docs/decisions/185-invoice-pdf-received-resolved.md) (2026-07-27) — Outgoing PDF / first real-client send confirmed; diagnostics closed.
 - [184 — MCP Monday-protocol finetune](docs/decisions/184-mcp-monday-protocol-finetune.md) (2026-07-27) — Week split + deferred_until + task↔assignment + contacts_with_cadence.
 - [183 — Contacts list mass-add](docs/decisions/183-contacts-list-mass-add.md) (2026-07-25) — Lists multi-select checklist + household/contact Sheet list toggles.
 - [182 — Contacts Session 3 Lists + cadence + touch kinds](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md) (2026-07-25) — Lists tab; months/years cadence; meet vs card; card bulk log; settings lists redirect.
-- [181 — Contacts smoke product locks](docs/decisions/181-contacts-smoke-product-locks.md) (2026-07-25) — Product locks that Session 3 built.
 
 ---
 
@@ -81,7 +81,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-07-27** ([184](docs/decisions/184-mcp-monday-protocol-finetune.md); **0 errors**, 406 tests; `mcp:smoke` green).
+**Repo gate:** `npm run check` + `npm run test` **2026-07-27** ([186](docs/decisions/186-pwa-defer-reload-while-editing.md); **0 errors**, 416 tests).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

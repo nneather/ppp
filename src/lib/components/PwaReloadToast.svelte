@@ -3,6 +3,7 @@
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
+	import { isUserBusy } from '$lib/pwa/user-busy';
 
 	const SW_UPDATE_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -32,11 +33,22 @@
 		};
 
 		/**
-		 * Resume path (082/111): apply immediately when a worker is already waiting
+		 * Resume path (082/111/186): apply immediately when idle and a worker is waiting
 		 * (Later-dismissed toast or iOS missed needRefresh), otherwise poll for a new SW
-		 * and auto-apply when needRefresh flips.
+		 * and auto-apply when needRefresh flips — unless mid-edit (open sheet / focused field).
 		 */
 		const onResume = () => {
+			if (isUserBusy()) {
+				// Keep toast available if an update is already known; never silent-reload mid-form.
+				autoApplyOnResume = false;
+				suppressToast = false;
+				if (registration.waiting || get(needRefresh)) {
+					needRefresh.set(true);
+				} else {
+					checkForUpdate();
+				}
+				return;
+			}
 			autoApplyOnResume = true;
 			if (registration.waiting || get(needRefresh)) {
 				void applyUpdate();
@@ -85,6 +97,11 @@
 
 	$effect(() => {
 		if (!$needRefresh || !autoApplyOnResume) return;
+		if (isUserBusy()) {
+			autoApplyOnResume = false;
+			suppressToast = false;
+			return;
+		}
 		autoApplyOnResume = false;
 		void applyUpdate();
 	});
