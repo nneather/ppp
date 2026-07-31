@@ -4,8 +4,18 @@ import { isUserBusy } from './user-busy';
 
 const RECOVERY_ID = 'ppp-client-recovery';
 const RECOVERY_ATTEMPTED_KEY = 'ppp-chunk-recovery-at';
-/** If a second chunk failure lands within this window, show the manual card (avoid reload loops). */
+const RECOVERY_COUNT_KEY = 'ppp-chunk-recovery-count';
+/** Query param stamped on silent recovery navigations; stripped on the next boot. */
+export const RECOVER_QUERY_PARAM = '_ppp_recover';
+/** If failures keep landing inside this window after max silent attempts, show the manual card. */
 const RECOVERY_COOLDOWN_MS = 20_000;
+/** Allow this many silent clear+reloads before surfacing the card (idle only). */
+const MAX_SILENT_ATTEMPTS = 2;
+/**
+ * After a post-recovery boot stays up this long without another recover, drop cooldown/count
+ * so a later real skew can silent-recover again (avoids banner from a transient second blip).
+ */
+const SETTLE_CLEAR_MS = 2_500;
 
 let recovering = false;
 /** Owner dismissed the card — don't re-show until the next full load. */
@@ -13,13 +23,18 @@ let dismissed = false;
 
 export function isChunkLoadFailure(message: string, source?: string): boolean {
 	const lower = message.toLowerCase();
-	return (
+	if (
 		lower.includes('loading chunk') ||
 		lower.includes('failed to fetch dynamically imported module') ||
 		lower.includes('importing a module script failed') ||
-		lower.includes('error loading dynamically imported module') ||
-		(source?.includes('/_app/immutable/') ?? false)
-	);
+		lower.includes('error loading dynamically imported module')
+	) {
+		return true;
+	}
+	// Opaque cross-origin script errors only — do not treat arbitrary runtime errors in
+	// `/_app/immutable/*` as cache skew (that was a false-positive recovery trigger).
+	const opaque = message === '' || lower === 'script error' || lower === 'script error.';
+	return opaque && (source?.includes('/_app/immutable/') ?? false);
 }
 
 /** Exported for unit tests — true when a recovery reload already ran in this cooldown window. */
@@ -41,11 +56,58 @@ export function recentlyAttemptedRecovery(
 	}
 }
 
+/** Exported for unit tests. */
+export function getRecoveryAttemptCount(
+	storage: Pick<Storage, 'getItem'> | null = typeof sessionStorage !== 'undefined'
+		? sessionStorage
+		: null
+): number {
+	if (!storage) return 0;
+	try {
+		const raw = storage.getItem(RECOVERY_COUNT_KEY);
+		if (!raw) return 0;
+		const n = Number(raw);
+		return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+	} catch {
+		return 0;
+	}
+}
+
 function markRecoveryAttempt(): void {
 	try {
+		const prev = getRecoveryAttemptCount();
 		sessionStorage.setItem(RECOVERY_ATTEMPTED_KEY, String(Date.now()));
+		sessionStorage.setItem(RECOVERY_COUNT_KEY, String(prev + 1));
 	} catch {
 		/* best-effort */
+	}
+}
+
+function clearRecoveryAttemptState(): void {
+	try {
+		sessionStorage.removeItem(RECOVERY_ATTEMPTED_KEY);
+		sessionStorage.removeItem(RECOVERY_COUNT_KEY);
+	} catch {
+		/* best-effort */
+	}
+}
+
+/** Exported for unit tests — remove `_ppp_recover` without a navigation. */
+export function stripRecoverQueryParam(
+	href: string,
+	replaceState: (url: string) => void = (url) => {
+		window.history.replaceState(window.history.state, '', url);
+	}
+): string | null {
+	try {
+		const url = new URL(href);
+		if (!url.searchParams.has(RECOVER_QUERY_PARAM)) return null;
+		url.searchParams.delete(RECOVER_QUERY_PARAM);
+		const next = `${url.pathname}${url.search}${url.hash}`;
+		replaceState(next);
+		return next;
+	} catch {
+		return null;
 	}
 }
 
@@ -124,14 +186,26 @@ function showRecoveryCard(): void {
 
 async function clearCacheAndReload(): Promise<void> {
 	try {
-		const registration = await navigator.serviceWorker?.getRegistration();
-		if (registration) await registration.unregister();
-		const keys = await caches.keys();
-		await Promise.all(keys.map((key) => caches.delete(key)));
+		if ('serviceWorker' in navigator) {
+			const registrations = await navigator.serviceWorker.getRegistrations();
+			await Promise.all(registrations.map((registration) => registration.unregister()));
+		}
+		if ('caches' in window) {
+			const keys = await caches.keys();
+			await Promise.all(keys.map((key) => caches.delete(key)));
+		}
 	} catch {
 		/* best-effort */
 	}
-	window.location.reload();
+	// Full replace (not reload) + bust query so the next document load is a fresh navigation
+	// after unregister — same-tab reload can stay controlled by a dying SW on some engines.
+	try {
+		const url = new URL(window.location.href);
+		url.searchParams.set(RECOVER_QUERY_PARAM, String(Date.now()));
+		window.location.replace(url.href);
+	} catch {
+		window.location.reload();
+	}
 }
 
 async function recoverFromChunkFailure(): Promise<void> {
@@ -141,7 +215,13 @@ async function recoverFromChunkFailure(): Promise<void> {
 	// Mid-edit (open sheet / focused field): never silent-reload — show the card so the
 	// owner can finish (desktop tab return + mobile PWA). Idle path still auto-recovers.
 	// Leave recovering=true while the card is up; Later resets it.
-	if (isUserBusy() || recentlyAttemptedRecovery()) {
+	if (isUserBusy()) {
+		showRecoveryCard();
+		return;
+	}
+
+	// After MAX_SILENT_ATTEMPTS clear+reloads in the cooldown window, stop looping and ask.
+	if (getRecoveryAttemptCount() >= MAX_SILENT_ATTEMPTS && recentlyAttemptedRecovery()) {
 		showRecoveryCard();
 		return;
 	}
@@ -152,6 +232,16 @@ async function recoverFromChunkFailure(): Promise<void> {
 
 export function installClientRecovery(): void {
 	if (typeof window === 'undefined') return;
+
+	stripRecoverQueryParam(window.location.href);
+
+	// Successful boot after a silent recover: drop attempt state so a later deploy skew
+	// can silent-recover again instead of immediately showing the fallback card.
+	window.setTimeout(() => {
+		if (!recovering && !document.getElementById(RECOVERY_ID)) {
+			clearRecoveryAttemptState();
+		}
+	}, SETTLE_CLEAR_MS);
 
 	window.addEventListener('error', (event) => {
 		const message = event.message ?? '';
