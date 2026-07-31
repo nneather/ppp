@@ -1,6 +1,6 @@
 # Personal Operations System — Classwork Module Build Tracker
 
-_Last updated: 2026-07-24 | Module: Classwork (5th) | Session 2 complete; Canvas import deferred ([173](decisions/173-canvas-classwork-import-deferred.md))_
+_Last updated: 2026-07-31 | Module: Classwork (5th) | Sessions 0–2 complete; **Research papers Phase 0 locked** ([188](decisions/188-classwork-research-papers-session-0.md)); Canvas import deferred ([173](decisions/173-canvas-classwork-import-deferred.md))_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [150](decisions/150-classwork-session-0.md).
 
@@ -141,5 +141,137 @@ assignments
 | — | note | Decision numbers 146–149 were taken by a parallel library publisher session on 2026-07-24 — Session 0 record is **[150](decisions/150-classwork-session-0.md)**, not 146. |
 | — | backlog | Bulk/quick-add UI for syllabus entry — only if manual entry hurts in late August |
 | — | backlog | **Canvas one-shot import** ([173](decisions/173-canvas-classwork-import-deferred.md)) — late August after first Fall syllabi; semester-start token mint; preview→confirm; re-pull OK for week-1–3 due-date churn. Not live sync. |
+| **Papers 0** | ✅ 2026-07-31 | Research papers Phase 0 lock + schema sketch + [188](decisions/188-classwork-research-papers-session-0.md); brainstorm [2026-07-31-classwork-research-papers.md](../brainstorms/2026-07-31-classwork-research-papers.md) |
+| **Papers 1** | ☐ | Migration `ppp_classwork_papers_v1` + `/classwork/papers` CRUD + assignment Open research paper + attach books/essays (not-owned stub path) + cite UX + clipboard compiled bib |
+| **Papers 2** | ☐ | Research groups UI + polish |
 
-**Timeline:** Sessions 1–2 done before syllabi land; semester start **2026-08-31**. Canvas import parked for late August ([173](decisions/173-canvas-classwork-import-deferred.md)).
+**Timeline:** Core classwork Sessions 1–2 done before syllabi land; semester start **2026-08-31**. **Research papers** accelerated for post-Madison St. Louis publication edit (sooner than 8/31) — overrides [138](decisions/138-fall-semester-priorities.md) deferral. Canvas import parked for late August ([173](decisions/173-canvas-classwork-import-deferred.md)).
+
+---
+
+## Research papers — Phase 0 (signed off 2026-07-31)
+
+Brainstorm: [brainstorms/2026-07-31-classwork-research-papers.md](../brainstorms/2026-07-31-classwork-research-papers.md). Decision: [188](decisions/188-classwork-research-papers-session-0.md). Prior deferred scope: [065](decisions/065-writing-workflow-review.md) Q7, [138](decisions/138-fall-semester-priorities.md).
+
+| Gate | Resolution |
+|---|---|
+| **Taxonomy singular** | New tables: `papers`, `paper_research_groups`, `paper_sources`. Does **not** replace `assignments.kind='paper'` / `parent_id` milestones — those stay the deadline spine. Creating a `papers` row = opt-in research surface. |
+| **Links** | Optional `papers.assignment_id` (partial unique when live) + optional `papers.course_id`. Orphans allowed. When linked, assignment’s `course_id` / `due_date` are source of truth (sync or derive — open Q P1). |
+| **Nullable / required** | Papers: only `title` + `status` required. Groups: `paper_id` + `name`. Sources: `paper_id` + exactly one of `book_id` / `essay_id` (XOR). Full matrix below. |
+| **Bibliography** | Books **and** essays from library catalog. Not-owned via `books.owned=false` (create stub from paper UI). No free-text external sources in v1. Unique `(paper, book)` / `(paper, essay)`. |
+| **Research groups** | Named groups per paper; source optionally in one group; ungrouped bucket. Compiled bib **ignores** groups (flat Turabian alpha). Future resource-type export sections ≠ research groups. |
+| **Cite / compile** | Per-row Footnote + Short form + Bibliography + page input. Compiled bib = clipboard HTML+plain (books+essays merged). No auto-Ibid; no soft registry; no paper `.docx` v1. |
+| **Form delivery** | List `/classwork/papers`; detail `/classwork/papers/[id]` (bib + groups + cite — too heavy for Sheet alone). Paper identity create/edit may use Sheet from list; detail is the research home. Dual entry from assignment Sheet/row. |
+| **RLS + viewer** | Same as classwork: SELECT `app_is_owner() OR app_has_module_read('classwork')`; writes owner-only. Solo waiver unchanged. No new module slug. |
+| **MCP** | None for papers in v1. |
+| **Edge Function ↔ `deleted_at`** | N/A — no Edge Functions. |
+
+**Checklist:**
+- [x] Taxonomy singular (papers vs assignments; groups vs future resource-type sections)
+- [x] Nullable matrix signed
+- [x] Routes / form surfaces decided
+- [x] RLS plan (reuse classwork)
+- [x] MCP deferred explicitly
+- [x] Open Questions ≤2 per entity
+
+### Schema sketch (Session 1 ships `ppp_classwork_papers_v1`)
+
+Standard conventions: `deleted_at`, `created_at`/`updated_at` + `set_updated_at`, `created_by`, audit trigger, explicit GRANTs, RLS helpers.
+
+#### `papers`
+
+```sql
+papers
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  title           TEXT NOT NULL
+  status          TEXT NOT NULL CHECK (status IN ('draft','in_progress','submitted')) DEFAULT 'draft'
+  course_id       UUID REFERENCES courses(id)       -- nullable
+  assignment_id   UUID REFERENCES assignments(id)   -- nullable; partial UNIQUE where live
+  due_date        DATE                              -- nullable target/due; prefer assignment when linked
+  topic           TEXT                              -- thesis / topic
+  passage_display TEXT                              -- human passage string; no structured passages v1
+  notes           TEXT
+  sort_order      INT NOT NULL DEFAULT 0
+  deleted_at      TIMESTAMPTZ
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_by      UUID REFERENCES profiles(id)
+```
+
+**Indexes:** `(course_id)`, `(assignment_id)`, `(status)` — partial `WHERE deleted_at IS NULL`.  
+**Partial unique:** `(assignment_id) WHERE assignment_id IS NOT NULL AND deleted_at IS NULL`.
+
+#### `paper_research_groups`
+
+```sql
+paper_research_groups
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  paper_id     UUID NOT NULL REFERENCES papers(id)
+  name         TEXT NOT NULL
+  sort_order   INT NOT NULL DEFAULT 0
+  deleted_at   TIMESTAMPTZ
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_by   UUID REFERENCES profiles(id)
+```
+
+**Indexes:** `(paper_id)` — partial `WHERE deleted_at IS NULL`.
+
+#### `paper_sources`
+
+```sql
+paper_sources
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  paper_id     UUID NOT NULL REFERENCES papers(id)
+  group_id     UUID REFERENCES paper_research_groups(id)  -- nullable = ungrouped
+  book_id      UUID REFERENCES books(id)
+  essay_id     UUID REFERENCES essays(id)
+  notes        TEXT
+  sort_order   INT NOT NULL DEFAULT 0
+  deleted_at   TIMESTAMPTZ
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_by   UUID REFERENCES profiles(id)
+  CHECK ( (book_id IS NOT NULL AND essay_id IS NULL)
+       OR (book_id IS NULL AND essay_id IS NOT NULL) )
+```
+
+**Partial uniques:** `(paper_id, book_id) WHERE book_id IS NOT NULL AND deleted_at IS NULL`; `(paper_id, essay_id) WHERE essay_id IS NOT NULL AND deleted_at IS NULL`.  
+**App rules:** `group_id` must belong to the same `paper_id` when set. Reuse library `validateXor`-style insert. Soft-delete paper → soft-delete children in app actions (or ON cascade soft via triggers — prefer explicit app soft-delete like other modules).
+
+### Nullable / required matrix (papers)
+
+| Table | Required | Nullable |
+|---|---|---|
+| `papers` | `title`, `status` (default), `sort_order` (default) | `course_id`, `assignment_id`, `due_date`, `topic`, `passage_display`, `notes`, `created_by` |
+| `paper_research_groups` | `paper_id`, `name`, `sort_order` (default) | `created_by` |
+| `paper_sources` | `paper_id`, XOR `book_id`/`essay_id`, `sort_order` (default) | `group_id`, `notes`, `created_by` |
+
+### RLS / audit
+
+- Same policies as `courses` / `assignments` (module `classwork`).
+- Audit-log UI: extend `_CLASSWORK_TABLES` with `papers`, `paper_research_groups`, `paper_sources`; soft-delete revert for all three.
+- No new `module_registry` slug.
+
+### Open questions (papers)
+
+| # | Entity | Q | Resolve by |
+|---|---|---|---|
+| P1 | paper | When linking/unlinking an assignment: auto-overwrite `course_id`/`due_date` from assignment, or show once and leave editable? | Papers Session 1 |
+| G1 | group | Soft-deleting a group: null out `paper_sources.group_id` (sources survive ungrouped) vs block delete while sources attached? | Papers Session 2 (recommend: null out) |
+
+### Papers session acceptance (high level)
+
+**Session 1**
+- [ ] Migration applied + `npm run supabase:gen-types`
+- [ ] `/classwork/papers` list + Sheet create/edit; `/classwork/papers/[id]` detail
+- [ ] Assignment “Open research paper” create-or-open (1:1)
+- [ ] Add/remove book sources (incl. create not-owned stub); add/remove essay sources
+- [ ] Per-row Footnote / Short form / Bibliography + page input; per-source notes
+- [ ] Copy compiled bibliography (clipboard; flat; books + essays)
+- [ ] Audit whitelist + `npm run check` + tests for pure helpers
+- [ ] Mobile-width smoke on paper detail
+
+**Session 2**
+- [ ] Create/rename/reorder research groups; assign/move sources; ungrouped bucket
+- [ ] G1 resolved; owner smoke on a multi-group paper
