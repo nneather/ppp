@@ -496,6 +496,254 @@ export async function removePaperSourceAction(supabase: SupabaseClient, fd: Form
 	return { kind: 'removePaperSource' as const, success: true as const, sourceId };
 }
 
+// ─── Research groups ───────────────────────────────────────────────────────
+
+export async function createPaperGroupAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const paperId = trimOrNull(fd.get('paper_id'));
+	if (!paperId || !UUID_RE.test(paperId)) {
+		return fail(400, { kind: 'createPaperGroup' as const, message: 'Invalid paper.' });
+	}
+
+	const name = trimOrNull(fd.get('name'));
+	if (!name) {
+		return fail(400, {
+			kind: 'createPaperGroup' as const,
+			paperId,
+			message: 'Group name is required.'
+		});
+	}
+
+	const paperOk = await assertPaperLive(supabase, paperId);
+	if (!paperOk.ok) {
+		return fail(400, { kind: 'createPaperGroup' as const, paperId, message: paperOk.message });
+	}
+
+	const { count, error: countErr } = await supabase
+		.from('paper_research_groups')
+		.select('id', { count: 'exact', head: true })
+		.eq('paper_id', paperId)
+		.is('deleted_at', null);
+	if (countErr) console.error('[papers] createPaperGroup count', countErr);
+
+	const { data: inserted, error: insErr } = await supabase
+		.from('paper_research_groups')
+		.insert({
+			paper_id: paperId,
+			name,
+			sort_order: count ?? 0,
+			created_by: userId
+		} as never)
+		.select('id')
+		.single();
+
+	if (insErr || !inserted) {
+		console.error('[papers] createPaperGroup', insErr);
+		return fail(500, {
+			kind: 'createPaperGroup' as const,
+			paperId,
+			message: insErr?.message ?? 'Could not create group.'
+		});
+	}
+
+	return {
+		kind: 'createPaperGroup' as const,
+		success: true as const,
+		paperId,
+		groupId: (inserted as { id: string }).id
+	};
+}
+
+export async function renamePaperGroupAction(supabase: SupabaseClient, fd: FormData) {
+	const groupId = trimOrNull(fd.get('group_id'));
+	if (!groupId || !UUID_RE.test(groupId)) {
+		return fail(400, { kind: 'renamePaperGroup' as const, message: 'Invalid group.' });
+	}
+
+	const name = trimOrNull(fd.get('name'));
+	if (!name) {
+		return fail(400, {
+			kind: 'renamePaperGroup' as const,
+			groupId,
+			message: 'Group name is required.'
+		});
+	}
+
+	const { error } = await supabase
+		.from('paper_research_groups')
+		.update({ name } as never)
+		.eq('id', groupId)
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error('[papers] renamePaperGroup', error);
+		return fail(500, { kind: 'renamePaperGroup' as const, groupId, message: error.message });
+	}
+
+	return { kind: 'renamePaperGroup' as const, success: true as const, groupId };
+}
+
+/** Rewrite sort_order from an ordered id array (project_links precedent). */
+export async function reorderPaperGroupsAction(supabase: SupabaseClient, fd: FormData) {
+	const paperId = trimOrNull(fd.get('paper_id'));
+	if (!paperId || !UUID_RE.test(paperId)) {
+		return fail(400, { kind: 'reorderPaperGroups' as const, message: 'Invalid paper.' });
+	}
+
+	let ids: string[] = [];
+	try {
+		const parsed = JSON.parse(String(fd.get('order') ?? '[]')) as unknown;
+		if (!Array.isArray(parsed)) throw new Error('not array');
+		ids = parsed.filter((x): x is string => typeof x === 'string' && UUID_RE.test(x));
+	} catch {
+		return fail(400, {
+			kind: 'reorderPaperGroups' as const,
+			paperId,
+			message: 'Invalid order payload.'
+		});
+	}
+
+	for (let i = 0; i < ids.length; i++) {
+		const { error } = await supabase
+			.from('paper_research_groups')
+			.update({ sort_order: i } as never)
+			.eq('id', ids[i])
+			.eq('paper_id', paperId)
+			.is('deleted_at', null);
+		if (error) {
+			console.error('[papers] reorderPaperGroups', error);
+			return fail(500, {
+				kind: 'reorderPaperGroups' as const,
+				paperId,
+				message: error.message
+			});
+		}
+	}
+
+	return { kind: 'reorderPaperGroups' as const, success: true as const, paperId };
+}
+
+/**
+ * G1 (decision 190): soft-deleting a group nulls `paper_sources.group_id`
+ * first — sources survive ungrouped, never blocked and never deleted with
+ * the group. Null-out runs before the group delete so a partial failure
+ * leaves sources ungrouped with the group still live (retryable).
+ */
+export async function softDeletePaperGroupAction(supabase: SupabaseClient, fd: FormData) {
+	const groupId = trimOrNull(fd.get('group_id'));
+	if (!groupId || !UUID_RE.test(groupId)) {
+		return fail(400, { kind: 'softDeletePaperGroup' as const, message: 'Invalid group.' });
+	}
+
+	const { error: srcErr } = await supabase
+		.from('paper_sources')
+		.update({ group_id: null } as never)
+		.eq('group_id', groupId)
+		.is('deleted_at', null);
+	if (srcErr) {
+		console.error('[papers] softDeletePaperGroup ungroup', srcErr);
+		return fail(500, {
+			kind: 'softDeletePaperGroup' as const,
+			groupId,
+			message: srcErr.message
+		});
+	}
+
+	const { error: delErr } = await supabase
+		.from('paper_research_groups')
+		.update({ deleted_at: new Date().toISOString() } as never)
+		.eq('id', groupId)
+		.is('deleted_at', null);
+	if (delErr) {
+		console.error('[papers] softDeletePaperGroup', delErr);
+		return fail(500, {
+			kind: 'softDeletePaperGroup' as const,
+			groupId,
+			message: delErr.message
+		});
+	}
+
+	return { kind: 'softDeletePaperGroup' as const, success: true as const, groupId };
+}
+
+/** Move a source into a group (or ungroup with empty group_id). Group must belong to the source's paper. */
+export async function setPaperSourceGroupAction(supabase: SupabaseClient, fd: FormData) {
+	const sourceId = trimOrNull(fd.get('source_id'));
+	if (!sourceId || !UUID_RE.test(sourceId)) {
+		return fail(400, { kind: 'setPaperSourceGroup' as const, message: 'Invalid source.' });
+	}
+
+	const groupId = trimOrNull(fd.get('group_id'));
+	if (groupId && !UUID_RE.test(groupId)) {
+		return fail(400, {
+			kind: 'setPaperSourceGroup' as const,
+			sourceId,
+			message: 'Invalid group.'
+		});
+	}
+
+	if (groupId) {
+		const [sourceRes, groupRes] = await Promise.all([
+			supabase
+				.from('paper_sources')
+				.select('paper_id')
+				.eq('id', sourceId)
+				.is('deleted_at', null)
+				.maybeSingle(),
+			supabase
+				.from('paper_research_groups')
+				.select('paper_id')
+				.eq('id', groupId)
+				.is('deleted_at', null)
+				.maybeSingle()
+		]);
+
+		if (sourceRes.error || groupRes.error) {
+			const err = sourceRes.error ?? groupRes.error;
+			console.error('[papers] setPaperSourceGroup lookup', err);
+			return fail(500, {
+				kind: 'setPaperSourceGroup' as const,
+				sourceId,
+				message: err!.message
+			});
+		}
+		if (!sourceRes.data) {
+			return fail(404, {
+				kind: 'setPaperSourceGroup' as const,
+				sourceId,
+				message: 'Source not found.'
+			});
+		}
+		if (
+			!groupRes.data ||
+			(groupRes.data as { paper_id: string }).paper_id !==
+				(sourceRes.data as { paper_id: string }).paper_id
+		) {
+			return fail(400, {
+				kind: 'setPaperSourceGroup' as const,
+				sourceId,
+				message: 'Group not found on this paper.'
+			});
+		}
+	}
+
+	const { error } = await supabase
+		.from('paper_sources')
+		.update({ group_id: groupId } as never)
+		.eq('id', sourceId)
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error('[papers] setPaperSourceGroup', error);
+		return fail(500, { kind: 'setPaperSourceGroup' as const, sourceId, message: error.message });
+	}
+
+	return { kind: 'setPaperSourceGroup' as const, success: true as const, sourceId };
+}
+
 /**
  * Free-form not-owned stub ([103] pattern, free-text instead of the curated
  * queue): create `books` row with `owned=false`, `needs_review=false`,

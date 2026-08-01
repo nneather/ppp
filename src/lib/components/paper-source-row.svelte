@@ -12,18 +12,25 @@
 		formatFootnote,
 		type CitationFormatted
 	} from '$lib/library/turabian';
-	import { paperSourceTitle, type PaperSourceView } from '$lib/classwork/paper-sources';
+	import {
+		paperSourceTitle,
+		type PaperGroupView,
+		type PaperSourceView
+	} from '$lib/classwork/paper-sources';
 	import NotebookPen from '@lucide/svelte/icons/notebook-pen';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	let {
 		source,
+		groups = [],
 		isOwner = false,
 		onCopied,
 		onRemove,
 		onSaved
 	}: {
 		source: PaperSourceView;
+		/** Live research groups — when non-empty, owners get a group selector. */
+		groups?: PaperGroupView[];
 		isOwner?: boolean;
 		onCopied?: (message: string) => void;
 		onRemove?: (source: PaperSourceView) => void;
@@ -34,6 +41,8 @@
 	let editingNotes = $state(false);
 	let notesDraft = $state('');
 	let notesPending = $state(false);
+	let groupFormEl = $state<HTMLFormElement | null>(null);
+	let groupPending = $state(false);
 
 	const pageOpts = $derived({ page: page.trim() || undefined });
 
@@ -88,6 +97,15 @@
 				editingNotes = false;
 				await onSaved?.();
 			}
+		};
+	};
+
+	const groupEnhance: SubmitFunction = () => {
+		groupPending = true;
+		return async ({ result, update }) => {
+			groupPending = false;
+			await update({ reset: false });
+			if (result.type === 'success') await onSaved?.();
 		};
 	};
 </script>
@@ -172,6 +190,30 @@
 				Bib
 			</button>
 		</div>
+		{#if isOwner && groups.length > 0}
+			<form
+				bind:this={groupFormEl}
+				method="POST"
+				action="?/setPaperSourceGroup"
+				use:enhance={groupEnhance}
+				class="ml-auto"
+			>
+				<input type="hidden" name="source_id" value={source.sourceId} />
+				<select
+					name="group_id"
+					value={source.groupId ?? ''}
+					disabled={groupPending}
+					aria-label="Research group"
+					class="h-8 max-w-40 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+					onchange={() => groupFormEl?.requestSubmit()}
+				>
+					<option value="">Ungrouped</option>
+					{#each groups as g (g.id)}
+						<option value={g.id}>{g.name}</option>
+					{/each}
+				</select>
+			</form>
+		{/if}
 	</div>
 
 	{#if editingNotes}

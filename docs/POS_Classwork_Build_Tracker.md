@@ -1,6 +1,6 @@
 # Personal Operations System — Classwork Module Build Tracker
 
-_Last updated: 2026-08-01 | Module: Classwork (5th) | Sessions 0–2 complete; **Papers Sessions 0–1 complete** ([188](decisions/188-classwork-research-papers-session-0.md), [189](decisions/189-classwork-papers-session-1.md)); Canvas import deferred ([173](decisions/173-canvas-classwork-import-deferred.md))_
+_Last updated: 2026-08-01 | Module: Classwork (5th) | Sessions 0–2 complete; **Papers Sessions 0–2 complete** ([188](decisions/188-classwork-research-papers-session-0.md), [189](decisions/189-classwork-papers-session-1.md), [190](decisions/190-classwork-papers-session-2.md)); Canvas import deferred ([173](decisions/173-canvas-classwork-import-deferred.md))_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [150](decisions/150-classwork-session-0.md).
 
@@ -143,7 +143,7 @@ assignments
 | — | backlog | **Canvas one-shot import** ([173](decisions/173-canvas-classwork-import-deferred.md)) — late August after first Fall syllabi; semester-start token mint; preview→confirm; re-pull OK for week-1–3 due-date churn. Not live sync. |
 | **Papers 0** | ✅ 2026-07-31 | Research papers Phase 0 lock + schema sketch + [188](decisions/188-classwork-research-papers-session-0.md); brainstorm [2026-07-31-classwork-research-papers.md](../brainstorms/2026-07-31-classwork-research-papers.md) |
 | **Papers 1** | ✅ 2026-08-01 | Migration `20260801120600_ppp_classwork_papers_v1` + `/classwork/papers` list/Sheet + `/classwork/papers/[id]` research home (search-attach books incl. free-form not-owned stub + essays, per-row Footnote/Short/Bib + page, per-source notes, merged compiled bib clipboard) + assignment Open research paper + Assignments\|Papers toggle + audit whitelist. P1 = stamp+lock. Mobile smoke 12/12; audit rows verified. Decision [189](decisions/189-classwork-papers-session-1.md). |
-| **Papers 2** | ☐ | Research groups UI + polish (G1 resolve) |
+| **Papers 2** | ✅ 2026-08-01 | Research groups UI on paper detail — group CRUD (create/rename/reorder/delete), per-row group select, Ungrouped-first buckets; G1 = null out. Mobile smoke 14/14; audit rows verified. Decision [190](decisions/190-classwork-papers-session-2.md). |
 
 **Timeline:** Core classwork Sessions 1–2 done before syllabi land; semester start **2026-08-31**. **Research papers** accelerated for post-Madison St. Louis publication edit (sooner than 8/31) — overrides [138](decisions/138-fall-semester-priorities.md) deferral. Canvas import parked for late August ([173](decisions/173-canvas-classwork-import-deferred.md)).
 
@@ -258,7 +258,7 @@ paper_sources
 | # | Entity | Q | Resolve by |
 |---|---|---|---|
 | P1 | paper | When linking/unlinking an assignment: auto-overwrite `course_id`/`due_date` from assignment, or show once and leave editable? | ✅ Session 1 — **stamp + lock while linked**: server re-stamps from assignment on every save; UI read-only while linked; unlink keeps last-synced values editable ([189](decisions/189-classwork-papers-session-1.md)) |
-| G1 | group | Soft-deleting a group: null out `paper_sources.group_id` (sources survive ungrouped) vs block delete while sources attached? | Papers Session 2 (recommend: null out) |
+| G1 | group | Soft-deleting a group: null out `paper_sources.group_id` (sources survive ungrouped) vs block delete while sources attached? | ✅ Session 2 — **null out** (sources survive ungrouped; null-out runs before the group delete so partial failure is retryable) ([190](decisions/190-classwork-papers-session-2.md)) |
 
 ### Papers session acceptance (high level)
 
@@ -272,6 +272,6 @@ paper_sources
 - [x] Audit whitelist + `npm run check` + tests for pure helpers
 - [x] Mobile-width smoke on paper detail (12/12 via browser agent; audit rows verified)
 
-**Session 2**
-- [ ] Create/rename/reorder research groups; assign/move sources; ungrouped bucket
-- [ ] G1 resolved; owner smoke on a multi-group paper
+**Session 2** (✅ 2026-08-01 — [190](decisions/190-classwork-papers-session-2.md))
+- [x] Create/rename/reorder research groups; assign/move sources; ungrouped bucket (first)
+- [x] G1 resolved (null out); mobile smoke on a multi-group paper (14/14 via browser agent)

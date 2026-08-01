@@ -11,7 +11,7 @@ import {
 	type PaperRow,
 	type PaperStatus
 } from '$lib/types/classwork';
-import type { PaperSourceView } from '$lib/classwork/paper-sources';
+import type { PaperGroupView, PaperSourceView } from '$lib/classwork/paper-sources';
 
 const PAPER_COLUMNS =
 	'id, title, status, course_id, assignment_id, due_date, topic, passage_display, notes, sort_order, created_at';
@@ -199,6 +199,26 @@ export async function loadPaperDetail(
 
 	const [paper] = await hydratePapers(supabase, [data as PaperDb]);
 	return { paper: paper ?? null, error: null };
+}
+
+/** Live research groups for a paper, in display order. */
+export async function loadPaperGroups(
+	supabase: SupabaseClient,
+	paperId: string
+): Promise<{ groups: PaperGroupView[]; error: string | null }> {
+	const { data, error } = await supabase
+		.from('paper_research_groups')
+		.select('id, name, sort_order')
+		.eq('paper_id', paperId)
+		.is('deleted_at', null)
+		.order('sort_order', { ascending: true })
+		.order('created_at', { ascending: true });
+
+	if (error) {
+		console.error('[papers] loadPaperGroups', error);
+		return { groups: [], error: error.message };
+	}
+	return { groups: (data ?? []) as PaperGroupView[], error: null };
 }
 
 /** Live junction row whose catalog book/essay is gone (soft-deleted). */

@@ -3,12 +3,21 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	addPaperSourceAction,
 	createNotOwnedSourceAction,
+	createPaperGroupAction,
 	removePaperSourceAction,
+	renamePaperGroupAction,
+	reorderPaperGroupsAction,
+	setPaperSourceGroupAction,
 	softDeletePaperAction,
+	softDeletePaperGroupAction,
 	updatePaperAction,
 	updatePaperSourceNotesAction
 } from '$lib/classwork/server/paper-actions';
-import { loadPaperDetail, loadPaperSourceViews } from '$lib/classwork/server/paper-loaders';
+import {
+	loadPaperDetail,
+	loadPaperGroups,
+	loadPaperSourceViews
+} from '$lib/classwork/server/paper-loaders';
 import { loadAssignments, loadCourses } from '$lib/classwork/server/loaders';
 import { loadBookListFiltered, loadEssaySearchHits } from '$lib/library/server/loaders';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
@@ -31,10 +40,11 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 
 	// Sources hydrate one loadBookDetail per distinct book (parallel) —
 	// documented round-trip exception for the research surface (decision 189).
-	const [paperRes, sourcesRes, coursesRes, assignmentsRes, linkedRes, profileRes] =
+	const [paperRes, sourcesRes, groupsRes, coursesRes, assignmentsRes, linkedRes, profileRes] =
 		await Promise.all([
 			loadPaperDetail(supabase, params.id),
 			loadPaperSourceViews(supabase, params.id),
+			loadPaperGroups(supabase, params.id),
 			loadCourses(supabase),
 			loadAssignments(supabase, { todayYmd }),
 			supabase
@@ -78,6 +88,7 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 	return {
 		paper: paperRes.paper,
 		sources: sourcesRes.sources,
+		groups: groupsRes.groups,
 		orphanSources: sourcesRes.orphans,
 		courses: coursesRes.courses,
 		assignments: assignmentsRes.assignments,
@@ -86,7 +97,7 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 		bookHits,
 		essayHits,
 		isOwner,
-		loadError: paperRes.error ?? sourcesRes.error
+		loadError: paperRes.error ?? sourcesRes.error ?? groupsRes.error
 	};
 };
 
@@ -124,5 +135,36 @@ export const actions: Actions = {
 			return fail(401, { kind: 'createNotOwnedSource' as const, message: 'Unauthorized' });
 		}
 		return createNotOwnedSourceAction(locals.supabase, user.id, await request.formData());
+	},
+	createPaperGroup: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'createPaperGroup' as const, message: 'Unauthorized' });
+		return createPaperGroupAction(locals.supabase, user.id, await request.formData());
+	},
+	renamePaperGroup: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'renamePaperGroup' as const, message: 'Unauthorized' });
+		return renamePaperGroupAction(locals.supabase, await request.formData());
+	},
+	reorderPaperGroups: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) {
+			return fail(401, { kind: 'reorderPaperGroups' as const, message: 'Unauthorized' });
+		}
+		return reorderPaperGroupsAction(locals.supabase, await request.formData());
+	},
+	softDeletePaperGroup: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) {
+			return fail(401, { kind: 'softDeletePaperGroup' as const, message: 'Unauthorized' });
+		}
+		return softDeletePaperGroupAction(locals.supabase, await request.formData());
+	},
+	setPaperSourceGroup: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) {
+			return fail(401, { kind: 'setPaperSourceGroup' as const, message: 'Unauthorized' });
+		}
+		return setPaperSourceGroupAction(locals.supabase, await request.formData());
 	}
 };

@@ -35,6 +35,43 @@ export type PaperEssaySourceView = {
 
 export type PaperSourceView = PaperBookSourceView | PaperEssaySourceView;
 
+/** Live research group on a paper (sorted by sort_order by the loader). */
+export type PaperGroupView = {
+	id: string;
+	name: string;
+	sort_order: number;
+};
+
+export type PaperSourceBucket<T extends { groupId: string | null }> = {
+	/** Null = the ungrouped bucket (always first). */
+	group: PaperGroupView | null;
+	sources: T[];
+};
+
+/**
+ * Bucket sources for rendering: ungrouped first, then groups in the given
+ * (already sorted) order. Sources keep their relative order inside each
+ * bucket. A source pointing at a group that is no longer live falls back to
+ * ungrouped rather than disappearing (same class as the orphan-source
+ * finding in decision 189).
+ */
+export function groupPaperSources<T extends { groupId: string | null }>(
+	sources: T[],
+	groups: PaperGroupView[]
+): PaperSourceBucket<T>[] {
+	const byGroup = new Map<string, T[]>(groups.map((g) => [g.id, []]));
+	const ungrouped: T[] = [];
+	for (const s of sources) {
+		const bucket = s.groupId ? byGroup.get(s.groupId) : undefined;
+		if (bucket) bucket.push(s);
+		else ungrouped.push(s);
+	}
+	return [
+		{ group: null, sources: ungrouped },
+		...groups.map((g) => ({ group: g, sources: byGroup.get(g.id) ?? [] }))
+	];
+}
+
 export function paperSourceTitle(source: PaperSourceView): string {
 	if (source.kind === 'book') return source.citation.title?.trim() || '(untitled)';
 	return source.essay.essay_title.trim() || '(untitled essay)';

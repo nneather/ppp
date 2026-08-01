@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-08-01 — Classwork papers Session 1: `/classwork/papers` CRUD + cite + compiled bib ([189](docs/decisions/189-classwork-papers-session-1.md)).
+**Last updated:** 2026-08-01 — Classwork papers Session 2: research groups UI on paper detail; G1 = null out ([190](docs/decisions/190-classwork-papers-session-2.md)).
 
 **How to use this file — read this first:**
 
@@ -18,7 +18,7 @@
 
 **Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later).
 
-- **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)). **Papers Session 1 shipped** ([189](docs/decisions/189-classwork-papers-session-1.md)) — publication surface live for the St. Louis edit; Session 2 = research groups UI.
+- **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)). **Papers Sessions 1–2 shipped** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)) — publication surface + research groups live for the St. Louis edit.
 - **Contacts / CRM** — Sessions 1–3 + list mass-add ([183](docs/decisions/183-contacts-list-mass-add.md)). Lists checklist + sheet list toggles. Thin v1 target ~Thanksgiving; mailing send later.
 - **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + health filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)/[184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + contacts ([180](docs/decisions/180-contacts-session-2.md)).
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
@@ -37,7 +37,7 @@ Nearest hard dates:
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅ (essays/Articles, PWA resume, megacomponent core; OCR deferred). **Open:** August shelf QA Track B + "Needs the shelf" (50) — Madison; ISBN GB cross-check ([151](docs/decisions/151-book-metadata-source-strategy.md)). Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
-| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–1** ([189](docs/decisions/189-classwork-papers-session-1.md)) — `/classwork/papers` research surface (attach books/essays/stubs, cite, compiled bib). Next: Papers Session 2 (groups UI, G1). Backlog: Canvas import ([173](docs/decisions/173-canvas-classwork-import-deferred.md)). |
+| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) — `/classwork/papers` research surface complete (attach books/essays/stubs, cite, compiled bib, research groups). Backlog: Canvas import ([173](docs/decisions/173-canvas-classwork-import-deferred.md)). |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + mass-add ([183](docs/decisions/183-contacts-list-mass-add.md)) — Lists checklist, sheet toggles, meet vs card, card bulk log. MCP smoke open (`contacts_with_cadence` on due tool — [184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)): week split, deferred_until, assignment link, contacts_with_cadence. |
 
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [190 — Classwork papers Session 2](docs/decisions/190-classwork-papers-session-2.md) (2026-08-01) — Research groups UI (CRUD + per-row group select + Ungrouped-first buckets); G1 = group delete nulls source group_id.
 - [189 — Classwork papers Session 1](docs/decisions/189-classwork-papers-session-1.md) (2026-08-01) — `/classwork/papers` CRUD + source attach (books/essays/not-owned stubs) + per-row cite + merged compiled bib; P1 = stamp+lock.
 - [188 — Classwork research papers Session 0](docs/decisions/188-classwork-research-papers-session-0.md) (2026-07-31) — Phase 0: `papers` + groups + sources under `/classwork/papers`; essays+not-owned in v1.
 - [187 — PWA silent recovery harden](docs/decisions/187-pwa-silent-recovery-harden.md) (2026-07-31) — Stronger silent clear+reload; banner only after 2 fails or mid-edit.
 - [186 — Defer client reload while editing](docs/decisions/186-pwa-defer-reload-while-editing.md) (2026-07-27) — Skip silent SW/chunk reload mid-form (desktop + PWA); show banner instead.
-- [185 — Invoice PDF received](docs/decisions/185-invoice-pdf-received-resolved.md) (2026-07-27) — Outgoing PDF / first real-client send confirmed; diagnostics closed.
 
 ---
 
@@ -71,7 +71,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Sermons:** `/sermons` list + Sheet; `/sermons/by-book` commentary × sermon spine (series label + multi-part collapse + latest sermon date — [134](docs/decisions/134-sermons-by-book-series-dedupe.md)); `/settings/sermons/venues`; helpers `src/lib/sermons/` (incl. `loadUpcomingSermons`); migration `20260717190000_ppp_sermons_v1.sql` ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md), [132](docs/decisions/132-desktop-home-dashboard.md)).
 
-**Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`. **Papers:** `/classwork/papers` + `/classwork/papers/[id]` research home (attach books/essays/stubs, per-row cite + page, per-source notes, merged compiled bib; P1 stamp+lock) ([189](docs/decisions/189-classwork-papers-session-1.md)); groups UI = Session 2.
+**Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`. **Papers:** `/classwork/papers` + `/classwork/papers/[id]` research home (attach books/essays/stubs, per-row cite + page, per-source notes, merged compiled bib; P1 stamp+lock; **research groups** — CRUD + per-row select + Ungrouped-first buckets, G1 null-out) ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
 
 **Contacts:** `/contacts` tabs Contacts \| Households \| Lists (multi-add checklist + Log cards) + Sheets with list toggles; `/settings/contacts/lists` redirects to Lists tab; dashboard Due to meet ([180](docs/decisions/180-contacts-session-2.md), [182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md), [183](docs/decisions/183-contacts-list-mass-add.md)); helpers `src/lib/contacts/`; migrations `20260725020000_ppp_contacts_v1.sql`, `20260725180115_contacts_touch_kind_and_cadence_ui.sql`. Desktop sidebar only.
 
@@ -81,7 +81,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** `npm run check` + `npm run test` **2026-08-01** ([189](docs/decisions/189-classwork-papers-session-1.md); **0 errors**, 425 tests).
+**Repo gate:** `npm run check` + `npm run test` **2026-08-01** ([190](docs/decisions/190-classwork-papers-session-2.md); **0 errors**, 430 tests).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -96,24 +96,6 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ## Session prompts (copy-paste) — LIVE only
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
-
-### Classwork — Papers Session 2 (research groups UI)
-
-```
-Session: classwork papers #2 — research groups UI + polish
-Tracker: docs/POS_Classwork_Build_Tracker.md › Papers Session 2
-Read: AGENTS.md, docs/decisions/189-classwork-papers-session-1.md,
-  docs/decisions/188-classwork-research-papers-session-0.md,
-  src/lib/classwork/ (paper-sources.ts, server/paper-*), src/routes/classwork/papers/
-Supabase: no new tables expected — paper_research_groups shipped in 20260801120600
-Goal: Group sources on the paper detail page — create/rename/reorder groups, assign/move
-  sources, ungrouped bucket; compiled bib stays flat.
-Acceptance:
- - [ ] Resolve G1 (recommend: soft-deleting a group nulls paper_sources.group_id)
- - [ ] Group CRUD + assign/move source between groups (attachSource already clears group on revive)
- - [ ] Ungrouped bucket renders first/last consistently; mobile smoke on a multi-group paper
- - [ ] npm run check + npm run test; decision doc + tracker + PLAN.md
-```
 
 ### Contacts / CRM — remaining MCP smoke (owner, ~5 min)
 
@@ -214,7 +196,7 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Owner — use `/classwork/papers` for the St. Louis publication edit** ([189](docs/decisions/189-classwork-papers-session-1.md)) — create the real paper, attach sources, report friction; **Papers Session 2** (groups UI) prompt above when ready.
+1. **Owner — use `/classwork/papers` for the St. Louis publication edit** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)) — create the real paper, attach sources, file them into research groups, report friction.
 2. **Owner — Contacts MCP smoke leftover** — reload `ppp`; tick tracker MCP rows.
 3. **Contacts data entry** — seed real people before Thanksgiving card pass.
 4. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.

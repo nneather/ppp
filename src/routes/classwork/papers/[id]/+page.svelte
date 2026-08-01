@@ -6,11 +6,18 @@
 	import PaperFormSheet from '$lib/components/paper-form-sheet.svelte';
 	import PaperSourceRow from '$lib/components/paper-source-row.svelte';
 	import PaperAddSourcePanel from '$lib/components/paper-add-source-panel.svelte';
+	import PaperGroupHeader from '$lib/components/paper-group-header.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
 	import { compilePaperBibliography } from '$lib/classwork/paper-bibliography';
-	import { paperSourceTitle, type PaperSourceView } from '$lib/classwork/paper-sources';
+	import {
+		groupPaperSources,
+		paperSourceTitle,
+		type PaperGroupView,
+		type PaperSourceView
+	} from '$lib/classwork/paper-sources';
 	import { copyCitationToClipboard } from '$lib/library/turabian';
 	import { PAPER_STATUS_LABELS } from '$lib/types/classwork';
 	import { cn } from '$lib/utils';
@@ -41,6 +48,18 @@
 	let removeSourcePending = $state(false);
 	let removeSourceFormEl = $state<HTMLFormElement | null>(null);
 
+	let newGroupOpen = $state(false);
+	let newGroupName = $state('');
+	let newGroupPending = $state(false);
+
+	let deleteGroupTarget = $state<PaperGroupView | null>(null);
+	let deleteGroupOpen = $state(false);
+	let deleteGroupPending = $state(false);
+	let deleteGroupFormEl = $state<HTMLFormElement | null>(null);
+
+	let reorderPending = $state(false);
+	let reorderFormEl = $state<HTMLFormElement | null>(null);
+
 	let copyToast = $state<string | null>(null);
 	let copyToastTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -63,7 +82,12 @@
 			f.kind === 'createNotOwnedSource' ||
 			f.kind === 'removePaperSource' ||
 			f.kind === 'updatePaperSourceNotes' ||
-			f.kind === 'softDeletePaper'
+			f.kind === 'softDeletePaper' ||
+			f.kind === 'createPaperGroup' ||
+			f.kind === 'renamePaperGroup' ||
+			f.kind === 'reorderPaperGroups' ||
+			f.kind === 'softDeletePaperGroup' ||
+			f.kind === 'setPaperSourceGroup'
 		) {
 			return f.message ?? null;
 		}
@@ -142,6 +166,73 @@
 	};
 
 	const totalSourceCount = $derived(data.sources.length + data.orphanSources.length);
+
+	const buckets = $derived(groupPaperSources(data.sources, data.groups));
+
+	const newGroupEnhance: SubmitFunction = () => {
+		newGroupPending = true;
+		return async ({ result, update }) => {
+			newGroupPending = false;
+			await update({ reset: false });
+			if (result.type === 'success') {
+				newGroupOpen = false;
+				newGroupName = '';
+				await refresh();
+			}
+		};
+	};
+
+	function askDeleteGroup(group: PaperGroupView) {
+		deleteGroupTarget = group;
+		deleteGroupOpen = true;
+	}
+
+	function submitDeleteGroup() {
+		if (!deleteGroupTarget || !deleteGroupFormEl) return;
+		const idInput = deleteGroupFormEl.querySelector(
+			'input[name="group_id"]'
+		) as HTMLInputElement | null;
+		if (!idInput) return;
+		idInput.value = deleteGroupTarget.id;
+		deleteGroupFormEl.requestSubmit();
+	}
+
+	const deleteGroupEnhance: SubmitFunction = () => {
+		deleteGroupPending = true;
+		return async ({ result, update }) => {
+			deleteGroupPending = false;
+			await update({ reset: false });
+			if (result.type === 'success') {
+				deleteGroupOpen = false;
+				deleteGroupTarget = null;
+				await refresh();
+			}
+		};
+	};
+
+	function moveGroup(groupId: string, direction: 'up' | 'down') {
+		if (!reorderFormEl || reorderPending) return;
+		const ids = data.groups.map((g) => g.id);
+		const i = ids.indexOf(groupId);
+		const j = direction === 'up' ? i - 1 : i + 1;
+		if (i < 0 || j < 0 || j >= ids.length) return;
+		[ids[i], ids[j]] = [ids[j], ids[i]];
+		const orderInput = reorderFormEl.querySelector(
+			'input[name="order"]'
+		) as HTMLInputElement | null;
+		if (!orderInput) return;
+		orderInput.value = JSON.stringify(ids);
+		reorderFormEl.requestSubmit();
+	}
+
+	const reorderEnhance: SubmitFunction = () => {
+		reorderPending = true;
+		return async ({ result, update }) => {
+			reorderPending = false;
+			await update({ reset: false });
+			if (result.type === 'success') await refresh();
+		};
+	};
 
 	const deletePaperEnhance: SubmitFunction = () => {
 		deletePaperPending = true;
@@ -269,26 +360,123 @@
 					onAdded={refresh}
 				/>
 			</div>
+			<div class="mt-3">
+				{#if !newGroupOpen}
+					<button
+						type="button"
+						class="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+						onclick={() => (newGroupOpen = true)}
+					>
+						New research group
+					</button>
+				{:else}
+					<form
+						method="POST"
+						action="?/createPaperGroup"
+						use:enhance={newGroupEnhance}
+						class="flex flex-wrap items-center gap-2"
+					>
+						<input type="hidden" name="paper_id" value={data.paper.id} />
+						<Input
+							type="text"
+							name="name"
+							bind:value={newGroupName}
+							required
+							placeholder="Group name — e.g. Primary sources"
+							aria-label="New group name"
+							class="h-8 w-full max-w-64 text-sm"
+						/>
+						<Button
+							type="submit"
+							variant="outline"
+							size="sm"
+							label={newGroupPending ? 'Adding…' : 'Add group'}
+							disabled={newGroupPending || !newGroupName.trim()}
+						/>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							hotkey="Escape"
+							label="Cancel"
+							onclick={() => (newGroupOpen = false)}
+						/>
+					</form>
+				{/if}
+			</div>
 		{/if}
 
-		{#if totalSourceCount === 0}
+		{#snippet sourceRow(source: PaperSourceView)}
+			<PaperSourceRow
+				{source}
+				groups={data.groups}
+				isOwner={data.isOwner}
+				onCopied={flashCopyToast}
+				onRemove={askRemoveSource}
+				onSaved={refresh}
+			/>
+		{/snippet}
+
+		{#if totalSourceCount === 0 && data.groups.length === 0}
 			<div class="mt-4 rounded-lg border border-dashed border-border px-4 py-8 text-center">
 				<p class="text-sm font-medium">No sources attached</p>
 				<p class="mt-1 text-sm text-muted-foreground">
 					Search the library above — owned books, research stubs, and essays all count.
 				</p>
 			</div>
-		{:else}
+		{:else if data.groups.length === 0}
 			<ul class="mt-4 space-y-2">
 				{#each data.sources as source (source.sourceId)}
-					<PaperSourceRow
-						{source}
-						isOwner={data.isOwner}
-						onCopied={flashCopyToast}
-						onRemove={askRemoveSource}
-						onSaved={refresh}
-					/>
+					{@render sourceRow(source)}
 				{/each}
+			</ul>
+		{:else}
+			{#each buckets as bucket (bucket.group?.id ?? 'ungrouped')}
+				{#if bucket.group === null}
+					{#if bucket.sources.length > 0}
+						<div class="mt-5">
+							<h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+								Ungrouped
+								<span class="ml-1 font-normal">({bucket.sources.length})</span>
+							</h3>
+							<ul class="mt-2 space-y-2">
+								{#each bucket.sources as source (source.sourceId)}
+									{@render sourceRow(source)}
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				{:else}
+					{@const groupIndex = data.groups.findIndex((g) => g.id === bucket.group?.id)}
+					<div class="mt-5">
+						<PaperGroupHeader
+							group={bucket.group}
+							count={bucket.sources.length}
+							isOwner={data.isOwner}
+							canMoveUp={groupIndex > 0 && !reorderPending}
+							canMoveDown={groupIndex < data.groups.length - 1 && !reorderPending}
+							onMove={moveGroup}
+							onDelete={askDeleteGroup}
+							onSaved={refresh}
+						/>
+						{#if bucket.sources.length === 0}
+							<p class="mt-2 text-xs text-muted-foreground">
+								No sources in this group — use the group selector on a source row.
+							</p>
+						{:else}
+							<ul class="mt-2 space-y-2">
+								{#each bucket.sources as source (source.sourceId)}
+									{@render sourceRow(source)}
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				{/if}
+			{/each}
+		{/if}
+
+		{#if data.orphanSources.length > 0}
+			<ul class="mt-4 space-y-2">
 				{#each data.orphanSources as orphan (orphan.sourceId)}
 					<li
 						class="flex items-start justify-between gap-3 rounded-lg border border-dashed border-border px-3 py-2.5 opacity-80"
@@ -368,6 +556,37 @@
 		pending={removeSourcePending}
 		onConfirm={submitRemoveSource}
 	/>
+
+	<form
+		bind:this={deleteGroupFormEl}
+		method="POST"
+		action="?/softDeletePaperGroup"
+		use:enhance={deleteGroupEnhance}
+		class="hidden"
+	>
+		<input type="hidden" name="group_id" value="" />
+	</form>
+	<ConfirmDialog
+		bind:open={deleteGroupOpen}
+		title="Delete group?"
+		description={deleteGroupTarget
+			? `Delete “${deleteGroupTarget.name}”? Its sources stay on the paper, ungrouped.`
+			: ''}
+		confirmLabel="Delete"
+		pending={deleteGroupPending}
+		onConfirm={submitDeleteGroup}
+	/>
+
+	<form
+		bind:this={reorderFormEl}
+		method="POST"
+		action="?/reorderPaperGroups"
+		use:enhance={reorderEnhance}
+		class="hidden"
+	>
+		<input type="hidden" name="paper_id" value={data.paper.id} />
+		<input type="hidden" name="order" value="" />
+	</form>
 
 	<form
 		bind:this={deletePaperFormEl}
