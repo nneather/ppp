@@ -39,6 +39,42 @@ export const ASSIGNMENT_STATUS_LABELS: Record<AssignmentStatus, string> = {
 export const CLASSWORK_GROUPS = ['date', 'course'] as const;
 export type ClassworkGroup = (typeof CLASSWORK_GROUPS)[number];
 
+export const PAPER_STATUSES = ['draft', 'in_progress', 'submitted'] as const;
+export type PaperStatus = (typeof PAPER_STATUSES)[number];
+
+export const PAPER_STATUS_LABELS: Record<PaperStatus, string> = {
+	draft: 'Draft',
+	in_progress: 'In progress',
+	submitted: 'Submitted'
+};
+
+/**
+ * Research paper (opt-in research surface; [188]). When `assignment_id` is
+ * set, `course_id` / `due_date` are stamped from the assignment and locked
+ * (P1 stamp + lock — server re-stamps on every save while linked).
+ */
+export type PaperRow = {
+	id: string;
+	title: string;
+	status: PaperStatus;
+	course_id: string | null;
+	course_name: string | null;
+	course_code: string | null;
+	assignment_id: string | null;
+	assignment_title: string | null;
+	assignment_due_date: string | null;
+	due_date: string | null;
+	topic: string | null;
+	passage_display: string | null;
+	notes: string | null;
+	sort_order: number;
+};
+
+export type PaperListRow = PaperRow & {
+	/** Live source count (not soft-deleted). */
+	sourceCount: number;
+};
+
 export type CourseRow = {
 	id: string;
 	name: string;

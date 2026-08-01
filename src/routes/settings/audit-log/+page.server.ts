@@ -23,7 +23,13 @@ export const _PROJECTS_TABLES = [
 
 export const _SERMONS_TABLES = ['sermon_venues', 'sermons', 'sermon_passages'] as const;
 
-export const _CLASSWORK_TABLES = ['courses', 'assignments'] as const;
+export const _CLASSWORK_TABLES = [
+	'courses',
+	'assignments',
+	'papers',
+	'paper_research_groups',
+	'paper_sources'
+] as const;
 
 export const _CONTACTS_TABLES = [
 	'households',
@@ -91,6 +97,9 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	// classwork
 	'courses',
 	'assignments',
+	'papers',
+	'paper_research_groups',
+	'paper_sources',
 	// contacts
 	'households',
 	'contacts',
@@ -279,6 +288,21 @@ function entityLabelFor(
 			const due = get('due_date');
 			if (title && due) return `${due} · ${title}`;
 			return title;
+		}
+		case 'papers': {
+			const title = get('title');
+			const status = get('status');
+			if (title && status) return `${title} · ${status.replaceAll('_', ' ')}`;
+			return title;
+		}
+		case 'paper_research_groups':
+			return get('name');
+		case 'paper_sources': {
+			const bookId = get('book_id');
+			const essayId = get('essay_id');
+			if (bookId) return `Book source #${bookId.slice(0, 8)}`;
+			if (essayId) return `Essay source #${essayId.slice(0, 8)}`;
+			return null;
 		}
 		case 'contacts': {
 			const first = get('first_name');

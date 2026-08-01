@@ -3,6 +3,7 @@
 	import { goto, invalidate } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import PageHeader from '$lib/components/page-header.svelte';
+	import ClassworkViewToggle from '$lib/components/classwork-view-toggle.svelte';
 	import CourseFormSheet from '$lib/components/course-form-sheet.svelte';
 	import AssignmentFormSheet from '$lib/components/assignment-form-sheet.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
@@ -58,7 +59,12 @@
 
 	const assignmentSheetError = $derived.by(() => {
 		if (!f || f.success === true) return null;
-		if (f.kind === 'createAssignment' || f.kind === 'updateAssignment')
+		if (
+			f.kind === 'createAssignment' ||
+			f.kind === 'updateAssignment' ||
+			// Cross-route "Open research paper" failure lands in this page's form prop.
+			f.kind === 'openResearchPaper'
+		)
 			return f.message ?? null;
 		return null;
 	});
@@ -229,7 +235,11 @@
 		<p class="mt-4 text-sm text-destructive" role="alert">{deleteError}</p>
 	{/if}
 
-	<div class="mt-4 flex flex-wrap gap-2">
+	<div class="mt-4 flex flex-wrap items-center gap-3">
+		<ClassworkViewToggle active="assignments" />
+	</div>
+
+	<div class="mt-3 flex flex-wrap gap-2">
 		<button
 			type="button"
 			class={cn(

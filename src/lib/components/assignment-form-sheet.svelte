@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { untrack } from 'svelte';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -144,6 +145,25 @@
 				Due date is required. Undated work belongs in Tasks, not here.
 			</Sheet.Description>
 		</Sheet.Header>
+
+		{#if mode === 'edit' && assignment && kind === 'paper'}
+			<!-- Sibling of the main form — nested forms are invalid HTML. -->
+			<form
+				method="POST"
+				action="/classwork/papers?/openResearchPaper"
+				use:enhance
+				class="flex items-center justify-between gap-3 border-b border-border px-1 py-3"
+			>
+				<input type="hidden" name="assignment_id" value={assignment.id} />
+				<p class="text-xs text-muted-foreground">
+					Bibliography and citations live on the research paper.
+				</p>
+				<Button type="submit" variant="outline" size="sm" class="shrink-0 gap-1.5">
+					<FileText class="size-3.5" />
+					Open research paper
+				</Button>
+			</form>
+		{/if}
 
 		<form
 			method="POST"
