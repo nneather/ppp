@@ -21,6 +21,11 @@ Batch shelf adds for **ppp** when ISBN/OL UI is wrong or slow (commentaries, rep
 
 **Never INSERT until Parker answers the confirmation questions.** Research may proceed immediately.
 
+### Input formats (Amazon / lists)
+
+- **Amazon Orders paste** is fine — titles often appear **twice** per item; dedupe before research. Ignore “Sold by / Return / Track package / $price” noise.
+- Prefer when possible: **one unique title per line**, or a short bullet list with series hints (`NICOT`, `KCC`, `Hermeneia`).
+
 ## Efficiency defaults
 
 1. **Dedup SQL first** (before deep bibliographic research) — title/author/series already in prod?
@@ -64,6 +69,10 @@ FROM books WHERE deleted_at IS NULL AND publisher ILIKE ANY(ARRAY[…]) LIMIT 20
 | IVP NTC / IVPNTC | `NTC` = Hendriksen/Baker *New Testament Commentary* | Create **`IVPNTC`**, never reuse `NTC` |
 | Anchor / AB | `AB` exists; `ABD` is Dictionary | Use **`AB`** for commentaries |
 | Black's | usually missing | Create **`BNTC`** (*Black's New Testament Commentaries*) |
+| AOT / Apollos OT | SBL `AOTC` = Abingdon; ours is **`ApOTC`** | Attach **`ApOTC`**, never create bare `AOT` / `AOTC` |
+| Kidner Classic Commentaries | `TOTC` is Tyndale OT (different ISBNs) | Create **`KCC`** for IVP “Kidner Classic” reprints — do **not** hang on `TOTC` |
+| Hermeneia | abbr is full word **`Hermeneia`** (not `Herm`) | Match sibling rows ([171](../../docs/decisions/171-hermeneia-cite-full-name.md)) |
+| Loeb / LCL | `volume_number` = Loeb **catalog** # (e.g. `105`) | English title house style: `Odyssey, Volume II: Books 13–24` — not Greek-only titles ([172](../../docs/decisions/172-loeb-series-number-not-multivol.md)) |
 
 Full series/ISBN/publisher notes: [reference.md](reference.md).
 
@@ -77,8 +86,10 @@ For each new book, gather:
 - **Publisher** string + Turabian **location** (match sibling rows in that series)
 - **year** / **original_year** / reprint story
 - **ISBN** when confident — **checksum-validate** (prefer ISBN-13); leave null if uncertain
-- **genre** (usually `Commentary`; for anything else, or if unsure, use [library-recommend-genre](../library-recommend-genre/SKILL.md)), **work_type** (`monograph` default), **language**, **reading_status** (`reference` for commentaries)
-- **bible coverage** — every Protestant book in the title range ([088](../../docs/decisions/088-commentary-bible-coverage-cleanup.md)); names from `BIBLE_BOOK_NAMES` / `bible_books`
+  - **Pre-ISBN / true early prints** (e.g. ICC 1902): ISBN **null** even if a modern reprint barcode exists online — ask original vs reprint
+  - **US vs UK twin ISBNs** (Apollos UK `085…` vs IVP Academic US `083…`): match sibling imprint in that series; ask when unclear
+- **genre** (usually `Commentary`; mixed pastoral/preaching/secular batches → [library-recommend-genre](../library-recommend-genre/SKILL.md)), **work_type** (`monograph` default), **language**, **reading_status** (`reference` for commentaries; `unread` default otherwise)
+- **bible coverage** — every Protestant book in the title range for **`genre = Commentary`** ([088](../../docs/decisions/088-commentary-bible-coverage-cleanup.md)); names from `BIBLE_BOOK_NAMES` / `bible_books`. Verify coverage arrays in the post-push SELECT — do not stop at “row inserted.”
 
 ### People naming
 
@@ -108,13 +119,15 @@ Send **one** message:
 3. Numbered questions — only real forks. Typical:
 
    - Edition/year (combined vs multi-vol; reprint year vs original)
-   - Series create vs attach; abbreviation
-   - Publisher imprint (Doubleday vs Yale; A&C Black vs Hendrickson)
-   - ISBN fill vs leave null
+   - Series create vs attach; abbreviation (esp. KCC vs TOTC, ApOTC vs AOT)
+   - Publisher imprint (Doubleday vs Yale; A&C Black vs Hendrickson; US IVP Academic vs UK Apollos)
+   - ISBN fill vs leave null (early print vs modern reprint barcode)
+   - Accidental near-dupe already in prod → **UPDATE / soft-delete / skip** (never soft-delete without asking; if soft-deleting a bad Loeb/Greek title, still normalize to English catalog form for undo cleanliness — [191](../../docs/decisions/191-library-aug3-shelf-batch.md))
    - `needs_review` clean confirm vs shelf flag
    - Coverage edge cases (e.g. Titus-only despite Pastorals intro)
+   - Non-commentary genres (Homiletics / Pastoral Ministry / Old Testament / …)
 
-Defaults to state unless overridden: genre Commentary, work_type monograph, language english, reading_status reference, `needs_review = false` when clean.
+Defaults to state unless overridden: genre Commentary (only for commentaries), work_type monograph, language english, reading_status reference for commentaries / unread otherwise, `needs_review = false` when clean.
 
 ## Phase 3 — write
 
@@ -122,24 +135,27 @@ Defaults to state unless overridden: genre Commentary, work_type monograph, lang
 2. Idempotent DML: `WHERE NOT EXISTS` on natural keys (`title` + `series_id` for books; abbr for series; name parts for people). Template: [reference.md](reference.md).
 3. `created_by`: owner uuid `a14833c9-459e-4667-aef3-dae698734f6d` (same as 088/092).
 4. `npm run supabase:db:push:dry` → `npm run supabase:db:push` (hosted only — no local Docker).
-5. Verify with SELECT (title, author_display, series, year, isbn, coverage arrays).
+5. Verify with SELECT (title, author_display, series, year, isbn, **coverage arrays for every Commentary**). Use `LEFT JOIN series` so standalone rows appear too.
 6. DML-only → skip `gen-types`. File `docs/decisions/NNN-*.md`, refresh PLAN.md Recent decisions + last-updated. Offer commit message.
+
+Standalone (no series) books: separate `INSERT` with `WHERE NOT EXISTS (… title … AND series_id IS NULL)` — see [reference.md](reference.md).
 
 ## Do not
 
 - INSERT before confirmation answers
-- Reuse wrong series abbreviations (`NTC` ≠ IVP NTC)
+- Reuse wrong series abbreviations (`NTC` ≠ IVP NTC; `AOTC` ≠ Apollos; `TOTC` ≠ Kidner Classic)
 - Hand-write `Database` types
 - Put service-role secrets in the client
 - Soft-delete existing dupes without asking
 - Flag `needs_review` when Parker said clean confirm and fields are complete
+- Ship Commentaries without verifying `book_bible_coverage` in the post-push SELECT
 
 ## End-of-batch checklist
 
-- [ ] Dupes handled (skip / UPDATE)
-- [ ] Series abbr collisions checked
-- [ ] ISBN checksums OK or null
-- [ ] Coverage attached for Commentary ranges
-- [ ] Migration applied + verify SELECT
+- [ ] Dupes handled (skip / UPDATE / soft-delete-with-ask)
+- [ ] Series abbr collisions checked (incl. ApOTC / KCC / Hermeneia / LCL)
+- [ ] ISBN checksums OK or null (no reprint barcode on true early prints)
+- [ ] Coverage attached **and verified** for every Commentary in the batch
+- [ ] Migration applied + verify SELECT (series + standalone)
 - [ ] Decision log + PLAN.md
 - [ ] Copy-paste commit message for Parker

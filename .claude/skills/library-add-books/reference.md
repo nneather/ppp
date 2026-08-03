@@ -95,13 +95,53 @@ Match existing free-text on sibling series rows; `publisher_id` often null for o
 | Imprint | Typical `publisher` | Location |
 |---|---|---|
 | NAC / B&H era | `Broadman & Holman Publishers` or `B&H Publishing Group` | `Nashville, TN` |
-| NICNT | `Eerdmans` | `Grand Rapids, MI` |
-| IVP / IVPNTC | `InterVarsity Press` or `IVP Academic` | `Downers Grove, IL` |
+| NICOT / NICNT | `Eerdmans` | `Grand Rapids, MI` |
+| IVP / IVPNTC / KCC | `InterVarsity Press` or `IVP Academic` | `Downers Grove, IL` |
+| Apollos (UK twin) | often `Apollos` + Leicester ISBN `085…` — prefer US sibling `IVP Academic` + `083…` when that matches shelf | `Downers Grove, IL` |
 | Anchor (Doubleday era) | `Doubleday` | `Garden City, NY` |
-| Zondervan | `Zondervan` | `Grand Rapids, MI` |
+| OTL | `Westminster John Knox` | `Louisville, KY` |
+| Hermeneia | `Fortress Press` | `Philadelphia` (older) or Minneapolis |
+| ICC | `T&T Clark` | `Edinburgh` |
+| Loeb / LCL | `Harvard University Press` | `Cambridge, MA` |
+| Zondervan | `Zondervan` / `Zondervan Academic` | `Grand Rapids, MI` |
 | Black's original | `A. & C. Black` | `London` |
 
 Do **not** invent new `publishers` registry rows mid-batch unless Parker asks — optional follow-up.
+
+## Standalone books (no series)
+
+```sql
+INSERT INTO public.books (
+	title, publisher, publisher_location, year, original_year, isbn,
+	genre, work_type, language, reading_status, needs_review, created_by
+)
+SELECT
+	v.title, v.publisher, v.publisher_location, v.year, v.original_year, v.isbn,
+	v.genre, 'monograph', 'english', v.reading_status, false,
+	'a14833c9-459e-4667-aef3-dae698734f6d'::uuid
+FROM (VALUES
+	('Title', 'Publisher', 'City, ST', 2015, NULL::int, '978…', 'Pastoral Ministry', 'unread')
+) AS v(title, publisher, publisher_location, year, original_year, isbn, genre, reading_status)
+WHERE NOT EXISTS (
+	SELECT 1 FROM public.books b
+	WHERE b.deleted_at IS NULL AND b.title = v.title AND b.series_id IS NULL
+);
+
+INSERT INTO public.book_authors (book_id, person_id, role, sort_order)
+SELECT b.id, p.id, 'author', v.sort_order
+FROM (VALUES
+	('Title', 'First', 'M', 'Last', 0)
+) AS v(title, first_name, middle_name, last_name, sort_order)
+JOIN public.books b ON b.title = v.title AND b.series_id IS NULL AND b.deleted_at IS NULL
+JOIN public.people p ON p.deleted_at IS NULL
+	AND COALESCE(p.first_name, '') = COALESCE(v.first_name, '')
+	AND COALESCE(p.middle_name, '') = COALESCE(v.middle_name, '')
+	AND p.last_name = v.last_name
+WHERE NOT EXISTS (
+	SELECT 1 FROM public.book_authors ba
+	WHERE ba.book_id = b.id AND ba.person_id = p.id
+);
+```
 
 ## Coverage rules (commentaries)
 
@@ -134,16 +174,23 @@ Exact names: `src/lib/library/bible-book-names.ts` / `bible_books.name`.
 
 ```sql
 SELECT b.title, b.author_display, s.abbreviation, b.volume_number,
-       b.publisher, b.year, b.original_year, b.isbn, b.needs_review,
+       b.publisher, b.year, b.original_year, b.isbn, b.genre, b.needs_review,
        (SELECT array_agg(c.bible_book ORDER BY c.bible_book)
         FROM book_bible_coverage c WHERE c.book_id = b.id) AS coverage
 FROM books b
-JOIN series s ON s.id = b.series_id
-WHERE b.deleted_at IS NULL AND s.abbreviation IN (…) AND b.title IN (…);
+LEFT JOIN series s ON s.id = b.series_id
+WHERE b.deleted_at IS NULL
+  AND (
+    s.abbreviation IN (…)
+    OR b.title IN (…)
+  )
+ORDER BY s.abbreviation NULLS LAST, b.title;
 ```
+
+Every row with `genre = 'Commentary'` must show a non-null `coverage` array before closing the batch.
 
 ## Decision log
 
-Use AGENTS.md template. Surprises section: series collisions, ISBN checksum fails, existing dupes, people denorm quirks.
+Use AGENTS.md template. Surprises section: series collisions, ISBN checksum fails, existing dupes, people denorm quirks, early-print ISBN null, soft-deleted accidents.
 
 Commit style: `library: NNN-<slug> — <outcome>`
