@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-08-05 — ISBN integrity: Collins P&R ISBN + 5 duplicate pairs → copy_count=2 ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)); prior German edition [193](docs/decisions/193-german-edition-isbn-corrections.md).
+**Last updated:** 2026-08-05 — Shelf add Shepherd / Noll / Vallier ([195](docs/decisions/195-library-aug5-shepherd-noll-vallier.md)); prior ISBN integrity [194](docs/decisions/194-library-isbn-integrity-collins-dups.md).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. Outgoing PDF + first real-client send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). **Open:** key rotation (#4 on tracker, Sep 2026). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). Aug 3 shelf batch + KCC ✅ ([191](docs/decisions/191-library-aug3-shelf-batch.md)). Language + coverage integrity ✅ ([192](docs/decisions/192-library-language-coverage-integrity.md)); German edition ISBN follow-up ✅ ([193](docs/decisions/193-german-edition-isbn-corrections.md)); ISBN integrity Collins + dups ✅ ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)) — Lost Tales / Foundation shared ISBNs await shelf. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). Aug 3 shelf batch + KCC ✅ ([191](docs/decisions/191-library-aug3-shelf-batch.md)). Language + coverage integrity ✅ ([192](docs/decisions/192-library-language-coverage-integrity.md)); German edition ISBN follow-up ✅ ([193](docs/decisions/193-german-edition-isbn-corrections.md)); ISBN integrity Collins + dups ✅ ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)); Aug 5 Shepherd/Noll/Vallier ✅ ([195](docs/decisions/195-library-aug5-shepherd-noll-vallier.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) — `/classwork/papers` research surface complete (attach books/essays/stubs, cite, compiled bib, research groups). Backlog: Canvas import ([173](docs/decisions/173-canvas-classwork-import-deferred.md)). |
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [195 — Library Aug 5 shelf batch (Shepherd / Noll / Vallier)](docs/decisions/195-library-aug5-shepherd-noll-vallier.md) (2026-08-05) — 3 standalone adds: Prophets / Church History / Politics and Policy; Noll 1994 hardcover.
 - [194 — Library ISBN integrity (Collins + dups)](docs/decisions/194-library-isbn-integrity-collins-dups.md) (2026-08-05) — Collins → 9780875526195; five duplicate pairs → copy_count=2; OL mismatches kept; Lost Tales/Foundation shelf-deferred.
 - [193 — German edition ISBN corrections](docs/decisions/193-german-edition-isbn-corrections.md) (2026-08-05) — Sebald Eichborn ISBN; Emil/Kant/Die Bibel language=german + null bad English ISBNs.
 - [192 — Library language + coverage integrity](docs/decisions/192-library-language-coverage-integrity.md) (2026-08-05) — 16 German language flips; 6 commentary coverage fills; multi-copy ISBNs kept; AB deutero skipped.
 - [191 — Library August shelf batch](docs/decisions/191-library-aug3-shelf-batch.md) (2026-08-03) — 22 shelf books + KCC; soft-delete accidental Loeb Odyssey Vol I; Bigg 1902 no ISBN.
-- [190 — Classwork papers Session 2](docs/decisions/190-classwork-papers-session-2.md) (2026-08-01) — Research groups UI (CRUD + per-row group select + Ungrouped-first buckets); G1 = group delete nulls source group_id.
 
 ---
 
