@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-08-05 — Library integrity: 16 German language fixes + 6 commentary bible-coverage fills; ISBN multi-copies left alone ([192](docs/decisions/192-library-language-coverage-integrity.md)).
+**Last updated:** 2026-08-05 — German edition corrections for Sebald / Emil / Kant / Die Bibel ([193](docs/decisions/193-german-edition-isbn-corrections.md)); prior integrity pass [192](docs/decisions/192-library-language-coverage-integrity.md).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. Outgoing PDF + first real-client send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). **Open:** key rotation (#4 on tracker, Sep 2026). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). Aug 3 shelf batch + KCC ✅ ([191](docs/decisions/191-library-aug3-shelf-batch.md)). Language + coverage integrity ✅ ([192](docs/decisions/192-library-language-coverage-integrity.md)). |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). Aug 3 shelf batch + KCC ✅ ([191](docs/decisions/191-library-aug3-shelf-batch.md)). Language + coverage integrity ✅ ([192](docs/decisions/192-library-language-coverage-integrity.md)); German edition ISBN follow-up ✅ ([193](docs/decisions/193-german-edition-isbn-corrections.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) — `/classwork/papers` research surface complete (attach books/essays/stubs, cite, compiled bib, research groups). Backlog: Canvas import ([173](docs/decisions/173-canvas-classwork-import-deferred.md)). |
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [193 — German edition ISBN corrections](docs/decisions/193-german-edition-isbn-corrections.md) (2026-08-05) — Sebald Eichborn ISBN; Emil/Kant/Die Bibel language=german + null bad English ISBNs.
 - [192 — Library language + coverage integrity](docs/decisions/192-library-language-coverage-integrity.md) (2026-08-05) — 16 German language flips; 6 commentary coverage fills; multi-copy ISBNs kept; AB deutero skipped.
 - [191 — Library August shelf batch](docs/decisions/191-library-aug3-shelf-batch.md) (2026-08-03) — 22 shelf books + KCC; soft-delete accidental Loeb Odyssey Vol I; Bigg 1902 no ISBN.
 - [190 — Classwork papers Session 2](docs/decisions/190-classwork-papers-session-2.md) (2026-08-01) — Research groups UI (CRUD + per-row group select + Ungrouped-first buckets); G1 = group delete nulls source group_id.
 - [189 — Classwork papers Session 1](docs/decisions/189-classwork-papers-session-1.md) (2026-08-01) — `/classwork/papers` CRUD + source attach (books/essays/not-owned stubs) + per-row cite + merged compiled bib; P1 = stamp+lock.
-- [188 — Classwork research papers Session 0](docs/decisions/188-classwork-research-papers-session-0.md) (2026-07-31) — Phase 0: `papers` + groups + sources under `/classwork/papers`; essays+not-owned in v1.
 
 ---
 
@@ -81,7 +81,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** DML-only integrity 2026-08-05 ([192](docs/decisions/192-library-language-coverage-integrity.md)) — no app code; last `check`+`test` **2026-08-01** ([190](docs/decisions/190-classwork-papers-session-2.md); **0 errors**, 430 tests).
+**Repo gate:** DML-only German edition corrections 2026-08-05 ([193](docs/decisions/193-german-edition-isbn-corrections.md)) — no app code; last `check`+`test` **2026-08-01** ([190](docs/decisions/190-classwork-papers-session-2.md); **0 errors**, 430 tests).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
