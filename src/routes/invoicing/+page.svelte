@@ -4,13 +4,13 @@
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Plus from '@lucide/svelte/icons/plus';
-	import FileText from '@lucide/svelte/icons/file-text';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import { cn } from '$lib/utils';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import PageHeader from '$lib/components/page-header.svelte';
+	import InvoicingViewToggle from '$lib/components/invoicing-view-toggle.svelte';
 	import TimeEntrySheet from '$lib/components/time-entry-sheet.svelte';
 	import {
 		formatYmdLongChicago,
@@ -147,23 +147,18 @@
 	{/snippet}
 
 	{#snippet headerActions()}
-		<Button
-			variant="outline"
-			href="/invoicing/invoices"
-			class="h-10 min-h-10 flex-1 gap-2 sm:flex-none"
-		>
-			<FileText class="size-4" />
-			Invoices
-		</Button>
-		<Button
-			type="button"
-			class="h-10 min-h-10 flex-1 gap-2 sm:flex-none"
-			onclick={openCreate}
-			hotkey="b"
-		>
-			<Plus class="size-4" />
-			New entry
-		</Button>
+		<div class="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
+			<InvoicingViewToggle active="time" />
+			<Button
+				type="button"
+				class="h-10 min-h-10 w-full gap-2 sm:w-auto"
+				onclick={openCreate}
+				hotkey="b"
+			>
+				<Plus class="size-4" />
+				New entry
+			</Button>
+		</div>
 	{/snippet}
 
 	{#if data.error}

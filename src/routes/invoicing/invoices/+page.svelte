@@ -1,11 +1,12 @@
 <script lang="ts">
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import Plus from '@lucide/svelte/icons/plus';
-	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { cn } from '$lib/utils';
 	import GenerateInvoiceSheet from '$lib/components/generate-invoice-sheet.svelte';
+	import InvoicingViewToggle from '$lib/components/invoicing-view-toggle.svelte';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import {
 		formatYmdMediumChicago,
 		formatYmdShortChicago
@@ -61,32 +62,25 @@
 </svelte:head>
 
 <div class="relative mx-auto max-w-3xl px-4 pt-6 pb-28 md:px-6 md:pt-8 md:pb-10">
-	<header class="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-		<div class="flex flex-col gap-1">
-			<a
-				href="/invoicing"
-				class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+	<PageHeader title="Invoicing" subtitle="Invoices" class="mb-6" lead={headerLead} actions={headerActions} />
+
+	{#snippet headerLead()}
+		<Receipt class="size-7 shrink-0 md:size-6" />
+	{/snippet}
+
+	{#snippet headerActions()}
+		<div class="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
+			<InvoicingViewToggle active="invoices" />
+			<Button
+				type="button"
+				class="hidden h-10 gap-2 md:inline-flex"
+				onclick={() => (sheetOpen = true)}
 			>
-				<ChevronLeft class="size-4" />
-				Time entries
-			</a>
-			<div class="flex items-center gap-2 text-muted-foreground">
-				<Receipt class="size-7 shrink-0 md:size-6" />
-				<div>
-					<p class="text-xs font-medium text-muted-foreground">Invoicing</p>
-					<h1 class="text-2xl font-semibold tracking-tight text-foreground">Invoices</h1>
-				</div>
-			</div>
+				<Plus class="size-4" />
+				Generate invoice
+			</Button>
 		</div>
-		<Button
-			type="button"
-			class="hidden h-10 gap-2 md:inline-flex"
-			onclick={() => (sheetOpen = true)}
-		>
-			<Plus class="size-4" />
-			Generate invoice
-		</Button>
-	</header>
+	{/snippet}
 
 	{#if data.error}
 		<p

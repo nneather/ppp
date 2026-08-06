@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-08-05 — Historical FOL + TWH hours import ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)); prior shelf Shepherd/Noll/Vallier [195](docs/decisions/195-library-aug5-shepherd-noll-vallier.md).
+**Last updated:** 2026-08-05 — Invoicing analytics chart ([197](docs/decisions/197-invoicing-analytics.md)); prior historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)).
 
 **How to use this file — read this first:**
 
@@ -33,7 +33,7 @@ Nearest hard dates:
 
 | Module | Tracker | State |
 |---|---|---|
-| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. Outgoing PDF + first real-client send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + pre-ppp 229 hours imported ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). **Open:** key rotation (#4 on tracker, Sep 2026); optional invoice period reconstruction. |
+| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. Outgoing PDF + first real-client send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + pre-ppp 229 hours imported ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). **Analytics** Time \| Invoices \| Analytics + hours/earnings chart ([197](docs/decisions/197-invoicing-analytics.md)). **Open:** key rotation (#4 on tracker, Sep 2026); optional invoice period reconstruction. |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). Aug 3 shelf batch + KCC ✅ ([191](docs/decisions/191-library-aug3-shelf-batch.md)). Language + coverage integrity ✅ ([192](docs/decisions/192-library-language-coverage-integrity.md)); German edition ISBN follow-up ✅ ([193](docs/decisions/193-german-edition-isbn-corrections.md)); ISBN integrity Collins + dups ✅ ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)); Aug 5 Shepherd/Noll/Vallier ✅ ([195](docs/decisions/195-library-aug5-shepherd-noll-vallier.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [197 — Invoicing analytics chart](docs/decisions/197-invoicing-analytics.md) (2026-08-05) — `/invoicing/analytics` week/month hours + earnings; Hours|Money|Both; shared Time|Invoices|Analytics toggle.
 - [196 — Invoicing historical FOL + TWH hours](docs/decisions/196-invoicing-historical-fol-twh-hours.md) (2026-08-05) — FOL 69h/$2,415 + pre-ppp 229 392.5h/$39,250 as paid stub invoices; period breakdown deferred.
 - [195 — Library Aug 5 shelf batch (Shepherd / Noll / Vallier)](docs/decisions/195-library-aug5-shepherd-noll-vallier.md) (2026-08-05) — 3 standalone adds: Prophets / Church History / Politics and Policy; Noll 1994 hardcover.
 - [194 — Library ISBN integrity (Collins + dups)](docs/decisions/194-library-isbn-integrity-collins-dups.md) (2026-08-05) — Collins → 9780875526195; five duplicate pairs → copy_count=2; OL mismatches kept; Lost Tales/Foundation shelf-deferred.
 - [193 — German edition ISBN corrections](docs/decisions/193-german-edition-isbn-corrections.md) (2026-08-05) — Sebald Eichborn ISBN; Emil/Kant/Die Bibel language=german + null bad English ISBNs.
-- [192 — Library language + coverage integrity](docs/decisions/192-library-language-coverage-integrity.md) (2026-08-05) — 16 German language flips; 6 commentary coverage fills; multi-copy ISBNs kept; AB deutero skipped.
 
 ---
 
@@ -75,13 +75,13 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Contacts:** `/contacts` tabs Contacts \| Households \| Lists (multi-add checklist + Log cards) + Sheets with list toggles; `/settings/contacts/lists` redirects to Lists tab; dashboard Due to meet ([180](docs/decisions/180-contacts-session-2.md), [182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md), [183](docs/decisions/183-contacts-list-mass-add.md)); helpers `src/lib/contacts/`; migrations `20260725020000_ppp_contacts_v1.sql`, `20260725180115_contacts_touch_kind_and_cadence_ui.sql`. Desktop sidebar only.
 
-**Invoicing helpers:** `src/lib/invoicing/` — `chicago-date.ts`, `hours.ts`, `consultation-lines.ts` ([050]). Loaders/actions live inline in route `+page.server.ts` files **by design** (see AGENTS.md › Module structure).
+**Invoicing helpers:** `src/lib/invoicing/` — `chicago-date.ts`, `hours.ts`, `consultation-lines.ts` ([050]), `analytics.ts` ([197](docs/decisions/197-invoicing-analytics.md)). Routes: `/invoicing`, `/invoicing/invoices`, `/invoicing/analytics` (Time \| Invoices \| Analytics toggle). Loaders/actions live inline in route `+page.server.ts` files **by design** (see AGENTS.md › Module structure).
 
 **Library (maintenance only):** [docs/library-trip-qa-runbook.md](docs/library-trip-qa-runbook.md) — complete; viewer §B still deferred without collaborator.
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** DML-only ISBN integrity 2026-08-05 ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)) — no app code; last `check`+`test` **2026-08-01** ([190](docs/decisions/190-classwork-papers-session-2.md); **0 errors**, 430 tests).
+**Repo gate:** Invoicing analytics [197](docs/decisions/197-invoicing-analytics.md) — `npm run check` **0 errors**, `npm run test` **441** passed (2026-08-05).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
