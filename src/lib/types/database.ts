@@ -2482,9 +2482,11 @@ export type Database = {
       invoicing_unbilled_counts: {
         Args: never
         Returns: {
+          amount: number
           client_id: string
           client_name: string
           entry_count: number
+          hours: number
         }[]
       }
       library_compute_author_display: {

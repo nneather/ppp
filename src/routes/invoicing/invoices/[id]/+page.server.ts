@@ -213,25 +213,11 @@ export const actions: Actions = {
 			return fail(400, { message: 'Only draft or sent invoices can be discarded.' });
 		}
 
-		const { error: softOneOffErr } = await supabase
-			.from('time_entries')
-			.update({ deleted_at: new Date().toISOString() })
-			.eq('invoice_id', id)
-			.eq('is_one_off', true)
-			.is('deleted_at', null);
-
-		if (softOneOffErr) {
-			console.error(softOneOffErr);
-			return fail(500, {
-				message: softOneOffErr.message ?? 'Could not remove one-off time entries.'
-			});
-		}
-
 		const { error: unlinkErr } = await supabase
 			.from('time_entries')
 			.update({ invoice_id: null })
 			.eq('invoice_id', id)
-			.eq('is_one_off', false);
+			.is('deleted_at', null);
 
 		if (unlinkErr) {
 			console.error(unlinkErr);

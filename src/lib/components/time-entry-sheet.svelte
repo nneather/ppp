@@ -11,27 +11,34 @@
 	import { cn } from '$lib/utils.js';
 	import { ymdInChicago } from '$lib/invoicing/chicago-date';
 	import { formatHoursForInput, parseHoursInput } from '$lib/invoicing/hours';
+	import { lineTotalFromHoursRate } from '$lib/invoicing/one-off';
 	import type { ClientOption, TimeEntryRow } from '$lib/types/invoicing';
 
 	type FormMessage = { message?: string } | null | undefined;
+	type EntryKind = 'hours' | 'one_off';
 
 	let {
 		open = $bindable(false),
 		clients,
 		mode,
 		entry = null,
-		formMessage = null
+		formMessage = null,
+		initialKind = 'hours' as EntryKind
 	}: {
 		open?: boolean;
 		clients: ClientOption[];
 		mode: 'create' | 'edit';
 		entry?: TimeEntryRow | null;
 		formMessage?: FormMessage;
+		/** Preferred kind when opening create mode. */
+		initialKind?: EntryKind;
 	} = $props();
 
+	let entryKind = $state<EntryKind>('hours');
 	let clientId = $state('');
 	let dateStr = $state('');
 	let hoursStr = $state('');
+	let amountStr = $state('');
 	let hoursAdjustedNote = $state<string | null>(null);
 	let description = $state('');
 	let sheetSide = $state<'bottom' | 'right'>('bottom');
@@ -53,6 +60,10 @@
 
 	const formAction = $derived(mode === 'create' ? '?/create' : '?/update');
 
+	const isOneOff = $derived(entryKind === 'one_off');
+
+	const kindLocked = $derived(mode === 'edit');
+
 	$effect(() => {
 		if (!browser) return;
 		const mq = window.matchMedia('(min-width: 768px)');
@@ -67,14 +78,23 @@
 	$effect(() => {
 		if (open && !wasOpen) {
 			if (mode === 'edit' && entry) {
+				entryKind = entry.is_one_off ? 'one_off' : 'hours';
 				clientId = entry.client_id;
 				dateStr = entry.date;
-				hoursStr = String(entry.hours);
 				description = entry.description ?? '';
+				if (entry.is_one_off) {
+					hoursStr = '';
+					amountStr = String(lineTotalFromHoursRate(entry.hours, entry.rate));
+				} else {
+					hoursStr = String(entry.hours);
+					amountStr = '';
+				}
 			} else {
+				entryKind = initialKind;
 				clientId = clients[0]?.id ?? '';
 				dateStr = ymdInChicago();
 				hoursStr = '';
+				amountStr = '';
 				hoursAdjustedNote = null;
 				description = '';
 			}
@@ -111,12 +131,20 @@
 			}
 			await update();
 			if (result.type === 'success' && result.data && typeof result.data === 'object') {
-				const d = result.data as { saveAndNew?: boolean; savedDate?: string };
+				const d = result.data as {
+					saveAndNew?: boolean;
+					savedDate?: string;
+					entryKind?: EntryKind;
+				};
 				if (d.saveAndNew === true && typeof d.savedDate === 'string' && mode === 'create') {
 					dateStr = d.savedDate;
 					hoursStr = '';
+					amountStr = '';
 					hoursAdjustedNote = null;
 					description = '';
+					if (d.entryKind === 'one_off' || d.entryKind === 'hours') {
+						entryKind = d.entryKind;
+					}
 					return;
 				}
 			}
@@ -158,9 +186,21 @@
 		)}
 	>
 		<Sheet.Header class="border-b border-border px-4 pt-2 pb-4">
-			<Sheet.Title>{mode === 'create' ? 'New time entry' : 'Edit time entry'}</Sheet.Title>
+			<Sheet.Title>
+				{#if mode === 'create'}
+					{isOneOff ? 'New one-off charge' : 'New time entry'}
+				{:else}
+					{isOneOff ? 'Edit one-off charge' : 'Edit time entry'}
+				{/if}
+			</Sheet.Title>
 			<Sheet.Description class="text-muted-foreground">
-				{mode === 'create' ? 'Log hours against a client.' : 'Update or delete this entry.'}
+				{#if isOneOff}
+					{mode === 'create'
+						? 'Add a fixed charge (e.g. travel, dinner) before invoicing.'
+						: 'Update or delete this one-off charge.'}
+				{:else}
+					{mode === 'create' ? 'Log hours against a client.' : 'Update or delete this entry.'}
+				{/if}
 			</Sheet.Description>
 		</Sheet.Header>
 
@@ -179,6 +219,39 @@
 					</p>
 				{/if}
 
+				{#if !kindLocked}
+					<div
+						class="mb-5 inline-flex w-full rounded-lg border border-border p-0.5 text-sm font-medium"
+						role="group"
+						aria-label="Entry type"
+					>
+						<button
+							type="button"
+							class={cn(
+								'flex-1 rounded-md px-3 py-2.5 transition-colors',
+								entryKind === 'hours'
+									? 'bg-foreground text-background'
+									: 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+							)}
+							onclick={() => (entryKind = 'hours')}
+						>
+							Hours
+						</button>
+						<button
+							type="button"
+							class={cn(
+								'flex-1 rounded-md px-3 py-2.5 transition-colors',
+								entryKind === 'one_off'
+									? 'bg-foreground text-background'
+									: 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+							)}
+							onclick={() => (entryKind = 'one_off')}
+						>
+							One-off
+						</button>
+					</div>
+				{/if}
+
 				<form
 					method="POST"
 					action={formAction}
@@ -189,6 +262,8 @@
 						<input type="hidden" name="id" value={entry.id} />
 					{/if}
 					<input type="hidden" name="client_id" value={clientId} />
+					<input type="hidden" name="entry_kind" value={entryKind} />
+
 					<div class="space-y-2">
 						<Label for="te-client">Client</Label>
 						<Select.Root type="single" bind:value={clientId} items={selectItems}>
@@ -217,26 +292,45 @@
 						/>
 					</div>
 
-					<div class="space-y-2">
-						<Label for="te-hours">Hours</Label>
-						<Input
-							id="te-hours"
-							name="hours"
-							type="number"
-							inputmode="decimal"
-							step="0.25"
-							min="0"
-							bind:value={hoursStr}
-							onblur={snapHoursOnBlur}
-							class="h-12 min-h-12 text-base tabular-nums"
-							placeholder="e.g. 1.5"
-							required
-						/>
-						<p class="text-xs text-muted-foreground">Hours round to the nearest quarter (0.25).</p>
-						{#if hoursAdjustedNote}
-							<p class="text-xs text-muted-foreground" role="status">{hoursAdjustedNote}</p>
-						{/if}
-					</div>
+					{#if isOneOff}
+						<div class="space-y-2">
+							<Label for="te-amount">Amount</Label>
+							<Input
+								id="te-amount"
+								name="amount"
+								type="number"
+								inputmode="decimal"
+								step="0.01"
+								min="0"
+								bind:value={amountStr}
+								class="h-12 min-h-12 text-base tabular-nums"
+								placeholder="e.g. 1600"
+								required
+							/>
+							<p class="text-xs text-muted-foreground">Fixed charge; appears as a one-off invoice line.</p>
+						</div>
+					{:else}
+						<div class="space-y-2">
+							<Label for="te-hours">Hours</Label>
+							<Input
+								id="te-hours"
+								name="hours"
+								type="number"
+								inputmode="decimal"
+								step="0.25"
+								min="0"
+								bind:value={hoursStr}
+								onblur={snapHoursOnBlur}
+								class="h-12 min-h-12 text-base tabular-nums"
+								placeholder="e.g. 1.5"
+								required
+							/>
+							<p class="text-xs text-muted-foreground">Hours round to the nearest quarter (0.25).</p>
+							{#if hoursAdjustedNote}
+								<p class="text-xs text-muted-foreground" role="status">{hoursAdjustedNote}</p>
+							{/if}
+						</div>
+					{/if}
 
 					<div class="space-y-2">
 						<Label for="te-desc">Description</Label>
@@ -246,7 +340,8 @@
 							bind:value={description}
 							rows={4}
 							class="flex min-h-28 w-full rounded-lg border border-input bg-background px-3 py-3 text-base shadow-xs ring-offset-background transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-							placeholder="What did you work on?"
+							placeholder={isOneOff ? 'e.g. City Tour Dinner Trip' : 'What did you work on?'}
+							required={isOneOff}
 						></textarea>
 					</div>
 
@@ -258,7 +353,15 @@
 							class="h-12 w-full text-base"
 							disabled={pending || !clientId}
 							hotkey={mode === 'create' ? 's' : 'u'}
-							label={pending ? 'Saving…' : mode === 'create' ? 'Save entry' : 'Update entry'}
+							label={pending
+								? 'Saving…'
+								: mode === 'create'
+									? isOneOff
+										? 'Save charge'
+										: 'Save entry'
+									: isOneOff
+										? 'Update charge'
+										: 'Update entry'}
 						/>
 						{#if mode === 'create'}
 							<Button
@@ -272,7 +375,7 @@
 								label="Save and New"
 							/>
 						{/if}
-						{#if mode === 'edit' && entry}
+						{#if mode === 'edit' && entry && !entry.invoice_id}
 							<Button
 								type="button"
 								variant="outline"
@@ -298,7 +401,7 @@
 	</Sheet.Content>
 </Sheet.Root>
 
-{#if mode === 'edit' && entry}
+{#if mode === 'edit' && entry && !entry.invoice_id}
 	<form
 		id="time-entry-delete-form"
 		class="hidden"
@@ -312,7 +415,7 @@
 
 	<ConfirmDialog
 		bind:open={confirmDeleteOpen}
-		title="Delete this time entry?"
+		title={isOneOff ? 'Delete this one-off charge?' : 'Delete this time entry?'}
 		description="This soft-deletes the entry and removes it from this period."
 		confirmLabel="Delete"
 		destructive

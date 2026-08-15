@@ -129,22 +129,28 @@
 
 	const rangePreview = $derived.by(() => {
 		if (!clientId || !periodStart || !periodEnd || periodStart > periodEnd) {
-			return { count: 0, hours: 0, amount: 0 };
+			return { count: 0, hours: 0, amount: 0, oneOffCount: 0 };
 		}
 		let count = 0;
 		let hours = 0;
 		let amount = 0;
+		let oneOffCount = 0;
 		for (const e of unbilledEntries) {
 			if (e.client_id !== clientId) continue;
 			if (e.date < periodStart || e.date > periodEnd) continue;
 			count += 1;
-			hours += e.hours;
 			amount += e.hours * e.rate;
+			if (e.is_one_off) {
+				oneOffCount += 1;
+			} else {
+				hours += e.hours;
+			}
 		}
 		return {
 			count,
 			hours: Math.round(hours * 100) / 100,
-			amount: Math.round(amount * 100) / 100
+			amount: Math.round(amount * 100) / 100,
+			oneOffCount
 		};
 	});
 
@@ -303,9 +309,26 @@
 							<p class="tabular-nums">
 								<strong>{rangePreview.count}</strong> unbilled
 								{rangePreview.count === 1 ? 'entry' : 'entries'} in this range —{' '}
-								<strong>{rangePreview.hours}</strong>h,
+								{#if rangePreview.hours > 0}
+									<strong>{rangePreview.hours}</strong>h
+									{#if rangePreview.oneOffCount > 0}
+										{' '}+ {rangePreview.oneOffCount} one-off{rangePreview.oneOffCount === 1
+											? ''
+											: 's'}
+									{/if},
+								{:else if rangePreview.oneOffCount > 0}
+									<strong>{rangePreview.oneOffCount}</strong> one-off{rangePreview.oneOffCount ===
+									1
+										? ''
+										: 's'},
+								{/if}
 								<strong>{money(rangePreview.amount)}</strong>
 							</p>
+							{#if rangePreview.oneOffCount > 0}
+								<p class="mt-1 text-xs text-muted-foreground">
+									Existing one-off charges in this range are included automatically.
+								</p>
+							{/if}
 						{:else}
 							<p class="text-amber-800 dark:text-amber-200/90">
 								No unbilled entries in this date range for this client. Add one-off lines below or

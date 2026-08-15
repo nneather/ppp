@@ -117,6 +117,7 @@
 	}
 
 	function openEdit(entry: TimeEntryRow) {
+		if (entry.invoice_id) return;
 		sheetMode = 'edit';
 		selectedEntry = entry;
 		sheetOpen = true;
@@ -182,6 +183,9 @@
 					<Badge variant="secondary" class="gap-1.5 px-2.5 py-1 text-sm tabular-nums">
 						<span class="max-w-[10rem] truncate font-medium text-foreground">{u.client_name}</span>
 						<span class="text-muted-foreground">{u.count}</span>
+						{#if u.amount != null}
+							<span class="text-foreground">{money(u.amount)}</span>
+						{/if}
 					</Badge>
 				{/each}
 			</div>
@@ -283,7 +287,7 @@
 										>
 											{#each g.items as entry (entry.id)}
 												<li>
-													{#if entry.is_one_off}
+													{#if entry.invoice_id}
 														<div
 															class="flex min-h-10 w-full items-start gap-2 px-3 py-2 md:min-h-9 md:items-center"
 														>
@@ -304,26 +308,32 @@
 																<div
 																	class="flex flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2"
 																>
-																	<span class="text-muted-foreground">
-																		{entry.hours}h × {money(entry.rate)}
-																	</span>
-																	<span class="font-semibold text-foreground"
-																		>{money(lineTotal(entry))}</span
-																	>
+																	{#if entry.is_one_off}
+																		<span class="font-semibold text-foreground"
+																			>{money(lineTotal(entry))}</span
+																		>
+																	{:else}
+																		<span class="text-muted-foreground">
+																			{entry.hours}h × {money(entry.rate)}
+																		</span>
+																		<span class="font-semibold text-foreground"
+																			>{money(lineTotal(entry))}</span
+																		>
+																	{/if}
 																</div>
 																<span class="inline-flex shrink-0 items-center gap-1.5">
-																	<Badge
-																		variant="outline"
-																		class="text-[10px] font-normal uppercase"
-																	>
-																		One-off
-																	</Badge>
-																	{#if entry.invoice_id}
-																		<CircleCheck
-																			class="size-4 text-muted-foreground"
-																			aria-label="Billed"
-																		/>
+																	{#if entry.is_one_off}
+																		<Badge
+																			variant="outline"
+																			class="text-[10px] font-normal uppercase"
+																		>
+																			One-off
+																		</Badge>
 																	{/if}
+																	<CircleCheck
+																		class="size-4 text-muted-foreground"
+																		aria-label="Billed"
+																	/>
 																</span>
 															</div>
 														</div>
@@ -350,22 +360,32 @@
 																<div
 																	class="flex flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2"
 																>
-																	<span class="text-muted-foreground">
-																		{entry.hours}h × {money(entry.rate)}
-																	</span>
-																	<span class="font-semibold text-foreground"
-																		>{money(lineTotal(entry))}</span
-																	>
+																	{#if entry.is_one_off}
+																		<span class="font-semibold text-foreground"
+																			>{money(lineTotal(entry))}</span
+																		>
+																	{:else}
+																		<span class="text-muted-foreground">
+																			{entry.hours}h × {money(entry.rate)}
+																		</span>
+																		<span class="font-semibold text-foreground"
+																			>{money(lineTotal(entry))}</span
+																		>
+																	{/if}
 																</div>
-																<span
-																	class="inline-flex w-4 shrink-0 justify-center"
-																	aria-hidden="true"
-																>
-																	{#if entry.invoice_id}
-																		<CircleCheck
-																			class="size-4 text-muted-foreground"
-																			aria-label="Billed"
-																		/>
+																<span class="inline-flex shrink-0 items-center gap-1.5">
+																	{#if entry.is_one_off}
+																		<Badge
+																			variant="outline"
+																			class="text-[10px] font-normal uppercase"
+																		>
+																			One-off
+																		</Badge>
+																	{:else}
+																		<span
+																			class="inline-flex w-4 shrink-0 justify-center"
+																			aria-hidden="true"
+																		></span>
 																	{/if}
 																</span>
 															</div>

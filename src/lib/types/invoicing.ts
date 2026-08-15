@@ -30,7 +30,7 @@ export type TimeEntryRow = {
 	description: string | null;
 	billable: boolean;
 	invoice_id: string | null;
-	/** True when this row backs a one-off invoice line (ad hoc charge); not user-editable. */
+	/** True when this row is an ad hoc charge (hours=qty, rate=unit price). Unbilled rows are editable. */
 	is_one_off: boolean;
 	created_at: string;
 };
@@ -39,6 +39,10 @@ export type UnbilledCount = {
 	client_id: string;
 	client_name: string;
 	count: number;
+	/** Sum of hours for non-one-off unbilled entries (optional until RPC extended). */
+	hours?: number;
+	/** Sum of hours×rate for all unbilled entries including one-offs (optional until RPC extended). */
+	amount?: number;
 };
 
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'discarded';
@@ -99,6 +103,7 @@ export type UnbilledEntryPreview = {
 	date: string;
 	hours: number;
 	rate: number;
+	is_one_off?: boolean;
 };
 
 /** Weekly client with unbilled entries in the completed prior Chicago week (dashboard shortcut). */

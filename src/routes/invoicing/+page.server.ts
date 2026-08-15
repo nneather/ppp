@@ -1,84 +1,62 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { ymdInChicago } from '$lib/invoicing/chicago-date';
+import {
+	addDaysYmd,
+	calendarMonthContainingYmd,
+	mondaySundayWeekContainingYmd,
+	utcNoonFromYmd,
+	ymdFromUtcNoon,
+	ymdInChicago
+} from '$lib/invoicing/chicago-date';
 import { parseHoursInput, snapHoursToQuarter } from '$lib/invoicing/hours';
+import {
+	oneOffLedgerFromAmount,
+	parseMoneyAmount
+} from '$lib/invoicing/one-off';
 import type { Actions, PageServerLoad } from './$types';
 import type { ClientOption, PeriodView, TimeEntryRow, UnbilledCount } from '$lib/types/invoicing';
 import { parseBillingCadence, parseConsultationGrouping } from '$lib/types/invoicing';
 export type { ClientOption, PeriodView, TimeEntryRow, UnbilledCount } from '$lib/types/invoicing';
 
-function pad2(n: number): string {
-	return String(n).padStart(2, '0');
-}
-
-/** Local calendar YYYY-MM-DD */
-function toYMD(d: Date): string {
-	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function parseYMD(s: string): Date | null {
-	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
-	if (!m) return null;
-	const y = Number(m[1]);
-	const mo = Number(m[2]);
-	const day = Number(m[3]);
-	const d = new Date(y, mo - 1, day);
-	if (d.getFullYear() !== y || d.getMonth() !== mo - 1 || d.getDate() !== day) return null;
-	return d;
-}
-
 function periodBounds(
 	view: PeriodView,
 	anchorYMD: string
 ): { period_start: string; period_end: string; anchor: string } {
-	const anchor = parseYMD(anchorYMD) ?? new Date();
-	const y = anchor.getFullYear();
-	const mo = anchor.getMonth();
-	const d = anchor.getDate();
+	const mid = utcNoonFromYmd(anchorYMD);
+	const anchor = mid ? anchorYMD : ymdInChicago();
 
 	if (view === 'day') {
-		const s = toYMD(new Date(y, mo, d));
-		return { period_start: s, period_end: s, anchor: s };
+		return { period_start: anchor, period_end: anchor, anchor };
 	}
 
 	if (view === 'month') {
-		const start = toYMD(new Date(y, mo, 1));
-		const end = toYMD(new Date(y, mo + 1, 0));
-		return { period_start: start, period_end: end, anchor: toYMD(anchor) };
+		const m = calendarMonthContainingYmd(anchor);
+		return { period_start: m.start, period_end: m.end, anchor };
 	}
 
-	// week: Monday–Sunday containing anchor
-	const day = anchor.getDay(); // 0 Sun .. 6 Sat
-	const diffToMonday = (day + 6) % 7;
-	const monday = new Date(y, mo, d - diffToMonday);
-	const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
-	return {
-		period_start: toYMD(monday),
-		period_end: toYMD(sunday),
-		anchor: toYMD(anchor)
-	};
+	const w = mondaySundayWeekContainingYmd(anchor);
+	return { period_start: w.start, period_end: w.end, anchor };
 }
 
 function shiftAnchor(view: PeriodView, anchorYMD: string, delta: -1 | 1): string {
-	const anchor = parseYMD(anchorYMD) ?? new Date();
-	const y = anchor.getFullYear();
-	const mo = anchor.getMonth();
-	const d = anchor.getDate();
-
+	const mid = utcNoonFromYmd(anchorYMD) ?? utcNoonFromYmd(ymdInChicago())!;
 	if (view === 'day') {
-		const next = new Date(y, mo, d + delta);
-		return toYMD(next);
+		return addDaysYmd(ymdFromUtcNoon(mid), delta) ?? ymdFromUtcNoon(mid);
 	}
 	if (view === 'week') {
-		const next = new Date(y, mo, d + 7 * delta);
-		return toYMD(next);
+		return addDaysYmd(ymdFromUtcNoon(mid), 7 * delta) ?? ymdFromUtcNoon(mid);
 	}
-	const next = new Date(y, mo + delta, d);
-	return toYMD(next);
+	const next = new Date(mid);
+	next.setUTCMonth(next.getUTCMonth() + delta);
+	return ymdFromUtcNoon(next);
 }
 
 function parseView(v: string | null): PeriodView {
 	if (v === 'day' || v === 'month') return v;
 	return 'week';
+}
+
+function isValidYmd(s: string): boolean {
+	return utcNoonFromYmd(s) !== null;
 }
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -87,7 +65,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	const view = parseView(url.searchParams.get('view'));
 	const dateParam = url.searchParams.get('date');
-	const anchor = dateParam && parseYMD(dateParam) ? dateParam : ymdInChicago();
+	const anchor = dateParam && isValidYmd(dateParam) ? dateParam : ymdInChicago();
 	const { period_start, period_end } = periodBounds(view, anchor);
 
 	const supabase = locals.supabase;
@@ -188,10 +166,18 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	const unbilledRows = unbilledRes.data ?? [];
 	const unbilled: UnbilledCount[] = unbilledRows.map(
-		(row: { client_id: string; client_name: string; entry_count: number }) => ({
+		(row: {
+			client_id: string;
+			client_name: string;
+			entry_count: number;
+			hours?: number;
+			amount?: number;
+		}) => ({
 			client_id: row.client_id,
 			client_name: row.client_name,
-			count: Number(row.entry_count)
+			count: Number(row.entry_count),
+			hours: row.hours != null ? Number(row.hours) : undefined,
+			amount: row.amount != null ? Number(row.amount) : undefined
 		})
 	);
 
@@ -255,14 +241,65 @@ export const actions: Actions = {
 
 		const fd = await request.formData();
 		const intent = String(fd.get('intent') ?? 'save').trim();
+		const entryKind = String(fd.get('entry_kind') ?? 'hours').trim();
 		const client_id = String(fd.get('client_id') ?? '').trim();
 		const date = String(fd.get('date') ?? '').trim();
-		const hours = parseHours(fd.get('hours'));
-		const description = String(fd.get('description') ?? '').trim() || null;
+		const descriptionRaw = String(fd.get('description') ?? '').trim();
 
-		if (!client_id || !parseYMD(date)) {
-			return fail(400, { kind: 'timeEntry' as const, message: 'Client and valid date are required.' });
+		if (!client_id || !isValidYmd(date)) {
+			return fail(400, {
+				kind: 'timeEntry' as const,
+				message: 'Client and valid date are required.'
+			});
 		}
+
+		if (entryKind === 'one_off') {
+			const description = descriptionRaw;
+			if (!description) {
+				return fail(400, {
+					kind: 'timeEntry' as const,
+					message: 'One-off charges need a description.'
+				});
+			}
+			const amount = parseMoneyAmount(String(fd.get('amount') ?? ''));
+			if (amount == null || amount <= 0) {
+				return fail(400, {
+					kind: 'timeEntry' as const,
+					message: 'Enter a valid charge amount.'
+				});
+			}
+			const { hours, rate } = oneOffLedgerFromAmount(amount);
+			const { error } = await locals.supabase.from('time_entries').insert({
+				client_id,
+				date,
+				hours,
+				rate,
+				description,
+				billable: true,
+				is_one_off: true,
+				created_by: user.id
+			});
+			if (error) {
+				console.error(error);
+				return fail(500, {
+					kind: 'timeEntry' as const,
+					message: `Could not save one-off charge: ${error.message ?? 'unknown error'}`
+				});
+			}
+			if (intent === 'save_and_new') {
+				return {
+					kind: 'timeEntry' as const,
+					success: true as const,
+					saveAndNew: true as const,
+					savedDate: date,
+					entryKind: 'one_off' as const
+				};
+			}
+			return { kind: 'timeEntry' as const, success: true as const };
+		}
+
+		const hours = parseHours(fd.get('hours'));
+		const description = descriptionRaw || null;
 		if (hours == null) {
 			return fail(400, { kind: 'timeEntry' as const, message: 'Enter a valid number of hours.' });
 		}
@@ -279,6 +316,7 @@ export const actions: Actions = {
 			rate: rateResult.rate,
 			description,
 			billable: true,
+			is_one_off: false,
 			created_by: user.id
 		});
 
@@ -291,7 +329,13 @@ export const actions: Actions = {
 		}
 
 		if (intent === 'save_and_new') {
-			return { kind: 'timeEntry' as const, success: true as const, saveAndNew: true as const, savedDate: date };
+			return {
+				kind: 'timeEntry' as const,
+				success: true as const,
+				saveAndNew: true as const,
+				savedDate: date,
+				entryKind: 'hours' as const
+			};
 		}
 		return { kind: 'timeEntry' as const, success: true as const };
 	},
@@ -304,14 +348,10 @@ export const actions: Actions = {
 		const id = String(fd.get('id') ?? '').trim();
 		const client_id = String(fd.get('client_id') ?? '').trim();
 		const date = String(fd.get('date') ?? '').trim();
-		const hours = parseHours(fd.get('hours'));
-		const description = String(fd.get('description') ?? '').trim() || null;
+		const descriptionRaw = String(fd.get('description') ?? '').trim();
 
-		if (!id || !client_id || !parseYMD(date)) {
+		if (!id || !client_id || !isValidYmd(date)) {
 			return fail(400, { kind: 'timeEntry' as const, message: 'Invalid entry or missing fields.' });
-		}
-		if (hours == null) {
-			return fail(400, { kind: 'timeEntry' as const, message: 'Enter a valid number of hours.' });
 		}
 
 		const { data: existing, error: fetchErr } = await locals.supabase
@@ -327,21 +367,59 @@ export const actions: Actions = {
 		if (existing.invoice_id) {
 			return fail(400, { kind: 'timeEntry' as const, message: 'Cannot edit a billed time entry.' });
 		}
+
 		if (existing.is_one_off) {
-			return fail(400, { kind: 'timeEntry' as const, message: 'Cannot edit a one-off charge entry.' });
+			const description = descriptionRaw;
+			if (!description) {
+				return fail(400, {
+					kind: 'timeEntry' as const,
+					message: 'One-off charges need a description.'
+				});
+			}
+			const amount = parseMoneyAmount(String(fd.get('amount') ?? ''));
+			if (amount == null || amount <= 0) {
+				return fail(400, {
+					kind: 'timeEntry' as const,
+					message: 'Enter a valid charge amount.'
+				});
+			}
+			const { hours, rate } = oneOffLedgerFromAmount(amount);
+			const { error } = await locals.supabase
+				.from('time_entries')
+				.update({
+					client_id,
+					date,
+					hours,
+					rate,
+					description
+				})
+				.eq('id', id);
+			if (error) {
+				console.error(error);
+				return fail(500, {
+					kind: 'timeEntry' as const,
+					message: `Could not update one-off charge: ${error.message ?? 'unknown error'}`
+				});
+			}
+			return { kind: 'timeEntry' as const, success: true as const };
+		}
+
+		const hours = parseHours(fd.get('hours'));
+		const description = descriptionRaw || null;
+		if (hours == null) {
+			return fail(400, { kind: 'timeEntry' as const, message: 'Enter a valid number of hours.' });
 		}
 
 		const storedRate = Number(existing.rate);
 		const clientOrDateChanged = existing.client_id !== client_id || existing.date !== date;
-		// Re-stamp rate when client/date change, or when row still has a zero
-		// rate (e.g. legacy seed) so a save without changing client/date fixes it.
-		const needsRateRefresh = clientOrDateChanged || !Number.isFinite(storedRate) || storedRate <= 0;
+		const needsRateRefresh =
+			clientOrDateChanged || !Number.isFinite(storedRate) || storedRate <= 0;
 
 		let rate = undefined as number | undefined;
 		if (needsRateRefresh) {
 			const rateResult = await lookupRate(locals.supabase, client_id, date);
 			if (!rateResult.ok) {
-				return fail(400, { message: rateResult.message });
+				return fail(400, { kind: 'timeEntry' as const, message: rateResult.message });
 			}
 			rate = rateResult.rate;
 		}
@@ -377,7 +455,7 @@ export const actions: Actions = {
 
 		const { data: existing, error: fetchErr } = await locals.supabase
 			.from('time_entries')
-			.select('id, invoice_id, is_one_off')
+			.select('id, invoice_id')
 			.eq('id', id)
 			.is('deleted_at', null)
 			.maybeSingle();
@@ -387,9 +465,6 @@ export const actions: Actions = {
 		}
 		if (existing.invoice_id) {
 			return fail(400, { kind: 'timeEntry' as const, message: 'Cannot delete a billed time entry.' });
-		}
-		if (existing.is_one_off) {
-			return fail(400, { kind: 'timeEntry' as const, message: 'Cannot delete a one-off charge entry.' });
 		}
 
 		const { error } = await locals.supabase

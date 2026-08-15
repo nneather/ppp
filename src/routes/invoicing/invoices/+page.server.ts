@@ -1,5 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { buildConsultationLines } from '$lib/invoicing/consultation-lines';
+import { utcNoonFromYmd } from '$lib/invoicing/chicago-date';
+import {
+	oneOffLineFromLedgerEntry,
+	parseOneOffsJson,
+	roundMoney
+} from '$lib/invoicing/one-off';
 import type { Actions, PageServerLoad } from './$types';
 import type {
 	ClientOption,
@@ -19,68 +25,8 @@ export type {
 	UnbilledCount
 } from '$lib/types/invoicing';
 
-function parseYMD(s: string): Date | null {
-	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
-	if (!m) return null;
-	const y = Number(m[1]);
-	const mo = Number(m[2]);
-	const day = Number(m[3]);
-	const d = new Date(y, mo - 1, day);
-	if (d.getFullYear() !== y || d.getMonth() !== mo - 1 || d.getDate() !== day) return null;
-	return d;
-}
-
-function roundMoney(n: number): number {
-	return Math.round(n * 100) / 100;
-}
-
-function parseOneOffs(
-	raw: string | null,
-	defaultChargeDate: string
-): { ok: true; lines: OneOffLineInput[] } | { ok: false; message: string } {
-	if (raw == null || raw === '') return { ok: true, lines: [] };
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(raw);
-	} catch {
-		return { ok: false, message: 'Invalid one-off line items JSON.' };
-	}
-	if (!Array.isArray(parsed)) {
-		return { ok: false, message: 'One-off line items must be a JSON array.' };
-	}
-	const lines: OneOffLineInput[] = [];
-	for (const item of parsed) {
-		if (item == null || typeof item !== 'object') {
-			return { ok: false, message: 'Each one-off line must be an object.' };
-		}
-		const o = item as Record<string, unknown>;
-		const description = String(o.description ?? '').trim();
-		const quantity = Number(o.quantity);
-		const unit_price = Number(o.unit_price);
-		const dateRaw = String(o.date ?? '').trim();
-		let date: string;
-		if (dateRaw) {
-			if (!parseYMD(dateRaw)) {
-				return { ok: false, message: 'Each one-off line needs a valid charge date.' };
-			}
-			date = dateRaw;
-		} else if (parseYMD(defaultChargeDate)) {
-			date = defaultChargeDate;
-		} else {
-			return { ok: false, message: 'Each one-off line needs a valid charge date.' };
-		}
-		if (!description) {
-			return { ok: false, message: 'Each one-off line needs a description.' };
-		}
-		if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 99999) {
-			return { ok: false, message: 'Each one-off line needs a valid quantity.' };
-		}
-		if (!Number.isFinite(unit_price) || unit_price < 0) {
-			return { ok: false, message: 'Each one-off line needs a valid unit price.' };
-		}
-		lines.push({ description, quantity, unit_price, date });
-	}
-	return { ok: true, lines };
+function isValidYmd(s: string): boolean {
+	return utcNoonFromYmd(s) !== null;
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -134,7 +80,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.order('created_at', { ascending: false }),
 		supabase
 			.from('time_entries')
-			.select('client_id, date, hours, rate, clients!inner ( name )')
+			.select('client_id, date, hours, rate, is_one_off, clients!inner ( name )')
 			.is('invoice_id', null)
 			.is('deleted_at', null)
 	]);
@@ -174,7 +120,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				const date = row.date as string;
 				const hours = Number(row.hours);
 				const rate = Number(row.rate);
-				entries.push({ client_id: cid, date, hours, rate });
+				const is_one_off = Boolean(row.is_one_off);
+				entries.push({ client_id: cid, date, hours, rate, is_one_off });
 
 				const prev = boundsByClient.get(cid);
 				if (!prev) boundsByClient.set(cid, { min: date, max: date });
@@ -282,7 +229,7 @@ export const actions: Actions = {
 		const period_start = String(fd.get('period_start') ?? '').trim();
 		const period_end = String(fd.get('period_end') ?? '').trim();
 		const oneOffsRaw = fd.get('one_offs');
-		const oneOffsParsed = parseOneOffs(
+		const oneOffsParsed = parseOneOffsJson(
 			typeof oneOffsRaw === 'string' ? oneOffsRaw : oneOffsRaw != null ? String(oneOffsRaw) : null,
 			period_end
 		);
@@ -290,7 +237,7 @@ export const actions: Actions = {
 			return fail(400, { message: oneOffsParsed.message });
 		}
 
-		if (!client_id || !parseYMD(period_start) || !parseYMD(period_end)) {
+		if (!client_id || !isValidYmd(period_start) || !isValidYmd(period_end)) {
 			return fail(400, { message: 'Client, period start, and period end are required.' });
 		}
 		if (period_start > period_end) {
@@ -302,7 +249,7 @@ export const actions: Actions = {
 		const [entriesRes, clientRes] = await Promise.all([
 			supabase
 				.from('time_entries')
-				.select('id, hours, rate, date, description')
+				.select('id, hours, rate, date, description, is_one_off')
 				.eq('client_id', client_id)
 				.gte('date', period_start)
 				.lte('date', period_end)
@@ -334,7 +281,19 @@ export const actions: Actions = {
 		const consultationGrouping = parseConsultationGrouping(clientRow.consultation_grouping);
 
 		const entryRows = entries ?? [];
-		const oneOffLines = oneOffsParsed.lines.map((o) => ({
+		const hourEntries = entryRows.filter((e) => !e.is_one_off);
+		const existingOneOffEntries = entryRows.filter((e) => e.is_one_off);
+
+		const existingOneOffLines = existingOneOffEntries.map((e) =>
+			oneOffLineFromLedgerEntry({
+				date: e.date as string,
+				hours: Number(e.hours),
+				rate: Number(e.rate),
+				description: (e.description as string | null) ?? null
+			})
+		);
+
+		const formOneOffLines = oneOffsParsed.lines.map((o) => ({
 			description: o.description,
 			quantity: o.quantity,
 			unit_price: roundMoney(o.unit_price),
@@ -344,7 +303,7 @@ export const actions: Actions = {
 			end_date: o.date
 		}));
 
-		if (entryRows.length === 0 && oneOffLines.length === 0) {
+		if (hourEntries.length === 0 && existingOneOffLines.length === 0 && formOneOffLines.length === 0) {
 			return fail(400, {
 				message:
 					'No unbilled time entries in this range and no one-off lines. Add entries or a line item.'
@@ -363,7 +322,7 @@ export const actions: Actions = {
 
 		/** Roll up consultation hours per client billing preference. */
 		const timeBasedLines = buildConsultationLines({
-			entries: entryRows.map((e) => ({
+			entries: hourEntries.map((e) => ({
 				date: e.date as string,
 				hours: Number(e.hours),
 				rate: Number(e.rate),
@@ -374,7 +333,7 @@ export const actions: Actions = {
 			periodEnd: period_end
 		});
 
-		const allLines = [...timeBasedLines, ...oneOffLines];
+		const allLines = [...timeBasedLines, ...existingOneOffLines, ...formOneOffLines];
 		const subtotal = roundMoney(allLines.reduce((s, l) => s + l.total, 0));
 		const total = subtotal;
 

@@ -4,6 +4,7 @@
 import {
 	addDaysYmd,
 	calendarMonthContainingYmd,
+	firstOfYearThroughYmd,
 	formatYmdMediumChicago,
 	formatYmdMonthYearChicago,
 	formatYmdShortChicago,
@@ -16,11 +17,16 @@ import {
 export type AnalyticsGrain = 'week' | 'month';
 export type AnalyticsMetric = 'hours' | 'money' | 'both';
 
+/** Named range presets; omit / `ytd` = year-to-date (default). */
+export type AnalyticsRangePreset = 'ytd' | '12m' | '26w' | 'all' | 'custom';
+
 export type AnalyticsEntryInput = {
 	date: string;
 	hours: number;
 	rate: number;
 	client_id: string;
+	/** One-off ledger rows contribute money but not hours. */
+	is_one_off?: boolean;
 };
 
 export type AnalyticsBucket = {
@@ -37,10 +43,14 @@ export type AnalyticsSummary = {
 	avgHours: number;
 	avgMoney: number;
 	bucketCount: number;
+	/** Money from one-off charges in the series (subset of totalMoney). */
+	oneOffMoney: number;
 };
 
 export const ANALYTICS_WEEK_BUCKETS = 26;
 export const ANALYTICS_MONTH_BUCKETS = 12;
+export const ANALYTICS_MAX_WEEK_BUCKETS = 104;
+export const ANALYTICS_MAX_MONTH_BUCKETS = 36;
 
 export function bucketKeyForYmd(ymd: string, grain: AnalyticsGrain): string {
 	if (grain === 'week') return mondaySundayWeekContainingYmd(ymd).start;
@@ -55,7 +65,7 @@ export function bucketLabelForKey(key: string, grain: AnalyticsGrain): string {
 	return formatYmdMonthYearChicago(ymd);
 }
 
-/** Inclusive civil range ending at Chicago today (or `todayYmd`). */
+/** Inclusive civil range ending at Chicago today (or `todayYmd`). Legacy 26w / 12mo. */
 export function analyticsRangeEndingToday(
 	grain: AnalyticsGrain,
 	todayYmd: string = ymdInChicago()
@@ -70,6 +80,88 @@ export function analyticsRangeEndingToday(
 	if (!mid) return { start: thisMonthStart, end: todayYmd };
 	mid.setUTCMonth(mid.getUTCMonth() - (ANALYTICS_MONTH_BUCKETS - 1));
 	return { start: ymdFromUtcNoon(mid), end: todayYmd };
+}
+
+/** Rolling 12 calendar months ending at `todayYmd` (first of month 11 months ago). */
+export function analyticsRange12Months(todayYmd: string = ymdInChicago()): {
+	start: string;
+	end: string;
+} {
+	const { start: thisMonthStart } = calendarMonthContainingYmd(todayYmd);
+	const mid = utcNoonFromYmd(thisMonthStart);
+	if (!mid) return { start: thisMonthStart, end: todayYmd };
+	mid.setUTCMonth(mid.getUTCMonth() - (ANALYTICS_MONTH_BUCKETS - 1));
+	return { start: ymdFromUtcNoon(mid), end: todayYmd };
+}
+
+/** Rolling 26 Chicago weeks ending at `todayYmd`. */
+export function analyticsRange26Weeks(todayYmd: string = ymdInChicago()): {
+	start: string;
+	end: string;
+} {
+	return analyticsRangeEndingToday('week', todayYmd);
+}
+
+export function analyticsRangeYtd(todayYmd: string = ymdInChicago()): { start: string; end: string } {
+	return firstOfYearThroughYmd(todayYmd);
+}
+
+function countBuckets(grain: AnalyticsGrain, rangeStart: string, rangeEnd: string): number {
+	let n = 0;
+	for (const _ of iterateBucketKeys(grain, rangeStart, rangeEnd)) n += 1;
+	return n;
+}
+
+export function analyticsBucketLimitExceeded(
+	grain: AnalyticsGrain,
+	rangeStart: string,
+	rangeEnd: string
+): boolean {
+	const n = countBuckets(grain, rangeStart, rangeEnd);
+	if (grain === 'week') return n > ANALYTICS_MAX_WEEK_BUCKETS;
+	return n > ANALYTICS_MAX_MONTH_BUCKETS;
+}
+
+export function resolveAnalyticsRange(opts: {
+	preset: AnalyticsRangePreset;
+	from: string | null;
+	to: string | null;
+	todayYmd?: string;
+	/** Earliest live entry date for `all` preset; falls back to YTD start if null. */
+	earliestEntryYmd?: string | null;
+}): { start: string; end: string; preset: AnalyticsRangePreset } {
+	const today = opts.todayYmd ?? ymdInChicago();
+	const preset = opts.preset;
+
+	if (preset === 'custom' || (opts.from && opts.to)) {
+		const from = opts.from && utcNoonFromYmd(opts.from) ? opts.from : null;
+		const to = opts.to && utcNoonFromYmd(opts.to) ? opts.to : null;
+		if (from && to) {
+			const start = from <= to ? from : to;
+			const end = from <= to ? to : from;
+			const clampedEnd = end > today ? today : end;
+			return { start, end: clampedEnd, preset: 'custom' };
+		}
+		// Incomplete custom → fall through to YTD
+	}
+
+	if (preset === '12m') {
+		const r = analyticsRange12Months(today);
+		return { ...r, preset: '12m' };
+	}
+	if (preset === '26w') {
+		const r = analyticsRange26Weeks(today);
+		return { ...r, preset: '26w' };
+	}
+	if (preset === 'all') {
+		const earliest = opts.earliestEntryYmd;
+		const start =
+			earliest && utcNoonFromYmd(earliest) ? earliest : firstOfYearThroughYmd(today).start;
+		return { start, end: today, preset: 'all' };
+	}
+
+	const r = analyticsRangeYtd(today);
+	return { ...r, preset: 'ytd' };
 }
 
 function* iterateBucketKeys(
@@ -112,9 +204,10 @@ export function buildAnalyticsSeries(
 		const key = bucketKeyForYmd(e.date, grain);
 		const hours = Number(e.hours) || 0;
 		const rate = Number(e.rate) || 0;
+		const money = hours * rate;
 		const prev = sums.get(key) ?? { hours: 0, money: 0 };
-		prev.hours += hours;
-		prev.money += hours * rate;
+		if (!e.is_one_off) prev.hours += hours;
+		prev.money += money;
 		sums.set(key, prev);
 	}
 
@@ -131,7 +224,10 @@ export function buildAnalyticsSeries(
 	return series;
 }
 
-export function summarizeAnalyticsSeries(series: AnalyticsBucket[]): AnalyticsSummary {
+export function summarizeAnalyticsSeries(
+	series: AnalyticsBucket[],
+	opts?: { oneOffMoney?: number }
+): AnalyticsSummary {
 	const bucketCount = series.length;
 	let totalHours = 0;
 	let totalMoney = 0;
@@ -146,8 +242,24 @@ export function summarizeAnalyticsSeries(series: AnalyticsBucket[]): AnalyticsSu
 		totalMoney,
 		avgHours: bucketCount > 0 ? roundHours(totalHours / bucketCount) : 0,
 		avgMoney: bucketCount > 0 ? roundMoney(totalMoney / bucketCount) : 0,
-		bucketCount
+		bucketCount,
+		oneOffMoney: roundMoney(opts?.oneOffMoney ?? 0)
 	};
+}
+
+/** Sum one-off money in range (for summary caption). */
+export function sumOneOffMoney(
+	entries: AnalyticsEntryInput[],
+	rangeStart: string,
+	rangeEnd: string
+): number {
+	let t = 0;
+	for (const e of entries) {
+		if (!e.is_one_off) continue;
+		if (e.date < rangeStart || e.date > rangeEnd) continue;
+		t += (Number(e.hours) || 0) * (Number(e.rate) || 0);
+	}
+	return roundMoney(t);
 }
 
 export function parseAnalyticsGrain(raw: string | null): AnalyticsGrain {
@@ -166,17 +278,39 @@ export function parseAnalyticsClientId(raw: string | null): string | null {
 	return t.length > 0 ? t : null;
 }
 
+export function parseAnalyticsRangePreset(raw: string | null): AnalyticsRangePreset {
+	if (raw === '12m' || raw === '26w' || raw === 'all' || raw === 'custom') return raw;
+	return 'ytd';
+}
+
 export type AnalyticsUrlState = {
 	grain: AnalyticsGrain;
 	metric: AnalyticsMetric;
 	clientId: string | null;
+	rangePreset: AnalyticsRangePreset;
+	from: string | null;
+	to: string | null;
 };
 
 export function parseAnalyticsSearchParams(params: URLSearchParams): AnalyticsUrlState {
+	const from = params.get('from');
+	const to = params.get('to');
+	const hasCustomDates =
+		!!from && !!to && !!utcNoonFromYmd(from) && !!utcNoonFromYmd(to);
+	const rangeRaw = params.get('range');
+	let rangePreset = parseAnalyticsRangePreset(rangeRaw);
+	if (hasCustomDates && (!rangeRaw || rangeRaw === 'custom')) {
+		rangePreset = 'custom';
+	} else if (hasCustomDates && rangeRaw === 'custom') {
+		rangePreset = 'custom';
+	}
 	return {
 		grain: parseAnalyticsGrain(params.get('grain')),
 		metric: parseAnalyticsMetric(params.get('metric')),
-		clientId: parseAnalyticsClientId(params.get('client'))
+		clientId: parseAnalyticsClientId(params.get('client')),
+		rangePreset,
+		from: from && utcNoonFromYmd(from) ? from : null,
+		to: to && utcNoonFromYmd(to) ? to : null
 	};
 }
 
@@ -185,6 +319,11 @@ export function analyticsHref(state: AnalyticsUrlState): string {
 	if (state.grain !== 'week') u.set('grain', state.grain);
 	if (state.metric !== 'hours') u.set('metric', state.metric);
 	if (state.clientId) u.set('client', state.clientId);
+	if (state.rangePreset !== 'ytd') u.set('range', state.rangePreset);
+	if (state.rangePreset === 'custom') {
+		if (state.from) u.set('from', state.from);
+		if (state.to) u.set('to', state.to);
+	}
 	const q = u.toString();
 	return q ? `/invoicing/analytics?${q}` : '/invoicing/analytics';
 }

@@ -16,7 +16,7 @@ If you reach for one of these capabilities, use the existing component.
 | Entity create/edit form in a sheet | [src/lib/components/client-form-sheet.svelte](mdc:src/lib/components/client-form-sheet.svelte) |
 | Child-record (effective-dated) form sheet | [src/lib/components/rate-form-sheet.svelte](mdc:src/lib/components/rate-form-sheet.svelte) |
 | Global setting modal | [src/lib/components/default-cc-dialog.svelte](mdc:src/lib/components/default-cc-dialog.svelte) |
-| Single sheet shared by create + edit | [src/lib/components/time-entry-sheet.svelte](mdc:src/lib/components/time-entry-sheet.svelte) |
+| Single sheet shared by create + edit; **Hours | One-off** create mode (one-off = description + amount → `is_one_off` ledger row — [201](mdc:docs/decisions/201-invoicing-analytics-range-one-offs.md)) | [src/lib/components/time-entry-sheet.svelte](mdc:src/lib/components/time-entry-sheet.svelte) |
 | "Generate derived record" wizard | [src/lib/components/generate-invoice-sheet.svelte](mdc:src/lib/components/generate-invoice-sheet.svelte) |
 | Audit log row with collapsible JSONB diff | [src/lib/components/audit-row.svelte](mdc:src/lib/components/audit-row.svelte) |
 | Book entity form (create + edit) shell — identity, classification, state, series, **citation abbreviation** (overrides series abbr — [125](mdc:docs/decisions/125-books-citation-abbreviation.md)), save bar; hosts `<BookFormAuthors>` + `<BookFormPublication>`; **In physical library** (`owned`) checkbox ([103](mdc:docs/decisions/103-library-not-owned-session-1.md)) | [src/lib/components/book-form.svelte](mdc:src/lib/components/book-form.svelte) |

@@ -1,9 +1,11 @@
 import { redirect } from '@sveltejs/kit';
 import {
-	analyticsRangeEndingToday,
+	analyticsBucketLimitExceeded,
 	buildAnalyticsSeries,
 	parseAnalyticsSearchParams,
+	resolveAnalyticsRange,
 	summarizeAnalyticsSeries,
+	sumOneOffMoney,
 	type AnalyticsEntryInput
 } from '$lib/invoicing/analytics';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
@@ -20,30 +22,68 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
-	const { grain, metric, clientId } = parseAnalyticsSearchParams(url.searchParams);
+	const { grain, metric, clientId, rangePreset, from, to } = parseAnalyticsSearchParams(
+		url.searchParams
+	);
 	const today = ymdInChicago();
-	const range = analyticsRangeEndingToday(grain, today);
+
+	const { data: earliestRow } = await locals.supabase
+		.from('time_entries')
+		.select('date')
+		.is('deleted_at', null)
+		.order('date', { ascending: true })
+		.limit(1)
+		.maybeSingle();
+
+	const earliestEntryYmd = (earliestRow?.date as string | undefined) ?? null;
+
+	const resolved = resolveAnalyticsRange({
+		preset: rangePreset,
+		from,
+		to,
+		todayYmd: today,
+		earliestEntryYmd
+	});
+
+	const emptyClients = [] as AnalyticsClientOption[];
+	const emptyReturn = {
+		error: null as string | null,
+		grain,
+		metric,
+		clientId,
+		rangePreset: resolved.preset,
+		rangeStart: resolved.start,
+		rangeEnd: resolved.end,
+		from: resolved.preset === 'custom' ? resolved.start : from,
+		to: resolved.preset === 'custom' ? resolved.end : to,
+		series: [] as ReturnType<typeof buildAnalyticsSeries>,
+		summary: summarizeAnalyticsSeries([]),
+		clients: emptyClients
+	};
+
+	if (analyticsBucketLimitExceeded(grain, resolved.start, resolved.end)) {
+		return {
+			...emptyReturn,
+			error:
+				grain === 'week'
+					? 'This range has too many week buckets. Narrow the dates or switch to Month grain.'
+					: 'This range has too many month buckets. Narrow the dates or switch to Week grain.'
+		};
+	}
 
 	const { data: entryRows, error: entriesError } = await locals.supabase
 		.from('time_entries')
-		.select('date, hours, rate, client_id')
+		.select('date, hours, rate, client_id, is_one_off')
 		.is('deleted_at', null)
-		.gte('date', range.start)
-		.lte('date', range.end)
+		.gte('date', resolved.start)
+		.lte('date', resolved.end)
 		.order('date', { ascending: true });
 
 	if (entriesError) {
 		console.error(entriesError);
 		return {
-			error: 'Could not load time entries.',
-			grain,
-			metric,
-			clientId,
-			rangeStart: range.start,
-			rangeEnd: range.end,
-			series: [],
-			summary: summarizeAnalyticsSeries([]),
-			clients: [] as AnalyticsClientOption[]
+			...emptyReturn,
+			error: 'Could not load time entries.'
 		};
 	}
 
@@ -51,7 +91,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		date: row.date as string,
 		hours: Number(row.hours) || 0,
 		rate: Number(row.rate) || 0,
-		client_id: row.client_id as string
+		client_id: row.client_id as string,
+		is_one_off: Boolean(row.is_one_off)
 	}));
 
 	const clientIdsInSeries = [...new Set(rawEntries.map((e) => e.client_id))];
@@ -65,7 +106,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				.order('name', { ascending: true }),
 			clientIdsInSeries.length > 0
 				? locals.supabase.from('clients').select('id, name, deleted_at').in('id', clientIdsInSeries)
-				: Promise.resolve({ data: [] as { id: string; name: string; deleted_at: string | null }[], error: null })
+				: Promise.resolve({
+						data: [] as { id: string; name: string; deleted_at: string | null }[],
+						error: null
+					})
 		]);
 
 	if (liveErr) console.error(liveErr);
@@ -99,18 +143,22 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const series = buildAnalyticsSeries(filtered, {
 		grain,
-		rangeStart: range.start,
-		rangeEnd: range.end
+		rangeStart: resolved.start,
+		rangeEnd: resolved.end
 	});
-	const summary = summarizeAnalyticsSeries(series);
+	const oneOffMoney = sumOneOffMoney(filtered, resolved.start, resolved.end);
+	const summary = summarizeAnalyticsSeries(series, { oneOffMoney });
 
 	return {
 		error: null as string | null,
 		grain,
 		metric,
 		clientId: effectiveClientId,
-		rangeStart: range.start,
-		rangeEnd: range.end,
+		rangePreset: resolved.preset,
+		rangeStart: resolved.start,
+		rangeEnd: resolved.end,
+		from: resolved.preset === 'custom' ? resolved.start : from,
+		to: resolved.preset === 'custom' ? resolved.end : to,
 		series,
 		summary,
 		clients

@@ -150,6 +150,8 @@ _Module was code-complete after Session 6. These are targeted follow-ups, each w
 | 2026-06-22 | Discard **sent** invoices (return linked entries to unbilled, archive as discarded) | [049](decisions/049-invoicing-discard-sent.md) |
 | 2026-06-22 | Per-client billing preferences — `billing_cadence` + `consultation_grouping`, `buildConsultationLines()` | [050](decisions/050-invoicing-client-billing-preferences.md) |
 | 2026-07-06 | **UX standardization (review 051 R4):** retired all `window.confirm` → `<ConfirmDialog>` (invoice detail discard/mark-paid + time-entry delete); `<PageHeader>` on `/invoicing` + invoice detail; FAB on `bottom-tabbar` (no inline `style=`); `hotkey="b"` on New entry / New client; `formMessage` narrowed on `form.kind`. Also converted the last repo `window.confirm` (library batch-scripture nav guard). | [054](decisions/054-invoicing-polish.md) |
+| 2026-08-05 | Analytics chart — week/month hours + earnings | [197](decisions/197-invoicing-analytics.md) |
+| 2026-08-15 | Analytics date range (default YTD) + first-class one-off charges on hours view; discard unlinks one-offs; unbilled $ badges | [201](decisions/201-invoicing-analytics-range-one-offs.md) |
 
 ---
 

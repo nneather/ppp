@@ -102,6 +102,14 @@ export function firstOfMonthThroughYmd(todayYmd: string): { start: string; end: 
 	return { start: ymdFromUtcNoon(start), end: todayYmd };
 }
 
+/** Jan 1 of the Chicago civil year containing `todayYmd` through `todayYmd` (inclusive). */
+export function firstOfYearThroughYmd(todayYmd: string): { start: string; end: string } {
+	const mid = utcNoonFromYmd(todayYmd);
+	if (!mid) return { start: todayYmd, end: todayYmd };
+	const start = new Date(Date.UTC(mid.getUTCFullYear(), 0, 1, 12, 0, 0));
+	return { start: ymdFromUtcNoon(start), end: todayYmd };
+}
+
 /** Calendar month (1st through last day) containing this civil date. */
 export function calendarMonthContainingYmd(ymd: string): { start: string; end: string } {
 	const mid = utcNoonFromYmd(ymd);

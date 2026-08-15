@@ -64,10 +64,11 @@ End-of-session deliverables:
 ### Patterns
 
 - **Invoicing helpers** at `src/lib/invoicing/` (loaders/actions live inline in routes — see Module structure above):
-  - `src/lib/invoicing/chicago-date.ts` — `ymdInChicago()`, civil-date helpers (`utcNoonFromYmd`, week/month spans, `calendarMonthContainingYmd()`), Chicago `Intl` display formatters. Use for server “today,” `/invoicing` surfaces, generate-invoice defaults, and `<TimeEntrySheet>` default date — not `toISOString().slice(0,10)` or host-local `getFullYear()` for user-facing calendar semantics.
+  - `src/lib/invoicing/chicago-date.ts` — `ymdInChicago()`, civil-date helpers (`utcNoonFromYmd`, week/month spans, `calendarMonthContainingYmd()`, `firstOfYearThroughYmd()`), Chicago `Intl` display formatters. Use for server “today,” `/invoicing` surfaces, generate-invoice defaults, and `<TimeEntrySheet>` default date — not `toISOString().slice(0,10)` or host-local `getFullYear()` for user-facing calendar semantics.
   - `src/lib/invoicing/hours.ts` — hours math; unit tests `hours.test.ts`.
   - `src/lib/invoicing/consultation-lines.ts` — `buildConsultationLines()` pure grouping helper + label maps for per-client `consultation_grouping` ([050](docs/decisions/050-invoicing-client-billing-preferences.md)); unit tests `consultation-lines.test.ts`.
-  - `src/lib/invoicing/analytics.ts` — week/month bucket series + URL helpers for `/invoicing/analytics` ([197](docs/decisions/197-invoicing-analytics.md)); unit tests `analytics.test.ts`.
+  - `src/lib/invoicing/analytics.ts` — week/month bucket series + range presets (YTD default) + URL helpers for `/invoicing/analytics` ([197](docs/decisions/197-invoicing-analytics.md), [201](docs/decisions/201-invoicing-analytics-range-one-offs.md)); one-offs count as money not hours; unit tests `analytics.test.ts`.
+  - `src/lib/invoicing/one-off.ts` — amount parse + ledger payload + generate JSON parse for `is_one_off` charges ([201](docs/decisions/201-invoicing-analytics-range-one-offs.md)); unit tests `one-off.test.ts`.
   - `src/lib/types/invoicing.ts` — `BillingCadence`, `ConsultationGrouping` + invoicing view-models.
 - **Form action result shape**: `{ kind, success?, message?, <entityId>? }`. See `src/routes/settings/invoicing/+page.server.ts` for the canonical example.
 - **Per-row form state**: include the entity id in the result so the page can show the error/success on the right card.

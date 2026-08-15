@@ -8,11 +8,13 @@
 	import {
 		analyticsHref,
 		type AnalyticsGrain,
-		type AnalyticsMetric
+		type AnalyticsMetric,
+		type AnalyticsRangePreset
 	} from '$lib/invoicing/analytics';
 	import {
 		formatYmdMediumChicago,
-		formatYmdMonthYearChicago
+		formatYmdMonthYearChicago,
+		ymdInChicago
 	} from '$lib/invoicing/chicago-date';
 	import type { PageProps } from './$types';
 
@@ -29,21 +31,59 @@
 		{ id: 'both', label: 'Both' }
 	];
 
+	const rangePresets: { id: AnalyticsRangePreset; label: string }[] = [
+		{ id: 'ytd', label: 'YTD' },
+		{ id: '12m', label: '12 months' },
+		{ id: '26w', label: '26 weeks' },
+		{ id: 'all', label: 'All' },
+		{ id: 'custom', label: 'Custom' }
+	];
+
 	function hrefFor(patch: {
 		grain?: AnalyticsGrain;
 		metric?: AnalyticsMetric;
 		clientId?: string | null;
+		rangePreset?: AnalyticsRangePreset;
+		from?: string | null;
+		to?: string | null;
 	}): string {
+		const rangePreset = patch.rangePreset ?? data.rangePreset;
 		return analyticsHref({
 			grain: patch.grain ?? data.grain,
 			metric: patch.metric ?? data.metric,
-			clientId: patch.clientId !== undefined ? patch.clientId : data.clientId
+			clientId: patch.clientId !== undefined ? patch.clientId : data.clientId,
+			rangePreset,
+			from:
+				rangePreset === 'custom'
+					? (patch.from !== undefined ? patch.from : data.from)
+					: null,
+			to: rangePreset === 'custom' ? (patch.to !== undefined ? patch.to : data.to) : null
 		});
 	}
 
 	function onClientChange(e: Event) {
 		const v = (e.currentTarget as HTMLSelectElement).value;
 		void goto(hrefFor({ clientId: v === 'all' ? null : v }), {
+			replaceState: true,
+			noScroll: true,
+			keepFocus: true
+		});
+	}
+
+	function onCustomFrom(e: Event) {
+		const v = (e.currentTarget as HTMLInputElement).value;
+		const to = data.to ?? data.rangeEnd ?? ymdInChicago();
+		void goto(hrefFor({ rangePreset: 'custom', from: v, to }), {
+			replaceState: true,
+			noScroll: true,
+			keepFocus: true
+		});
+	}
+
+	function onCustomTo(e: Event) {
+		const v = (e.currentTarget as HTMLInputElement).value;
+		const from = data.from ?? data.rangeStart ?? ymdInChicago();
+		void goto(hrefFor({ rangePreset: 'custom', from, to: v }), {
 			replaceState: true,
 			noScroll: true,
 			keepFocus: true
@@ -101,6 +141,57 @@
 		class="mb-4 flex flex-col gap-3 rounded-xl border border-border bg-card p-3 text-card-foreground shadow-sm"
 		aria-label="Chart controls"
 	>
+		<div class="flex flex-wrap items-center gap-2">
+			<span class="text-xs font-medium text-muted-foreground">Range</span>
+			<div
+				class="inline-flex flex-wrap rounded-md border border-border p-0.5 text-xs font-medium"
+				role="group"
+				aria-label="Date range preset"
+			>
+				{#each rangePresets as p (p.id)}
+					<a
+						href={hrefFor({
+							rangePreset: p.id,
+							from: p.id === 'custom' ? (data.from ?? data.rangeStart) : null,
+							to: p.id === 'custom' ? (data.to ?? data.rangeEnd) : null
+						})}
+						class={cn(
+							'rounded-sm px-2.5 py-1.5 transition-colors',
+							data.rangePreset === p.id
+								? 'bg-foreground text-background'
+								: 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+						)}
+						aria-current={data.rangePreset === p.id ? 'page' : undefined}
+					>
+						{p.label}
+					</a>
+				{/each}
+			</div>
+		</div>
+
+		{#if data.rangePreset === 'custom'}
+			<div class="flex flex-wrap items-end gap-3">
+				<label class="flex flex-col gap-1 text-xs">
+					<span class="font-medium text-muted-foreground">From</span>
+					<input
+						type="date"
+						class="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+						value={data.from ?? data.rangeStart}
+						onchange={onCustomFrom}
+					/>
+				</label>
+				<label class="flex flex-col gap-1 text-xs">
+					<span class="font-medium text-muted-foreground">To</span>
+					<input
+						type="date"
+						class="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+						value={data.to ?? data.rangeEnd}
+						onchange={onCustomTo}
+					/>
+				</label>
+			</div>
+		{/if}
+
 		<div class="flex flex-wrap items-center gap-2">
 			<span class="text-xs font-medium text-muted-foreground">Grain</span>
 			<div
@@ -179,6 +270,11 @@
 		<div class="rounded-xl border border-border bg-card p-3 shadow-sm">
 			<p class="text-xs text-muted-foreground">Total earned</p>
 			<p class="mt-1 text-lg font-semibold tabular-nums">{money(data.summary.totalMoney)}</p>
+			{#if data.summary.oneOffMoney > 0}
+				<p class="mt-0.5 text-[11px] text-muted-foreground">
+					incl. {money(data.summary.oneOffMoney)} one-offs
+				</p>
+			{/if}
 		</div>
 		<div class="rounded-xl border border-border bg-card p-3 shadow-sm">
 			<p class="text-xs text-muted-foreground">Avg / {avgUnit}</p>
