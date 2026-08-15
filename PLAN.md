@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-08-13 — Charles ICC Revelation 2-vol ([199](docs/decisions/199-library-charles-icc-revelation.md)); prior Aug 12 shelf batch ([198](docs/decisions/198-library-aug12-shelf-batch.md)).
+**Last updated:** 2026-08-15 — Holland / Fitzmyer / Shirer shelf add ([200](docs/decisions/200-library-holland-fitzmyer-shirer.md)); prior Charles ICC Revelation ([199](docs/decisions/199-library-charles-icc-revelation.md)).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. Outgoing PDF + first real-client send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + pre-ppp 229 hours imported ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). **Analytics** Time \| Invoices \| Analytics + hours/earnings chart ([197](docs/decisions/197-invoicing-analytics.md)). **Open:** key rotation (#4 on tracker, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). Aug 3 shelf batch + KCC ✅ ([191](docs/decisions/191-library-aug3-shelf-batch.md)). Language + coverage integrity ✅ ([192](docs/decisions/192-library-language-coverage-integrity.md)); German edition ISBN follow-up ✅ ([193](docs/decisions/193-german-edition-isbn-corrections.md)); ISBN integrity Collins + dups ✅ ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)); Aug 5 Shepherd/Noll/Vallier ✅ ([195](docs/decisions/195-library-aug5-shepherd-noll-vallier.md)); Aug 12 classics/commentaries + Fitzgerald Homer ✅ ([198](docs/decisions/198-library-aug12-shelf-batch.md)); Charles ICC Revelation 2-vol ✅ ([199](docs/decisions/199-library-charles-icc-revelation.md)). |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). Aug 3 shelf batch + KCC ✅ ([191](docs/decisions/191-library-aug3-shelf-batch.md)). Language + coverage integrity ✅ ([192](docs/decisions/192-library-language-coverage-integrity.md)); German edition ISBN follow-up ✅ ([193](docs/decisions/193-german-edition-isbn-corrections.md)); ISBN integrity Collins + dups ✅ ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)); Aug 5 Shepherd/Noll/Vallier ✅ ([195](docs/decisions/195-library-aug5-shepherd-noll-vallier.md)); Aug 12 classics/commentaries + Fitzgerald Homer ✅ ([198](docs/decisions/198-library-aug12-shelf-batch.md)); Charles ICC Revelation 2-vol ✅ ([199](docs/decisions/199-library-charles-icc-revelation.md)); Aug 15 Holland / Fitzmyer AB / Shirer ✅ ([200](docs/decisions/200-library-holland-fitzmyer-shirer.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) — `/classwork/papers` research surface complete (attach books/essays/stubs, cite, compiled bib, research groups). Backlog: Canvas import ([173](docs/decisions/173-canvas-classwork-import-deferred.md)). |
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [200 — Library Holland / Fitzmyer / Shirer](docs/decisions/200-library-holland-fitzmyer-shirer.md) (2026-08-15) — Dominion 2021 paperback; AB First Corinthians (Yale vol 32); Collapse of the Third Republic 1969.
 - [199 — Charles ICC Revelation 2-vol](docs/decisions/199-library-charles-icc-revelation.md) (2026-08-13) — Robert H. Charles; Revelation 1–14 + 15–22; 1920 T&T Clark; ISBN null; Revelation coverage.
 - [198 — Library Aug 12 shelf batch](docs/decisions/198-library-aug12-shelf-batch.md) (2026-08-12) — Personal Heresy (1939 OUP); LCL Iliad II + Odyssey I; OWC Anselm; AB Knoppers; REC Casto; Fitzgerald FSG Homer remint.
 - [197 — Invoicing analytics chart](docs/decisions/197-invoicing-analytics.md) (2026-08-05) — `/invoicing/analytics` week/month hours + earnings; Hours|Money|Both; shared Time|Invoices|Analytics toggle.
 - [196 — Invoicing historical FOL + TWH hours](docs/decisions/196-invoicing-historical-fol-twh-hours.md) (2026-08-05) — FOL 69h/$2,415 + pre-ppp 229 392.5h/$39,250 as paid stub invoices; period breakdown deferred.
-- [195 — Library Aug 5 shelf batch (Shepherd / Noll / Vallier)](docs/decisions/195-library-aug5-shepherd-noll-vallier.md) (2026-08-05) — 3 standalone adds: Prophets / Church History / Politics and Policy; Noll 1994 hardcover.
 
 ---
 
