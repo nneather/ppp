@@ -1,10 +1,15 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import Plus from '@lucide/svelte/icons/plus';
+	import { onDestroy } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { cn } from '$lib/utils';
 	import GenerateInvoiceSheet from '$lib/components/generate-invoice-sheet.svelte';
+	import InvoicePaidUndoToast from '$lib/components/invoice-paid-undo-toast.svelte';
 	import InvoicingViewToggle from '$lib/components/invoicing-view-toggle.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import {
@@ -18,8 +23,72 @@
 
 	let sheetOpen = $state(false);
 	let statusFilter = $state<'all' | 'active' | InvoiceStatus>('active');
+	let pendingPaidId = $state<string | null>(null);
+	let undoPending = $state(false);
+	let undoToast = $state<{ invoiceId: string; invoiceNumber: string } | null>(null);
+	let undoTimer = $state<number | null>(null);
 
-	const formMessage = $derived(form && 'message' in form ? (form as { message?: string }) : null);
+	const formMessage = $derived(
+		form && 'message' in form && !('kind' in form) ? (form as { message?: string }) : null
+	);
+
+	const paidActionError = $derived(
+		form &&
+			'kind' in form &&
+			(form.kind === 'markPaid' || form.kind === 'unmarkPaid') &&
+			'message' in form &&
+			typeof form.message === 'string'
+			? form.message
+			: null
+	);
+
+	function clearUndoToast() {
+		undoToast = null;
+		if (undoTimer != null) {
+			clearTimeout(undoTimer);
+			undoTimer = null;
+		}
+	}
+
+	function showUndoToast(invoiceId: string, invoiceNumber: string) {
+		clearUndoToast();
+		undoToast = { invoiceId, invoiceNumber };
+		if (browser) {
+			undoTimer = window.setTimeout(() => {
+				clearUndoToast();
+			}, 10_000);
+		}
+	}
+
+	onDestroy(clearUndoToast);
+
+	const markPaidEnhance: SubmitFunction = ({ formData }) => {
+		pendingPaidId = String(formData.get('invoice_id') ?? '');
+		return async ({ result, update }) => {
+			pendingPaidId = null;
+			if (result.type === 'success' && result.data && typeof result.data === 'object') {
+				const d = result.data as {
+					kind?: string;
+					success?: boolean;
+					invoiceId?: string;
+					invoiceNumber?: string;
+				};
+				if (d.kind === 'markPaid' && d.success && d.invoiceId && d.invoiceNumber) {
+					showUndoToast(d.invoiceId, d.invoiceNumber);
+				}
+			}
+			await update();
+		};
+	};
+
+	const unmarkPaidEnhance: SubmitFunction = () => {
+		undoPending = true;
+		return async ({ result, update }) => {
+			undoPending = false;
+			if (result.type === 'success') clearUndoToast();
+			await update();
+		};
+	};
 
 	const filteredInvoices = $derived.by(() => {
 		if (statusFilter === 'all') return data.invoices;
@@ -87,6 +156,15 @@
 			class="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
 		>
 			{data.error}
+		</p>
+	{/if}
+
+	{#if paidActionError}
+		<p
+			class="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+			role="alert"
+		>
+			{paidActionError}
 		</p>
 	{/if}
 
@@ -170,12 +248,29 @@
 					{#each filteredInvoices as inv (inv.id)}
 						<tr class="hover:bg-muted/30">
 							<td class="px-4 py-3">
-								<a
-									href="/invoicing/invoices/{inv.id}"
-									class="font-medium text-foreground underline-offset-4 hover:underline"
-								>
-									{inv.invoice_number}
-								</a>
+								<div class="flex flex-wrap items-center gap-2">
+									<a
+										href="/invoicing/invoices/{inv.id}"
+										class="font-medium text-foreground underline-offset-4 hover:underline"
+									>
+										{inv.invoice_number}
+									</a>
+									{#if inv.status === 'sent'}
+										<form method="POST" action="?/markPaid" use:enhance={markPaidEnhance}>
+											<input type="hidden" name="invoice_id" value={inv.id} />
+											<Button
+												type="submit"
+												size="sm"
+												variant="outline"
+												class="min-h-9 sm:min-h-7"
+												disabled={pendingPaidId === inv.id}
+												aria-label="Mark {inv.invoice_number} as paid"
+											>
+												{pendingPaidId === inv.id ? 'Updating…' : 'Mark paid'}
+											</Button>
+										</form>
+									{/if}
+								</div>
 								<p class="mt-0.5 text-muted-foreground sm:hidden">{inv.client_name}</p>
 							</td>
 							<td class="hidden px-2 py-3 text-muted-foreground sm:table-cell">{inv.client_name}</td
@@ -214,3 +309,14 @@
 	unbilledEntries={data.unbilledEntries}
 	formMessage={sheetOpen ? formMessage : null}
 />
+
+{#if undoToast}
+	<InvoicePaidUndoToast
+		invoiceId={undoToast.invoiceId}
+		invoiceNumber={undoToast.invoiceNumber}
+		pending={undoPending}
+		liftForFab
+		onDismiss={clearUndoToast}
+		enhanceUndo={unmarkPaidEnhance}
+	/>
+{/if}

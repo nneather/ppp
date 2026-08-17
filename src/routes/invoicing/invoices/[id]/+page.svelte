@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { onDestroy } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
+	import InvoicePaidUndoToast from '$lib/components/invoice-paid-undo-toast.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Input } from '$lib/components/ui/input';
@@ -31,7 +34,13 @@
 	);
 
 	const markPaidError = $derived(
-		form && 'markPaidError' in form ? (form as { markPaidError?: string }).markPaidError : undefined
+		form &&
+			'kind' in form &&
+			(form.kind === 'markPaid' || form.kind === 'unmarkPaid') &&
+			'message' in form &&
+			typeof form.message === 'string'
+			? form.message
+			: undefined
 	);
 
 	const downloadError = $derived(
@@ -42,16 +51,19 @@
 	let dialogPending = $state(false);
 	let downloadPending = $state(false);
 	let markPaidPending = $state(false);
+	let unmarkPaidPending = $state(false);
 	let sendOpen = $state(false);
+	let undoToast = $state<{ invoiceId: string; invoiceNumber: string } | null>(null);
+	let undoTimer = $state<number | null>(null);
 
-	// Shared confirm dialog for the destructive discard flows + mark-paid.
+	// Shared confirm dialog for the destructive discard flows.
 	let confirmOpen = $state(false);
 	let confirmTitle = $state('');
 	let confirmDescription = $state('');
 	let confirmLabel = $state('Confirm');
 	let confirmDestructive = $state(true);
 	let confirmFormId = $state<string | null>(null);
-	const confirmPending = $derived(discardPending || markPaidPending);
+	const confirmPending = $derived(discardPending);
 	let emailBody = $state('');
 	let toEmail = $state('');
 	let ccEmails = $state('');
@@ -130,12 +142,51 @@
 
 	const markPaidEnhance: SubmitFunction = () => {
 		markPaidPending = true;
-		return async ({ update }) => {
+		return async ({ result, update }) => {
 			markPaidPending = false;
-			confirmOpen = false;
+			if (result.type === 'success' && result.data && typeof result.data === 'object') {
+				const d = result.data as {
+					kind?: string;
+					success?: boolean;
+					invoiceId?: string;
+					invoiceNumber?: string;
+				};
+				if (d.kind === 'markPaid' && d.success && d.invoiceId && d.invoiceNumber) {
+					showUndoToast(d.invoiceId, d.invoiceNumber);
+				}
+			}
 			await update();
 		};
 	};
+
+	const unmarkPaidEnhance: SubmitFunction = () => {
+		unmarkPaidPending = true;
+		return async ({ result, update }) => {
+			unmarkPaidPending = false;
+			if (result.type === 'success') clearUndoToast();
+			await update();
+		};
+	};
+
+	function clearUndoToast() {
+		undoToast = null;
+		if (undoTimer != null) {
+			clearTimeout(undoTimer);
+			undoTimer = null;
+		}
+	}
+
+	function showUndoToast(invoiceId: string, invoiceNumber: string) {
+		clearUndoToast();
+		undoToast = { invoiceId, invoiceNumber };
+		if (browser) {
+			undoTimer = window.setTimeout(() => {
+				clearUndoToast();
+			}, 10_000);
+		}
+	}
+
+	onDestroy(clearUndoToast);
 
 	function askDiscard(kind: 'draft' | 'sent') {
 		confirmTitle = kind === 'draft' ? 'Discard this draft?' : 'Discard this sent invoice?';
@@ -146,15 +197,6 @@
 		confirmLabel = kind === 'draft' ? 'Discard draft' : 'Discard invoice';
 		confirmDestructive = true;
 		confirmFormId = 'discard-invoice-form';
-		confirmOpen = true;
-	}
-
-	function askMarkPaid() {
-		confirmTitle = 'Mark this invoice as paid?';
-		confirmDescription = 'Records the payment date and moves the invoice to paid.';
-		confirmLabel = 'Mark as paid';
-		confirmDestructive = false;
-		confirmFormId = 'mark-paid-form';
 		confirmOpen = true;
 	}
 
@@ -455,15 +497,16 @@
 
 	{#if inv.status === 'sent'}
 		<div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-			<Button
-				type="button"
-				variant="secondary"
-				class="w-full sm:w-auto"
-				disabled={markPaidPending}
-				onclick={askMarkPaid}
-			>
-				{markPaidPending ? 'Updating…' : 'Mark as paid'}
-			</Button>
+			<form method="POST" action="?/markPaid" use:enhance={markPaidEnhance}>
+				<Button
+					type="submit"
+					variant="secondary"
+					class="w-full sm:w-auto"
+					disabled={markPaidPending}
+				>
+					{markPaidPending ? 'Updating…' : 'Mark as paid'}
+				</Button>
+			</form>
 
 			{#if discardMessage}
 				<p
@@ -482,6 +525,14 @@
 				label={discardPending ? 'Discarding…' : 'Discard sent invoice'}
 			/>
 		</div>
+	{/if}
+
+	{#if inv.status === 'paid'}
+		<form method="POST" action="?/unmarkPaid" use:enhance={unmarkPaidEnhance} class="mt-6">
+			<Button type="submit" variant="outline" disabled={unmarkPaidPending}>
+				{unmarkPaidPending ? 'Updating…' : 'Mark unpaid'}
+			</Button>
+		</form>
 	{/if}
 
 	{#if inv.notes}
@@ -504,15 +555,6 @@
 		class="hidden"
 	></form>
 {/if}
-{#if inv.status === 'sent'}
-	<form
-		id="mark-paid-form"
-		method="POST"
-		action="?/markPaid"
-		use:enhance={markPaidEnhance}
-		class="hidden"
-	></form>
-{/if}
 
 <ConfirmDialog
 	bind:open={confirmOpen}
@@ -523,3 +565,13 @@
 	pending={confirmPending}
 	onConfirm={submitConfirm}
 />
+
+{#if undoToast}
+	<InvoicePaidUndoToast
+		invoiceId={undoToast.invoiceId}
+		invoiceNumber={undoToast.invoiceNumber}
+		pending={unmarkPaidPending}
+		onDismiss={clearUndoToast}
+		enhanceUndo={unmarkPaidEnhance}
+	/>
+{/if}

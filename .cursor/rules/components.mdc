@@ -81,6 +81,7 @@ If you reach for one of these capabilities, use the existing component.
 | Classwork Assignments \| Papers view toggle (shared by `/classwork` + `/classwork/papers`) | [src/lib/components/classwork-view-toggle.svelte](mdc:src/lib/components/classwork-view-toggle.svelte) |
 | Sermons List \| By book view toggle (shared by `/sermons` + `/sermons/by-book`) | [src/lib/components/sermons-view-toggle.svelte](mdc:src/lib/components/sermons-view-toggle.svelte) |
 | Invoicing Time \| Invoices \| Analytics view toggle (shared by `/invoicing`, `/invoicing/invoices`, `/invoicing/analytics`) | [src/lib/components/invoicing-view-toggle.svelte](mdc:src/lib/components/invoicing-view-toggle.svelte) |
+| Invoice mark-paid undo toast (10s; list + detail; `liftForFab` on the invoices list) | [src/lib/components/invoice-paid-undo-toast.svelte](mdc:src/lib/components/invoice-paid-undo-toast.svelte) |
 | Invoicing analytics SVG chart (hours/money/both; dual-axis when both) | [src/lib/components/invoicing-analytics-chart.svelte](mdc:src/lib/components/invoicing-analytics-chart.svelte) |
 | Project links inline editor (metadata Sheet, edit mode) | [src/lib/components/project-links-editor.svelte](mdc:src/lib/components/project-links-editor.svelte) |
 | Projects health/lifecycle visual tokens (Epic hex + picker segment classes, lifecycle badge) | [src/lib/projects/health-appearance.ts](mdc:src/lib/projects/health-appearance.ts) |

@@ -1,4 +1,11 @@
 import { error, fail, redirect } from '@sveltejs/kit';
+import {
+	failMarkPaidAuth,
+	failMarkPaidMissing,
+	markInvoicePaidAction,
+	parseInvoiceId,
+	unmarkInvoicePaidAction
+} from '$lib/invoicing/mark-paid';
 import type { Actions, PageServerLoad } from './$types';
 import type { InvoiceDetail, InvoiceLineItemRow } from '$lib/types/invoicing';
 export type { InvoiceDetail } from '$lib/types/invoicing';
@@ -508,28 +515,17 @@ export const actions: Actions = {
 
 	markPaid: async ({ params, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user) return fail(401, { markPaidError: 'Unauthorized' });
+		if (!user) return failMarkPaidAuth('markPaid');
+		const id = parseInvoiceId(params.id);
+		if (!id) return failMarkPaidMissing('markPaid');
+		return markInvoicePaidAction(locals.supabase, id);
+	},
 
-		const id = params.id;
-		const supabase = locals.supabase;
-
-		const { data: updated, error: updErr } = await supabase
-			.from('invoices')
-			.update({ status: 'paid', paid_at: new Date().toISOString() })
-			.eq('id', id)
-			.eq('status', 'sent')
-			.is('deleted_at', null)
-			.select('id')
-			.maybeSingle();
-
-		if (updErr) {
-			console.error(updErr);
-			return fail(500, { markPaidError: updErr.message ?? 'Could not mark invoice as paid.' });
-		}
-		if (!updated) {
-			return fail(400, { markPaidError: 'Invoice not found or not in sent status.' });
-		}
-
-		return { success: true };
+	unmarkPaid: async ({ params, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return failMarkPaidAuth('unmarkPaid');
+		const id = parseInvoiceId(params.id);
+		if (!id) return failMarkPaidMissing('unmarkPaid');
+		return unmarkInvoicePaidAction(locals.supabase, id);
 	}
 };

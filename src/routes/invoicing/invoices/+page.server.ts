@@ -2,6 +2,13 @@ import { fail, redirect } from '@sveltejs/kit';
 import { buildConsultationLines } from '$lib/invoicing/consultation-lines';
 import { utcNoonFromYmd } from '$lib/invoicing/chicago-date';
 import {
+	failMarkPaidAuth,
+	failMarkPaidMissing,
+	markInvoicePaidAction,
+	parseInvoiceId,
+	unmarkInvoicePaidAction
+} from '$lib/invoicing/mark-paid';
+import {
 	oneOffLineFromLedgerEntry,
 	parseOneOffsJson,
 	roundMoney
@@ -422,5 +429,21 @@ export const actions: Actions = {
 		}
 
 		redirect(303, `/invoicing/invoices/${invoiceId}`);
+	},
+
+	markPaid: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return failMarkPaidAuth('markPaid');
+		const id = parseInvoiceId((await request.formData()).get('invoice_id'));
+		if (!id) return failMarkPaidMissing('markPaid');
+		return markInvoicePaidAction(locals.supabase, id);
+	},
+
+	unmarkPaid: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return failMarkPaidAuth('unmarkPaid');
+		const id = parseInvoiceId((await request.formData()).get('invoice_id'));
+		if (!id) return failMarkPaidMissing('unmarkPaid');
+		return unmarkInvoicePaidAction(locals.supabase, id);
 	}
 };
