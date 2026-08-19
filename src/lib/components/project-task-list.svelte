@@ -153,33 +153,38 @@
 	{@const activeToday = !isCompleted && isActiveToday(task)}
 	<li
 		class={cn(
-			'flex flex-col gap-2 border-b border-border/60 last:border-b-0',
-			compact ? 'px-2.5 py-2' : 'px-3 py-2.5',
+			'group',
+			compact
+				? 'px-2 py-2.5'
+				: 'flex flex-col gap-2 border-b border-border/60 px-3 py-2.5 last:border-b-0',
 			domainColor && PROJECT_COLOR_RAIL_CLASS[domainColor],
 			isCompleted && 'opacity-70'
 		)}
 	>
-		<div class="flex min-w-0 items-start gap-2">
-			<form
-				method="POST"
-				action={isCompleted ? taskFormAction('uncompleteTask', actionPrefix) : taskFormAction('completeTask', actionPrefix)}
-				use:enhance={actionEnhance}
-			>
-				<input type="hidden" name="id" value={task.id} />
-				<input
-					type="checkbox"
-					class="mt-1 size-4 shrink-0 rounded border-border"
-					checked={isCompleted}
-					aria-label={isCompleted ? 'Mark incomplete' : 'Mark complete'}
-					onchange={(e) => (e.currentTarget as HTMLInputElement).form?.requestSubmit()}
-				/>
-			</form>
-			<div class="min-w-0 flex-1">
-				<div class="flex min-w-0 items-start gap-1.5">
+		{#if compact}
+			<div class="flex min-w-0 items-start gap-2">
+				<form
+					method="POST"
+					action={isCompleted
+						? taskFormAction('uncompleteTask', actionPrefix)
+						: taskFormAction('completeTask', actionPrefix)}
+					use:enhance={actionEnhance}
+					class="shrink-0"
+				>
+					<input type="hidden" name="id" value={task.id} />
+					<input
+						type="checkbox"
+						class="mt-0.5 size-4 rounded border-border"
+						checked={isCompleted}
+						aria-label={isCompleted ? 'Mark incomplete' : 'Mark complete'}
+						onchange={(e) => (e.currentTarget as HTMLInputElement).form?.requestSubmit()}
+					/>
+				</form>
+				<div class="min-w-0 flex-1">
 					<button
 						type="button"
 						class={cn(
-							'min-w-0 flex-1 break-words text-left text-sm font-medium hover:underline',
+							'w-full text-left text-[13px] leading-snug font-medium hover:underline',
 							activeToday &&
 								task.priority === 'critical_now' &&
 								'underline decoration-red-600/70 underline-offset-2',
@@ -193,108 +198,312 @@
 					>
 						{task.title}
 					</button>
-					{#if task.series_id}
-						<span
-							class="mt-0.5 shrink-0 text-muted-foreground"
-							title="Recurring task"
-							aria-label="Recurring task"
+					<div class="mt-1 flex min-w-0 items-center gap-1.5">
+						{#if showProjectLabel}
+							<p class="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-[11px] text-muted-foreground">
+								{#if domainColor}
+									<span
+										class={cn('size-1.5 shrink-0 rounded-full', PROJECT_COLOR_DOT_CLASS[domainColor])}
+										aria-hidden="true"
+									></span>
+								{/if}
+								<span class="truncate">{task.project_name}</span>
+							</p>
+						{:else}
+							<span class="flex-1"></span>
+						{/if}
+						{#if task.series_id}
+							<span
+								class="shrink-0 text-muted-foreground/70"
+								title="Recurring task"
+								aria-label="Recurring task"
+							>
+								<Repeat class="size-3" />
+							</span>
+						{/if}
+						{#if task.notes}
+							<button
+								type="button"
+								class="shrink-0 rounded p-0.5 text-muted-foreground/70 hover:bg-muted hover:text-foreground"
+								title="Has notes — edit to read"
+								aria-label="Open task notes"
+								onclick={() => onEdit(task)}
+							>
+								<FileText class="size-3" />
+							</button>
+						{/if}
+					</div>
+					{#if !isCompleted}
+						<div
+							class="mt-1.5 flex items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100"
 						>
-							<Repeat class="size-3.5" />
-						</span>
-					{/if}
-					{#if task.notes && !isCompleted}
-						<button
-							type="button"
-							class="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-							title="Has notes — edit to read"
-							aria-label="Open task notes"
-							onclick={() => onEdit(task)}
-						>
-							<FileText class="size-3.5" />
-						</button>
-					{:else if task.notes}
-						<span class="mt-0.5 shrink-0 text-muted-foreground" title="Has notes" aria-label="Has notes">
-							<FileText class="size-3.5" />
-						</span>
+							{#if task.priority === 'opportunity_now'}
+								<form
+									method="POST"
+									action={taskFormAction('raisePriority', actionPrefix)}
+									use:enhance={actionEnhance}
+								>
+									<input type="hidden" name="id" value={task.id} />
+									<Button
+										type="submit"
+										variant="ghost"
+										size="icon-sm"
+										class="size-7 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+										aria-label="Raise to Critical Now"
+										title="Raise to Critical Now"
+									>
+										<CircleAlert class="size-3.5" />
+									</Button>
+								</form>
+							{:else if task.priority === 'over_horizon'}
+								<form
+									method="POST"
+									action={taskFormAction('raisePriority', actionPrefix)}
+									use:enhance={actionEnhance}
+								>
+									<input type="hidden" name="id" value={task.id} />
+									<Button
+										type="submit"
+										variant="ghost"
+										size="icon-sm"
+										class="size-7 text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+										aria-label="Raise to Opportunity Now"
+										title="Raise to Opportunity Now"
+									>
+										<ChevronsUp class="size-3.5" />
+									</Button>
+								</form>
+							{/if}
+							<form
+								method="POST"
+								action={taskFormAction('promoteTask', actionPrefix)}
+								use:enhance={actionEnhance}
+							>
+								<input type="hidden" name="id" value={task.id} />
+								<Button
+									type="submit"
+									variant="ghost"
+									size="icon-sm"
+									class="size-7"
+									aria-label="Promote (start today)"
+									title="Promote — start today"
+								>
+									<ArrowUp class="size-3.5" />
+								</Button>
+							</form>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="size-7"
+								aria-label="Defer"
+								title="Defer to future date"
+								onclick={() => openDefer(task)}
+							>
+								<CalendarClock class="size-3.5" />
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="size-7"
+								aria-label="Edit task"
+								onclick={() => onEdit(task)}
+							>
+								<Pencil class="size-3.5" />
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="size-7 text-destructive hover:text-destructive"
+								aria-label="Delete task"
+								onclick={() => openDelete(task)}
+							>
+								<Trash2 class="size-3.5" />
+							</Button>
+						</div>
+					{:else}
+						<div class="mt-1">
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="size-7 text-destructive hover:text-destructive"
+								aria-label="Delete task"
+								onclick={() => openDelete(task)}
+							>
+								<Trash2 class="size-3.5" />
+							</Button>
+						</div>
 					{/if}
 				</div>
-				{#if showProjectLabel}
-					<p class="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-						{#if domainColor}
-							<span
-								class={cn('size-2 shrink-0 rounded-full', PROJECT_COLOR_DOT_CLASS[domainColor])}
-								aria-hidden="true"
-							></span>
-						{/if}
-						{task.project_name}
-					</p>
-				{/if}
-				{#if !compact}
-					<p class="text-xs text-muted-foreground">Start {task.start_date}</p>
-				{/if}
 			</div>
-			{#if !isCompleted}
-				<div class="flex shrink-0 flex-wrap justify-end gap-0.5">
-					{#if task.priority === 'opportunity_now'}
-						<form method="POST" action={taskFormAction('raisePriority', actionPrefix)} use:enhance={actionEnhance}>
-							<input type="hidden" name="id" value={task.id} />
-							<Button
-								type="submit"
-								variant="ghost"
-								size="icon-sm"
-								class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-								aria-label="Raise to Critical Now"
-								title="Raise to Critical Now"
+		{:else}
+			<div class="flex min-w-0 items-start gap-2">
+				<form
+					method="POST"
+					action={isCompleted
+						? taskFormAction('uncompleteTask', actionPrefix)
+						: taskFormAction('completeTask', actionPrefix)}
+					use:enhance={actionEnhance}
+				>
+					<input type="hidden" name="id" value={task.id} />
+					<input
+						type="checkbox"
+						class="mt-1 size-4 shrink-0 rounded border-border"
+						checked={isCompleted}
+						aria-label={isCompleted ? 'Mark incomplete' : 'Mark complete'}
+						onchange={(e) => (e.currentTarget as HTMLInputElement).form?.requestSubmit()}
+					/>
+				</form>
+				<div class="min-w-0 flex-1">
+					<div class="flex min-w-0 items-start gap-1.5">
+						<button
+							type="button"
+							class={cn(
+								'min-w-0 flex-1 text-left text-sm font-medium break-words hover:underline',
+								activeToday &&
+									task.priority === 'critical_now' &&
+									'underline decoration-red-600/70 underline-offset-2',
+								activeToday &&
+									task.priority === 'opportunity_now' &&
+									'underline decoration-amber-600/70 underline-offset-2',
+								isCompleted && 'line-through'
+							)}
+							title="View / edit task"
+							onclick={() => onEdit(task)}
+						>
+							{task.title}
+						</button>
+						{#if task.series_id}
+							<span
+								class="mt-0.5 shrink-0 text-muted-foreground"
+								title="Recurring task"
+								aria-label="Recurring task"
 							>
-								<CircleAlert class="size-4" />
-							</Button>
-						</form>
-					{:else if task.priority === 'over_horizon'}
-						<form method="POST" action={taskFormAction('raisePriority', actionPrefix)} use:enhance={actionEnhance}>
-							<input type="hidden" name="id" value={task.id} />
-							<Button
-								type="submit"
-								variant="ghost"
-								size="icon-sm"
-								class="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
-								aria-label="Raise to Opportunity Now"
-								title="Raise to Opportunity Now"
+								<Repeat class="size-3.5" />
+							</span>
+						{/if}
+						{#if task.notes && !isCompleted}
+							<button
+								type="button"
+								class="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+								title="Has notes — edit to read"
+								aria-label="Open task notes"
+								onclick={() => onEdit(task)}
 							>
-								<ChevronsUp class="size-4" />
-							</Button>
-						</form>
+								<FileText class="size-3.5" />
+							</button>
+						{:else if task.notes}
+							<span
+								class="mt-0.5 shrink-0 text-muted-foreground"
+								title="Has notes"
+								aria-label="Has notes"
+							>
+								<FileText class="size-3.5" />
+							</span>
+						{/if}
+					</div>
+					{#if showProjectLabel}
+						<p class="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+							{#if domainColor}
+								<span
+									class={cn('size-2 shrink-0 rounded-full', PROJECT_COLOR_DOT_CLASS[domainColor])}
+									aria-hidden="true"
+								></span>
+							{/if}
+							{task.project_name}
+						</p>
 					{/if}
-					<form method="POST" action={taskFormAction('promoteTask', actionPrefix)} use:enhance={actionEnhance}>
-						<input type="hidden" name="id" value={task.id} />
+					<p class="text-xs text-muted-foreground">Start {task.start_date}</p>
+				</div>
+				{#if !isCompleted}
+					<div class="flex shrink-0 flex-wrap justify-end gap-0.5">
+						{#if task.priority === 'opportunity_now'}
+							<form
+								method="POST"
+								action={taskFormAction('raisePriority', actionPrefix)}
+								use:enhance={actionEnhance}
+							>
+								<input type="hidden" name="id" value={task.id} />
+								<Button
+									type="submit"
+									variant="ghost"
+									size="icon-sm"
+									class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+									aria-label="Raise to Critical Now"
+									title="Raise to Critical Now"
+								>
+									<CircleAlert class="size-4" />
+								</Button>
+							</form>
+						{:else if task.priority === 'over_horizon'}
+							<form
+								method="POST"
+								action={taskFormAction('raisePriority', actionPrefix)}
+								use:enhance={actionEnhance}
+							>
+								<input type="hidden" name="id" value={task.id} />
+								<Button
+									type="submit"
+									variant="ghost"
+									size="icon-sm"
+									class="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+									aria-label="Raise to Opportunity Now"
+									title="Raise to Opportunity Now"
+								>
+									<ChevronsUp class="size-4" />
+								</Button>
+							</form>
+						{/if}
+						<form
+							method="POST"
+							action={taskFormAction('promoteTask', actionPrefix)}
+							use:enhance={actionEnhance}
+						>
+							<input type="hidden" name="id" value={task.id} />
+							<Button
+								type="submit"
+								variant="ghost"
+								size="icon-sm"
+								aria-label="Promote (start today)"
+								title="Promote — start today"
+							>
+								<ArrowUp class="size-4" />
+							</Button>
+						</form>
 						<Button
-							type="submit"
+							type="button"
 							variant="ghost"
 							size="icon-sm"
-							aria-label="Promote (start today)"
-							title="Promote — start today"
+							aria-label="Defer"
+							title="Defer to future date"
+							onclick={() => openDefer(task)}
 						>
-							<ArrowUp class="size-4" />
+							<CalendarClock class="size-4" />
 						</Button>
-					</form>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-sm"
-						aria-label="Defer"
-						title="Defer to future date"
-						onclick={() => openDefer(task)}
-					>
-						<CalendarClock class="size-4" />
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-sm"
-						aria-label="Edit task"
-						onclick={() => onEdit(task)}
-					>
-						<Pencil class="size-4" />
-					</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							aria-label="Edit task"
+							onclick={() => onEdit(task)}
+						>
+							<Pencil class="size-4" />
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							class="text-destructive hover:text-destructive"
+							aria-label="Delete task"
+							onclick={() => openDelete(task)}
+						>
+							<Trash2 class="size-4" />
+						</Button>
+					</div>
+				{:else}
 					<Button
 						type="button"
 						variant="ghost"
@@ -305,41 +514,44 @@
 					>
 						<Trash2 class="size-4" />
 					</Button>
-				</div>
-			{:else}
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon-sm"
-					class="text-destructive hover:text-destructive"
-					aria-label="Delete task"
-					onclick={() => openDelete(task)}
-				>
-					<Trash2 class="size-4" />
-				</Button>
-			{/if}
-		</div>
+				{/if}
+			</div>
+		{/if}
 	</li>
 {/snippet}
 
 {#each zones as zone (zone.priority)}
-	<section class={compact ? 'mb-4' : 'mb-6'}>
+	<section class={compact ? 'mb-3' : 'mb-6'}>
 		<div
 			class={cn(
-				'mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border',
-				compact ? 'px-2.5 py-1.5' : 'px-3 py-2',
-				zoneHeaderClass[zone.priority]
+				'mb-1.5 flex flex-wrap items-center justify-between gap-2',
+				compact
+					? 'px-0.5 py-0.5'
+					: cn('rounded-lg border px-3 py-2', zoneHeaderClass[zone.priority])
 			)}
 		>
-			<h2 class={cn('font-semibold', compact ? 'text-xs' : 'text-sm')}>{zone.label}</h2>
-			<span class="text-xs text-muted-foreground">{zone.count}</span>
+			<h2
+				class={cn(
+					'font-semibold',
+					compact ? 'text-[11px] tracking-wide text-muted-foreground uppercase' : 'text-sm'
+				)}
+			>
+				{zone.label}
+			</h2>
+			<span class="text-[11px] tabular-nums text-muted-foreground">{zone.count}</span>
 		</div>
 		{#if zone.tasks.length === 0}
-			<p class="px-3 text-sm text-muted-foreground italic">
+			<p class="px-1 text-sm text-muted-foreground italic">
 				{compact ? 'None' : 'No open tasks in this zone.'}
 			</p>
 		{:else}
-			<ul class="rounded-lg border border-border bg-card">
+			<ul
+				class={cn(
+					compact
+						? 'divide-y divide-border/40 border-y border-border/50'
+						: 'rounded-lg border border-border bg-card'
+				)}
+			>
 				{#each zone.tasks as task (task.id)}
 					{@render taskRow(task, false)}
 				{/each}
