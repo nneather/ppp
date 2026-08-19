@@ -29,6 +29,7 @@
 		type RecurrenceRule,
 		type TaskSeriesScope
 	} from '$lib/projects/task-recurrence';
+	import { taskFormAction } from '$lib/projects/now-task-rail';
 
 	const WEEKDAY_OPTIONS: { value: IsoWeekday; label: string }[] = [
 		{ value: 1, label: 'Mon' },
@@ -48,7 +49,8 @@
 		projectOptions,
 		defaultProjectId = null,
 		errorMessage = null,
-		onSaved
+		onSaved,
+		actionPrefix = ''
 	}: {
 		open?: boolean;
 		mode: 'create' | 'edit';
@@ -58,10 +60,13 @@
 		defaultProjectId?: string | null;
 		errorMessage?: string | null;
 		onSaved?: () => void | Promise<void>;
+		/** e.g. `/tasks` when the sheet is mounted outside `/tasks`. */
+		actionPrefix?: string;
 	} = $props();
 
 	let sheetSide: 'right' | 'bottom' = $state('bottom');
 	let pending = $state(false);
+	let localError = $state<string | null>(null);
 
 	let title = $state('');
 	let projectId = $state('');
@@ -82,8 +87,13 @@
 	let pendingScope = $state<TaskSeriesScope | null>(null);
 	let formEl = $state<HTMLFormElement | null>(null);
 
+	const displayError = $derived(errorMessage ?? localError);
 	const isSeriesTask = $derived(mode === 'edit' && task?.series_id != null);
-	const formAction = $derived(mode === 'create' ? '?/createTask' : '?/updateTask');
+	const formAction = $derived(
+		mode === 'create'
+			? taskFormAction('createTask', actionPrefix)
+			: taskFormAction('updateTask', actionPrefix)
+	);
 	const sheetTitle = $derived(mode === 'create' ? 'New task' : 'Edit task');
 
 	const effectiveProjectOptions = $derived.by(() => {
@@ -228,8 +238,23 @@
 
 	const submitEnhance: SubmitFunction = () => {
 		pending = true;
+		localError = null;
 		return async ({ result, update }) => {
 			pending = false;
+			if (actionPrefix) {
+				if (result.type === 'success') {
+					open = false;
+					pendingScope = null;
+					await onSaved?.();
+				} else {
+					pendingScope = null;
+					if (result.type === 'failure') {
+						const data = result.data as { message?: string } | undefined;
+						localError = data?.message ?? 'Something went wrong.';
+					}
+				}
+				return;
+			}
 			await update();
 			if (result.type === 'success') {
 				open = false;
@@ -274,12 +299,12 @@
 			{/if}
 
 			<div class="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-x-hidden overflow-y-auto px-4 py-4">
-				{#if errorMessage}
+				{#if displayError}
 					<p
 						class="shrink-0 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
 						role="alert"
 					>
-						{errorMessage}
+						{displayError}
 					</p>
 				{/if}
 

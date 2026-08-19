@@ -1,46 +1,21 @@
 <script lang="ts">
-	import { invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Users from '@lucide/svelte/icons/users';
-	import Plus from '@lucide/svelte/icons/plus';
 	import DashboardContactsDue from '$lib/components/dashboard-contacts-due.svelte';
 	import DashboardDueSoon from '$lib/components/dashboard-due-soon.svelte';
 	import DashboardLibraryTileFooter from '$lib/components/dashboard-library-tile-footer.svelte';
 	import DashboardInvoicingTileFooter from '$lib/components/dashboard-invoicing-tile-footer.svelte';
 	import DashboardUpcomingSermons from '$lib/components/dashboard-upcoming-sermons.svelte';
 	import ProjectStatusStrip from '$lib/components/project-status-strip.svelte';
-	import ProjectTaskList from '$lib/components/project-task-list.svelte';
-	import ProjectTaskSheet from '$lib/components/project-task-sheet.svelte';
-	import { Button } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
 	import { formatWeekLabel } from '$lib/projects/week';
-	import type { ProjectTaskView } from '$lib/types/projects';
 	import type { PageProps } from './$types';
 
-	let { data, form }: PageProps = $props();
-
-	let sheetOpen = $state(false);
-	let sheetMode = $state<'create' | 'edit'>('create');
-	let editingTask = $state<ProjectTaskView | null>(null);
-
-	const f = $derived(form ?? null);
-
-	const sheetError = $derived.by(() => {
-		if (!f || f.success) return null;
-		if (f.kind === 'createTask' || f.kind === 'updateTask') {
-			return f.message ?? 'Something went wrong.';
-		}
-		return null;
-	});
-
-	const editingSeries = $derived.by(() => {
-		if (!editingTask?.series_id) return null;
-		return data.seriesById[editingTask.series_id] ?? null;
-	});
+	let { data }: PageProps = $props();
 
 	const taskCountsLoaded = $derived(
 		data.criticalNowTaskCount != null && data.opportunityNowTaskCount != null
@@ -65,22 +40,6 @@
 	const innerLinkClass = cn(
 		'flex flex-1 flex-col rounded-t-xl p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring md:p-5'
 	);
-
-	function openCreate() {
-		sheetMode = 'create';
-		editingTask = null;
-		sheetOpen = true;
-	}
-
-	function openEdit(task: ProjectTaskView) {
-		sheetMode = 'edit';
-		editingTask = task;
-		sheetOpen = true;
-	}
-
-	async function onTaskSaved() {
-		await invalidate('app:projects:tasks');
-	}
 </script>
 
 <div class="mx-auto max-w-7xl px-4 py-6 pb-tabbar md:px-6 md:py-8">
@@ -188,7 +147,7 @@
 						</div>
 					</li>
 
-					<!-- Mobile / narrow: task counts only — desktop Now list is the right column -->
+					<!-- Mobile / narrow: task counts only — desktop Now list is the left rail -->
 					<li class="md:hidden">
 						<a
 							href="/tasks"
@@ -341,56 +300,10 @@
 
 		<aside
 			class="mt-6 hidden min-h-0 space-y-4 md:sticky md:top-0 md:mt-0 md:block md:max-h-[calc(100dvh-5rem)] md:overflow-y-auto"
-			aria-label="Now, classwork, and contacts"
+			aria-label="Classwork and contacts"
 		>
-			<section
-				class="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm"
-				aria-labelledby="now-tasks-heading"
-			>
-				<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-					<div class="min-w-0">
-						<h2
-							id="now-tasks-heading"
-							class="text-sm font-semibold tracking-tight text-foreground"
-						>
-							Now
-						</h2>
-						<a
-							href="/tasks"
-							class="text-xs font-medium text-primary underline-offset-4 hover:underline"
-						>
-							Open full list
-						</a>
-					</div>
-					<Button type="button" size="sm" class="gap-1" hotkey="b" onclick={openCreate}>
-						<Plus class="size-3.5" />
-						New
-					</Button>
-				</div>
-
-				<ProjectTaskList
-					zones={data.nowZones}
-					compact={true}
-					showProjectLabel={true}
-					todayYmd={data.todayYmd}
-					onEdit={openEdit}
-					onInvalidate={onTaskSaved}
-				/>
-			</section>
-
 			<DashboardDueSoon assignments={data.dueSoonAssignments} />
 			<DashboardContactsDue contacts={data.contactsDue} />
 		</aside>
 	</div>
 </div>
-
-<ProjectTaskSheet
-	bind:open={sheetOpen}
-	mode={sheetMode}
-	task={editingTask}
-	series={editingSeries}
-	projectOptions={data.projectOptions}
-	defaultProjectId={data.defaultTaskProjectId}
-	errorMessage={sheetError}
-	onSaved={onTaskSaved}
-/>

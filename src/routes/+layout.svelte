@@ -55,6 +55,8 @@
 	] as const;
 
 	const pathname = $derived(page.url.pathname);
+	const isTasksPath = $derived(pathname === '/tasks' || pathname.startsWith('/tasks/'));
+	let isDesktop = $state(false);
 	const isLogin = $derived(pathname === '/login');
 	const navTarget = $derived(navigating.to);
 
@@ -127,6 +129,14 @@
 			/* ignore */
 		}
 		prefsReady = true;
+
+		const mq = window.matchMedia('(min-width: 768px)');
+		const syncDesktop = () => {
+			isDesktop = mq.matches;
+		};
+		syncDesktop();
+		mq.addEventListener('change', syncDesktop);
+		return () => mq.removeEventListener('change', syncDesktop);
 	});
 
 	$effect(() => {
@@ -235,6 +245,23 @@
 				</Button>
 			</div>
 		</aside>
+
+		{#if !isTasksPath}
+			<aside
+				class="hidden h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-border bg-card text-card-foreground md:flex"
+				aria-label="Now tasks"
+			>
+				{#if isDesktop}
+					{#await import('$lib/components/desktop-task-rail.svelte') then { default: DesktopTaskRail }}
+						<DesktopTaskRail />
+					{/await}
+				{:else}
+					<div class="border-b border-border px-3 py-2.5">
+						<p class="text-sm font-semibold tracking-tight">Now</p>
+					</div>
+				{/if}
+			</aside>
+		{/if}
 
 		<!-- Main column: scrollable content + mobile tab bar footer (not position:fixed — iOS PWA) -->
 		<div class="flex min-h-0 min-w-0 flex-1 flex-col">

@@ -1,5 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { addDaysYmd, ymdInChicago } from '$lib/invoicing/chicago-date';
+import { loadProjectRows } from '$lib/projects/server/loaders';
+import { buildDomainColorByProjectId } from '$lib/projects/project-colors';
+import type { NowTaskRailData } from '$lib/projects/now-task-rail';
 import { truncateTasksToSoftCap } from '$lib/projects/task-views';
 import {
 	clampWeekTaskDays,
@@ -19,7 +22,8 @@ import {
 	type ProjectTaskView,
 	type ProjectTaskSeriesView,
 	type TaskZoneGroup,
-	type ProjectLinkRow
+	type ProjectLinkRow,
+	type ProjectFlatOption
 } from '$lib/types/projects';
 
 const TASK_COLUMNS =
@@ -392,7 +396,7 @@ export async function loadWeekTasks(
 }
 
 /**
- * Critical + Opportunity Now only (visible / non-deferred) for the desktop dashboard pane.
+ * Critical + Opportunity Now only (visible / non-deferred) for the desktop Now rail.
  * Skips OTH, deferred, completed, and soft-cap truncation.
  */
 export async function loadDashboardNowTasks(
@@ -470,6 +474,66 @@ export async function loadDashboardNowTasks(
 		todayYmd,
 		criticalNowCount: zones[0]?.count ?? 0,
 		opportunityNowCount: zones[1]?.count ?? 0
+	};
+}
+
+/**
+ * Desktop Now rail payload: Now zones + domain colors + New Task options + series.
+ * 3 parallel queries + optional series fetch. Called from GET `/tasks/now.json`, not layout load.
+ */
+export async function loadNowTaskRail(
+	supabase: SupabaseClient,
+	userId: string
+): Promise<NowTaskRailData> {
+	const todayYmd = ymdInChicago();
+	const [nowTasks, flatRows, profileRes] = await Promise.all([
+		loadDashboardNowTasks(supabase, { todayYmd }),
+		loadProjectRows(supabase),
+		supabase.from('profiles').select('default_task_project_id').eq('id', userId).maybeSingle()
+	]);
+	if (profileRes.error) console.error(profileRes.error);
+
+	const colored = attachTaskDomainColors(
+		{
+			zones: nowTasks.zones,
+			deferred: [],
+			completed: [],
+			todayYmd: nowTasks.todayYmd,
+			openCount: nowTasks.criticalNowCount + nowTasks.opportunityNowCount,
+			visibleCount: nowTasks.criticalNowCount + nowTasks.opportunityNowCount,
+			atCap: false,
+			truncated: false
+		},
+		buildDomainColorByProjectId(flatRows)
+	);
+
+	const projectOptions: ProjectFlatOption[] = flatRows
+		.filter((r) => r.parent_id == null)
+		.map((r) => ({
+			id: r.id,
+			name: r.name,
+			parent_id: null,
+			depth: 0
+		}));
+
+	const seriesIds = [
+		...new Set(
+			colored.zones
+				.flatMap((z) => z.tasks)
+				.map((t) => t.series_id)
+				.filter((id): id is string => id != null)
+		)
+	];
+	const seriesById = await loadTaskSeriesByIds(supabase, seriesIds);
+
+	return {
+		zones: colored.zones,
+		todayYmd: nowTasks.todayYmd,
+		seriesById,
+		projectOptions,
+		defaultTaskProjectId: profileRes.data?.default_task_project_id ?? null,
+		criticalNowCount: nowTasks.criticalNowCount,
+		opportunityNowCount: nowTasks.opportunityNowCount
 	};
 }
 

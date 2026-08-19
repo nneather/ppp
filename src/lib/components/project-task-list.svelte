@@ -22,6 +22,7 @@
 	} from '$lib/projects/project-colors';
 	import { addDaysYmd, nextMondayYmdChicago } from '$lib/invoicing/chicago-date';
 	import type { TaskSeriesScope } from '$lib/projects/task-recurrence';
+	import { taskFormAction } from '$lib/projects/now-task-rail';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
 	import ChevronsUp from '@lucide/svelte/icons/chevrons-up';
@@ -39,17 +40,20 @@
 		compact = false,
 		todayYmd,
 		onEdit,
-		onInvalidate
+		onInvalidate,
+		actionPrefix = ''
 	}: {
 		zones: TaskZoneGroup[];
 		deferred?: ProjectTaskView[];
 		completed?: ProjectTaskView[];
 		showProjectLabel?: boolean;
-		/** Tighter rows / headers for dashboard Now pane. */
+		/** Tighter rows / headers for desktop Now rail. */
 		compact?: boolean;
 		todayYmd: string;
 		onEdit: (task: ProjectTaskView) => void;
 		onInvalidate?: () => void | Promise<void>;
+		/** e.g. `/tasks` when the list is mounted outside `/tasks`. */
+		actionPrefix?: string;
 	} = $props();
 
 	let deferOpen = $state(false);
@@ -123,7 +127,9 @@
 
 	const actionEnhance: SubmitFunction = () => {
 		return async ({ result, update }) => {
-			await update();
+			if (!actionPrefix) {
+				await update();
+			}
 			if (result.type === 'success') {
 				deferOpen = false;
 				deferTask = null;
@@ -156,7 +162,7 @@
 		<div class="flex min-w-0 items-start gap-2">
 			<form
 				method="POST"
-				action={isCompleted ? '?/uncompleteTask' : '?/completeTask'}
+				action={isCompleted ? taskFormAction('uncompleteTask', actionPrefix) : taskFormAction('completeTask', actionPrefix)}
 				use:enhance={actionEnhance}
 			>
 				<input type="hidden" name="id" value={task.id} />
@@ -230,7 +236,7 @@
 			{#if !isCompleted}
 				<div class="flex shrink-0 flex-wrap justify-end gap-0.5">
 					{#if task.priority === 'opportunity_now'}
-						<form method="POST" action="?/raisePriority" use:enhance={actionEnhance}>
+						<form method="POST" action={taskFormAction('raisePriority', actionPrefix)} use:enhance={actionEnhance}>
 							<input type="hidden" name="id" value={task.id} />
 							<Button
 								type="submit"
@@ -244,7 +250,7 @@
 							</Button>
 						</form>
 					{:else if task.priority === 'over_horizon'}
-						<form method="POST" action="?/raisePriority" use:enhance={actionEnhance}>
+						<form method="POST" action={taskFormAction('raisePriority', actionPrefix)} use:enhance={actionEnhance}>
 							<input type="hidden" name="id" value={task.id} />
 							<Button
 								type="submit"
@@ -258,7 +264,7 @@
 							</Button>
 						</form>
 					{/if}
-					<form method="POST" action="?/promoteTask" use:enhance={actionEnhance}>
+					<form method="POST" action={taskFormAction('promoteTask', actionPrefix)} use:enhance={actionEnhance}>
 						<input type="hidden" name="id" value={task.id} />
 						<Button
 							type="submit"
@@ -367,7 +373,7 @@
 <form
 	bind:this={deleteFormEl}
 	method="POST"
-	action="?/softDeleteTask"
+	action={taskFormAction('softDeleteTask', actionPrefix)}
 	use:enhance={actionEnhance}
 	class="hidden"
 >
@@ -391,7 +397,7 @@
 			<form
 				bind:this={deferFormEl}
 				method="POST"
-				action="?/deferTask"
+				action={taskFormAction('deferTask', actionPrefix)}
 				use:enhance={actionEnhance}
 				class="flex flex-col gap-4"
 			>
