@@ -25,11 +25,13 @@
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import geistLatinWoff2Url from '@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url';
 
-	const STORAGE_KEY = 'ppp_nav_collapsed';
+	const NAV_STORAGE_KEY = 'ppp_nav_collapsed';
+	const TASKS_STORAGE_KEY = 'ppp_tasks_collapsed';
 
 	let { children, data } = $props();
 
 	let navCollapsed = $state(false);
+	let tasksCollapsed = $state(false);
 	let prefsReady = $state(false);
 
 	/** Full module list — desktop sidebar. */
@@ -122,9 +124,12 @@
 		if (!browser) return;
 		document.querySelector('[data-ppp-boot]')?.remove();
 		try {
-			const stored = localStorage.getItem(STORAGE_KEY);
-			if (stored === 'true') navCollapsed = true;
-			else if (stored === 'false') navCollapsed = false;
+			const storedNav = localStorage.getItem(NAV_STORAGE_KEY);
+			if (storedNav === 'true') navCollapsed = true;
+			else if (storedNav === 'false') navCollapsed = false;
+			const storedTasks = localStorage.getItem(TASKS_STORAGE_KEY);
+			if (storedTasks === 'true') tasksCollapsed = true;
+			else if (storedTasks === 'false') tasksCollapsed = false;
 		} catch {
 			/* ignore */
 		}
@@ -142,7 +147,8 @@
 	$effect(() => {
 		if (!browser || !prefsReady) return;
 		try {
-			localStorage.setItem(STORAGE_KEY, String(navCollapsed));
+			localStorage.setItem(NAV_STORAGE_KEY, String(navCollapsed));
+			localStorage.setItem(TASKS_STORAGE_KEY, String(tasksCollapsed));
 		} catch {
 			/* ignore */
 		}
@@ -246,23 +252,6 @@
 			</div>
 		</aside>
 
-		{#if !isTasksPath}
-			<aside
-				class="hidden h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-border bg-card text-card-foreground md:flex"
-				aria-label="Now tasks"
-			>
-				{#if isDesktop}
-					{#await import('$lib/components/desktop-task-rail.svelte') then { default: DesktopTaskRail }}
-						<DesktopTaskRail />
-					{/await}
-				{:else}
-					<div class="border-b border-border px-3 py-2.5">
-						<p class="text-sm font-semibold tracking-tight">Now</p>
-					</div>
-				{/if}
-			</aside>
-		{/if}
-
 		<!-- Main column: scrollable content + mobile tab bar footer (not position:fixed — iOS PWA) -->
 		<div class="flex min-h-0 min-w-0 flex-1 flex-col">
 			<main class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 md:pb-8">
@@ -297,6 +286,26 @@
 				{/each}
 			</nav>
 		</div>
+
+		{#if !isTasksPath}
+			<aside
+				class={cn(
+					'hidden h-full min-h-0 shrink-0 flex-col overflow-hidden border-l border-border bg-card text-card-foreground transition-[width] duration-200 ease-out md:flex',
+					tasksCollapsed ? 'w-[4.5rem]' : 'w-80'
+				)}
+				aria-label="Now tasks"
+			>
+				{#if isDesktop}
+					{#await import('$lib/components/desktop-task-rail.svelte') then { default: DesktopTaskRail }}
+						<DesktopTaskRail bind:collapsed={tasksCollapsed} />
+					{/await}
+				{:else}
+					<div class="border-b border-border px-3 py-2.5">
+						<p class="text-sm font-semibold tracking-tight">Now</p>
+					</div>
+				{/if}
+			</aside>
+		{/if}
 	</div>
 {/if}
 

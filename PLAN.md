@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-08-19 — Desktop Now task rail ([205](docs/decisions/205-desktop-now-task-rail.md)); prior Knoppers AB 1 Chronicles 10–29 vol 12A ([204](docs/decisions/204-library-knoppers-ab-1-chronicles.md)).
+**Last updated:** 2026-08-19 — Outlook-style right Now pane ([206](docs/decisions/206-outlook-right-now-pane.md)); prior left rail ([205](docs/decisions/205-desktop-now-task-rail.md)).
 
 **How to use this file — read this first:**
 
@@ -35,7 +35,7 @@ Nearest hard dates:
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). Aug 3 shelf batch + KCC ✅ ([191](docs/decisions/191-library-aug3-shelf-batch.md)). Language + coverage integrity ✅ ([192](docs/decisions/192-library-language-coverage-integrity.md)); German edition ISBN follow-up ✅ ([193](docs/decisions/193-german-edition-isbn-corrections.md)); ISBN integrity Collins + dups ✅ ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)); Aug 5 Shepherd/Noll/Vallier ✅ ([195](docs/decisions/195-library-aug5-shepherd-noll-vallier.md)); Aug 12 classics/commentaries + Fitzgerald Homer ✅ ([198](docs/decisions/198-library-aug12-shelf-batch.md)); Charles ICC Revelation 2-vol ✅ ([199](docs/decisions/199-library-charles-icc-revelation.md)); Aug 15 Holland / Fitzmyer AB / Shirer ✅ ([200](docs/decisions/200-library-holland-fitzmyer-shirer.md)); Lincoln WBC Ephesians 1990 ✅ ([203](docs/decisions/203-library-lincoln-wbc-ephesians.md)); Knoppers AB 1 Chronicles 10–29 ✅ ([204](docs/decisions/204-library-knoppers-ab-1-chronicles.md)). |
-| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **persistent desktop Now rail** ([205](docs/decisions/205-desktop-now-task-rail.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
+| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) — `/classwork/papers` research surface complete (attach books/essays/stubs, cite, compiled bib, research groups). Backlog: Canvas import ([173](docs/decisions/173-canvas-classwork-import-deferred.md)). |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + mass-add ([183](docs/decisions/183-contacts-list-mass-add.md)) — Lists checklist, sheet toggles, meet vs card, card bulk log. MCP smoke open (`contacts_with_cadence` on due tool — [184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Mailing send later; **≠ library `people`.** |
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
-- [205 — Desktop Now task rail](docs/decisions/205-desktop-now-task-rail.md) (2026-08-19) — persistent `md+` Critical/Opportunity bar left of page content; `/tasks` stays the full list; mobile unchanged.
+- [206 — Outlook-style right Now pane](docs/decisions/206-outlook-right-now-pane.md) (2026-08-19) — Now tasks right of page content; collapsible like left nav (`ppp_tasks_collapsed`).
+- [205 — Desktop Now task rail](docs/decisions/205-desktop-now-task-rail.md) (2026-08-19) — Critical/Opportunity JSON rail; `/tasks` stays the full list; mobile unchanged (placement superseded by 206).
 - [204 — Library Knoppers AB 1 Chronicles 10–29](docs/decisions/204-library-knoppers-ab-1-chronicles.md) (2026-08-18) — Gary N. Knoppers; AB vol 12A; Doubleday / New York 2004; ISBN `9780385512886`; 1 Chronicles coverage.
 - [203 — Library Lincoln WBC Ephesians](docs/decisions/203-library-lincoln-wbc-ephesians.md) (2026-08-18) — Andrew T. Lincoln; WBC vol 42; Word / Waco 1990; ISBN `9780849902413`; Ephesians coverage.
 - [202 — Invoice list mark-paid + undo](docs/decisions/202-invoicing-list-mark-paid.md) (2026-08-17) — one-tap Mark paid on sent rows; 10s undo toast; detail drops confirm, keeps Mark unpaid.
-- [201 — Invoicing analytics range + one-offs](docs/decisions/201-invoicing-analytics-range-one-offs.md) (2026-08-15) — YTD-default range presets; Hours|One-off sheet; generate/discard/analytics treat one-offs as money not hours.
 
 ---
 
@@ -59,13 +59,13 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Projects (use weekly):**
 - `/projects` — inline tree + weekly check-in (`depends('app:projects:tree')`), optional **progress tracking** per check-in (value / of / note — [048](docs/decisions/048-projects-checkin-progress.md)).
-- `/dashboard` — desktop two-column home (status + modules + upcoming sermons; Due soon + Due to meet); **Now tasks** are the persistent left rail on `md+` ([205](docs/decisions/205-desktop-now-task-rail.md)); mobile glance tiles for Tasks + Classwork + Contacts ([132](docs/decisions/132-desktop-home-dashboard.md), [161](docs/decisions/161-classwork-session-2.md), [180](docs/decisions/180-contacts-session-2.md)).
+- `/dashboard` — desktop two-column home (status + modules + upcoming sermons; Due soon + Due to meet); **Now tasks** are the persistent **right** pane on `md+`, collapsible ([206](docs/decisions/206-outlook-right-now-pane.md)); mobile glance tiles for Tasks + Classwork + Contacts ([132](docs/decisions/132-desktop-home-dashboard.md), [161](docs/decisions/161-classwork-session-2.md), [180](docs/decisions/180-contacts-session-2.md)).
 - `/tasks` — MYN zones (Critical / Opportunity / OTH), FRESH sort, defer/promote; `?project=` / `?view=` / `?all=1` ([128](docs/decisions/128-myn-fall-polish.md)). Legacy `/projects/tasks` 308-redirects here.
 - `/settings/projects` — default New Task project + named saved views.
 - Edit project Sheet — metadata + **links** (edit mode only).
 - `/settings/audit-log?module=projects` — includes `project_tasks` soft-delete revert.
 
-**Projects helpers:** `src/lib/projects/` — `week.ts`, `filter.ts` (`countMissingWeekCheckIns`), `progress.ts` ([048]), `carry-forward.ts` ([048]), `health-appearance.ts` ([047b](docs/decisions/047-projects-status-appearance.md)), `project-colors.ts` + `email-inbound.ts` ([077](docs/decisions/077-email-to-task-and-domain-colors.md)), `task-views.ts` ([128](docs/decisions/128-myn-fall-polish.md)), `deferred.ts` + `week-tasks.ts` ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)), `now-task-rail.ts` ([205](docs/decisions/205-desktop-now-task-rail.md)), `server/loaders.ts`, `server/actions.ts`, `server/task-loaders.ts` (`loadDashboardNowTasks` — [132](docs/decisions/132-desktop-home-dashboard.md); `loadNowTaskRail` — [205](docs/decisions/205-desktop-now-task-rail.md); `loadWeekTasks` — [165](docs/decisions/165-mcp-list-week-tasks.md)/[184](docs/decisions/184-mcp-monday-protocol-finetune.md)), `server/task-actions.ts`, `server/task-prefs-actions.ts`. Design: [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md).
+**Projects helpers:** `src/lib/projects/` — `week.ts`, `filter.ts` (`countMissingWeekCheckIns`), `progress.ts` ([048]), `carry-forward.ts` ([048]), `health-appearance.ts` ([047b](docs/decisions/047-projects-status-appearance.md)), `project-colors.ts` + `email-inbound.ts` ([077](docs/decisions/077-email-to-task-and-domain-colors.md)), `task-views.ts` ([128](docs/decisions/128-myn-fall-polish.md)), `deferred.ts` + `week-tasks.ts` ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)), `now-task-rail.ts` ([205](docs/decisions/205-desktop-now-task-rail.md)/[206](docs/decisions/206-outlook-right-now-pane.md)), `server/loaders.ts`, `server/actions.ts`, `server/task-loaders.ts` (`loadDashboardNowTasks` — [132](docs/decisions/132-desktop-home-dashboard.md); `loadNowTaskRail` — [205](docs/decisions/205-desktop-now-task-rail.md); `loadWeekTasks` — [165](docs/decisions/165-mcp-list-week-tasks.md)/[184](docs/decisions/184-mcp-monday-protocol-finetune.md)), `server/task-actions.ts`, `server/task-prefs-actions.ts`. Design: [MYN_TASKS_DESIGN.md](docs/MYN_TASKS_DESIGN.md).
 
 **Projects migrations (prod):** `20260603170000_ppp_projects_v1.sql`, `20260603200000_projects_add_not_started_lifecycle.sql`, `20260604030000_ppp_project_tasks_myn.sql`, `20260604100000_project_updates_progress.sql`, `20260709164016_projects_email_inbox_and_domain_colors.sql`, `20260723170000_profiles_task_prefs.sql`, `20260727155538_mcp_monday_protocol_finetune.sql` ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)).
 
@@ -81,7 +81,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** Desktop Now task rail [205](docs/decisions/205-desktop-now-task-rail.md) — `npm run check` **0 errors**, `npm run test` **461** passed (2026-08-19).
+**Repo gate:** Outlook-style right Now pane [206](docs/decisions/206-outlook-right-now-pane.md) — `npm run check` **0 errors**, `npm run test` **461** passed (2026-08-19).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
