@@ -291,7 +291,7 @@
 			<aside
 				class={cn(
 					'hidden h-full min-h-0 shrink-0 flex-col overflow-hidden border-l border-border bg-card text-card-foreground transition-[width] duration-200 ease-out md:flex',
-					tasksCollapsed ? 'w-[4.5rem]' : 'w-80'
+					tasksCollapsed ? 'w-[4.5rem]' : 'w-96'
 				)}
 				aria-label="Now tasks"
 			>
