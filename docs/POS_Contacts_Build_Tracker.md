@@ -1,6 +1,6 @@
 # Personal Operations System — Contacts / CRM Module Build Tracker
 
-_Last updated: 2026-08-24 | Module: Contacts / CRM | Sessions 4–6 period cadence + import ([210](decisions/210-contacts-semester-period-cadence.md))_
+_Last updated: 2026-08-24 | Module: Contacts / CRM | Review [211](decisions/211-contacts-module-review.md) after Sessions 4–6 ([210](decisions/210-contacts-semester-period-cadence.md))_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [139](decisions/139-lightweight-crm-fall-priority.md), [175](decisions/175-contacts-session-0.md).
 
@@ -203,6 +203,9 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | T2 | touch | Do Christmas-card logs reset due-to-meet? | ✅ [181](decisions/181-contacts-smoke-product-locks.md) — **No**; touch `kind` meet vs card |
 | C3 | cadence | Days vs months/years; list-driven vs person? | ✅ [181](decisions/181-contacts-smoke-product-locks.md) — months/years UI; **person**-owned |
 | L2 | list | Settings-only lists vs third tab on `/contacts`? | ✅ [181](decisions/181-contacts-smoke-product-locks.md) — Lists third tab + card bulk log |
+| R1 | due | Collapsed household due Log/Skip — fan-out vs stop collapsing? | ✅ [211] — fan-out to live active scheduled members |
+| R2 | due | Annuals in 2026 — hide until 2027-01-01 vs count 2026 meets toward a:2027? | ✅ [211] — stay visible; 2026 Log/Skip counts toward a:2027 |
+| R3 | list | Christmas cards — one-click Has-address seed vs leave manual mass-add? | Deferred Nov — [211] |
 
 ---
 
@@ -215,6 +218,8 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | 2 | ✅ 2026-07-24 | Dashboard "due to meet" + MCP `list_contacts_due` / `search_contacts`; C2 — [180](decisions/180-contacts-session-2.md) |
 | 3 | ✅ 2026-07-25 | Lists tab + cadence months/years + touch kinds + Christmas-card bulk log — [182](decisions/182-contacts-session-3-lists-cadence-touch-kinds.md); mass-add checklist + sheet toggles — [183](decisions/183-contacts-list-mass-add.md) |
 | 4–6 | ✅ 2026-08-24 | Period cadence + Skip + standing/ad-hoc lists + grades/children/vCard + Sheet1 import — [210](decisions/210-contacts-semester-period-cadence.md) |
+| Review | ✅ 2026-08-24 | Bugs + system review — due Log/Skip vs collapse, annual on-ramp, 154-person flood, Christmas roster, R2 dump gap — [211](decisions/211-contacts-module-review.md) |
+| Integrity | next | Household fan-out + annual queue + pace/MCP/backup — PLAN prompt |
 | — | note | Decision number **174** was taken by a parallel library session ([174-everlasting-man-original-1925](decisions/174-everlasting-man-original-1925.md)) — Session 0 record is **[175](decisions/175-contacts-session-0.md)**, not 174. |
 | — | backlog | Mailing-list send pipeline (Resend campaigns + unsubscribe) — designed-for, not built ([139](decisions/139-lightweight-crm-fall-priority.md)). |
 | — | backlog | Optional FK contact → library person or invoicing client — only if owner asks. |
