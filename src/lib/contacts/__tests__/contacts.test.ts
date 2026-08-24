@@ -9,8 +9,10 @@ import {
 	effectiveCadenceDays,
 	formatEffectiveCadence,
 	formatHouseholdAddress,
-	householdNameFromContact
+	householdNameFromContact,
+	parseFrequency
 } from '$lib/contacts/names';
+import { CONTACT_FREQUENCY_LABELS } from '$lib/types/contacts';
 import {
 	computePaceSummary,
 	dueFanoutContactIds,
@@ -82,6 +84,22 @@ describe('cadence months/years ↔ days', () => {
 		expect(formatCadenceLabel(365)).toBe('1 year');
 		expect(formatCadenceLabel(30)).toBe('1 month');
 		expect(formatEffectiveCadence(90)).toBe('every 3 months');
+	});
+});
+
+describe('parseFrequency', () => {
+	it('maps sheet letters and semester words', () => {
+		expect(parseFrequency('Q')).toBe('quarterly');
+		expect(parseFrequency('S')).toBe('semiannual');
+		expect(parseFrequency('Semester')).toBe('semiannual');
+		expect(parseFrequency('A')).toBe('annual');
+		expect(parseFrequency('C')).toBe('common');
+		expect(parseFrequency(null)).toBe('quarterly');
+	});
+	it('labels Q/S/A as Quarterly / Semester / Annual', () => {
+		expect(CONTACT_FREQUENCY_LABELS.quarterly).toBe('Quarterly');
+		expect(CONTACT_FREQUENCY_LABELS.semiannual).toBe('Semester');
+		expect(CONTACT_FREQUENCY_LABELS.annual).toBe('Annual');
 	});
 });
 

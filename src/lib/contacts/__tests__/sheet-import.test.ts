@@ -43,6 +43,13 @@ Benjamin Thomas,,,F&M,C,A,S
 		expect(rows[1]!.frequency).toBe('semiannual');
 		expect(householdNameFromPeople(rows[0]!.people)).toBe('Tanner and Crystal Erisman');
 	});
+
+	it('accepts Semester as the S letter', () => {
+		const csv = `Name,Frequency
+Pat Lee,Semester
+`;
+		expect(parseSheet1Csv(csv)[0]!.frequency).toBe('semiannual');
+	});
 });
 
 describe('parseUsAddressLine', () => {

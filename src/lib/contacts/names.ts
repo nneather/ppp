@@ -2,6 +2,7 @@ import {
 	CONTACT_FREQUENCIES,
 	CONTACT_LIST_KINDS,
 	DEFAULT_CONTACT_CADENCE_DAYS,
+	FREQUENCY_FROM_SHEET,
 	GIVING_GRADES,
 	RELATIONSHIP_GRADES,
 	type ContactFrequency,
@@ -96,16 +97,10 @@ export function isRelationshipGrade(v: string): v is RelationshipGrade {
 	return (RELATIONSHIP_GRADES as readonly string[]).includes(v);
 }
 
-/** Sheet / form letter → frequency (default quarterly). */
+/** Sheet / form letter or word → frequency (default quarterly). */
 export function parseFrequency(raw: string | null | undefined): ContactFrequency {
 	if (!raw) return 'quarterly';
 	const t = raw.trim();
 	if (isContactFrequency(t)) return t;
-	const upper = t.toUpperCase();
-	if (upper === 'C') return 'common';
-	if (upper === 'Q') return 'quarterly';
-	if (upper === 'S') return 'semiannual';
-	if (upper === 'A') return 'annual';
-	if (upper === 'N') return 'none';
-	return 'quarterly';
+	return FREQUENCY_FROM_SHEET[t.toUpperCase()] ?? 'quarterly';
 }

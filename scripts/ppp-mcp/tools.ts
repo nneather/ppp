@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ymdInChicago } from '../../src/lib/invoicing/chicago-date.ts';
+import { CONTACT_FREQUENCY_LABELS } from '../../src/lib/types/contacts.ts';
 import {
 	loadAssignments,
 	loadCourses,
@@ -246,6 +247,7 @@ export async function listContactsDue(
 			household_id: c.household_id,
 			household_name: c.household_name,
 			frequency: c.frequency,
+			frequency_label: CONTACT_FREQUENCY_LABELS[c.frequency],
 			period_key: c.period_key,
 			period_end: c.period_end,
 			days_left: c.days_left,
@@ -283,10 +285,9 @@ export async function searchContactsTool(
 			household_name: c.household_name,
 			address_summary: c.address_summary,
 			frequency: c.frequency,
-			effective_cadence_days: c.effective_cadence_days,
+			frequency_label: CONTACT_FREQUENCY_LABELS[c.frequency],
 			last_touched_on: c.last_touched_on,
-			status: c.status,
-			no_reminders: c.no_reminders
+			status: c.status
 		}))
 	});
 }

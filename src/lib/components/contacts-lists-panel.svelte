@@ -213,7 +213,7 @@
 	</div>
 {:else}
 	<p class="mt-4 text-xs text-muted-foreground">
-		Meet frequency is set per contact (quarterly / biannual / annual). The old profile cadence
+		Meet frequency is set per contact (quarterly / semester / annual). The old profile cadence
 		default no longer applies.
 	</p>
 

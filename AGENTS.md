@@ -202,7 +202,7 @@ End-of-session deliverables:
  - Audit: `_CLASSWORK_TABLES` incl. `papers` / `paper_research_groups` / `paper_sources`; soft-delete revert for all. Permissions slug `classwork` (papers ride it — no new slug).
 
 - **Contacts helpers** at `src/lib/contacts/` (schema migrations `20260725020000_ppp_contacts_v1.sql`, `20260725180115_contacts_touch_kind_and_cadence_ui.sql`, `20260824190000_contacts_period_cadence_v1.sql`; Sessions 0–3 + [210](docs/decisions/210-contacts-semester-period-cadence.md) + due integrity [212](docs/decisions/212-contacts-due-integrity.md)):
-  - `src/lib/types/contacts.ts` — `CONTACT_FREQUENCIES`, grades, list kinds, due/pace view-models (legacy `DEFAULT_CONTACT_CADENCE_DAYS` / `ContactDueRow` / `ContactSearchHit`, `ListMembershipMaps`).
+  - `src/lib/types/contacts.ts` — `CONTACT_FREQUENCIES`, **labels** Quarterly / Semester / Annual (enum `semiannual` stays), grades, list kinds, due/pace view-models (legacy `DEFAULT_CONTACT_CADENCE_DAYS` / `ContactDueRow` / `ContactSearchHit`, `ListMembershipMaps`).
   - `src/lib/contacts/names.ts` — display names, `parseFrequency`, grade/list-kind guards, legacy `effectiveCadenceDays`.
   - `src/lib/contacts/period.ts` — calendar Q/S/A windows + import on-ramp keys; 2026 Log fulfills `a:2027`.
   - `src/lib/contacts/due.ts` — period due + household collapse + oldest-meet sort + uncapped pace; `dueFanoutContactIds`; `householdEligibleForCardList` (C2).

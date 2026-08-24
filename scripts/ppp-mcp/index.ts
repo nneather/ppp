@@ -107,7 +107,7 @@ server.registerTool(
 	'list_contacts_due',
 	{
 		description:
-			'Contacts due for a meet this calendar period (quarterly / biannual / annual). Households collapse to one row; Log/Skip in the app fans out to all active scheduled spouses. Includes contacts_with_cadence (scheduled pool, household-collapsed) so count=0 is unambiguous. Sorted never-touched first, then oldest last meet. Period fields: frequency, period_key, period_end, days_left. days_overdue is set only after period_end (usually null while the window is open). No rolling cadence_days.',
+			'Contacts due for a meet this calendar period (Quarterly / Semester / Annual). Households collapse to one row; Log/Skip in the app fans out to all active scheduled spouses. Includes contacts_with_cadence (scheduled pool, household-collapsed) so count=0 is unambiguous. Sorted never-touched first, then oldest last meet. Period fields: frequency, frequency_label, period_key, period_end, days_left. days_overdue is set only after period_end (usually null while the window is open). No rolling cadence_days.',
 		inputSchema: {
 			limit: z
 				.number()
@@ -128,7 +128,7 @@ server.registerTool(
 	'search_contacts',
 	{
 		description:
-			'Search contacts by name, household name, email, or phone. Returns card fields including address summary and last touch.',
+			'Search contacts by name, household name, email, or phone. Returns card fields including frequency (Quarterly / Semester / Annual), address summary, and last touch. No rolling cadence_days.',
 		inputSchema: {
 			q: z.string().describe('Search query (partial names OK)'),
 			limit: z

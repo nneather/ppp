@@ -1566,7 +1566,7 @@ export async function skipContactPeriodAction(
 			return fail(400, {
 				kind: 'skipContactPeriod' as const,
 				contactId,
-				message: 'Only quarterly, biannual, or annual contacts can be skipped.'
+				message: 'Only quarterly, semester, or annual contacts can be skipped.'
 			});
 		}
 		targets = [{ id: contactId, frequency: freq }];
@@ -1576,7 +1576,7 @@ export async function skipContactPeriodAction(
 		return fail(400, {
 			kind: 'skipContactPeriod' as const,
 			contactId,
-			message: 'Only quarterly, biannual, or annual contacts can be skipped.'
+			message: 'Only quarterly, semester, or annual contacts can be skipped.'
 		});
 	}
 

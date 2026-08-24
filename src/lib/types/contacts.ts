@@ -33,18 +33,25 @@ export type ContactFrequency = (typeof CONTACT_FREQUENCIES)[number];
 export const CONTACT_FREQUENCY_LABELS: Record<ContactFrequency, string> = {
 	common: 'Common (no reminder)',
 	quarterly: 'Quarterly',
-	semiannual: 'Biannual',
+	semiannual: 'Semester',
 	annual: 'Annual',
 	none: 'None scheduled'
 };
 
-/** Sheet letter → enum */
+/** Sheet letter / word → enum (keys are uppercase). */
 export const FREQUENCY_FROM_SHEET: Record<string, ContactFrequency> = {
 	C: 'common',
 	Q: 'quarterly',
 	S: 'semiannual',
 	A: 'annual',
-	N: 'none'
+	N: 'none',
+	COMMON: 'common',
+	QUARTERLY: 'quarterly',
+	SEMESTER: 'semiannual',
+	SEMIANNUAL: 'semiannual',
+	BIANNUAL: 'semiannual',
+	ANNUAL: 'annual',
+	NONE: 'none'
 };
 
 export const GIVING_GRADES = ['A', 'B', 'C', 'D', 'E'] as const;
