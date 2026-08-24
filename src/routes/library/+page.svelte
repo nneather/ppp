@@ -40,7 +40,10 @@
 		BookListRow,
 		EssaySearchHit
 	} from '$lib/types/library';
-	import { bookListFiltersToSearchParams } from '$lib/library/server/url-params';
+	import {
+		bookListFiltersToSearchParams,
+		libraryListFormAction
+	} from '$lib/library/server/url-params';
 	import {
 		overflowFilterGenres,
 		primaryFilterGenres
@@ -281,8 +284,17 @@
 			if (typeof next === 'string') {
 				statusOptimistic = { ...statusOptimistic, [bookId]: next as ReadingStatus };
 			}
+			const snapshot: BookListFilters = {
+				...filters,
+				q: qInput.trim() || undefined
+			};
 			return async ({ update }) => {
-				await update({ reset: false });
+				await update({ reset: false, invalidateAll: false });
+				if ((snapshot.reading_status?.length ?? 0) > 0) {
+					void applyListFilters(snapshot);
+				} else if (browser) {
+					replaceState(listTargetUrl(snapshot), {});
+				}
 			};
 		};
 	}
@@ -575,16 +587,20 @@
 			return;
 		}
 		bulkPending = true;
+		const snapshot: BookListFilters = {
+			...filters,
+			q: qInput.trim() || undefined
+		};
 		return async ({ result, update }) => {
 			bulkPending = false;
-			await update({ reset: false });
+			await update({ reset: false, invalidateAll: false });
 			if (result.type === 'success') {
 				const d = result.data as { kind?: string; success?: boolean } | undefined;
 				if (d?.kind === 'bulkUpdateBooks' && d.success) {
 					selectedIds = [];
 					bulkDialogOpen = false;
 					resetBulkFields();
-					await invalidate('app:library:list');
+					await applyListFilters(snapshot);
 				}
 			}
 		};
@@ -1156,7 +1172,7 @@
 										</div>
 										<form
 											method="POST"
-											action="?/updateReadingStatus"
+											action={libraryListFormAction('updateReadingStatus', page.url)}
 											use:enhance={statusSubmit(b.id)}
 											class="pointer-events-auto shrink-0"
 										>
@@ -1274,7 +1290,7 @@
 									<td class="px-4 py-2.5">
 										<form
 											method="POST"
-											action="?/updateReadingStatus"
+											action={libraryListFormAction('updateReadingStatus', page.url)}
 											use:enhance={statusSubmit(b.id)}
 										>
 											<input type="hidden" name="id" value={b.id} />
@@ -1340,7 +1356,7 @@
 				written.
 			</Dialog.Description>
 		</Dialog.Header>
-		<form method="POST" action="?/bulkUpdateBooks" use:enhance={bulkEnhance} class="flex flex-col gap-4 py-2">
+		<form method="POST" action={libraryListFormAction('bulkUpdateBooks', page.url)} use:enhance={bulkEnhance} class="flex flex-col gap-4 py-2">
 			<input type="hidden" name="book_ids_json" value={JSON.stringify(selectedIds)} />
 			<div class="space-y-4">
 				<div class="space-y-1.5">
@@ -1474,7 +1490,7 @@
 	>
 		<Trash2 class="size-4 text-muted-foreground" />
 		<span class="flex-1">Book deleted.</span>
-		<form method="POST" action="?/undoSoftDeleteBook" use:enhance={undoEnhance}>
+		<form method="POST" action={libraryListFormAction('undoSoftDeleteBook', page.url)} use:enhance={undoEnhance}>
 			<input type="hidden" name="id" value={undoToastBookId} />
 			<Button type="submit" size="sm" variant="outline" disabled={undoPending} class="gap-1">
 				<Undo2 class="size-3.5" /> {undoPending ? 'Undoing…' : 'Undo'}

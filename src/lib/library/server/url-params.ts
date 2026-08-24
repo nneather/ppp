@@ -116,3 +116,17 @@ export function bookListFiltersToSearchParams(
 	if (filters.all === true) keep.set('all', 'true');
 	return keep;
 }
+
+/**
+ * Named form-action URL that keeps the current list query string.
+ * `action="?/updateReadingStatus"` is query-relative, so the browser replaces
+ * `?q=` (and every other facet) with only the action name.
+ */
+export function libraryListFormAction(name: string, currentUrl: URL): string {
+	const params = new URLSearchParams(currentUrl.search);
+	for (const key of [...params.keys()]) {
+		if (key.startsWith('/')) params.delete(key);
+	}
+	const extra = params.toString();
+	return extra ? `?/${name}&${extra}` : `?/${name}`;
+}

@@ -560,6 +560,8 @@ _Session-blocking. Resolve before the dependent session starts. Per-entity quest
 
 _For cross-cutting standards, see `AGENTS.md` and `.cursor/rules/`. Everything below is library-specific._
 
+**Ad-hoc 2026-08-24:** `/library` search (`?q=`) now survives inline reading-status and bulk edits ([209](decisions/209-library-list-search-survives-status.md)).
+
 ### Living artifacts
 
 Whenever a session produces:
