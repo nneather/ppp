@@ -1,6 +1,6 @@
 /** Closed enums and view-models for the contacts / CRM module. */
 
-/** App fallback when contact override and profile default are both null (3 months). */
+/** @deprecated Rolling cadence — replaced by ContactFrequency ([210]). Kept for legacy columns. */
 export const DEFAULT_CONTACT_CADENCE_DAYS = 90;
 
 export const CONTACT_STATUSES = ['active', 'retired'] as const;
@@ -20,8 +20,68 @@ export const CONTACT_TOUCH_KIND_LABELS: Record<ContactTouchKind, string> = {
 	card: 'Card'
 };
 
+/** Calendar-period meet frequency (sheet C/Q/S/A/N). */
+export const CONTACT_FREQUENCIES = [
+	'common',
+	'quarterly',
+	'semiannual',
+	'annual',
+	'none'
+] as const;
+export type ContactFrequency = (typeof CONTACT_FREQUENCIES)[number];
+
+export const CONTACT_FREQUENCY_LABELS: Record<ContactFrequency, string> = {
+	common: 'Common (no reminder)',
+	quarterly: 'Quarterly',
+	semiannual: 'Biannual',
+	annual: 'Annual',
+	none: 'None scheduled'
+};
+
+/** Sheet letter → enum */
+export const FREQUENCY_FROM_SHEET: Record<string, ContactFrequency> = {
+	C: 'common',
+	Q: 'quarterly',
+	S: 'semiannual',
+	A: 'annual',
+	N: 'none'
+};
+
+export const GIVING_GRADES = ['A', 'B', 'C', 'D', 'E'] as const;
+export type GivingGrade = (typeof GIVING_GRADES)[number];
+
+export const RELATIONSHIP_GRADES = ['A', 'B', 'C', 'D'] as const;
+export type RelationshipGrade = (typeof RELATIONSHIP_GRADES)[number];
+
+export const CONTACT_LIST_KINDS = ['standing', 'ad_hoc'] as const;
+export type ContactListKind = (typeof CONTACT_LIST_KINDS)[number];
+
+export const CONTACT_LIST_KIND_LABELS: Record<ContactListKind, string> = {
+	standing: 'Standing',
+	ad_hoc: 'Ad hoc'
+};
+
 export const CONTACT_LIST_FILTERS = ['active', 'retired', 'all'] as const;
 export type ContactListFilter = (typeof CONTACT_LIST_FILTERS)[number];
+
+export type HouseholdChildRow = {
+	id: string;
+	household_id: string;
+	first_name: string;
+	last_name: string | null;
+	birthday: string | null;
+	notes: string | null;
+	sort_order: number;
+};
+
+export type HouseholdGradeChangeRow = {
+	id: string;
+	household_id: string;
+	changed_on: string;
+	giving_grade: GivingGrade | null;
+	relationship_grade: RelationshipGrade | null;
+	note: string | null;
+};
 
 export type HouseholdRow = {
 	id: string;
@@ -33,6 +93,9 @@ export type HouseholdRow = {
 	postal_code: string | null;
 	country: string | null;
 	notes: string | null;
+	giving_grade: GivingGrade | null;
+	relationship_grade: RelationshipGrade | null;
+	address_updated_on: string | null;
 	/** Live contacts assigned to this household. */
 	memberCount: number;
 };
@@ -46,13 +109,19 @@ export type ContactListRow = {
 	household_name: string | null;
 	email: string | null;
 	phone: string | null;
+	/** @deprecated Prefer frequency */
 	cadence_days: number | null;
-	/** Resolved cadence (override → profile → app default). */
+	/** @deprecated Prefer frequency */
 	effective_cadence_days: number;
+	frequency: ContactFrequency;
+	/** @deprecated Mapped from frequency === 'common' for old UI */
 	no_reminders: boolean;
 	status: ContactStatus;
 	notes: string | null;
+	birthday: string | null;
 	last_touched_on: string | null;
+	giving_grade: GivingGrade | null;
+	relationship_grade: RelationshipGrade | null;
 };
 
 export type ContactTouchRow = {
@@ -68,6 +137,7 @@ export type ContactListDef = {
 	name: string;
 	notes: string | null;
 	sort_order: number;
+	kind: ContactListKind;
 	memberCount: number;
 };
 
@@ -90,17 +160,48 @@ export type ContactListMemberRow = {
 export type ContactsListFilters = {
 	status: ContactListFilter;
 	q: string | null;
+	/** Standing (or any) list id — filter contacts in households/members on that list. */
+	listId: string | null;
 };
 
-/** Dashboard / MCP due-to-meet row. */
+/** Dashboard / MCP due-to-meet row (may be household-collapsed). */
 export type ContactDueRow = {
 	id: string;
 	display_name: string;
-	effective_cadence_days: number;
-	last_touched_on: string | null;
-	/** Days past cadence due date; null = never touched. */
-	days_overdue: number | null;
+	/** Primary contact id for Log Contact / Skip (representative of household). */
+	contact_id: string;
+	household_id: string | null;
 	household_name: string | null;
+	frequency: ContactFrequency;
+	period_key: string;
+	period_end: string;
+	last_touched_on: string | null;
+	/** Days past period end; null = still inside period (use days_left). */
+	days_overdue: number | null;
+	days_left: number;
+	/** @deprecated Kept for MCP callers that still read cadence. */
+	effective_cadence_days: number;
+};
+
+export type ContactsPaceSummary = {
+	remaining: number;
+	total: number;
+	days_left: number;
+	/** remaining / max(days_left,1) vs even pace from period start — 'on_track' | 'behind' | 'ahead' */
+	pace: 'on_track' | 'behind' | 'ahead';
+	period_key: string;
+	period_end: string;
+};
+
+export type PeriodHistoryOutcome = 'hit' | 'skipped' | 'missed';
+
+export type PeriodHistoryRow = {
+	period_key: string;
+	period_end: string;
+	frequency: 'quarterly' | 'semiannual' | 'annual';
+	hit: number;
+	skipped: number;
+	missed: number;
 };
 
 /** MCP search_contacts card. */
@@ -112,9 +213,12 @@ export type ContactSearchHit = {
 	household_id: string | null;
 	household_name: string | null;
 	address_summary: string | null;
+	frequency: ContactFrequency;
+	/** @deprecated */
 	effective_cadence_days: number;
 	last_touched_on: string | null;
 	status: ContactStatus;
+	/** @deprecated */
 	no_reminders: boolean;
 };
 

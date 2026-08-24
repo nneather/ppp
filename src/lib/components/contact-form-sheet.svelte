@@ -4,16 +4,17 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
-	import ContactCadenceFields from '$lib/components/contact-cadence-fields.svelte';
 	import ContactListToggles from '$lib/components/contact-list-toggles.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as Select from '$lib/components/ui/select';
-	import { daysToCadence, formatCadenceLabel, type CadenceUnit } from '$lib/contacts/cadence';
 	import {
+		CONTACT_FREQUENCIES,
+		CONTACT_FREQUENCY_LABELS,
 		CONTACT_STATUSES,
 		CONTACT_STATUS_LABELS,
+		type ContactFrequency,
 		type ContactListDef,
 		type ContactListRow,
 		type ContactStatus,
@@ -29,7 +30,6 @@
 		households = [],
 		lists = [],
 		memberListIds = [],
-		profileCadenceDefault = null,
 		errorMessage = null,
 		onSaved
 	}: {
@@ -39,7 +39,6 @@
 		households?: HouseholdRow[];
 		lists?: ContactListDef[];
 		memberListIds?: string[];
-		profileCadenceDefault?: number | null;
 		errorMessage?: string | null;
 		onSaved?: () => void | Promise<void>;
 	} = $props();
@@ -52,9 +51,8 @@
 	let email = $state('');
 	let phone = $state('');
 	let householdId = $state('');
-	let cadenceAmount = $state('');
-	let cadenceUnit = $state<CadenceUnit>('months');
-	let noReminders = $state(false);
+	let frequency = $state<ContactFrequency>('quarterly');
+	let birthday = $state('');
 	let status = $state<ContactStatus>('active');
 	let notes = $state('');
 	let showMailing = $state(false);
@@ -68,26 +66,12 @@
 
 	const formAction = $derived(mode === 'create' ? '?/createContact' : '?/updateContact');
 	const sheetTitle = $derived(mode === 'create' ? 'New contact' : 'Edit contact');
-	const cadenceHint = $derived(
-		`Blank uses the profile default (every ${formatCadenceLabel(profileCadenceDefault ?? 90)}).`
-	);
 
 	const householdSelectValue = $derived(householdId || NONE);
 	const householdLabel = $derived.by(() => {
 		if (!householdId) return 'No household';
 		return households.find((h) => h.id === householdId)?.name ?? 'Select household';
 	});
-
-	function seedCadence(days: number | null) {
-		if (days == null) {
-			cadenceAmount = '';
-			cadenceUnit = 'months';
-			return;
-		}
-		const parsed = daysToCadence(days);
-		cadenceAmount = parsed ? String(parsed.amount) : '';
-		cadenceUnit = parsed?.unit ?? 'months';
-	}
 
 	function seedFromContact() {
 		if (mode === 'edit' && contact) {
@@ -96,8 +80,8 @@
 			email = contact.email ?? '';
 			phone = contact.phone ?? '';
 			householdId = contact.household_id ?? '';
-			seedCadence(contact.cadence_days);
-			noReminders = contact.no_reminders;
+			frequency = contact.frequency ?? 'quarterly';
+			birthday = contact.birthday ?? '';
 			status = contact.status;
 			notes = contact.notes ?? '';
 			selectedListIds = [...memberListIds];
@@ -114,8 +98,8 @@
 			email = '';
 			phone = '';
 			householdId = '';
-			seedCadence(null);
-			noReminders = false;
+			frequency = 'quarterly';
+			birthday = '';
 			status = 'active';
 			notes = '';
 			selectedListIds = [];
@@ -209,6 +193,11 @@
 			</div>
 
 			<div class="space-y-2">
+				<Label for="contact_birthday">Birthday</Label>
+				<Input id="contact_birthday" name="birthday" type="date" bind:value={birthday} />
+			</div>
+
+			<div class="space-y-2">
 				<Label>Household</Label>
 				<input type="hidden" name="household_id" value={householdId} />
 				<Select.Root
@@ -273,14 +262,28 @@
 			{/if}
 
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<ContactCadenceFields
-					bind:amount={cadenceAmount}
-					bind:unit={cadenceUnit}
-					amountId="contact_cadence_amount"
-					unitId="contact_cadence_unit"
-					label="Meet cadence"
-					hint={cadenceHint}
-				/>
+				<div class="space-y-2">
+					<Label>Meet frequency</Label>
+					<input type="hidden" name="frequency" value={frequency} />
+					<Select.Root
+						type="single"
+						value={frequency}
+						onValueChange={(v) => {
+							if (v && (CONTACT_FREQUENCIES as readonly string[]).includes(v)) {
+								frequency = v as ContactFrequency;
+							}
+						}}
+					>
+						<Select.Trigger class="w-full" size="lg">
+							{CONTACT_FREQUENCY_LABELS[frequency]}
+						</Select.Trigger>
+						<Select.Content>
+							{#each CONTACT_FREQUENCIES as f (f)}
+								<Select.Item value={f}>{CONTACT_FREQUENCY_LABELS[f]}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
 				<div class="space-y-2">
 					<Label>Status</Label>
 					<input type="hidden" name="status" value={status} />
@@ -302,16 +305,6 @@
 					</Select.Root>
 				</div>
 			</div>
-
-			<label class="flex items-center gap-2 text-sm">
-				<input
-					type="checkbox"
-					name="no_reminders"
-					bind:checked={noReminders}
-					class="size-4 rounded border-input"
-				/>
-				No meet reminders (still active / list-eligible)
-			</label>
 
 			<div class="space-y-2">
 				<Label for="contact_notes">Notes</Label>

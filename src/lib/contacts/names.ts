@@ -1,7 +1,15 @@
 import {
+	CONTACT_FREQUENCIES,
+	CONTACT_LIST_KINDS,
 	DEFAULT_CONTACT_CADENCE_DAYS,
+	GIVING_GRADES,
+	RELATIONSHIP_GRADES,
+	type ContactFrequency,
+	type ContactListKind,
 	type ContactStatus,
-	type ContactTouchKind
+	type ContactTouchKind,
+	type GivingGrade,
+	type RelationshipGrade
 } from '$lib/types/contacts';
 import { formatCadenceLabel } from '$lib/contacts/cadence';
 
@@ -70,4 +78,34 @@ export function formatHouseholdAddress(h: {
 
 export function isContactStatus(v: string): v is ContactStatus {
 	return v === 'active' || v === 'retired';
+}
+
+export function isContactFrequency(v: string): v is ContactFrequency {
+	return (CONTACT_FREQUENCIES as readonly string[]).includes(v);
+}
+
+export function isContactListKind(v: string): v is ContactListKind {
+	return (CONTACT_LIST_KINDS as readonly string[]).includes(v);
+}
+
+export function isGivingGrade(v: string): v is GivingGrade {
+	return (GIVING_GRADES as readonly string[]).includes(v);
+}
+
+export function isRelationshipGrade(v: string): v is RelationshipGrade {
+	return (RELATIONSHIP_GRADES as readonly string[]).includes(v);
+}
+
+/** Sheet / form letter → frequency (default quarterly). */
+export function parseFrequency(raw: string | null | undefined): ContactFrequency {
+	if (!raw) return 'quarterly';
+	const t = raw.trim();
+	if (isContactFrequency(t)) return t;
+	const upper = t.toUpperCase();
+	if (upper === 'C') return 'common';
+	if (upper === 'Q') return 'quarterly';
+	if (upper === 'S') return 'semiannual';
+	if (upper === 'A') return 'annual';
+	if (upper === 'N') return 'none';
+	return 'quarterly';
 }

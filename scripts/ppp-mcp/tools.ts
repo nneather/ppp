@@ -241,11 +241,16 @@ export async function listContactsDue(
 		contacts_with_cadence,
 		contacts: contacts.map((c) => ({
 			id: c.id,
+			contact_id: c.contact_id,
 			display_name: c.display_name,
-			effective_cadence_days: c.effective_cadence_days,
+			frequency: c.frequency,
+			period_key: c.period_key,
+			period_end: c.period_end,
+			days_left: c.days_left,
 			last_touched_on: c.last_touched_on,
 			days_overdue: c.days_overdue,
-			household_name: c.household_name
+			household_name: c.household_name,
+			effective_cadence_days: c.effective_cadence_days
 		}))
 	});
 }
@@ -277,6 +282,7 @@ export async function searchContactsTool(
 			phone: c.phone,
 			household_name: c.household_name,
 			address_summary: c.address_summary,
+			frequency: c.frequency,
 			effective_cadence_days: c.effective_cadence_days,
 			last_touched_on: c.last_touched_on,
 			status: c.status,

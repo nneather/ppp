@@ -12,12 +12,13 @@
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import {
+		CONTACT_FREQUENCY_LABELS,
 		CONTACT_STATUS_LABELS,
 		type ContactListFilter,
 		type ContactListRow,
 		type HouseholdRow
 	} from '$lib/types/contacts';
-	import { formatEffectiveCadence, formatHouseholdAddress } from '$lib/contacts/names';
+	import { formatHouseholdAddress } from '$lib/contacts/names';
 	import { cn } from '$lib/utils';
 	import Home from '@lucide/svelte/icons/home';
 	import List from '@lucide/svelte/icons/list';
@@ -96,6 +97,18 @@
 		if (f.kind === 'logHouseholdTouch') return 'Household touch logged.';
 		if (f.kind === 'logListCards') {
 			return 'Cards logged (does not clear due-to-meet).';
+		}
+		if (f.kind === 'skipContactPeriod') return 'Skipped for this period.';
+		if (f.kind === 'importSheet') {
+			const r = f as FormShape & {
+				contactsCreated?: number;
+				householdsCreated?: number;
+			};
+			return `Import done: ${r.householdsCreated ?? 0} households, ${r.contactsCreated ?? 0} contacts.`;
+		}
+		if (f.kind === 'applyVCardImport') {
+			const r = f as FormShape & { updated?: number; unmatchedCount?: number };
+			return `vCard: updated ${r.updated ?? 0}; unmatched ${r.unmatchedCount ?? 0}.`;
 		}
 		return null;
 	});
@@ -190,13 +203,19 @@
 		await invalidate('app:contacts:list');
 	}
 
-	function pushFilters(next: { status?: ContactListFilter; q?: string | null }) {
+	function pushFilters(next: {
+		status?: ContactListFilter;
+		q?: string | null;
+		listId?: string | null;
+	}) {
 		const params = new URLSearchParams();
 		params.set('tab', 'contacts');
 		const status = next.status !== undefined ? next.status : data.filters.status;
 		const q = next.q !== undefined ? next.q : data.filters.q;
+		const listId = next.listId !== undefined ? next.listId : data.filters.listId;
 		if (status !== 'active') params.set('status', status);
 		if (q) params.set('q', q);
+		if (listId) params.set('list_filter', listId);
 		const qs = params.toString();
 		void goto(`/contacts?${qs}`, { keepFocus: true, noScroll: true });
 	}
@@ -250,7 +269,7 @@
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 pb-tabbar">
 	<PageHeader
 		title="Contacts"
-		subtitle="Meet cadence and Christmas-card households."
+		subtitle="Calendar meet periods, standing groups, and seasonal lists."
 	>
 		{#snippet actions()}
 			{#if data.isOwner}
@@ -321,6 +340,64 @@
 	</div>
 
 	{#if tab === 'contacts'}
+		{#if data.duePace}
+			<section
+				class="mt-4 rounded-lg border border-border bg-muted/30 px-3 py-3"
+				aria-label="Meet pace"
+			>
+				<p class="text-sm font-medium text-foreground">
+					Due this period: {data.duePace.remaining} remaining of {data.duePace.total}
+					<span class="font-normal text-muted-foreground">
+						· {data.duePace.days_left}d left · {data.duePace.pace.replace('_', ' ')}
+					</span>
+				</p>
+				{#if data.periodHistory.length > 0}
+					<details class="mt-2 text-xs text-muted-foreground">
+						<summary class="cursor-pointer select-none">Past periods</summary>
+						<ul class="mt-1 space-y-0.5 pl-1">
+							{#each data.periodHistory as h (h.period_key)}
+								<li>
+									{h.period_key}: {h.hit} hit · {h.skipped} skipped · {h.missed} missed
+								</li>
+							{/each}
+						</ul>
+					</details>
+				{/if}
+			</section>
+
+			{#if data.dueContacts.length > 0}
+				<ul class="mt-3 space-y-2">
+					{#each data.dueContacts as d (d.id)}
+						<li
+							class="rounded-lg border border-primary/20 bg-card px-3 py-2.5 text-card-foreground"
+						>
+							<div class="flex flex-wrap items-start justify-between gap-2">
+								<div class="min-w-0">
+									<p class="font-medium">{d.display_name}</p>
+									<p class="text-xs text-muted-foreground">
+										{CONTACT_FREQUENCY_LABELS[d.frequency]} · due by {formatTouch(d.period_end)}
+										· last meet {formatTouch(d.last_touched_on)}
+									</p>
+								</div>
+								{#if data.isOwner}
+									<div class="flex shrink-0 gap-1">
+										<form method="POST" action="?/logContactQuick" use:enhance={quickLogEnhance}>
+											<input type="hidden" name="contact_id" value={d.contact_id} />
+											<Button type="submit" size="sm" variant="secondary" label="Log" />
+										</form>
+										<form method="POST" action="?/skipContactPeriod" use:enhance={quickLogEnhance}>
+											<input type="hidden" name="contact_id" value={d.contact_id} />
+											<Button type="submit" size="sm" variant="outline" label="Skip" />
+										</form>
+									</div>
+								{/if}
+							</div>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		{/if}
+
 		<div class="mt-4 flex flex-wrap items-center gap-2">
 			<div class="flex gap-1 rounded-lg border border-border p-0.5">
 				{#each [
@@ -342,6 +419,17 @@
 					</button>
 				{/each}
 			</div>
+			<select
+				class="h-9 rounded-md border border-border bg-background px-2 text-xs"
+				value={data.filters.listId ?? ''}
+				onchange={(e) =>
+					pushFilters({ listId: (e.currentTarget as HTMLSelectElement).value || null })}
+			>
+				<option value="">All groups</option>
+				{#each data.lists.filter((l) => l.kind === 'standing') as l (l.id)}
+					<option value={l.id}>{l.name}</option>
+				{/each}
+			</select>
 			<form
 				class="min-w-[10rem] flex-1"
 				onsubmit={(e) => {
@@ -358,6 +446,47 @@
 			</form>
 		</div>
 
+		{#if data.isOwner}
+			<details class="mt-3 rounded-lg border border-dashed border-border px-3 py-2 text-sm">
+				<summary class="cursor-pointer font-medium">Import sheet / vCard</summary>
+				<form
+					method="POST"
+					action="?/importSheet"
+					enctype="multipart/form-data"
+					class="mt-2 space-y-2"
+					use:enhance={quickLogEnhance}
+				>
+					<label class="block text-xs text-muted-foreground">
+						Sheet1 CSV
+						<input type="file" name="sheet1" accept=".csv,text/csv" class="mt-1 block w-full text-xs" />
+					</label>
+					<label class="block text-xs text-muted-foreground">
+						People for Things CSV (optional → Potential Invite)
+						<input
+							type="file"
+							name="people_for_things"
+							accept=".csv,text/csv"
+							class="mt-1 block w-full text-xs"
+						/>
+					</label>
+					<Button type="submit" size="sm" label="Import CSV" />
+				</form>
+				<form
+					method="POST"
+					action="?/applyVCardImport"
+					enctype="multipart/form-data"
+					class="mt-3 space-y-2 border-t border-border pt-2"
+					use:enhance={quickLogEnhance}
+				>
+					<label class="block text-xs text-muted-foreground">
+						Mac Contacts .vcf (birthday + empty email/phone)
+						<input type="file" name="vcard" accept=".vcf,text/vcard" class="mt-1 block w-full text-xs" />
+					</label>
+					<Button type="submit" size="sm" variant="outline" label="Apply vCard" />
+				</form>
+			</details>
+		{/if}
+
 		<ul class="mt-4 space-y-2">
 			{#each data.contacts as c (c.id)}
 				<li
@@ -371,13 +500,10 @@
 								{#if c.household_name}
 									· {c.household_name}
 								{/if}
-								{#if c.no_reminders}
-									· no reminders
-								{/if}
+								· {CONTACT_FREQUENCY_LABELS[c.frequency]}
 							</p>
 							<p class="mt-0.5 text-xs text-muted-foreground">
 								Last meet: {formatTouch(c.last_touched_on)}
-								· {formatEffectiveCadence(c.effective_cadence_days)}
 							</p>
 							{#if c.email || c.phone}
 								<p class="mt-0.5 truncate text-xs text-muted-foreground">
@@ -510,7 +636,6 @@
 		memberListIds={editingContact
 			? (data.listIdsByContactId[editingContact.id] ?? [])
 			: []}
-		profileCadenceDefault={data.profileCadenceDefault}
 		errorMessage={contactSheetError}
 		onSaved={onSaved}
 	/>
@@ -521,6 +646,12 @@
 		lists={data.lists}
 		memberListIds={editingHousehold
 			? (data.listIdsByHouseholdId[editingHousehold.id] ?? [])
+			: []}
+		gradeChanges={editingHousehold
+			? (data.gradeChangesByHouseholdId[editingHousehold.id] ?? [])
+			: []}
+		children={editingHousehold
+			? (data.childrenByHouseholdId[editingHousehold.id] ?? [])
 			: []}
 		errorMessage={householdSheetError}
 		onSaved={onSaved}

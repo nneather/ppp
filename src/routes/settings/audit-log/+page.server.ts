@@ -36,7 +36,10 @@ export const _CONTACTS_TABLES = [
 	'contacts',
 	'contact_touches',
 	'contact_lists',
-	'contact_list_members'
+	'contact_list_members',
+	'contact_period_skips',
+	'household_grade_changes',
+	'household_children'
 ] as const;
 
 export const _LIBRARY_TABLES = [
@@ -105,7 +108,10 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'contacts',
 	'contact_touches',
 	'contact_lists',
-	'contact_list_members'
+	'contact_list_members',
+	'contact_period_skips',
+	'household_grade_changes',
+	'household_children'
 ]);
 
 // Fields that must not be overwritten by a revert: identity, audit metadata,

@@ -12,9 +12,8 @@ import {
 	householdNameFromContact
 } from '$lib/contacts/names';
 import {
-	daysOverdueForContact,
 	householdEligibleForCardList,
-	isContactDue,
+	isContactDueForPeriod,
 	selectContactsDue
 } from '$lib/contacts/due';
 import {
@@ -23,6 +22,7 @@ import {
 	householdHasMailingAddress
 } from '$lib/contacts/list-candidates';
 import { listMemberToColumns, validateListMemberXor } from '$lib/contacts/list-member';
+import { activePeriodForFrequency } from '$lib/contacts/period';
 
 describe('contactDisplayName', () => {
 	it('joins first and last', () => {
@@ -136,120 +136,155 @@ describe('validateListMemberXor', () => {
 	});
 });
 
-describe('isContactDue / daysOverdueForContact (meet-touch last_touched_on)', () => {
-	const today = '2026-07-24';
+describe('period due (isContactDueForPeriod + selectContactsDue)', () => {
+	const today = '2026-08-24';
 
-	it('treats never-touched active as due', () => {
-		expect(
-			isContactDue({
-				status: 'active',
-				no_reminders: false,
-				last_touched_on: null,
-				effective_cadence_days: 90,
-				todayYmd: today
-			})
-		).toBe(true);
-		expect(daysOverdueForContact(null, 90, today)).toBeNull();
+	it('treats quarterly never-touched as due (on-ramp Q4)', () => {
+		const r = isContactDueForPeriod({
+			status: 'active',
+			frequency: 'quarterly',
+			last_touched_on: null,
+			skipped_period_keys: [],
+			todayYmd: today
+		});
+		expect(r.due).toBe(true);
+		expect(r.period?.key).toBe('q:2026-Q4');
 	});
 
-	it('excludes no_reminders and retired', () => {
+	it('excludes common, none, and retired', () => {
 		expect(
-			isContactDue({
+			isContactDueForPeriod({
 				status: 'active',
-				no_reminders: true,
+				frequency: 'common',
 				last_touched_on: null,
-				effective_cadence_days: 90,
+				skipped_period_keys: [],
 				todayYmd: today
-			})
+			}).due
 		).toBe(false);
 		expect(
-			isContactDue({
+			isContactDueForPeriod({
+				status: 'active',
+				frequency: 'none',
+				last_touched_on: null,
+				skipped_period_keys: [],
+				todayYmd: today
+			}).due
+		).toBe(false);
+		expect(
+			isContactDueForPeriod({
 				status: 'retired',
-				no_reminders: false,
+				frequency: 'quarterly',
 				last_touched_on: null,
-				effective_cadence_days: 90,
+				skipped_period_keys: [],
 				todayYmd: today
-			})
+			}).due
 		).toBe(false);
 	});
 
-	it('is due when last meet is exactly cadence days ago', () => {
-		expect(daysOverdueForContact('2026-04-25', 90, today)).toBe(0);
+	it('fulfills when meet is inside the active period', () => {
 		expect(
-			isContactDue({
+			isContactDueForPeriod({
 				status: 'active',
-				no_reminders: false,
-				last_touched_on: '2026-04-25',
-				effective_cadence_days: 90,
+				frequency: 'quarterly',
+				last_touched_on: '2026-08-01',
+				skipped_period_keys: [],
 				todayYmd: today
-			})
-		).toBe(true);
-	});
-
-	it('is not due inside the cadence window after a meet', () => {
-		expect(daysOverdueForContact('2026-07-01', 90, today)).toBeLessThan(0);
-		expect(
-			isContactDue({
-				status: 'active',
-				no_reminders: false,
-				last_touched_on: '2026-07-01',
-				effective_cadence_days: 90,
-				todayYmd: today
-			})
+			}).due
 		).toBe(false);
 	});
 
-	it('stays due when only card touches exist (caller passes null last meet)', () => {
-		// Loaders filter kind=card out; due helpers see null last_touched_on.
+	it('stays due when last meet was before the period', () => {
 		expect(
-			isContactDue({
+			isContactDueForPeriod({
 				status: 'active',
-				no_reminders: false,
-				last_touched_on: null,
-				effective_cadence_days: 90,
+				frequency: 'quarterly',
+				last_touched_on: '2026-06-01',
+				skipped_period_keys: [],
 				todayYmd: today
-			})
+			}).due
 		).toBe(true);
 	});
-});
 
-describe('selectContactsDue', () => {
-	it('sorts never-touched first then most overdue', () => {
+	it('skips when period_key is in skipped set', () => {
+		expect(
+			isContactDueForPeriod({
+				status: 'active',
+				frequency: 'quarterly',
+				last_touched_on: null,
+				skipped_period_keys: ['q:2026-Q4'],
+				todayYmd: today
+			}).due
+		).toBe(false);
+	});
+
+	it('sorts oldest last-meet first and collapses households', () => {
 		const rows = selectContactsDue(
 			[
 				{
 					id: 'a',
 					display_name: 'Alice',
-					effective_cadence_days: 90,
+					frequency: 'quarterly',
 					last_touched_on: '2026-01-01',
-					household_name: null,
-					no_reminders: false,
-					status: 'active'
+					household_id: 'hh1',
+					household_name: 'The Smiths',
+					skipped_period_keys: [],
+					status: 'active',
+					giving_grade: 'B',
+					relationship_grade: 'A'
+				},
+				{
+					id: 'a2',
+					display_name: 'Adam',
+					frequency: 'quarterly',
+					last_touched_on: null,
+					household_id: 'hh1',
+					household_name: 'The Smiths',
+					skipped_period_keys: [],
+					status: 'active',
+					giving_grade: 'B',
+					relationship_grade: 'A'
 				},
 				{
 					id: 'b',
 					display_name: 'Bob',
-					effective_cadence_days: 90,
+					frequency: 'quarterly',
 					last_touched_on: null,
+					household_id: null,
 					household_name: null,
-					no_reminders: false,
-					status: 'active'
+					skipped_period_keys: [],
+					status: 'active',
+					giving_grade: null,
+					relationship_grade: null
 				},
 				{
 					id: 'c',
 					display_name: 'Carol',
-					effective_cadence_days: 90,
-					last_touched_on: '2026-07-01',
+					frequency: 'quarterly',
+					last_touched_on: '2026-08-01',
+					household_id: null,
 					household_name: null,
-					no_reminders: false,
-					status: 'active'
+					skipped_period_keys: [],
+					status: 'active',
+					giving_grade: null,
+					relationship_grade: null
 				}
 			],
-			{ todayYmd: '2026-07-24', limit: 10 }
+			{ todayYmd: today, limit: 10 }
 		);
-		expect(rows.map((r) => r.id)).toEqual(['b', 'a']);
-		expect(rows[0]!.days_overdue).toBeNull();
-		expect(rows[1]!.days_overdue).toBeGreaterThan(0);
+		// Carol fulfilled; Alice+Adam collapse to one household (null last-meet wins)
+		expect(rows).toHaveLength(2);
+		expect(rows.map((r) => r.display_name).sort()).toEqual(['Bob', 'The Smiths']);
+		const smiths = rows.find((r) => r.display_name === 'The Smiths');
+		expect(smiths?.contact_id).toBe('a2');
+	});
+});
+
+describe('activePeriodForFrequency on-ramp', () => {
+	it('keeps Q and S on H2/Q4 through end of 2026', () => {
+		expect(activePeriodForFrequency('quarterly', '2026-08-24').key).toBe('q:2026-Q4');
+		expect(activePeriodForFrequency('semiannual', '2026-08-24').key).toBe('s:2026-H2');
+		expect(activePeriodForFrequency('annual', '2026-08-24').key).toBe('a:2027');
+		expect(activePeriodForFrequency('annual', '2026-08-24').end).toBe('2027-12-31');
 	});
 });
 

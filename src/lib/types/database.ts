@@ -820,6 +820,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          kind: string
           name: string
           notes: string | null
           sort_order: number
@@ -830,6 +831,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          kind?: string
           name: string
           notes?: string | null
           sort_order?: number
@@ -840,6 +842,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          kind?: string
           name?: string
           notes?: string | null
           sort_order?: number
@@ -848,6 +851,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "contact_lists_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_period_skips: {
+        Row: {
+          contact_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          note: string | null
+          period_key: string
+          skipped_on: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          note?: string | null
+          period_key: string
+          skipped_on: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          note?: string | null
+          period_key?: string
+          skipped_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_period_skips_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_period_skips_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -908,12 +962,14 @@ export type Database = {
       }
       contacts: {
         Row: {
+          birthday: string | null
           cadence_days: number | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
           email: string | null
           first_name: string
+          frequency: string
           household_id: string | null
           id: string
           last_name: string | null
@@ -924,12 +980,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          birthday?: string | null
           cadence_days?: number | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           email?: string | null
           first_name: string
+          frequency?: string
           household_id?: string | null
           id?: string
           last_name?: string | null
@@ -940,12 +998,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          birthday?: string | null
           cadence_days?: number | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           email?: string | null
           first_name?: string
+          frequency?: string
           household_id?: string | null
           id?: string
           last_name?: string | null
@@ -1122,49 +1182,169 @@ export type Database = {
           },
         ]
       }
+      household_children: {
+        Row: {
+          birthday: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          first_name: string
+          household_id: string
+          id: string
+          last_name: string | null
+          notes: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          birthday?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          first_name: string
+          household_id: string
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          birthday?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          first_name?: string
+          household_id?: string
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_children_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "household_children_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      household_grade_changes: {
+        Row: {
+          changed_on: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          giving_grade: string | null
+          household_id: string
+          id: string
+          note: string | null
+          relationship_grade: string | null
+          updated_at: string
+        }
+        Insert: {
+          changed_on: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          giving_grade?: string | null
+          household_id: string
+          id?: string
+          note?: string | null
+          relationship_grade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          changed_on?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          giving_grade?: string | null
+          household_id?: string
+          id?: string
+          note?: string | null
+          relationship_grade?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_grade_changes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "household_grade_changes_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       households: {
         Row: {
           address_line_1: string | null
           address_line_2: string | null
+          address_updated_on: string | null
           city: string | null
           country: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
+          giving_grade: string | null
           id: string
           name: string
           notes: string | null
           postal_code: string | null
+          relationship_grade: string | null
           state: string | null
           updated_at: string
         }
         Insert: {
           address_line_1?: string | null
           address_line_2?: string | null
+          address_updated_on?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
+          giving_grade?: string | null
           id?: string
           name: string
           notes?: string | null
           postal_code?: string | null
+          relationship_grade?: string | null
           state?: string | null
           updated_at?: string
         }
         Update: {
           address_line_1?: string | null
           address_line_2?: string | null
+          address_updated_on?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
+          giving_grade?: string | null
           id?: string
           name?: string
           notes?: string | null
           postal_code?: string | null
+          relationship_grade?: string | null
           state?: string | null
           updated_at?: string
         }

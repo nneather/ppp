@@ -3,22 +3,26 @@
 	import { goto, invalidate } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
-	import ContactCadenceFields from '$lib/components/contact-cadence-fields.svelte';
 	import ContactListAddPanel from '$lib/components/contact-list-add-panel.svelte';
 	import LogCardsDialog from '$lib/components/log-cards-dialog.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { daysToCadence, formatCadenceLabel, type CadenceUnit } from '$lib/contacts/cadence';
+	import * as Select from '$lib/components/ui/select';
 	import type {
 		ContactListCandidate,
 		HouseholdListCandidate
 	} from '$lib/contacts/list-candidates';
-	import type {
-		ContactListDef,
-		ContactListMemberRow
+	import {
+		CONTACT_LIST_KIND_LABELS,
+		CONTACT_LIST_KINDS,
+		type ContactListDef,
+		type ContactListKind,
+		type ContactListMemberRow
 	} from '$lib/types/contacts';
+	import Copy from '@lucide/svelte/icons/copy';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -30,7 +34,6 @@
 		hiddenRetiredOnlyCount,
 		householdCandidates = [],
 		contactCandidates = [],
-		profileCadenceDefault,
 		todayYmd,
 		isOwner,
 		form
@@ -41,7 +44,8 @@
 		hiddenRetiredOnlyCount: number;
 		householdCandidates?: HouseholdListCandidate[];
 		contactCandidates?: ContactListCandidate[];
-		profileCadenceDefault: number | null;
+		/** @deprecated Rolling cadence UI removed — meet frequency is per-contact. */
+		profileCadenceDefault?: number | null;
 		todayYmd: string;
 		isOwner: boolean;
 		form: {
@@ -57,11 +61,17 @@
 	let createOpen = $state(false);
 	let createName = $state('');
 	let createNotes = $state('');
+	let createKind = $state<ContactListKind>('standing');
 
 	let editOpen = $state(false);
 	let editRow = $state<ContactListDef | null>(null);
 	let editName = $state('');
 	let editNotes = $state('');
+	let editKind = $state<ContactListKind>('standing');
+
+	let cloneOpen = $state(false);
+	let cloneRow = $state<ContactListDef | null>(null);
+	let cloneName = $state('');
 
 	let deleteOpen = $state(false);
 	let deleteTarget = $state<ContactListDef | null>(null);
@@ -70,20 +80,14 @@
 
 	let cardsDialogOpen = $state(false);
 
-	let defaultAmount = $state('');
-	let defaultUnit = $state<CadenceUnit>('months');
-
-	$effect(() => {
-		const parsed = daysToCadence(profileCadenceDefault ?? 90);
-		defaultAmount = parsed ? String(parsed.amount) : '3';
-		defaultUnit = parsed?.unit ?? 'months';
-	});
-
 	const createErr = $derived(
 		form?.kind === 'createContactList' && form.success !== true ? (form.message ?? null) : null
 	);
 	const updateErr = $derived(
 		form?.kind === 'updateContactList' && form.success !== true ? (form.message ?? null) : null
+	);
+	const cloneErr = $derived(
+		form?.kind === 'cloneContactList' && form.success !== true ? (form.message ?? null) : null
 	);
 	const deleteErr = $derived(
 		form?.kind === 'softDeleteContactList' && form.success !== true
@@ -109,24 +113,13 @@
 	const cardsErr = $derived(
 		form?.kind === 'logListCards' && form.success !== true ? (form.message ?? null) : null
 	);
-	const cadenceDefaultErr = $derived(
-		form?.kind === 'updateContactCadenceDefault' && form.success !== true
-			? (form.message ?? null)
-			: null
-	);
-	const cadenceDefaultOk = $derived(
-		form?.kind === 'updateContactCadenceDefault' && form.success === true
-	);
 
 	const selectedList = $derived(lists.find((l) => l.id === selectedListId) ?? null);
-
-	const defaultLabel = $derived(
-		formatCadenceLabel(profileCadenceDefault ?? 90)
-	);
 
 	function openCreate() {
 		createName = '';
 		createNotes = '';
+		createKind = 'standing';
 		createOpen = true;
 	}
 
@@ -134,7 +127,15 @@
 		editRow = row;
 		editName = row.name;
 		editNotes = row.notes ?? '';
+		editKind = row.kind ?? 'standing';
 		editOpen = true;
+	}
+
+	function openClone(row: ContactListDef) {
+		cloneRow = row;
+		const year = new Date().getFullYear();
+		cloneName = `${row.name} ${year}`;
+		cloneOpen = true;
 	}
 
 	function askDelete(row: ContactListDef) {
@@ -153,6 +154,8 @@
 				createOpen = false;
 				editOpen = false;
 				editRow = null;
+				cloneOpen = false;
+				cloneRow = null;
 				deleteOpen = false;
 				deleteTarget = null;
 				await invalidate('app:contacts:list');
@@ -209,37 +212,10 @@
 		</p>
 	</div>
 {:else}
-	<section class="mt-4 rounded-lg border border-border bg-card px-3 py-3 text-card-foreground">
-		<p class="text-sm font-medium">Default meet cadence</p>
-		<p class="mt-0.5 text-xs text-muted-foreground">
-			Used when a contact has no override. Currently every {defaultLabel}.
-		</p>
-		<form
-			method="POST"
-			action="?/updateContactCadenceDefault"
-			use:enhance={enhanceMutation}
-			class="mt-3 space-y-3"
-		>
-			{#if cadenceDefaultErr}
-				<p class="text-sm text-destructive" role="alert">{cadenceDefaultErr}</p>
-			{/if}
-			{#if cadenceDefaultOk}
-				<p class="text-sm text-emerald-700 dark:text-emerald-400" role="status">
-					Default cadence saved.
-				</p>
-			{/if}
-			<ContactCadenceFields
-				bind:amount={defaultAmount}
-				bind:unit={defaultUnit}
-				amountId="profile_cadence_amount"
-				unitId="profile_cadence_unit"
-				label="Amount"
-				allowEmpty={false}
-				hint="Applies to new contacts and anyone without an override."
-			/>
-			<Button type="submit" size="sm" label="Save default" />
-		</form>
-	</section>
+	<p class="mt-4 text-xs text-muted-foreground">
+		Meet frequency is set per contact (quarterly / biannual / annual). The old profile cadence
+		default no longer applies.
+	</p>
 
 	<div class="mt-4 flex flex-wrap items-center justify-between gap-3">
 		<p class="text-sm text-muted-foreground">
@@ -256,6 +232,9 @@
 	{#if cardsErr && !cardsDialogOpen}
 		<p class="mt-3 text-sm text-destructive" role="alert">{cardsErr}</p>
 	{/if}
+	{#if cloneErr && !cloneOpen}
+		<p class="mt-3 text-sm text-destructive" role="alert">{cloneErr}</p>
+	{/if}
 
 	<ul class="mt-4 space-y-2">
 		{#each lists as list (list.id)}
@@ -267,10 +246,11 @@
 					class="min-w-0 flex-1 text-left"
 					onclick={() => selectList(list.id)}
 				>
-					<p class="truncate text-sm font-medium">
+					<p class="flex flex-wrap items-center gap-1.5 truncate text-sm font-medium">
 						{list.name}
+						<Badge variant="secondary">{CONTACT_LIST_KIND_LABELS[list.kind]}</Badge>
 						{#if list.id === selectedListId}
-							<span class="ml-1 text-xs font-normal text-primary">(selected)</span>
+							<span class="text-xs font-normal text-primary">(selected)</span>
 						{/if}
 					</p>
 					<p class="text-xs text-muted-foreground">
@@ -281,6 +261,17 @@
 					</p>
 				</button>
 				<div class="flex shrink-0 gap-1">
+					{#if list.kind === 'ad_hoc'}
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							aria-label="Clone list"
+							onclick={() => openClone(list)}
+						>
+							<Copy class="size-4" />
+						</Button>
+					{/if}
 					<Button
 						type="button"
 						variant="ghost"
@@ -315,7 +306,10 @@
 		<section class="mt-8">
 			<div class="flex flex-wrap items-start justify-between gap-3">
 				<div class="min-w-0">
-					<h2 class="text-lg font-semibold tracking-tight">{selectedList.name}</h2>
+					<h2 class="flex flex-wrap items-center gap-2 text-lg font-semibold tracking-tight">
+						{selectedList.name}
+						<Badge variant="outline">{CONTACT_LIST_KIND_LABELS[selectedList.kind]}</Badge>
+					</h2>
 					<p class="mt-1 text-sm text-muted-foreground">
 						Christmas cards use households. Contact membership is for future email lists.
 						Households with no active members are hidden (membership kept).
@@ -329,6 +323,16 @@
 					{/if}
 				</div>
 				<div class="flex shrink-0 flex-wrap gap-2">
+					{#if selectedList.kind === 'ad_hoc'}
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onclick={() => openClone(selectedList)}
+						>
+							Clone list
+						</Button>
+					{/if}
 					<form method="POST" action="?/logListCards" use:enhance={cardsQuickEnhance}>
 						<input type="hidden" name="list_id" value={selectedList.id} />
 						<Button type="submit" size="sm" variant="secondary">Log cards sent</Button>
@@ -416,6 +420,28 @@
 					<Input id="create-list-name" name="name" bind:value={createName} required />
 				</div>
 				<div class="space-y-2">
+					<Label>Kind</Label>
+					<input type="hidden" name="kind" value={createKind} />
+					<Select.Root
+						type="single"
+						value={createKind}
+						onValueChange={(v) => {
+							if (v && (CONTACT_LIST_KINDS as readonly string[]).includes(v)) {
+								createKind = v as ContactListKind;
+							}
+						}}
+					>
+						<Select.Trigger class="w-full" size="lg">
+							{CONTACT_LIST_KIND_LABELS[createKind]}
+						</Select.Trigger>
+						<Select.Content>
+							{#each CONTACT_LIST_KINDS as k (k)}
+								<Select.Item value={k}>{CONTACT_LIST_KIND_LABELS[k]}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="space-y-2">
 					<Label for="create-list-notes">Notes</Label>
 					<Input id="create-list-notes" name="notes" bind:value={createNotes} />
 				</div>
@@ -453,6 +479,28 @@
 					<Input id="edit-list-name" name="name" bind:value={editName} required />
 				</div>
 				<div class="space-y-2">
+					<Label>Kind</Label>
+					<input type="hidden" name="kind" value={editKind} />
+					<Select.Root
+						type="single"
+						value={editKind}
+						onValueChange={(v) => {
+							if (v && (CONTACT_LIST_KINDS as readonly string[]).includes(v)) {
+								editKind = v as ContactListKind;
+							}
+						}}
+					>
+						<Select.Trigger class="w-full" size="lg">
+							{CONTACT_LIST_KIND_LABELS[editKind]}
+						</Select.Trigger>
+						<Select.Content>
+							{#each CONTACT_LIST_KINDS as k (k)}
+								<Select.Item value={k}>{CONTACT_LIST_KIND_LABELS[k]}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="space-y-2">
 					<Label for="edit-list-notes">Notes</Label>
 					<Input id="edit-list-notes" name="notes" bind:value={editNotes} />
 				</div>
@@ -465,6 +513,42 @@
 						onclick={() => (editOpen = false)}
 					/>
 					<Button type="submit" hotkey="u" label="Update list" />
+				</div>
+			</form>
+		</Dialog.Content>
+	</Dialog.Root>
+
+	<Dialog.Root bind:open={cloneOpen}>
+		<Dialog.Content class="sm:max-w-md">
+			<Dialog.Header>
+				<Dialog.Title>Clone list</Dialog.Title>
+				<Dialog.Description class="text-sm text-muted-foreground">
+					Copies memberships into a new ad hoc list.
+				</Dialog.Description>
+			</Dialog.Header>
+			<form
+				method="POST"
+				action="?/cloneContactList"
+				use:enhance={enhanceMutation}
+				class="space-y-4"
+			>
+				<input type="hidden" name="list_id" value={cloneRow?.id ?? ''} />
+				{#if cloneErr}
+					<p class="text-sm text-destructive" role="alert">{cloneErr}</p>
+				{/if}
+				<div class="space-y-2">
+					<Label for="clone-list-name">New name</Label>
+					<Input id="clone-list-name" name="name" bind:value={cloneName} required />
+				</div>
+				<div class="flex justify-end gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						hotkey="Escape"
+						label="Cancel"
+						onclick={() => (cloneOpen = false)}
+					/>
+					<Button type="submit" hotkey="s" label="Clone list" />
 				</div>
 			</form>
 		</Dialog.Content>

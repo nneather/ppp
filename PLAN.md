@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-08-24 — Library list search persists across status/bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)); prior Aug 24 Harris/Wright/commentaries ([208](docs/decisions/208-library-aug24-harris-wright-commentaries.md)).
+**Last updated:** 2026-08-24 — Contacts period cadence + sheet import ([210](docs/decisions/210-contacts-semester-period-cadence.md)); prior library list search ([209](docs/decisions/209-library-list-search-survives-status.md)).
 
 **How to use this file — read this first:**
 
@@ -19,7 +19,7 @@
 **Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later).
 
 - **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)). **Papers Sessions 1–2 shipped** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)) — publication surface + research groups live for the St. Louis edit.
-- **Contacts / CRM** — Sessions 1–3 + list mass-add ([183](docs/decisions/183-contacts-list-mass-add.md)). Lists checklist + sheet list toggles. Thin v1 target ~Thanksgiving; mailing send later.
+- **Contacts / CRM** — Sessions 1–3 + **period cadence + sheet import** ([210](docs/decisions/210-contacts-semester-period-cadence.md)): calendar Q/S/A due list, Skip, standing/ad-hoc lists, household grades, children, vCard apply, Sheet1 imported. Christmas card send still later.
 - **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + health filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)/[184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + contacts ([180](docs/decisions/180-contacts-session-2.md)).
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) — `/classwork/papers` research surface complete (attach books/essays/stubs, cite, compiled bib, research groups). Backlog: Canvas import ([173](docs/decisions/173-canvas-classwork-import-deferred.md)). |
-| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + mass-add ([183](docs/decisions/183-contacts-list-mass-add.md)) — Lists checklist, sheet toggles, meet vs card, card bulk log. MCP smoke open (`contacts_with_cadence` on due tool — [184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Mailing send later; **≠ library `people`.** |
+| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + **period cadence / import** ([210](docs/decisions/210-contacts-semester-period-cadence.md)) — calendar due + Skip + standing/ad-hoc lists + grades + children + vCard; Sheet1 live. Mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)): week split, deferred_until, assignment link, contacts_with_cadence. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [210 — Contacts semester period cadence + import](docs/decisions/210-contacts-semester-period-cadence.md) (2026-08-24) — Replace rolling meet cadence with calendar periods; sheet import; grades/children/vCard/pace.
 - [209 — Library list search survives status / bulk](docs/decisions/209-library-list-search-survives-status.md) (2026-08-24) — Keep `?q=` when changing reading status or bulk-editing from `/library`; `?/action` was wiping the query string.
 - [208 — Library Aug 24 Harris / Wright / WBC–PNTC–BECNT](docs/decisions/208-library-aug24-harris-wright-commentaries.md) (2026-08-24) — Harris prepositions + Wright OT ethics; Mounce/Bauckham/Lane WBC Zondervan reprints; Kruse PNTC 2nd; Schreiner BECNT Revelation.
 - [207 — Library Aug 24 shelf batch](docs/decisions/207-library-aug24-shelf-batch.md) (2026-08-24) — Commentaries (REC/WBC/TOTC/ACCS/PNTC/BECNT) + new `LOA` series; Lincoln vols reminted in place.
 - [206 — Outlook-style right Now pane](docs/decisions/206-outlook-right-now-pane.md) (2026-08-19) — Now tasks right of page content; collapsible like left nav (`ppp_tasks_collapsed`).
-- [205 — Desktop Now task rail](docs/decisions/205-desktop-now-task-rail.md) (2026-08-19) — Critical/Opportunity JSON rail; `/tasks` stays the full list; mobile unchanged (placement superseded by 206).
 
 ---
 
@@ -73,7 +73,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`. **Papers:** `/classwork/papers` + `/classwork/papers/[id]` research home (attach books/essays/stubs, per-row cite + page, per-source notes, merged compiled bib; P1 stamp+lock; **research groups** — CRUD + per-row select + Ungrouped-first buckets, G1 null-out) ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
 
-**Contacts:** `/contacts` tabs Contacts \| Households \| Lists (multi-add checklist + Log cards) + Sheets with list toggles; `/settings/contacts/lists` redirects to Lists tab; dashboard Due to meet ([180](docs/decisions/180-contacts-session-2.md), [182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md), [183](docs/decisions/183-contacts-list-mass-add.md)); helpers `src/lib/contacts/`; migrations `20260725020000_ppp_contacts_v1.sql`, `20260725180115_contacts_touch_kind_and_cadence_ui.sql`. Desktop sidebar only.
+**Contacts:** `/contacts` tabs Contacts \| Households \| Lists + period due strip / Skip / group filter; Sheets with frequency, grades, children; import CSV + vCard ([210](docs/decisions/210-contacts-semester-period-cadence.md)); dashboard Due to meet; helpers `src/lib/contacts/`; migrations incl. `20260824190000_contacts_period_cadence_v1.sql`. Desktop sidebar only.
 
 **Invoicing helpers:** `src/lib/invoicing/` — `chicago-date.ts` (incl. `firstOfYearThroughYmd`), `hours.ts`, `consultation-lines.ts` ([050](docs/decisions/050-invoicing-client-billing-preferences.md)), `analytics.ts` ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)), `one-off.ts` ([201](docs/decisions/201-invoicing-analytics-range-one-offs.md)), `mark-paid.ts` ([202](docs/decisions/202-invoicing-list-mark-paid.md)). Routes: `/invoicing`, `/invoicing/invoices`, `/invoicing/analytics` (Time \| Invoices \| Analytics toggle; analytics default range YTD). Loaders/actions live inline in route `+page.server.ts` files **by design** (see AGENTS.md › Module structure).
 

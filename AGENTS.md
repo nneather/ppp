@@ -201,17 +201,20 @@ End-of-session deliverables:
  - Routes: `/classwork` (list + Sheets; `?group=date|course`); `/classwork/papers` (list + `<PaperFormSheet>`) + `/classwork/papers/[id]` (research home: `?src_q=` search-attach, per-row cite + page, per-source notes, compiled bib copy, **research groups** — CRUD + per-row group select + Ungrouped-first buckets [190](docs/decisions/190-classwork-papers-session-2.md)); Assignments|Papers via `<ClassworkViewToggle>`; assignment sheet “Open research paper” (edit mode, kind=paper); `/dashboard` due-soon (desktop right column + mobile glance — [161](docs/decisions/161-classwork-session-2.md)). Nav: mobile tab bar = Dashboard/Tasks/Invoicing/Library/Classwork; Sermons+Projects+Contacts desktop sidebar only.
  - Audit: `_CLASSWORK_TABLES` incl. `papers` / `paper_research_groups` / `paper_sources`; soft-delete revert for all. Permissions slug `classwork` (papers ride it — no new slug).
 
-- **Contacts helpers** at `src/lib/contacts/` (schema migrations `20260725020000_ppp_contacts_v1.sql`, `20260725180115_contacts_touch_kind_and_cadence_ui.sql`; Session 0 [175](docs/decisions/175-contacts-session-0.md), Session 1 [178](docs/decisions/178-contacts-session-1.md), Session 2 [180](docs/decisions/180-contacts-session-2.md), Session 3 [182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md), mass-add [183](docs/decisions/183-contacts-list-mass-add.md)):
-  - `src/lib/types/contacts.ts` — `CONTACT_STATUSES`, `CONTACT_TOUCH_KINDS` (meet\|card), list/filter view-models, `DEFAULT_CONTACT_CADENCE_DAYS` (90), `ContactDueRow` / `ContactSearchHit`, `ListMembershipMaps`.
-  - `src/lib/contacts/names.ts` — `contactDisplayName`, `householdNameFromContact`, `effectiveCadenceDays`, `formatEffectiveCadence`, `formatHouseholdAddress`.
-  - `src/lib/contacts/cadence.ts` — months/years ↔ day-equivalent storage (`cadenceToDays` / `daysToCadence` / `formatCadenceLabel`) ([182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md)).
-  - `src/lib/contacts/list-candidates.ts` — Lists-tab mass-add filters (`filterHouseholdListCandidates` / `filterContactListCandidates`) ([183](docs/decisions/183-contacts-list-mass-add.md)).
-  - `src/lib/contacts/due.ts` — `isContactDue` / `selectContactsDue` / `householdEligibleForCardList` (C2); callers pass last **meet** touch only ([180](docs/decisions/180-contacts-session-2.md), [182](docs/decisions/182-contacts-session-3-lists-cadence-touch-kinds.md)).
+- **Contacts helpers** at `src/lib/contacts/` (schema migrations `20260725020000_ppp_contacts_v1.sql`, `20260725180115_contacts_touch_kind_and_cadence_ui.sql`, `20260824190000_contacts_period_cadence_v1.sql`; Sessions 0–3 + [210](docs/decisions/210-contacts-semester-period-cadence.md)):
+  - `src/lib/types/contacts.ts` — `CONTACT_FREQUENCIES`, grades, list kinds, due/pace view-models (legacy `DEFAULT_CONTACT_CADENCE_DAYS` / `ContactDueRow` / `ContactSearchHit`, `ListMembershipMaps`).
+  - `src/lib/contacts/names.ts` — display names, `parseFrequency`, grade/list-kind guards, legacy `effectiveCadenceDays`.
+  - `src/lib/contacts/period.ts` — calendar Q/S/A windows + import on-ramp keys.
+  - `src/lib/contacts/due.ts` — period due + household collapse + oldest-meet sort + pace; `householdEligibleForCardList` (C2).
+  - `src/lib/contacts/sheet-import.ts` / `server/sheet-import-action.ts` — Sheet1 couple split + CSV import; `scripts/contacts-sheet-import.ts`.
+  - `src/lib/contacts/vcard.ts` / `server/vcard-import-action.ts` — Mac Contacts `.vcf` match (birthday + empty email/phone).
+  - `src/lib/contacts/cadence.ts` — legacy months/years ↔ days (UI mostly replaced by frequency).
+  - `src/lib/contacts/list-candidates.ts` — Lists-tab mass-add filters ([183](docs/decisions/183-contacts-list-mass-add.md)).
   - `src/lib/contacts/list-member.ts` — `validateListMemberXor` / `listMemberToColumns` (contact XOR household for list membership).
-  - `src/lib/contacts/server/loaders.ts` — `loadContacts`, `loadContactsDue`, `searchContacts`, `loadHouseholds`, `loadContactLists`, `loadContactListMembers` (C2), `loadListMembershipMaps`, `loadHouseholdListCandidates`, `parseContactsListFilters`; last-touch queries filter `kind=meet`.
-  - `src/lib/contacts/server/actions.ts` — contact/household/list CRUD; meet Log Contact / Log all; `logListCardsAction` (`kind=card`); `updateContactCadenceDefaultAction`; `addContactListMembersBatchAction`; `syncEntityListMemberships` on contact/household save; list-member add (revive soft-deleted by PK).
-  - Routes: `/contacts` (tabs Contacts \| Households \| Lists + Sheets with list toggles + Log Contact / Log cards); `/settings/contacts/lists` 308→ Lists tab; dashboard Due to meet. Desktop sidebar only (mobile tab bar stays at 5).
-  - Audit: `_CONTACTS_TABLES`; soft-delete revert for households/contacts/touches/lists/members. Permissions slug `contacts`. **≠ library `people`, ≠ invoicing `clients`.** Viewer write solo-waivered v1.
+  - `src/lib/contacts/server/loaders.ts` — list + due + period history + children/grades; `list_filter` for standing groups; last-touch queries filter `kind=meet`.
+  - `src/lib/contacts/server/actions.ts` — CRUD + Skip period + clone list + children; meet Log Contact / Log all; `logListCardsAction` (`kind=card`); list membership revive-by-PK.
+  - Routes: `/contacts` (tabs Contacts \| Households \| Lists + due strip + Sheets); `/settings/contacts/lists` 308→ Lists tab; dashboard Due to meet. Desktop sidebar only (mobile tab bar stays at 5).
+  - Audit: `_CONTACTS_TABLES` incl. period skips / grade changes / children; soft-delete revert for all. Permissions slug `contacts`. **≠ library `people`, ≠ invoicing `clients`.** Viewer write solo-waivered v1.
 
 ### Scripts
 

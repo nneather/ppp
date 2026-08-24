@@ -1,15 +1,29 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
-import { cadenceToDays, isCadenceUnit } from '$lib/contacts/cadence';
 import { householdEligibleForCardList } from '$lib/contacts/due';
 import {
 	listMemberToColumns,
 	validateListMemberXor,
 	type ListMemberParentInput
 } from '$lib/contacts/list-member';
-import { householdNameFromContact, isContactStatus } from '$lib/contacts/names';
-import type { ContactStatus } from '$lib/types/contacts';
+import {
+	householdNameFromContact,
+	isContactFrequency,
+	isContactListKind,
+	isContactStatus,
+	isGivingGrade,
+	isRelationshipGrade,
+	parseFrequency
+} from '$lib/contacts/names';
+import { activePeriodForFrequency, isScheduledFrequency } from '$lib/contacts/period';
+import type {
+	ContactFrequency,
+	ContactListKind,
+	ContactStatus,
+	GivingGrade,
+	RelationshipGrade
+} from '$lib/types/contacts';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -27,28 +41,39 @@ function parseBool(v: FormDataEntryValue | null): boolean {
 }
 
 /**
- * Months/years picker → day-equivalent, or null when amount empty (use default).
- * Accepts legacy `cadence_days` only as fallback if amount/unit absent.
+ * Frequency picker (C/Q/S/A/N or enum). Defaults to quarterly.
  */
-function parseCadenceDaysFromForm(fd: FormData): number | null | 'invalid' {
-	const amountRaw = trimOrNull(fd.get('cadence_amount'));
-	const unitRaw = trimOrNull(fd.get('cadence_unit'));
-	if (amountRaw || unitRaw) {
-		if (!amountRaw) return null;
-		const amount = Number.parseInt(amountRaw, 10);
-		if (!Number.isFinite(amount) || amount < 1) return 'invalid';
-		if (!unitRaw || !isCadenceUnit(unitRaw)) return 'invalid';
-		try {
-			return cadenceToDays(amount, unitRaw);
-		} catch {
-			return 'invalid';
-		}
-	}
-	const legacy = trimOrNull(fd.get('cadence_days'));
-	if (!legacy) return null;
-	const n = Number.parseInt(legacy, 10);
-	if (!Number.isFinite(n) || n < 1) return 'invalid';
-	return n;
+function parseFrequencyFromForm(fd: FormData): ContactFrequency | 'invalid' {
+	const raw = trimOrNull(fd.get('frequency'));
+	if (!raw) return 'quarterly';
+	const parsed = parseFrequency(raw);
+	if (!isContactFrequency(parsed)) return 'invalid';
+	return parsed;
+}
+
+function parseGivingFromForm(fd: FormData): GivingGrade | null | 'invalid' {
+	const raw = trimOrNull(fd.get('giving_grade'));
+	if (!raw) return null;
+	if (!isGivingGrade(raw)) return 'invalid';
+	return raw;
+}
+
+function parseRelFromForm(fd: FormData): RelationshipGrade | null | 'invalid' {
+	const raw = trimOrNull(fd.get('relationship_grade'));
+	if (!raw) return null;
+	if (!isRelationshipGrade(raw)) return 'invalid';
+	return raw;
+}
+
+function parseListKindFromForm(fd: FormData): ContactListKind {
+	const raw = trimOrNull(fd.get('kind'));
+	if (raw && isContactListKind(raw)) return raw;
+	return 'standing';
+}
+
+/** @deprecated Rolling cadence — kept for legacy forms that still post amount/unit. */
+function parseCadenceDaysFromForm(_fd: FormData): number | null | 'invalid' {
+	return null;
 }
 
 type AddressFields = {
@@ -90,12 +115,28 @@ export async function createHouseholdAction(
 	}
 
 	const address = parseAddress(fd);
+	const giving = parseGivingFromForm(fd);
+	if (giving === 'invalid') {
+		return fail(400, { kind: 'createHousehold' as const, message: 'Invalid giving grade.' });
+	}
+	const rel = parseRelFromForm(fd);
+	if (rel === 'invalid') {
+		return fail(400, {
+			kind: 'createHousehold' as const,
+			message: 'Invalid relationship grade.'
+		});
+	}
+	const addressStamp = addressHasAny(address) ? ymdInChicago() : null;
+
 	const { data: inserted, error: insErr } = await supabase
 		.from('households')
 		.insert({
 			name,
 			...address,
 			notes: trimOrNull(fd.get('notes')),
+			giving_grade: giving,
+			relationship_grade: rel,
+			address_updated_on: addressStamp,
 			created_by: userId
 		} as never)
 		.select('id')
@@ -149,13 +190,71 @@ export async function updateHouseholdAction(
 	}
 
 	const address = parseAddress(fd);
+	const giving = parseGivingFromForm(fd);
+	if (giving === 'invalid') {
+		return fail(400, {
+			kind: 'updateHousehold' as const,
+			householdId,
+			message: 'Invalid giving grade.'
+		});
+	}
+	const rel = parseRelFromForm(fd);
+	if (rel === 'invalid') {
+		return fail(400, {
+			kind: 'updateHousehold' as const,
+			householdId,
+			message: 'Invalid relationship grade.'
+		});
+	}
+
+	const { data: existing } = await supabase
+		.from('households')
+		.select(
+			'address_line_1, address_line_2, city, state, postal_code, country, giving_grade, relationship_grade, address_updated_on'
+		)
+		.eq('id', householdId)
+		.is('deleted_at', null)
+		.maybeSingle();
+
+	const prev = existing as {
+		address_line_1: string | null;
+		address_line_2: string | null;
+		city: string | null;
+		state: string | null;
+		postal_code: string | null;
+		country: string | null;
+		giving_grade: string | null;
+		relationship_grade: string | null;
+		address_updated_on: string | null;
+	} | null;
+
+	const addressChanged =
+		prev != null &&
+		(prev.address_line_1 !== address.address_line_1 ||
+			prev.address_line_2 !== address.address_line_2 ||
+			prev.city !== address.city ||
+			prev.state !== address.state ||
+			prev.postal_code !== address.postal_code ||
+			prev.country !== address.country);
+
+	const gradesChanged =
+		prev != null &&
+		(prev.giving_grade !== giving || prev.relationship_grade !== rel);
+
+	const patch: Record<string, unknown> = {
+		name,
+		...address,
+		notes: trimOrNull(fd.get('notes')),
+		giving_grade: giving,
+		relationship_grade: rel
+	};
+	if (addressChanged) {
+		patch.address_updated_on = ymdInChicago();
+	}
+
 	const { error: updErr } = await supabase
 		.from('households')
-		.update({
-			name,
-			...address,
-			notes: trimOrNull(fd.get('notes'))
-		} as never)
+		.update(patch as never)
 		.eq('id', householdId)
 		.is('deleted_at', null);
 
@@ -166,6 +265,16 @@ export async function updateHouseholdAction(
 			householdId,
 			message: updErr.message
 		});
+	}
+
+	if (gradesChanged) {
+		await supabase.from('household_grade_changes').insert({
+			household_id: householdId,
+			changed_on: ymdInChicago(),
+			giving_grade: giving,
+			relationship_grade: rel,
+			created_by: userId
+		} as never);
 	}
 
 	const sync = await syncEntityListMemberships(supabase, userId, {
@@ -260,6 +369,7 @@ async function maybeCreateHouseholdOfOne(
 		.insert({
 			name,
 			...opts.address,
+			address_updated_on: ymdInChicago(),
 			created_by: userId
 		} as never)
 		.select('id')
@@ -289,12 +399,9 @@ export async function createContactAction(
 	}
 	const status = statusRaw as ContactStatus;
 
-	const cadence = parseCadenceDaysFromForm(fd);
-	if (cadence === 'invalid') {
-		return fail(400, {
-			kind: 'createContact' as const,
-			message: 'Cadence must be a positive number of months or years.'
-		});
+	const frequency = parseFrequencyFromForm(fd);
+	if (frequency === 'invalid') {
+		return fail(400, { kind: 'createContact' as const, message: 'Invalid frequency.' });
 	}
 
 	let household_id = trimOrNull(fd.get('household_id'));
@@ -314,6 +421,11 @@ export async function createContactAction(
 	}
 	household_id = hh.householdId;
 
+	const birthday = trimOrNull(fd.get('birthday'));
+	if (birthday && !DATE_RE.test(birthday)) {
+		return fail(400, { kind: 'createContact' as const, message: 'Invalid birthday.' });
+	}
+
 	const { data: inserted, error: insErr } = await supabase
 		.from('contacts')
 		.insert({
@@ -322,10 +434,12 @@ export async function createContactAction(
 			household_id,
 			email: trimOrNull(fd.get('email')),
 			phone: trimOrNull(fd.get('phone')),
-			cadence_days: cadence,
-			no_reminders: parseBool(fd.get('no_reminders')),
+			frequency,
+			no_reminders: frequency === 'common',
+			cadence_days: null,
 			status,
 			notes: trimOrNull(fd.get('notes')),
+			birthday,
 			created_by: userId
 		} as never)
 		.select('id')
@@ -390,12 +504,12 @@ export async function updateContactAction(
 	}
 	const status = statusRaw as ContactStatus;
 
-	const cadence = parseCadenceDaysFromForm(fd);
-	if (cadence === 'invalid') {
+	const frequency = parseFrequencyFromForm(fd);
+	if (frequency === 'invalid') {
 		return fail(400, {
 			kind: 'updateContact' as const,
 			contactId,
-			message: 'Cadence must be a positive number of months or years.'
+			message: 'Invalid frequency.'
 		});
 	}
 
@@ -405,6 +519,15 @@ export async function updateContactAction(
 			kind: 'updateContact' as const,
 			contactId,
 			message: 'Invalid household.'
+		});
+	}
+
+	const birthday = trimOrNull(fd.get('birthday'));
+	if (birthday && !DATE_RE.test(birthday)) {
+		return fail(400, {
+			kind: 'updateContact' as const,
+			contactId,
+			message: 'Invalid birthday.'
 		});
 	}
 
@@ -459,10 +582,12 @@ export async function updateContactAction(
 			household_id,
 			email: trimOrNull(fd.get('email')),
 			phone: trimOrNull(fd.get('phone')),
-			cadence_days: cadence,
-			no_reminders: parseBool(fd.get('no_reminders')),
+			frequency,
+			no_reminders: frequency === 'common',
+			cadence_days: null,
 			status,
-			notes: trimOrNull(fd.get('notes'))
+			notes: trimOrNull(fd.get('notes')),
+			birthday
 		} as never)
 		.eq('id', contactId)
 		.is('deleted_at', null);
@@ -837,6 +962,7 @@ export async function createContactListAction(
 		.insert({
 			name,
 			notes: trimOrNull(fd.get('notes')),
+			kind: parseListKindFromForm(fd),
 			created_by: userId
 		} as never)
 		.select('id')
@@ -876,7 +1002,8 @@ export async function updateContactListAction(supabase: SupabaseClient, fd: Form
 		.from('contact_lists')
 		.update({
 			name,
-			notes: trimOrNull(fd.get('notes'))
+			notes: trimOrNull(fd.get('notes')),
+			kind: parseListKindFromForm(fd)
 		} as never)
 		.eq('id', listId)
 		.is('deleted_at', null);
@@ -1279,3 +1406,281 @@ export async function softDeleteContactListMemberAction(
 }
 
 export { parseDesiredListIds };
+
+/** Skip this contact's current period (not a successful meet). */
+export async function skipContactPeriodAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const contactId = trimOrNull(fd.get('contact_id'));
+	if (!contactId || !UUID_RE.test(contactId)) {
+		return fail(400, { kind: 'skipContactPeriod' as const, message: 'Invalid contact.' });
+	}
+
+	const { data: contact, error: loadErr } = await supabase
+		.from('contacts')
+		.select('id, frequency, status')
+		.eq('id', contactId)
+		.is('deleted_at', null)
+		.maybeSingle();
+
+	if (loadErr || !contact) {
+		return fail(404, {
+			kind: 'skipContactPeriod' as const,
+			contactId,
+			message: loadErr?.message ?? 'Contact not found.'
+		});
+	}
+
+	const freq = (contact as { frequency: string }).frequency;
+	if (!isContactFrequency(freq) || !isScheduledFrequency(freq)) {
+		return fail(400, {
+			kind: 'skipContactPeriod' as const,
+			contactId,
+			message: 'Only quarterly, biannual, or annual contacts can be skipped.'
+		});
+	}
+
+	const today = ymdInChicago();
+	const period = activePeriodForFrequency(freq, today);
+
+	const { data: existing } = await supabase
+		.from('contact_period_skips')
+		.select('id, deleted_at')
+		.eq('contact_id', contactId)
+		.eq('period_key', period.key)
+		.maybeSingle();
+
+	if (existing && !(existing as { deleted_at: string | null }).deleted_at) {
+		return { kind: 'skipContactPeriod' as const, success: true as const, contactId };
+	}
+
+	if (existing) {
+		const { error: reviveErr } = await supabase
+			.from('contact_period_skips')
+			.update({
+				deleted_at: null,
+				skipped_on: today,
+				note: trimOrNull(fd.get('note'))
+			} as never)
+			.eq('id', (existing as { id: string }).id);
+		if (reviveErr) {
+			return fail(500, {
+				kind: 'skipContactPeriod' as const,
+				contactId,
+				message: reviveErr.message
+			});
+		}
+	} else {
+		const { error: insErr } = await supabase.from('contact_period_skips').insert({
+			contact_id: contactId,
+			period_key: period.key,
+			skipped_on: today,
+			note: trimOrNull(fd.get('note')),
+			created_by: userId
+		} as never);
+		if (insErr) {
+			return fail(500, {
+				kind: 'skipContactPeriod' as const,
+				contactId,
+				message: insErr.message
+			});
+		}
+	}
+
+	return { kind: 'skipContactPeriod' as const, success: true as const, contactId };
+}
+
+/** Clone an ad-hoc list (memberships) under a new name. */
+export async function cloneContactListAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const sourceId = trimOrNull(fd.get('list_id'));
+	if (!sourceId || !UUID_RE.test(sourceId)) {
+		return fail(400, { kind: 'cloneContactList' as const, message: 'Invalid list.' });
+	}
+	const name = trimOrNull(fd.get('name'));
+	if (!name) {
+		return fail(400, { kind: 'cloneContactList' as const, message: 'New list name is required.' });
+	}
+
+	const { data: source, error: srcErr } = await supabase
+		.from('contact_lists')
+		.select('id, notes, kind')
+		.eq('id', sourceId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (srcErr || !source) {
+		return fail(404, {
+			kind: 'cloneContactList' as const,
+			message: srcErr?.message ?? 'List not found.'
+		});
+	}
+
+	const { data: inserted, error: insErr } = await supabase
+		.from('contact_lists')
+		.insert({
+			name,
+			notes: trimOrNull(fd.get('notes')) ?? (source as { notes: string | null }).notes,
+			kind: 'ad_hoc',
+			created_by: userId
+		} as never)
+		.select('id')
+		.single();
+	if (insErr || !inserted) {
+		return fail(500, {
+			kind: 'cloneContactList' as const,
+			message: insErr?.message ?? 'Could not clone list.'
+		});
+	}
+	const newId = (inserted as { id: string }).id;
+
+	const { data: members } = await supabase
+		.from('contact_list_members')
+		.select('contact_id, household_id')
+		.eq('list_id', sourceId)
+		.is('deleted_at', null);
+
+	const rows = ((members ?? []) as { contact_id: string | null; household_id: string | null }[])
+		.map((m) => ({
+			list_id: newId,
+			contact_id: m.contact_id,
+			household_id: m.household_id,
+			created_by: userId
+		}))
+		.filter((m) => m.contact_id || m.household_id);
+
+	if (rows.length) {
+		const { error: memErr } = await supabase.from('contact_list_members').insert(rows as never);
+		if (memErr) {
+			console.error('[contacts] cloneContactList members', memErr);
+			return fail(500, {
+				kind: 'cloneContactList' as const,
+				message: memErr.message
+			});
+		}
+	}
+
+	return { kind: 'cloneContactList' as const, success: true as const, listId: newId };
+}
+
+export async function createHouseholdChildAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const householdId = trimOrNull(fd.get('household_id'));
+	if (!householdId || !UUID_RE.test(householdId)) {
+		return fail(400, { kind: 'createHouseholdChild' as const, message: 'Invalid household.' });
+	}
+	const first_name = trimOrNull(fd.get('first_name'));
+	if (!first_name) {
+		return fail(400, {
+			kind: 'createHouseholdChild' as const,
+			householdId,
+			message: 'First name is required.'
+		});
+	}
+	const birthday = trimOrNull(fd.get('birthday'));
+	if (birthday && !DATE_RE.test(birthday)) {
+		return fail(400, {
+			kind: 'createHouseholdChild' as const,
+			householdId,
+			message: 'Invalid birthday.'
+		});
+	}
+
+	const { data: inserted, error: insErr } = await supabase
+		.from('household_children')
+		.insert({
+			household_id: householdId,
+			first_name,
+			last_name: trimOrNull(fd.get('last_name')),
+			birthday,
+			notes: trimOrNull(fd.get('notes')),
+			created_by: userId
+		} as never)
+		.select('id')
+		.single();
+
+	if (insErr || !inserted) {
+		return fail(500, {
+			kind: 'createHouseholdChild' as const,
+			householdId,
+			message: insErr?.message ?? 'Could not add child.'
+		});
+	}
+
+	return {
+		kind: 'createHouseholdChild' as const,
+		success: true as const,
+		householdId,
+		childId: (inserted as { id: string }).id
+	};
+}
+
+export async function updateHouseholdChildAction(supabase: SupabaseClient, fd: FormData) {
+	const childId = trimOrNull(fd.get('child_id'));
+	if (!childId || !UUID_RE.test(childId)) {
+		return fail(400, { kind: 'updateHouseholdChild' as const, message: 'Invalid child.' });
+	}
+	const first_name = trimOrNull(fd.get('first_name'));
+	if (!first_name) {
+		return fail(400, {
+			kind: 'updateHouseholdChild' as const,
+			childId,
+			message: 'First name is required.'
+		});
+	}
+	const birthday = trimOrNull(fd.get('birthday'));
+	if (birthday && !DATE_RE.test(birthday)) {
+		return fail(400, {
+			kind: 'updateHouseholdChild' as const,
+			childId,
+			message: 'Invalid birthday.'
+		});
+	}
+
+	const { error: updErr } = await supabase
+		.from('household_children')
+		.update({
+			first_name,
+			last_name: trimOrNull(fd.get('last_name')),
+			birthday,
+			notes: trimOrNull(fd.get('notes'))
+		} as never)
+		.eq('id', childId)
+		.is('deleted_at', null);
+
+	if (updErr) {
+		return fail(500, {
+			kind: 'updateHouseholdChild' as const,
+			childId,
+			message: updErr.message
+		});
+	}
+	return { kind: 'updateHouseholdChild' as const, success: true as const, childId };
+}
+
+export async function softDeleteHouseholdChildAction(supabase: SupabaseClient, fd: FormData) {
+	const childId = trimOrNull(fd.get('child_id'));
+	if (!childId || !UUID_RE.test(childId)) {
+		return fail(400, { kind: 'softDeleteHouseholdChild' as const, message: 'Invalid child.' });
+	}
+	const { error: delErr } = await supabase
+		.from('household_children')
+		.update({ deleted_at: new Date().toISOString() } as never)
+		.eq('id', childId)
+		.is('deleted_at', null);
+	if (delErr) {
+		return fail(500, {
+			kind: 'softDeleteHouseholdChild' as const,
+			childId,
+			message: delErr.message
+		});
+	}
+	return { kind: 'softDeleteHouseholdChild' as const, success: true as const, childId };
+}

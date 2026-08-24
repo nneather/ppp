@@ -158,7 +158,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 	const dueSoonAssignments = dueSoonRes.assignments;
 	const dueSoonOverdueCount = dueSoonAssignments.filter((a) => a.days_until < 0).length;
 	const contactsDue = contactsDueRes.contacts;
-	const contactsDueNeverCount = contactsDue.filter((c) => c.days_overdue == null).length;
+	const contactsDueNeverCount = contactsDue.filter((c) => c.last_touched_on == null).length;
 
 	if (unbilledRes.error) {
 		console.error(unbilledRes.error);
