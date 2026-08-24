@@ -38,6 +38,7 @@ export const ON_RAMP = {
 	},
 	annual: {
 		key: 'a:2027',
+		/** Civil year 2027; 2026 Log/Skip still fulfills ([211]/[212]). */
 		start: '2027-01-01',
 		end: '2027-12-31',
 		frequency: 'annual' as const
@@ -122,10 +123,15 @@ export function activePeriodForFrequency(
 	return civilYearContaining(todayYmd);
 }
 
-/** True when touched_on falls inside [start, end] inclusive. */
+/**
+ * True when a meet fulfills `period`. Inclusive [start, end], plus pre-start
+ * for the import on-ramp annual: a 2026 Log counts toward `a:2027` ([211]).
+ */
 export function touchFulfillsPeriod(touchedOn: string | null, period: PeriodWindow): boolean {
 	if (!touchedOn) return false;
-	return touchedOn >= period.start && touchedOn <= period.end;
+	if (touchedOn > period.end) return false;
+	if (touchedOn >= period.start) return true;
+	return period.key === ON_RAMP.annual.key && touchedOn >= '2026-01-01';
 }
 
 export function daysLeftInPeriod(period: PeriodWindow, todayYmd: string): number {
@@ -190,6 +196,9 @@ export function recentClosedPeriods(
 		if (frequency === 'quarterly') p = civilQuarterContaining(probe);
 		else if (frequency === 'semiannual') p = civilHalfContaining(probe);
 		else p = civilYearContaining(probe);
+		// Closed on-ramp keys share civil labels (q:2026-Q4) but use Jul–Dec windows.
+		const fromKey = periodFromKey(p.key);
+		if (fromKey) p = fromKey;
 		// Skip on-ramp duplicate if already listed as active
 		if (p.key === active.key) break;
 		// Don't invent pre-on-ramp history that overlaps on-ramp keys oddly

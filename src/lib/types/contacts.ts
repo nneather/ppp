@@ -168,7 +168,7 @@ export type ContactsListFilters = {
 export type ContactDueRow = {
 	id: string;
 	display_name: string;
-	/** Primary contact id for Log Contact / Skip (representative of household). */
+	/** Representative contact id; due-row Log/Skip also post household_id to fan out. */
 	contact_id: string;
 	household_id: string | null;
 	household_name: string | null;
@@ -183,14 +183,10 @@ export type ContactDueRow = {
 	effective_cadence_days: number;
 };
 
+/** Uncapped collapsed remaining vs scheduled pool. No ahead/behind clock ([211]). */
 export type ContactsPaceSummary = {
 	remaining: number;
 	total: number;
-	days_left: number;
-	/** remaining / max(days_left,1) vs even pace from period start — 'on_track' | 'behind' | 'ahead' */
-	pace: 'on_track' | 'behind' | 'ahead';
-	period_key: string;
-	period_end: string;
 };
 
 export type PeriodHistoryOutcome = 'hit' | 'skipped' | 'missed';

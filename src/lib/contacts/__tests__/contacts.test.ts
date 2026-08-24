@@ -12,6 +12,8 @@ import {
 	householdNameFromContact
 } from '$lib/contacts/names';
 import {
+	computePaceSummary,
+	dueFanoutContactIds,
 	householdEligibleForCardList,
 	isContactDueForPeriod,
 	selectContactsDue
@@ -22,7 +24,12 @@ import {
 	householdHasMailingAddress
 } from '$lib/contacts/list-candidates';
 import { listMemberToColumns, validateListMemberXor } from '$lib/contacts/list-member';
-import { activePeriodForFrequency } from '$lib/contacts/period';
+import {
+	activePeriodForFrequency,
+	periodFromKey,
+	recentClosedPeriods,
+	touchFulfillsPeriod
+} from '$lib/contacts/period';
 
 describe('contactDisplayName', () => {
 	it('joins first and last', () => {
@@ -277,6 +284,147 @@ describe('period due (isContactDueForPeriod + selectContactsDue)', () => {
 		const smiths = rows.find((r) => r.display_name === 'The Smiths');
 		expect(smiths?.contact_id).toBe('a2');
 	});
+
+	it('treats a 2026 meet as fulfilling a:2027 (pre-start)', () => {
+		expect(
+			isContactDueForPeriod({
+				status: 'active',
+				frequency: 'annual',
+				last_touched_on: '2026-08-24',
+				skipped_period_keys: [],
+				todayYmd: today
+			}).due
+		).toBe(false);
+		expect(
+			isContactDueForPeriod({
+				status: 'active',
+				frequency: 'annual',
+				last_touched_on: null,
+				skipped_period_keys: [],
+				todayYmd: today
+			}).due
+		).toBe(true);
+	});
+
+	it('clears annual due when a:2027 is skipped in 2026', () => {
+		expect(
+			isContactDueForPeriod({
+				status: 'active',
+				frequency: 'annual',
+				last_touched_on: null,
+				skipped_period_keys: ['a:2027'],
+				todayYmd: today
+			}).due
+		).toBe(false);
+	});
+});
+
+describe('touchFulfillsPeriod pre-start annual', () => {
+	const annual = activePeriodForFrequency('annual', '2026-08-24');
+
+	it('counts 2026-01-01 through period end toward a:2027', () => {
+		expect(touchFulfillsPeriod('2026-01-01', annual)).toBe(true);
+		expect(touchFulfillsPeriod('2026-08-24', annual)).toBe(true);
+		expect(touchFulfillsPeriod('2027-06-01', annual)).toBe(true);
+		expect(touchFulfillsPeriod('2027-12-31', annual)).toBe(true);
+	});
+
+	it('does not count 2025 or after 2027', () => {
+		expect(touchFulfillsPeriod('2025-12-31', annual)).toBe(false);
+		expect(touchFulfillsPeriod('2028-01-01', annual)).toBe(false);
+		expect(touchFulfillsPeriod(null, annual)).toBe(false);
+	});
+
+	it('does not pre-start quarterly (June stay unfulfilled for Jul–Dec on-ramp)', () => {
+		const q = activePeriodForFrequency('quarterly', '2026-08-24');
+		expect(touchFulfillsPeriod('2026-06-01', q)).toBe(false);
+		expect(touchFulfillsPeriod('2026-07-01', q)).toBe(true);
+	});
+});
+
+describe('dueFanoutContactIds (couple Log/Skip contract)', () => {
+	const members = [
+		{
+			id: 'alice',
+			household_id: 'hh1',
+			status: 'active' as const,
+			frequency: 'quarterly' as const
+		},
+		{
+			id: 'adam',
+			household_id: 'hh1',
+			status: 'active' as const,
+			frequency: 'annual' as const
+		},
+		{
+			id: 'common',
+			household_id: 'hh1',
+			status: 'active' as const,
+			frequency: 'common' as const
+		},
+		{
+			id: 'retired',
+			household_id: 'hh1',
+			status: 'retired' as const,
+			frequency: 'quarterly' as const
+		},
+		{
+			id: 'other-hh',
+			household_id: 'hh2',
+			status: 'active' as const,
+			frequency: 'quarterly' as const
+		}
+	];
+
+	it('fans out to active scheduled household members only', () => {
+		expect(
+			dueFanoutContactIds({ contact_id: 'alice', household_id: 'hh1' }, members).sort()
+		).toEqual(['adam', 'alice']);
+	});
+
+	it('returns the posted contact when no household', () => {
+		expect(
+			dueFanoutContactIds({ contact_id: 'bob', household_id: null }, members)
+		).toEqual(['bob']);
+	});
+});
+
+describe('computePaceSummary (uncapped remaining)', () => {
+	it('counts remaining from the full due set, not the display slice', () => {
+		const rows = selectContactsDue(
+			Array.from({ length: 12 }, (_, i) => ({
+				id: `c${i}`,
+				display_name: `Person ${String(i).padStart(2, '0')}`,
+				frequency: 'quarterly' as const,
+				last_touched_on: null,
+				household_id: null,
+				household_name: null,
+				skipped_period_keys: [],
+				status: 'active' as const,
+				giving_grade: null,
+				relationship_grade: null
+			})),
+			{ todayYmd: '2026-08-24', limit: 5 }
+		);
+		expect(rows).toHaveLength(5);
+		const all = selectContactsDue(
+			Array.from({ length: 12 }, (_, i) => ({
+				id: `c${i}`,
+				display_name: `Person ${String(i).padStart(2, '0')}`,
+				frequency: 'quarterly' as const,
+				last_touched_on: null,
+				household_id: null,
+				household_name: null,
+				skipped_period_keys: [],
+				status: 'active' as const,
+				giving_grade: null,
+				relationship_grade: null
+			})),
+			{ todayYmd: '2026-08-24' }
+		);
+		expect(computePaceSummary(all, 12)).toEqual({ remaining: 12, total: 12 });
+		expect(computePaceSummary(rows, 12)).toEqual({ remaining: 5, total: 12 });
+	});
 });
 
 describe('activePeriodForFrequency on-ramp', () => {
@@ -285,6 +433,13 @@ describe('activePeriodForFrequency on-ramp', () => {
 		expect(activePeriodForFrequency('semiannual', '2026-08-24').key).toBe('s:2026-H2');
 		expect(activePeriodForFrequency('annual', '2026-08-24').key).toBe('a:2027');
 		expect(activePeriodForFrequency('annual', '2026-08-24').end).toBe('2027-12-31');
+	});
+
+	it('scores closed q:2026-Q4 via the Jul–Dec on-ramp window', () => {
+		const closed = recentClosedPeriods('quarterly', '2027-01-15', 2);
+		expect(closed[0]?.key).toBe('q:2026-Q4');
+		expect(closed[0]?.start).toBe('2026-07-01');
+		expect(periodFromKey('q:2026-Q4')?.start).toBe('2026-07-01');
 	});
 });
 

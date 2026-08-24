@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-08-24 — Contacts module review ([211](docs/decisions/211-contacts-module-review.md)); prior period cadence + import ([210](docs/decisions/210-contacts-semester-period-cadence.md)).
+**Last updated:** 2026-08-24 — Contacts due integrity ([212](docs/decisions/212-contacts-due-integrity.md)); prior review ([211](docs/decisions/211-contacts-module-review.md)).
 
 **How to use this file — read this first:**
 
@@ -19,7 +19,7 @@
 **Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later).
 
 - **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)). **Papers Sessions 1–2 shipped** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)) — publication surface + research groups live for the St. Louis edit.
-- **Contacts / CRM** — Sessions 1–3 + period cadence + import ([210](docs/decisions/210-contacts-semester-period-cadence.md)). **Review [211](docs/decisions/211-contacts-module-review.md):** due Log/Skip does not match household collapse; annuals + 154-person never-touched flood. Integrity session next. Christmas send still later.
+- **Contacts / CRM** — Sessions 1–3 + period cadence + import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)). Christmas Has-address seed in November; mailing send later.
 - **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + health filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)/[184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + contacts ([180](docs/decisions/180-contacts-session-2.md)).
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) — `/classwork/papers` research surface complete (attach books/essays/stubs, cite, compiled bib, research groups). Backlog: Canvas import ([173](docs/decisions/173-canvas-classwork-import-deferred.md)). |
-| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence / import ([210](docs/decisions/210-contacts-semester-period-cadence.md)). **Open:** due integrity + queue hygiene ([211](docs/decisions/211-contacts-module-review.md)). Mailing send later; **≠ library `people`.** |
+| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence / import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)): week split, deferred_until, assignment link, contacts_with_cadence. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [212 — Contacts due integrity](docs/decisions/212-contacts-due-integrity.md) (2026-08-24) — Household Log/Skip fan-out; 2026 Log fulfills a:2027; honest pace; MCP period payload; contacts R2 dump; import attach-to-HH.
 - [211 — Contacts module review](docs/decisions/211-contacts-module-review.md) (2026-08-24) — Due Log/Skip vs household collapse; annual on-ramp; 154-person flood; Christmas roster + R2 dump gaps.
 - [210 — Contacts semester period cadence + import](docs/decisions/210-contacts-semester-period-cadence.md) (2026-08-24) — Replace rolling meet cadence with calendar periods; sheet import; grades/children/vCard/pace.
 - [209 — Library list search survives status / bulk](docs/decisions/209-library-list-search-survives-status.md) (2026-08-24) — Keep `?q=` when changing reading status or bulk-editing from `/library`; `?/action` was wiping the query string.
 - [208 — Library Aug 24 Harris / Wright / WBC–PNTC–BECNT](docs/decisions/208-library-aug24-harris-wright-commentaries.md) (2026-08-24) — Harris prepositions + Wright OT ethics; Mounce/Bauckham/Lane WBC Zondervan reprints; Kruse PNTC 2nd; Schreiner BECNT Revelation.
-- [207 — Library Aug 24 shelf batch](docs/decisions/207-library-aug24-shelf-batch.md) (2026-08-24) — Commentaries (REC/WBC/TOTC/ACCS/PNTC/BECNT) + new `LOA` series; Lincoln vols reminted in place.
 
 ---
 
@@ -73,7 +73,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`. **Papers:** `/classwork/papers` + `/classwork/papers/[id]` research home (attach books/essays/stubs, per-row cite + page, per-source notes, merged compiled bib; P1 stamp+lock; **research groups** — CRUD + per-row select + Ungrouped-first buckets, G1 null-out) ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
 
-**Contacts:** `/contacts` tabs Contacts \| Households \| Lists + period due strip / Skip / group filter; Sheets with frequency, grades, children; import CSV + vCard ([210](docs/decisions/210-contacts-semester-period-cadence.md)); dashboard Due to meet; helpers `src/lib/contacts/`; migrations incl. `20260824190000_contacts_period_cadence_v1.sql`. Desktop sidebar only.
+**Contacts:** `/contacts` tabs Contacts \| Households \| Lists + period due strip / Skip (household fan-out) / group filter; Sheets with frequency, grades, children; import CSV + vCard ([210](docs/decisions/210-contacts-semester-period-cadence.md)/[212](docs/decisions/212-contacts-due-integrity.md)); dashboard Due to meet; helpers `src/lib/contacts/`; migrations incl. `20260824190000_contacts_period_cadence_v1.sql`. Desktop sidebar only.
 
 **Invoicing helpers:** `src/lib/invoicing/` — `chicago-date.ts` (incl. `firstOfYearThroughYmd`), `hours.ts`, `consultation-lines.ts` ([050](docs/decisions/050-invoicing-client-billing-preferences.md)), `analytics.ts` ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)), `one-off.ts` ([201](docs/decisions/201-invoicing-analytics-range-one-offs.md)), `mark-paid.ts` ([202](docs/decisions/202-invoicing-list-mark-paid.md)). Routes: `/invoicing`, `/invoicing/invoices`, `/invoicing/analytics` (Time \| Invoices \| Analytics toggle; analytics default range YTD). Loaders/actions live inline in route `+page.server.ts` files **by design** (see AGENTS.md › Module structure).
 
@@ -81,14 +81,14 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** Library list search persistence [209](docs/decisions/209-library-list-search-survives-status.md) — `npm run check` **0 errors**, `npm run test` **463** passed (2026-08-24).
+**Repo gate:** Contacts due integrity [212](docs/decisions/212-contacts-due-integrity.md) — `npm run check` **0 errors**, `npm run test` **482** passed (2026-08-24).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
 - `ppp-invoicing-YYYY-MM.dump` — **profiles**, clients, client_rates, time_entries, invoices, invoice_line_items
 - `ppp-library-YYYY-MM.dump` — books, people, series, publishers, bible_books, ancient_texts, book_authors, book_bible_coverage, book_ancient_coverage, book_topics, essays, essay_authors, scripture_references
 - `ppp-projects-YYYY-MM.dump` — projects, project_updates, project_tasks, project_links
-- **Contacts tables are not in any dump yet** ([211](docs/decisions/211-contacts-module-review.md)) — add `ppp-contacts-YYYY-MM.dump` in the integrity session.
+- `ppp-contacts-YYYY-MM.dump` — households, contacts, contact_touches, contact_lists, contact_list_members, contact_period_skips, household_children, household_grade_changes
 
 **Restore smoke green** ([`restore-smoke.sh`](scripts/backup-restore-verify/restore-smoke.sh)): pre-data + data into scratch Postgres 17; invoicing 2 clients / 1 profile; library 1379 books / 1509 book_authors / 555 scripture_references. Owner runbook: [docs/reviews/2026-07-07-operational-resilience.md](docs/reviews/2026-07-07-operational-resilience.md). PITR add-on intentionally skipped. Retention: keep all for now.
 
@@ -97,36 +97,6 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ## Session prompts (copy-paste) — LIVE only
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
-
-### Contacts / CRM — due integrity + queue hygiene (from [211](docs/decisions/211-contacts-module-review.md))
-
-```
-Session: contacts — due integrity + queue hygiene
-Tracker: docs/POS_Contacts_Build_Tracker.md
-Read: AGENTS.md, docs/decisions/211-contacts-module-review.md,
-  docs/decisions/210-contacts-semester-period-cadence.md,
-  src/lib/contacts/due.ts, src/lib/contacts/period.ts,
-  src/lib/contacts/server/actions.ts, src/lib/contacts/server/loaders.ts
-Supabase: no schema change expected (backup.yml is ops, not a migration)
-Goal: Make due-row Log/Skip mean what the row says; stop annuals from breaking
-  the Fall queue; honest pace; MCP docs; contacts in R2 dumps.
-Locks ([211](docs/decisions/211-contacts-module-review.md) — Parker 2026-08-24):
- - Household due Log/Skip → fan-out to all live active scheduled members
- - Annuals stay visible; 2026 Log/Skip counts toward a:2027 (touchFulfillsPeriod must accept pre-start)
- - One full due list — no weekly slice; no Christmas seed this session
- - Pace → drop ahead/behind if mixed Q/S/A cannot share one clock; remaining = uncapped
-Acceptance:
- - [ ] Due strip + dashboard Log/Skip on a collapsed couple stamps/skips both spouses; row stays gone
- - [ ] 2026 Log on an annual contact fulfills a:2027 (touched_on before 2027-01-01 counts)
- - [ ] 2026 Skip on an annual writes a:2027 (intentional skip of that obligation)
- - [ ] Household Log all excludes retired
- - [ ] list_contacts_due description + payload match period fields (reload ppp MCP)
- - [ ] backup.yml includes a contacts dump (households, contacts, touches, lists, members, skips, children, grade_changes)
- - [ ] Import attach-missing-spouse to existing household_id (no second HH)
- - [ ] Unit tests: couple collapse+action contract; annual pre-start Log/Skip; npm run check + test
- - [ ] Do not put Contacts on the mobile tab bar; do not dual-run cadence_days UI; no Christmas seed
-End-of-session: docs/decisions/<next-free>-*.md; tracker; PLAN.md; rewrite stale Phase 0 cadence paragraph
-```
 
 ### Contacts / CRM — remaining MCP smoke (owner, ~5 min)
 
@@ -227,17 +197,16 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Contacts due integrity** ([211](docs/decisions/211-contacts-module-review.md)) — household Log/Skip fan-out, annual queue, pace, MCP docs, R2 contacts dump. Prompt above.
+1. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 2. **Owner — use `/classwork/papers` for the St. Louis publication edit** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)) — create the real paper, attach sources, file them into research groups, report friction.
-3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after integrity lands; tick tracker MCP rows.
-4. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
+3. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
 
 ### Next / parallel
-5. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
-6. **Security hardening (051 R2)** — open medium findings; prompt above.
-7. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
-8. **Classwork backlog** — bulk/quick-add if syllabus entry hurts; prefer Canvas one-shot import first ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
-9. **Invoicing — key rotation** (tracker #4, Sep 2026) — JWT + Resend when convenient; runbook in [Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md#key-rotation-runbook).
+4. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
+5. **Security hardening (051 R2)** — open medium findings; prompt above.
+6. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
+7. **Classwork backlog** — bulk/quick-add if syllabus entry hurts; prefer Canvas one-shot import first ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
+8. **Invoicing — key rotation** (tracker #4, Sep 2026) — JWT + Resend when convenient; runbook in [Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md#key-rotation-runbook).
 
 ### Wait for Madison / August
 9. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.

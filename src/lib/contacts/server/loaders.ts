@@ -30,7 +30,6 @@ import {
 	type HouseholdListCandidate
 } from '$lib/contacts/list-candidates';
 import {
-	activePeriodForFrequency,
 	isScheduledFrequency,
 	recentClosedPeriods,
 	touchFulfillsPeriod
@@ -724,18 +723,14 @@ export async function loadContactsDue(
 		});
 	}
 
-	const due = selectContactsDue(candidates, { todayYmd: opts.todayYmd, limit });
+	const allDue = selectContactsDue(candidates, { todayYmd: opts.todayYmd });
+	const due = allDue.slice(0, limit);
 
 	// Total obligations = unique households (or contacts) with scheduled freq
 	const obligationKeys = new Set(
 		candidates.map((c) => c.household_id ?? `contact:${c.id}`)
 	);
-	const mixedPeriod = activePeriodForFrequency('quarterly', opts.todayYmd);
-	const pace = computePaceSummary(due, {
-		totalObligations: obligationKeys.size,
-		period: mixedPeriod,
-		todayYmd: opts.todayYmd
-	});
+	const pace = computePaceSummary(allDue, obligationKeys.size);
 
 	return {
 		contacts: due,

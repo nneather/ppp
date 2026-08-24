@@ -238,3 +238,16 @@ export function parseNameListCsv(csvText: string): string[] {
 	}
 	return names;
 }
+
+/**
+ * Re-import: if any spouse already exists on a household, attach missing
+ * people there instead of minting a second household ([211]).
+ */
+export function existingHouseholdIdForImport(
+	matches: readonly ({ household_id: string | null } | null | undefined)[]
+): string | null {
+	for (const m of matches) {
+		if (m?.household_id) return m.household_id;
+	}
+	return null;
+}

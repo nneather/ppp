@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
-import { householdEligibleForCardList } from '$lib/contacts/due';
+import { dueFanoutContactIds, householdEligibleForCardList } from '$lib/contacts/due';
 import {
 	listMemberToColumns,
 	validateListMemberXor,
@@ -38,6 +38,80 @@ function parseBool(v: FormDataEntryValue | null): boolean {
 	if (v === null || v === undefined) return false;
 	const s = String(v).toLowerCase();
 	return s === 'on' || s === 'true' || s === '1' || s === 'yes';
+}
+
+async function loadHouseholdFanoutMembers(
+	supabase: SupabaseClient,
+	householdId: string
+): Promise<{
+	members: { id: string; household_id: string | null; status: ContactStatus; frequency: ContactFrequency }[];
+	error: string | null;
+}> {
+	const { data, error } = await supabase
+		.from('contacts')
+		.select('id, household_id, status, frequency')
+		.eq('household_id', householdId)
+		.is('deleted_at', null);
+	if (error) return { members: [], error: error.message };
+	const members: {
+		id: string;
+		household_id: string | null;
+		status: ContactStatus;
+		frequency: ContactFrequency;
+	}[] = [];
+	for (const raw of (data ?? []) as {
+		id: string;
+		household_id: string | null;
+		status: string;
+		frequency: string;
+	}[]) {
+		if (!isContactStatus(raw.status) || !isContactFrequency(raw.frequency)) continue;
+		members.push({
+			id: raw.id,
+			household_id: raw.household_id,
+			status: raw.status,
+			frequency: raw.frequency
+		});
+	}
+	return { members, error: null };
+}
+
+async function upsertPeriodSkip(
+	supabase: SupabaseClient,
+	userId: string,
+	opts: { contactId: string; periodKey: string; skippedOn: string; note: string | null }
+): Promise<string | null> {
+	const { data: existing } = await supabase
+		.from('contact_period_skips')
+		.select('id, deleted_at')
+		.eq('contact_id', opts.contactId)
+		.eq('period_key', opts.periodKey)
+		.maybeSingle();
+
+	if (existing && !(existing as { deleted_at: string | null }).deleted_at) {
+		return null;
+	}
+
+	if (existing) {
+		const { error: reviveErr } = await supabase
+			.from('contact_period_skips')
+			.update({
+				deleted_at: null,
+				skipped_on: opts.skippedOn,
+				note: opts.note
+			} as never)
+			.eq('id', (existing as { id: string }).id);
+		return reviveErr?.message ?? null;
+	}
+
+	const { error: insErr } = await supabase.from('contact_period_skips').insert({
+		contact_id: opts.contactId,
+		period_key: opts.periodKey,
+		skipped_on: opts.skippedOn,
+		note: opts.note,
+		created_by: userId
+	} as never);
+	return insErr?.message ?? null;
 }
 
 /**
@@ -660,14 +734,34 @@ export async function logContactQuickAction(
 		return fail(400, { kind: 'logContactQuick' as const, message: 'Invalid contact.' });
 	}
 
+	const householdIdRaw = trimOrNull(fd.get('household_id'));
+	const householdId =
+		householdIdRaw && UUID_RE.test(householdIdRaw) ? householdIdRaw : null;
+
 	const touched_on = ymdInChicago();
-	const { error: insErr } = await supabase.from('contact_touches').insert({
-		contact_id: contactId,
+	let ids = [contactId];
+	if (householdId) {
+		const { members, error: memErr } = await loadHouseholdFanoutMembers(supabase, householdId);
+		if (memErr) {
+			console.error('[contacts] logContactQuick fan-out', memErr);
+			return fail(500, {
+				kind: 'logContactQuick' as const,
+				contactId,
+				message: memErr
+			});
+		}
+		ids = dueFanoutContactIds({ contact_id: contactId, household_id: householdId }, members);
+	}
+
+	const rows = ids.map((id) => ({
+		contact_id: id,
 		touched_on,
 		note: null,
-		kind: 'meet',
+		kind: 'meet' as const,
 		created_by: userId
-	} as never);
+	}));
+
+	const { error: insErr } = await supabase.from('contact_touches').insert(rows as never);
 
 	if (insErr) {
 		console.error('[contacts] logContactQuick', insErr);
@@ -726,7 +820,7 @@ export async function logContactDetailedAction(
 	};
 }
 
-/** Household-level meet log — fan out one kind=meet touch per live member. */
+/** Household-level meet log — fan out one kind=meet touch per live active member. */
 export async function logHouseholdTouchAction(
 	supabase: SupabaseClient,
 	userId: string,
@@ -745,6 +839,7 @@ export async function logHouseholdTouchAction(
 		.from('contacts')
 		.select('id')
 		.eq('household_id', householdId)
+		.eq('status', 'active')
 		.is('deleted_at', null);
 
 	if (memErr) {
@@ -1418,6 +1513,10 @@ export async function skipContactPeriodAction(
 		return fail(400, { kind: 'skipContactPeriod' as const, message: 'Invalid contact.' });
 	}
 
+	const householdIdRaw = trimOrNull(fd.get('household_id'));
+	const householdId =
+		householdIdRaw && UUID_RE.test(householdIdRaw) ? householdIdRaw : null;
+
 	const { data: contact, error: loadErr } = await supabase
 		.from('contacts')
 		.select('id, frequency, status')
@@ -1433,8 +1532,47 @@ export async function skipContactPeriodAction(
 		});
 	}
 
-	const freq = (contact as { frequency: string }).frequency;
-	if (!isContactFrequency(freq) || !isScheduledFrequency(freq)) {
+	const postedStatus = (contact as { status: string }).status;
+	if (!isContactStatus(postedStatus) || postedStatus !== 'active') {
+		return fail(400, {
+			kind: 'skipContactPeriod' as const,
+			contactId,
+			message: 'Only active contacts can be skipped.'
+		});
+	}
+
+	const today = ymdInChicago();
+	const note = trimOrNull(fd.get('note'));
+
+	let targets: { id: string; frequency: ContactFrequency }[] = [];
+	if (householdId) {
+		const { members, error: memErr } = await loadHouseholdFanoutMembers(supabase, householdId);
+		if (memErr) {
+			return fail(500, {
+				kind: 'skipContactPeriod' as const,
+				contactId,
+				message: memErr
+			});
+		}
+		const ids = new Set(
+			dueFanoutContactIds({ contact_id: contactId, household_id: householdId }, members)
+		);
+		targets = members
+			.filter((m) => ids.has(m.id) && isScheduledFrequency(m.frequency))
+			.map((m) => ({ id: m.id, frequency: m.frequency }));
+	} else {
+		const freq = (contact as { frequency: string }).frequency;
+		if (!isContactFrequency(freq) || !isScheduledFrequency(freq)) {
+			return fail(400, {
+				kind: 'skipContactPeriod' as const,
+				contactId,
+				message: 'Only quarterly, biannual, or annual contacts can be skipped.'
+			});
+		}
+		targets = [{ id: contactId, frequency: freq }];
+	}
+
+	if (targets.length === 0) {
 		return fail(400, {
 			kind: 'skipContactPeriod' as const,
 			contactId,
@@ -1442,49 +1580,20 @@ export async function skipContactPeriodAction(
 		});
 	}
 
-	const today = ymdInChicago();
-	const period = activePeriodForFrequency(freq, today);
-
-	const { data: existing } = await supabase
-		.from('contact_period_skips')
-		.select('id, deleted_at')
-		.eq('contact_id', contactId)
-		.eq('period_key', period.key)
-		.maybeSingle();
-
-	if (existing && !(existing as { deleted_at: string | null }).deleted_at) {
-		return { kind: 'skipContactPeriod' as const, success: true as const, contactId };
-	}
-
-	if (existing) {
-		const { error: reviveErr } = await supabase
-			.from('contact_period_skips')
-			.update({
-				deleted_at: null,
-				skipped_on: today,
-				note: trimOrNull(fd.get('note'))
-			} as never)
-			.eq('id', (existing as { id: string }).id);
-		if (reviveErr) {
+	for (const t of targets) {
+		if (!isScheduledFrequency(t.frequency)) continue;
+		const period = activePeriodForFrequency(t.frequency, today);
+		const err = await upsertPeriodSkip(supabase, userId, {
+			contactId: t.id,
+			periodKey: period.key,
+			skippedOn: today,
+			note
+		});
+		if (err) {
 			return fail(500, {
 				kind: 'skipContactPeriod' as const,
 				contactId,
-				message: reviveErr.message
-			});
-		}
-	} else {
-		const { error: insErr } = await supabase.from('contact_period_skips').insert({
-			contact_id: contactId,
-			period_key: period.key,
-			skipped_on: today,
-			note: trimOrNull(fd.get('note')),
-			created_by: userId
-		} as never);
-		if (insErr) {
-			return fail(500, {
-				kind: 'skipContactPeriod' as const,
-				contactId,
-				message: insErr.message
+				message: err
 			});
 		}
 	}

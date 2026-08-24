@@ -347,9 +347,6 @@
 			>
 				<p class="text-sm font-medium text-foreground">
 					Due this period: {data.duePace.remaining} remaining of {data.duePace.total}
-					<span class="font-normal text-muted-foreground">
-						· {data.duePace.days_left}d left · {data.duePace.pace.replace('_', ' ')}
-					</span>
 				</p>
 				{#if data.periodHistory.length > 0}
 					<details class="mt-2 text-xs text-muted-foreground">
@@ -383,10 +380,16 @@
 									<div class="flex shrink-0 gap-1">
 										<form method="POST" action="?/logContactQuick" use:enhance={quickLogEnhance}>
 											<input type="hidden" name="contact_id" value={d.contact_id} />
+											{#if d.household_id}
+												<input type="hidden" name="household_id" value={d.household_id} />
+											{/if}
 											<Button type="submit" size="sm" variant="secondary" label="Log" />
 										</form>
 										<form method="POST" action="?/skipContactPeriod" use:enhance={quickLogEnhance}>
 											<input type="hidden" name="contact_id" value={d.contact_id} />
+											{#if d.household_id}
+												<input type="hidden" name="household_id" value={d.household_id} />
+											{/if}
 											<Button type="submit" size="sm" variant="outline" label="Skip" />
 										</form>
 									</div>

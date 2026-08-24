@@ -243,14 +243,14 @@ export async function listContactsDue(
 			id: c.id,
 			contact_id: c.contact_id,
 			display_name: c.display_name,
+			household_id: c.household_id,
+			household_name: c.household_name,
 			frequency: c.frequency,
 			period_key: c.period_key,
 			period_end: c.period_end,
 			days_left: c.days_left,
 			last_touched_on: c.last_touched_on,
-			days_overdue: c.days_overdue,
-			household_name: c.household_name,
-			effective_cadence_days: c.effective_cadence_days
+			days_overdue: c.days_overdue
 		}))
 	});
 }

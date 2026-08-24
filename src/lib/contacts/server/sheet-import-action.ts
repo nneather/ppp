@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
+	existingHouseholdIdForImport,
 	householdNameFromPeople,
 	parseNameListCsv,
 	parseSheet1Csv,
@@ -238,13 +239,12 @@ async function importOneRow(
 	groupListIds: Map<string, string>,
 	result: ImportSheetResult
 ) {
-	// Skip if all people already exist
-	const existingPeople = row.people.map((p) =>
+	const existingMatches = row.people.map((p) =>
 		findExistingContact(liveContacts, p.first_name, p.last_name)
 	);
-	if (existingPeople.every(Boolean)) {
+	if (existingMatches.every(Boolean)) {
 		result.skipped += 1;
-		const hhId = existingPeople[0]!.household_id;
+		const hhId = existingHouseholdIdForImport(existingMatches);
 		if (hhId && row.group) {
 			let listId = groupListIds.get(row.group);
 			if (!listId) {
@@ -261,40 +261,56 @@ async function importOneRow(
 
 	const addr = parseUsAddressLine(row.addressRaw);
 	const hhName = householdNameFromPeople(row.people);
+	const existingHh = existingHouseholdIdForImport(existingMatches);
 
-	const { data: hhIns, error: hhErr } = await supabase
-		.from('households')
-		.insert({
-			name: hhName,
-			...addr,
-			giving_grade: row.giving,
-			relationship_grade: row.relationship,
-			address_updated_on: row.addressRaw ? ADDRESS_AS_OF : null,
-			created_by: userId
-		} as never)
-		.select('id')
-		.single();
+	let householdId: string;
+	if (existingHh) {
+		householdId = existingHh;
+	} else {
+		const { data: hhIns, error: hhErr } = await supabase
+			.from('households')
+			.insert({
+				name: hhName,
+				...addr,
+				giving_grade: row.giving,
+				relationship_grade: row.relationship,
+				address_updated_on: row.addressRaw ? ADDRESS_AS_OF : null,
+				created_by: userId
+			} as never)
+			.select('id')
+			.single();
 
-	if (hhErr || !hhIns) {
-		throw new Error(hhErr?.message ?? 'household insert failed');
-	}
-	const householdId = (hhIns as { id: string }).id;
-	result.householdsCreated += 1;
+		if (hhErr || !hhIns) {
+			throw new Error(hhErr?.message ?? 'household insert failed');
+		}
+		householdId = (hhIns as { id: string }).id;
+		result.householdsCreated += 1;
 
-	if (row.giving || row.relationship) {
-		await supabase.from('household_grade_changes').insert({
-			household_id: householdId,
-			changed_on: ADDRESS_AS_OF,
-			giving_grade: row.giving,
-			relationship_grade: row.relationship,
-			note: 'Sheet import',
-			created_by: userId
-		} as never);
+		if (row.giving || row.relationship) {
+			await supabase.from('household_grade_changes').insert({
+				household_id: householdId,
+				changed_on: ADDRESS_AS_OF,
+				giving_grade: row.giving,
+				relationship_grade: row.relationship,
+				note: 'Sheet import',
+				created_by: userId
+			} as never);
+		}
 	}
 
 	for (const p of row.people) {
 		const already = findExistingContact(liveContacts, p.first_name, p.last_name);
-		if (already) continue;
+		if (already) {
+			if (!already.household_id) {
+				await supabase
+					.from('contacts')
+					.update({ household_id: householdId } as never)
+					.eq('id', already.id)
+					.is('deleted_at', null);
+				already.household_id = householdId;
+			}
+			continue;
+		}
 		const { data: cIns, error: cErr } = await supabase
 			.from('contacts')
 			.insert({

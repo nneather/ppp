@@ -66,5 +66,5 @@ Owner-write RLS + module-read SELECT + GRANTs + audit on new tables; XOR members
 - [x] decision filed
 - [x] PLAN.md session prompt + Next up
 - [ ] components.mdc — no new components
-- [ ] tracker Phase 0 cadence paragraph — rewrite when integrity session ships
+- [x] tracker Phase 0 cadence paragraph — rewrite when integrity session ships
 - [ ] new env vars — none

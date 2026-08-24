@@ -107,7 +107,7 @@ server.registerTool(
 	'list_contacts_due',
 	{
 		description:
-			'Active contacts due for a meet (no_reminders=false; never touched or last touch older than effective cadence). Includes contacts_with_cadence (eligible pool) so count=0 is unambiguous. Sorted never-touched first, then most overdue.',
+			'Contacts due for a meet this calendar period (quarterly / biannual / annual). Households collapse to one row; Log/Skip in the app fans out to all active scheduled spouses. Includes contacts_with_cadence (scheduled pool, household-collapsed) so count=0 is unambiguous. Sorted never-touched first, then oldest last meet. Period fields: frequency, period_key, period_end, days_left. days_overdue is set only after period_end (usually null while the window is open). No rolling cadence_days.',
 		inputSchema: {
 			limit: z
 				.number()

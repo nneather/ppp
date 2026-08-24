@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	existingHouseholdIdForImport,
 	householdNameFromPeople,
 	parseSheet1Csv,
 	parseUsAddressLine,
@@ -81,5 +82,23 @@ END:VCARD
 			[{ id: '1', first_name: 'Tanner', last_name: 'Erisman', display_name: 'Tanner Erisman' }]
 		);
 		expect(matches[0]!.contactId).toBe('1');
+	});
+});
+
+describe('existingHouseholdIdForImport', () => {
+	it('returns the first existing household_id among partial matches', () => {
+		expect(
+			existingHouseholdIdForImport([
+				undefined,
+				{ household_id: 'hh-existing' },
+				{ household_id: null }
+			])
+		).toBe('hh-existing');
+	});
+
+	it('returns null when nobody is attached yet', () => {
+		expect(
+			existingHouseholdIdForImport([undefined, { household_id: null }])
+		).toBeNull();
 	});
 });

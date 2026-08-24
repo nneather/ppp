@@ -1,7 +1,8 @@
 /**
  * Period-based due helpers for dashboard + MCP (pure; unit-tested).
  * Due = active, scheduled frequency (Q/S/A), unfulfilled current period, not skipped.
- * Suggestion order = oldest last meet first. Couples collapse to one household row.
+ * Suggestion order = oldest last meet first. Couples collapse to one household
+ * row; due-row Log/Skip fans out via dueFanoutContactIds.
  */
 
 import {
@@ -102,9 +103,8 @@ function gradeRank(g: string | null | undefined): number {
  */
 export function selectContactsDue(
 	candidates: readonly ContactDueCandidate[],
-	opts: { todayYmd: string; limit?: number }
+	opts: { todayYmd: string; limit?: number | null }
 ): ContactDueRow[] {
-	const limit = Math.min(Math.max(opts.limit ?? 25, 1), 100);
 	const dueRaw: {
 		c: ContactDueCandidate;
 		period: PeriodWindow;
@@ -181,41 +181,49 @@ export function selectContactsDue(
 		);
 	});
 
+	if (opts.limit == null) return out;
+	const limit = Math.min(Math.max(opts.limit, 1), 100);
 	return out.slice(0, limit);
 }
 
+export type DueFanoutMember = {
+	id: string;
+	household_id: string | null;
+	status: 'active' | 'retired';
+	frequency: ContactFrequency;
+};
+
 /**
- * Pace for the open due pool (household-collapsed).
- * Even pace: expected remaining = total * (days_left / period_days).
+ * Due-row Log/Skip targets ([211]): collapsed household → every live
+ * active scheduled member; otherwise the posted contact.
+ */
+export function dueFanoutContactIds(
+	posted: { contact_id: string; household_id: string | null },
+	members: readonly DueFanoutMember[]
+): string[] {
+	if (!posted.household_id) return [posted.contact_id];
+	const ids = members
+		.filter(
+			(m) =>
+				m.household_id === posted.household_id &&
+				m.status === 'active' &&
+				isScheduledFrequency(m.frequency)
+		)
+		.map((m) => m.id);
+	return ids.length > 0 ? ids : [posted.contact_id];
+}
+
+/**
+ * Remaining vs scheduled-household pool. Mixed Q/S/A cannot share one
+ * clock — no ahead/behind ([211]).
  */
 export function computePaceSummary(
-	dueRows: readonly ContactDueRow[],
-	opts: {
-		totalObligations: number;
-		period: PeriodWindow;
-		todayYmd: string;
-	}
+	uncappedDue: readonly ContactDueRow[],
+	totalObligations: number
 ): ContactsPaceSummary {
-	const remaining = dueRows.length;
-	const total = Math.max(opts.totalObligations, remaining);
-	const daysLeft = daysLeftInPeriod(opts.period, opts.todayYmd);
-	const periodDays = Math.max(1, daysBetweenYmd(opts.period.end, opts.period.start) + 1);
-	const elapsed = Math.min(periodDays, Math.max(0, periodDays - daysLeft));
-	const expectedDone = total * (elapsed / periodDays);
-	const actualDone = total - remaining;
-	const delta = actualDone - expectedDone;
-	let pace: ContactsPaceSummary['pace'] = 'on_track';
-	if (delta < -0.5) pace = 'behind';
-	else if (delta > 0.5) pace = 'ahead';
-
-	return {
-		remaining,
-		total,
-		days_left: daysLeft,
-		pace,
-		period_key: opts.period.key,
-		period_end: opts.period.end
-	};
+	const remaining = uncappedDue.length;
+	const total = Math.max(totalObligations, remaining);
+	return { remaining, total };
 }
 
 /**

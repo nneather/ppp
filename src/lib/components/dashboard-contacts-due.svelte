@@ -108,6 +108,9 @@
 							use:enhance={dueEnhance}
 						>
 							<input type="hidden" name="contact_id" value={c.contact_id} />
+							{#if c.household_id}
+								<input type="hidden" name="household_id" value={c.household_id} />
+							{/if}
 							<Button type="submit" size="sm" variant="secondary" label="Log Contact" />
 						</form>
 						<form
@@ -116,6 +119,9 @@
 							use:enhance={dueEnhance}
 						>
 							<input type="hidden" name="contact_id" value={c.contact_id} />
+							{#if c.household_id}
+								<input type="hidden" name="household_id" value={c.household_id} />
+							{/if}
 							<Button type="submit" size="sm" variant="outline" label="Skip" />
 						</form>
 					</div>

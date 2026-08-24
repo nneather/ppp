@@ -53,6 +53,10 @@ jobs:
           PROJECTS_TABLES=(
             projects project_updates project_tasks project_links
           )
+          CONTACTS_TABLES=(
+            households contacts contact_touches contact_lists contact_list_members
+            contact_period_skips household_children household_grade_changes
+          )
 
           invoicing_flags=()
           for t in "${INVOICING_TABLES[@]}"; do
@@ -69,9 +73,15 @@ jobs:
             projects_flags+=(-t "public.${t}")
           done
 
+          contacts_flags=()
+          for t in "${CONTACTS_TABLES[@]}"; do
+            contacts_flags+=(-t "public.${t}")
+          done
+
           "$PG_DUMP" -F c -f "ppp-invoicing-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${invoicing_flags[@]}"
           "$PG_DUMP" -F c -f "ppp-library-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${library_flags[@]}"
           "$PG_DUMP" -F c -f "ppp-projects-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${projects_flags[@]}"
+          "$PG_DUMP" -F c -f "ppp-contacts-${MONTH}.dump" "$BACKUP_DATABASE_URL" "${contacts_flags[@]}"
 
           echo "MONTH=${MONTH}" >> "$GITHUB_ENV"
           echo "YEAR=${YEAR}" >> "$GITHUB_ENV"
@@ -90,4 +100,6 @@ jobs:
           aws s3 cp "ppp-library-${MONTH}.dump" "s3://${R2_BUCKET}/${YEAR}/ppp-library-${MONTH}.dump" \
             --endpoint-url "$R2_ENDPOINT"
           aws s3 cp "ppp-projects-${MONTH}.dump" "s3://${R2_BUCKET}/${YEAR}/ppp-projects-${MONTH}.dump" \
+            --endpoint-url "$R2_ENDPOINT"
+          aws s3 cp "ppp-contacts-${MONTH}.dump" "s3://${R2_BUCKET}/${YEAR}/ppp-contacts-${MONTH}.dump" \
             --endpoint-url "$R2_ENDPOINT"

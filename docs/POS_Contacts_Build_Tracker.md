@@ -1,6 +1,6 @@
 # Personal Operations System — Contacts / CRM Module Build Tracker
 
-_Last updated: 2026-08-24 | Module: Contacts / CRM | Review [211](decisions/211-contacts-module-review.md) after Sessions 4–6 ([210](decisions/210-contacts-semester-period-cadence.md))_
+_Last updated: 2026-08-24 | Module: Contacts / CRM | Integrity [212](decisions/212-contacts-due-integrity.md) after review [211](decisions/211-contacts-module-review.md)_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [139](decisions/139-lightweight-crm-fall-priority.md), [175](decisions/175-contacts-session-0.md).
 
@@ -28,7 +28,7 @@ Core value — **who is due for a meet, and who gets a Christmas card**: cadence
 | Gate | Resolution |
 |---|---|
 | **Taxonomy singular** | Two core tables: `contacts` (1:1 outreach) + `households` (cards / invites / mailing address). Marriages merge contacts into a household; splits reverse that. **≠** library `people`, **≠** invoicing `clients`. |
-| **Cadence** | Interval on the **person** (not lists). Override → profile default → app constant. Never on households. UI units = **months or years** ([181](decisions/181-contacts-smoke-product-locks.md)); storage may stay day-equivalent. Household meet-touch fans out to live members. Due = never touched **with a meet-kind touch**, or last **meet** touch older than effective cadence. |
+| **Cadence** | Frequency on the **person** (`common` / `quarterly` / `semiannual` / `annual` / `none`), not lists. Calendar periods ([210](decisions/210-contacts-semester-period-cadence.md)/[212](decisions/212-contacts-due-integrity.md)): Q = civil quarters, S = H1/H2, A = calendar year. Import on-ramp: Q/S through 2026-12-31 (`q:2026-Q4` / `s:2026-H2`); A due 2027-12-31 with **2026 Log/Skip counting toward `a:2027`**. Due = active scheduled, unfulfilled current period, not skipped; household collapse; due Log/Skip fans out to live **active scheduled** members. Household Log all = live **active** members (not retired). Card lists are household rosters, not cadence. |
 | **Touch history** | `contact_touches` (`touched_on` + nullable `note` + **`kind`** meet\|card per [181](decisions/181-contacts-smoke-product-locks.md)). UI: one-tap + detailed (note; backdate detailed-only). Last **meet** touch drives due; card bulk log does not. |
 | **Reminders vs lifecycle** | Two axes: `no_reminders` bool (close family seen weekly — still active, still on card lists) + `status` `active`/`retired` (moved away). Default list filter = Active. |
 | **Seasonal / lists** | `contact_lists` + `contact_list_members` day one; Christmas cards = first list. Membership = **contact XOR household** (`validateXor` / library polymorphic pattern) — card list holds households; future email lists hold people. |
@@ -175,7 +175,7 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 - **`module_registry`:** slug `contacts`, label `Contacts`.
 - **`user_permissions.module`** is free TEXT — add `contacts` to the permissions UI slug list ([090](decisions/090-sermons-session-0.md) surprise).
 - **Audit-log UI:** add `_CONTACTS_TABLES` whitelist + module `<select>` option in `/settings/audit-log` (Session 1).
-- **Backup dumps:** add contacts tables to weekly R2 dump inventory when Session 1 ships (ops note — not blocking).
+- **Backup dumps:** `ppp-contacts-YYYY-MM.dump` in weekly R2 inventory ([212](decisions/212-contacts-due-integrity.md)).
 
 ---
 
@@ -183,7 +183,7 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 
 | Tool | Contract |
 |---|---|
-| `list_contacts_due` | Replaces stub in `scripts/ppp-mcp/` — **same name**. Returns active contacts with `no_reminders = false` whose last touch is null or older than effective cadence. Fields: display name, cadence_days (effective), last_touched_on, days_overdue, household name (if any). Optional param `limit` (default ~25). |
+| `list_contacts_due` | Period due list in `scripts/ppp-mcp/` — **same name**. Household-collapsed. Fields: display name, `contact_id`, `household_id`, `frequency`, `period_key`, `period_end`, `days_left`, `last_touched_on`, `days_overdue` (null while the window is open). `contacts_with_cadence` = scheduled pool (household-collapsed). Optional param `limit` (default 25, max 100). No rolling `cadence_days`. |
 | `search_contacts` | Fuzzy name search (`first_name` / `last_name` / household name). Returns card: name, email, phone, household + address summary, cadence, last touch, status. |
 
 `christmas_card_list` rejected for day one — card list is a UI / settings concern; chat can use `search_contacts` until a dedicated tool is justified.
@@ -219,7 +219,7 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | 3 | ✅ 2026-07-25 | Lists tab + cadence months/years + touch kinds + Christmas-card bulk log — [182](decisions/182-contacts-session-3-lists-cadence-touch-kinds.md); mass-add checklist + sheet toggles — [183](decisions/183-contacts-list-mass-add.md) |
 | 4–6 | ✅ 2026-08-24 | Period cadence + Skip + standing/ad-hoc lists + grades/children/vCard + Sheet1 import — [210](decisions/210-contacts-semester-period-cadence.md) |
 | Review | ✅ 2026-08-24 | Bugs + system review — due Log/Skip vs collapse, annual on-ramp, 154-person flood, Christmas roster, R2 dump gap — [211](decisions/211-contacts-module-review.md) |
-| Integrity | next | Household fan-out + annual queue + pace/MCP/backup — PLAN prompt |
+| Integrity | ✅ 2026-08-24 | Household Log/Skip fan-out + annual pre-start + pace/MCP/backup + import attach-to-HH — [212](decisions/212-contacts-due-integrity.md) |
 | — | note | Decision number **174** was taken by a parallel library session ([174-everlasting-man-original-1925](decisions/174-everlasting-man-original-1925.md)) — Session 0 record is **[175](decisions/175-contacts-session-0.md)**, not 174. |
 | — | backlog | Mailing-list send pipeline (Resend campaigns + unsubscribe) — designed-for, not built ([139](decisions/139-lightweight-crm-fall-priority.md)). |
 | — | backlog | Optional FK contact → library person or invoicing client — only if owner asks. |
@@ -241,7 +241,7 @@ Parked from [178](decisions/178-contacts-session-1.md) + [180](decisions/180-con
 - [x] **Create contact** — Sheet save; appears under Active filter; search by name works
 - [x] **Household** — create household (or contact Sheet mailing → household-of-one); assign contact; soft-delete blocked while members live
 - [x] **One-tap Log Contact** — stamps Chicago today, null note; list shows last touch
-- [x] **Detailed Log Contact** — note + optional backdate; household **Log all** fans out to live members
+- [x] **Detailed Log Contact** — note + optional backdate; household **Log all** fans out to live **active** members (retired excluded — [212](decisions/212-contacts-due-integrity.md))
 - [x] **`/settings/contacts/lists`** — Christmas cards list present; add a household member; remove member _(UI path OK; primary surface moves to Lists tab in Session 3 — [181](decisions/181-contacts-smoke-product-locks.md))_
 - [x] **Audit log** — after a write, `/settings/audit-log?module=contacts` shows a row (trigger-driven)
 - [x] **Mobile width (~390px)** — `/contacts` list + Sheets usable; no tab-bar collision on sticky actions

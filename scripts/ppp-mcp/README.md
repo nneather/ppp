@@ -24,7 +24,7 @@ The server loads `.env` then `.env.local` from the repo root. Prefer **not** put
 | `list_week_tasks` | Split: `starting_this_week` (`start_date` in `[today .. today+days]`, all zones) + `carried_over` (`start_date < today`, Critical/Opportunity only) |
 | `list_due_soon` | Open classwork due within `horizon_days` (default 14; overdue included); `linked_task_ids` for MYN links |
 | `get_assignments_for_course` | All assignments for a course (fuzzy name/code resolve) |
-| `list_contacts_due` | Active contacts due for a meet (`limit` default 25); `contacts_with_cadence` = eligible pool |
+| `list_contacts_due` | Period due list (`limit` default 25); household-collapsed; `contacts_with_cadence` = scheduled pool |
 | `search_contacts` | Fuzzy name / household / email / phone search |
 | `search_library` | Keyword search |
 | `get_book_citation` | Turabian footnote + bibliography |
