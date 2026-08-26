@@ -34,6 +34,7 @@ import {
 	recentClosedPeriods,
 	touchFulfillsPeriod
 } from '$lib/contacts/period';
+import { parseContactSort } from '$lib/contacts/sort';
 import {
 	contactDisplayName,
 	effectiveCadenceDays,
@@ -99,7 +100,8 @@ export function parseContactsListFilters(url: URL): ContactsListFilters {
 			: 'active';
 	const q = url.searchParams.get('q')?.trim() || null;
 	const listId = url.searchParams.get('list_filter')?.trim() || null;
-	return { status, q, listId };
+	const sort = parseContactSort(url.searchParams.get('sort'));
+	return { status, q, listId, sort };
 }
 
 export async function loadHouseholds(supabase: SupabaseClient): Promise<{

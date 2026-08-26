@@ -164,11 +164,37 @@ export type ContactListMemberRow = {
 	cardEligible?: boolean;
 };
 
+/** Roster sort keys (`?sort=frequency,list`). Name is the default / final tiebreaker. */
+export const CONTACT_SORT_KEYS = [
+	'name',
+	'frequency',
+	'list',
+	'giving',
+	'relationship',
+	'last_meet'
+] as const;
+export type ContactSortKey = (typeof CONTACT_SORT_KEYS)[number];
+
+export const CONTACT_SORT_KEY_LABELS: Record<ContactSortKey, string> = {
+	name: 'Name',
+	frequency: 'Frequency',
+	list: 'List',
+	giving: 'Giving',
+	relationship: 'Relationship',
+	last_meet: 'Last meet'
+};
+
+/** Households tab — frequency / last meet live on people, not envelopes. */
+export const HOUSEHOLD_SORT_KEYS = ['name', 'list', 'giving', 'relationship'] as const;
+export type HouseholdSortKey = (typeof HOUSEHOLD_SORT_KEYS)[number];
+
 export type ContactsListFilters = {
 	status: ContactListFilter;
 	q: string | null;
 	/** Standing (or any) list id — filter contacts in households/members on that list. */
 	listId: string | null;
+	/** 1–2 keys; omitted from the URL when `[name]`. */
+	sort: ContactSortKey[];
 };
 
 /** Dashboard / MCP due-to-meet row (may be household-collapsed). */

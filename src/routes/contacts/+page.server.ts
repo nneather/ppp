@@ -79,7 +79,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		(profileRes.data?.contact_cadence_days_default as number | null | undefined) ?? null;
 
 	const contactsRes = await loadContacts(supabase, {
-		filters: tab === 'lists' ? { status: 'all', q: null, listId: null } : filters,
+		filters: tab === 'lists' ? { ...filters, status: 'all', q: null, listId: null } : filters,
 		profileCadenceDefault,
 		membershipMaps: membershipMapsRes.maps
 	});

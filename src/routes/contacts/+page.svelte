@@ -13,12 +13,29 @@
 	import { Input } from '$lib/components/ui/input';
 	import {
 		CONTACT_FREQUENCY_LABELS,
+		CONTACT_SORT_KEY_LABELS,
+		CONTACT_SORT_KEYS,
 		CONTACT_STATUS_LABELS,
+		HOUSEHOLD_SORT_KEYS,
 		type ContactListFilter,
 		type ContactListRow,
+		type ContactSortKey,
+		type ContactsListFilters,
 		type HouseholdRow
 	} from '$lib/types/contacts';
 	import { formatHouseholdAddress } from '$lib/contacts/names';
+	import {
+		applicableSortKeys,
+		buildSortContext,
+		contactGroupLabel,
+		contactsListFiltersToSearchParams,
+		groupSortedRows,
+		householdGroupLabel,
+		listNamesForContact,
+		listNamesForHousehold,
+		sortContacts,
+		sortHouseholds
+	} from '$lib/contacts/sort';
 	import { cn } from '$lib/utils';
 	import Home from '@lucide/svelte/icons/home';
 	import List from '@lucide/svelte/icons/list';
@@ -203,36 +220,78 @@
 		await invalidate('app:contacts:list');
 	}
 
+	function gotoFilters(next: {
+		tab?: 'contacts' | 'households' | 'lists';
+		status?: ContactListFilter;
+		q?: string | null;
+		listId?: string | null;
+		sort?: ContactSortKey[];
+	}) {
+		const filters: ContactsListFilters = {
+			status: next.status !== undefined ? next.status : data.filters.status,
+			q: next.q !== undefined ? next.q : data.filters.q,
+			listId: next.listId !== undefined ? next.listId : data.filters.listId,
+			sort: next.sort !== undefined ? next.sort : data.filters.sort
+		};
+		const params = contactsListFiltersToSearchParams({
+			tab: next.tab ?? data.tab,
+			filters,
+			selectedListId: data.selectedListId
+		});
+		const qs = params.toString();
+		void goto(`/contacts${qs ? `?${qs}` : ''}`, { keepFocus: true, noScroll: true });
+	}
+
 	function pushFilters(next: {
 		status?: ContactListFilter;
 		q?: string | null;
 		listId?: string | null;
 	}) {
-		const params = new URLSearchParams();
-		params.set('tab', 'contacts');
-		const status = next.status !== undefined ? next.status : data.filters.status;
-		const q = next.q !== undefined ? next.q : data.filters.q;
-		const listId = next.listId !== undefined ? next.listId : data.filters.listId;
-		if (status !== 'active') params.set('status', status);
-		if (q) params.set('q', q);
-		if (listId) params.set('list_filter', listId);
-		const qs = params.toString();
-		void goto(`/contacts?${qs}`, { keepFocus: true, noScroll: true });
+		gotoFilters({ tab: 'contacts', ...next });
 	}
 
 	function setTab(tab: 'contacts' | 'households' | 'lists') {
-		const params = new URLSearchParams();
-		if (tab !== 'contacts') params.set('tab', tab);
-		if (tab === 'contacts') {
-			if (data.filters.status !== 'active') params.set('status', data.filters.status);
-			if (data.filters.q) params.set('q', data.filters.q);
-		}
-		if (tab === 'lists' && data.selectedListId) {
-			params.set('list', data.selectedListId);
-		}
-		const qs = params.toString();
-		void goto(`/contacts${qs ? `?${qs}` : ''}`, { keepFocus: true, noScroll: true });
+		gotoFilters({ tab });
 	}
+
+	function setPrimarySort(entity: 'contact' | 'household', key: ContactSortKey) {
+		const current = applicableSortKeys(data.filters.sort, entity);
+		const then = current[1];
+		const sort: ContactSortKey[] = [key];
+		if (then && then !== key) sort.push(then);
+		gotoFilters({ sort });
+	}
+
+	function setThenSort(entity: 'contact' | 'household', key: ContactSortKey | '') {
+		const current = applicableSortKeys(data.filters.sort, entity);
+		const primary = current[0] ?? 'name';
+		const sort: ContactSortKey[] = [primary];
+		if (key && key !== primary) sort.push(key);
+		gotoFilters({ sort });
+	}
+
+	const sortCtx = $derived(
+		buildSortContext(data.lists, {
+			listIdsByContactId: data.listIdsByContactId,
+			listIdsByHouseholdId: data.listIdsByHouseholdId
+		})
+	);
+
+	const contactGroups = $derived.by(() => {
+		const spec = applicableSortKeys(data.filters.sort, 'contact');
+		const primary = spec[0] ?? 'name';
+		return groupSortedRows(sortContacts(data.contacts, spec, sortCtx), (c) =>
+			contactGroupLabel(c, primary, sortCtx)
+		);
+	});
+
+	const householdGroups = $derived.by(() => {
+		const spec = applicableSortKeys(data.filters.sort, 'household');
+		const primary = spec[0] ?? 'name';
+		return groupSortedRows(sortHouseholds(data.households, spec, sortCtx), (h) =>
+			householdGroupLabel(h, primary, sortCtx)
+		);
+	});
 
 	function formatTouch(ymd: string | null): string {
 		if (!ymd) return 'Never';
@@ -265,6 +324,44 @@
 <svelte:head>
 	<title>Contacts — ppp</title>
 </svelte:head>
+
+{#snippet sortControls(entity: 'contact' | 'household')}
+	{@const keys = entity === 'household' ? HOUSEHOLD_SORT_KEYS : CONTACT_SORT_KEYS}
+	{@const spec = applicableSortKeys(data.filters.sort, entity)}
+	{@const primary = spec[0] ?? 'name'}
+	{@const thenKey = spec[1] ?? ''}
+	<div class="flex flex-wrap items-center gap-1.5">
+		<span class="text-xs text-muted-foreground">Sort</span>
+		<label class="sr-only" for={`contact-sort-${entity}`}>Sort by</label>
+		<select
+			id={`contact-sort-${entity}`}
+			class="h-9 rounded-md border border-border bg-background px-2 text-xs"
+			value={primary}
+			onchange={(e) =>
+				setPrimarySort(entity, (e.currentTarget as HTMLSelectElement).value as ContactSortKey)}
+		>
+			{#each keys as k (k)}
+				<option value={k}>{CONTACT_SORT_KEY_LABELS[k]}</option>
+			{/each}
+		</select>
+		<span class="text-xs text-muted-foreground">then</span>
+		<label class="sr-only" for={`contact-sort-then-${entity}`}>Then by</label>
+		<select
+			id={`contact-sort-then-${entity}`}
+			class="h-9 rounded-md border border-border bg-background px-2 text-xs"
+			value={thenKey}
+			onchange={(e) =>
+				setThenSort(entity, (e.currentTarget as HTMLSelectElement).value as ContactSortKey | '')}
+		>
+			<option value="">—</option>
+			{#each keys as k (k)}
+				{#if k !== primary}
+					<option value={k}>{CONTACT_SORT_KEY_LABELS[k]}</option>
+				{/if}
+			{/each}
+		</select>
+	</div>
+{/snippet}
 
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 pb-tabbar">
 	<PageHeader
@@ -433,6 +530,7 @@
 					<option value={l.id}>{l.name}</option>
 				{/each}
 			</select>
+			{@render sortControls('contact')}
 			<form
 				class="min-w-[10rem] flex-1"
 				onsubmit={(e) => {
@@ -491,10 +589,28 @@
 		{/if}
 
 		<ul class="mt-4 space-y-2">
-			{#each data.contacts as c (c.id)}
+			{#if data.contacts.length === 0}
 				<li
-					class="rounded-lg border border-border bg-card px-3 py-3 text-card-foreground"
+					class="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground"
 				>
+					No contacts yet. Add people before Thanksgiving for Christmas cards.
+				</li>
+			{:else}
+				{#each contactGroups as group, gi (`g-${gi}`)}
+					{#if group.header}
+						<li class={cn('list-none', gi === 0 ? 'pt-0' : 'pt-2')}>
+							<p
+								class="px-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+							>
+								{group.header}
+							</p>
+						</li>
+					{/if}
+					{#each group.rows as c (c.id)}
+						{@const listLabels = listNamesForContact(c.id, c.household_id, sortCtx)}
+						<li
+							class="rounded-lg border border-border bg-card px-3 py-3 text-card-foreground"
+						>
 					<div class="flex items-start justify-between gap-2">
 						<div class="min-w-0">
 							<p class="truncate font-medium">{c.display_name}</p>
@@ -504,6 +620,15 @@
 									· {c.household_name}
 								{/if}
 								· {CONTACT_FREQUENCY_LABELS[c.frequency]}
+								{#if listLabels.length > 0}
+									· {listLabels.join(' · ')}
+								{/if}
+								{#if c.giving_grade}
+									· Giving {c.giving_grade}
+								{/if}
+								{#if c.relationship_grade}
+									· Rel {c.relationship_grade}
+								{/if}
 							</p>
 							<p class="mt-0.5 text-xs text-muted-foreground">
 								Last meet: {formatTouch(c.last_touched_on)}
@@ -553,18 +678,35 @@
 						{/if}
 					</div>
 				</li>
-			{:else}
+					{/each}
+				{/each}
+			{/if}
+		</ul>
+	{:else if tab === 'households'}
+		<div class="mt-4">
+			{@render sortControls('household')}
+		</div>
+		<ul class="mt-4 space-y-2">
+			{#if data.households.length === 0}
 				<li
 					class="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground"
 				>
-					No contacts yet. Add people before Thanksgiving for Christmas cards.
+					No households yet. Create one for Christmas cards, or add a mailing address on a contact.
 				</li>
-			{/each}
-		</ul>
-	{:else if tab === 'households'}
-		<ul class="mt-4 space-y-2">
-			{#each data.households as h (h.id)}
-				{@const addr = formatHouseholdAddress(h)}
+			{:else}
+				{#each householdGroups as group, gi (`hg-${gi}`)}
+					{#if group.header}
+						<li class={cn('list-none', gi === 0 ? 'pt-0' : 'pt-2')}>
+							<p
+								class="px-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+							>
+								{group.header}
+							</p>
+						</li>
+					{/if}
+					{#each group.rows as h (h.id)}
+						{@const addr = formatHouseholdAddress(h)}
+						{@const listLabels = listNamesForHousehold(h.id, sortCtx)}
 				<li
 					class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-3 text-card-foreground"
 				>
@@ -572,6 +714,15 @@
 						<p class="truncate font-medium">{h.name}</p>
 						<p class="mt-0.5 text-xs text-muted-foreground">
 							{h.memberCount} member{h.memberCount === 1 ? '' : 's'}
+							{#if listLabels.length > 0}
+								· {listLabels.join(' · ')}
+							{/if}
+							{#if h.giving_grade}
+								· Giving {h.giving_grade}
+							{/if}
+							{#if h.relationship_grade}
+								· Rel {h.relationship_grade}
+							{/if}
 							{#if addr}
 								· {addr}
 							{/if}
@@ -605,13 +756,9 @@
 						</div>
 					{/if}
 				</li>
-			{:else}
-				<li
-					class="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground"
-				>
-					No households yet. Create one for Christmas cards, or add a mailing address on a contact.
-				</li>
-			{/each}
+					{/each}
+				{/each}
+			{/if}
 		</ul>
 	{:else}
 		<ContactsListsPanel
