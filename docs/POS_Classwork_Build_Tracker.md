@@ -1,6 +1,6 @@
 # Personal Operations System — Classwork Module Build Tracker
 
-_Last updated: 2026-08-01 | Module: Classwork (5th) | Sessions 0–2 complete; **Papers Sessions 0–2 complete** ([188](decisions/188-classwork-research-papers-session-0.md), [189](decisions/189-classwork-papers-session-1.md), [190](decisions/190-classwork-papers-session-2.md)); Canvas import deferred ([173](decisions/173-canvas-classwork-import-deferred.md))_
+_Last updated: 2026-08-31 | Module: Classwork (5th) | Sessions 0–2 complete; **Papers Sessions 0–2 complete** ([188](decisions/188-classwork-research-papers-session-0.md), [189](decisions/189-classwork-papers-session-1.md), [190](decisions/190-classwork-papers-session-2.md)); **Canvas one-shot import shipped** ([216](decisions/216-canvas-classwork-import.md); design [173](decisions/173-canvas-classwork-import-deferred.md))_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [150](decisions/150-classwork-session-0.md).
 
@@ -139,13 +139,13 @@ assignments
 | 1 | ✅ 2026-07-24 | Migration `ppp_classwork_v1` + gen-types + `/classwork` (group toggle) + Sheets + nav split (mobile: Dashboard/Tasks/Invoicing/Library/Classwork) + permissions/audit. C2 suggest-only; A1 due_date order. Viewer solo waiver noted. Decision [153](decisions/153-classwork-session-1.md). |
 | 2 | ✅ 2026-07-24 | Dashboard due-soon (D1=B) + MCP `list_due_soon` / `get_assignments_for_course`. Decision [161](decisions/161-classwork-session-2.md). |
 | — | note | Decision numbers 146–149 were taken by a parallel library publisher session on 2026-07-24 — Session 0 record is **[150](decisions/150-classwork-session-0.md)**, not 146. |
-| — | backlog | Bulk/quick-add UI for syllabus entry — only if manual entry hurts in late August |
-| — | backlog | **Canvas one-shot import** ([173](decisions/173-canvas-classwork-import-deferred.md)) — late August after first Fall syllabi; semester-start token mint; preview→confirm; re-pull OK for week-1–3 due-date churn. Not live sync. |
+| — | backlog | Bulk/quick-add UI for syllabus entry — only if manual entry hurts after Canvas import |
+| — | ✅ 2026-08-31 | **Canvas one-shot import** ([216](decisions/216-canvas-classwork-import.md)) — CLI `npm run classwork:canvas-import`; FA-26 5 courses / 34 assignments; re-pull for week-1–3 due-date churn. Not live sync. |
 | **Papers 0** | ✅ 2026-07-31 | Research papers Phase 0 lock + schema sketch + [188](decisions/188-classwork-research-papers-session-0.md); brainstorm [2026-07-31-classwork-research-papers.md](../brainstorms/2026-07-31-classwork-research-papers.md) |
 | **Papers 1** | ✅ 2026-08-01 | Migration `20260801120600_ppp_classwork_papers_v1` + `/classwork/papers` list/Sheet + `/classwork/papers/[id]` research home (search-attach books incl. free-form not-owned stub + essays, per-row Footnote/Short/Bib + page, per-source notes, merged compiled bib clipboard) + assignment Open research paper + Assignments\|Papers toggle + audit whitelist. P1 = stamp+lock. Mobile smoke 12/12; audit rows verified. Decision [189](decisions/189-classwork-papers-session-1.md). |
 | **Papers 2** | ✅ 2026-08-01 | Research groups UI on paper detail — group CRUD (create/rename/reorder/delete), per-row group select, Ungrouped-first buckets; G1 = null out. Mobile smoke 14/14; audit rows verified. Decision [190](decisions/190-classwork-papers-session-2.md). |
 
-**Timeline:** Core classwork Sessions 1–2 done before syllabi land; semester start **2026-08-31**. **Research papers** accelerated for post-Madison St. Louis publication edit (sooner than 8/31) — overrides [138](decisions/138-fall-semester-priorities.md) deferral. Canvas import parked for late August ([173](decisions/173-canvas-classwork-import-deferred.md)).
+**Timeline:** Core classwork Sessions 1–2 done before syllabi land; semester start **2026-08-31**. **Research papers** accelerated for post-Madison St. Louis publication edit (sooner than 8/31) — overrides [138](decisions/138-fall-semester-priorities.md) deferral. Canvas import applied 2026-08-31 ([216](decisions/216-canvas-classwork-import.md)).
 
 ---
 

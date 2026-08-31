@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-08-26 — Contacts roster sort ([214](docs/decisions/214-contacts-roster-sort.md)); prior frequency labels ([213](docs/decisions/213-contacts-frequency-labels.md)).
+**Last updated:** 2026-08-31 — Canvas classwork one-shot import ([216](docs/decisions/216-canvas-classwork-import.md)); prior Pennington shelf add ([215](docs/decisions/215-library-pennington-sermon-flourishing.md)).
 
 **How to use this file — read this first:**
 
@@ -18,7 +18,7 @@
 
 **Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later).
 
-- **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)). **Papers Sessions 1–2 shipped** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)) — publication surface + research groups live for the St. Louis edit.
+- **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)). **Papers Sessions 1–2 shipped** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)). **Canvas FA-26 import applied** ([216](docs/decisions/216-canvas-classwork-import.md)) — re-pull in weeks 1–3 as dates churn.
 - **Contacts / CRM** — Sessions 1–3 + period cadence + import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)) + frequency labels ([213](docs/decisions/213-contacts-frequency-labels.md)) + roster sort ([214](docs/decisions/214-contacts-roster-sort.md)). Christmas Has-address seed in November; mailing send later.
 - **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + health filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)/[184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + contacts ([180](docs/decisions/180-contacts-session-2.md)).
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
@@ -34,10 +34,10 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Catalog consistency P0/P1 remint ✅ ([177](docs/decisions/177-catalog-consistency-audit-track-b.md)). Aug 3 shelf batch + KCC ✅ ([191](docs/decisions/191-library-aug3-shelf-batch.md)). Language + coverage integrity ✅ ([192](docs/decisions/192-library-language-coverage-integrity.md)); German edition ISBN follow-up ✅ ([193](docs/decisions/193-german-edition-isbn-corrections.md)); ISBN integrity Collins + dups ✅ ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)); Aug 5 Shepherd/Noll/Vallier ✅ ([195](docs/decisions/195-library-aug5-shepherd-noll-vallier.md)); Aug 12 classics/commentaries + Fitzgerald Homer ✅ ([198](docs/decisions/198-library-aug12-shelf-batch.md)); Charles ICC Revelation 2-vol ✅ ([199](docs/decisions/199-library-charles-icc-revelation.md)); Aug 15 Holland / Fitzmyer AB / Shirer ✅ ([200](docs/decisions/200-library-holland-fitzmyer-shirer.md)); Lincoln WBC Ephesians 1990 ✅ ([203](docs/decisions/203-library-lincoln-wbc-ephesians.md)); Knoppers AB 1 Chronicles 10–29 ✅ ([204](docs/decisions/204-library-knoppers-ab-1-chronicles.md)); Aug 24 commentaries + LOA ✅ ([207](docs/decisions/207-library-aug24-shelf-batch.md)); Aug 24 Harris/Wright/WBC–PNTC–BECNT ✅ ([208](docs/decisions/208-library-aug24-harris-wright-commentaries.md)). |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Latest shelf add: Pennington *Sermon on the Mount* (Matthew coverage + Matt 5–7 passage — [215](docs/decisions/215-library-pennington-sermon-flourishing.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
-| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) — `/classwork/papers` research surface complete (attach books/essays/stubs, cite, compiled bib, research groups). Backlog: Canvas import ([173](docs/decisions/173-canvas-classwork-import-deferred.md)). |
+| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) + **Canvas one-shot import** ([216](docs/decisions/216-canvas-classwork-import.md)) — FA-26 courses/assignments loaded; `npm run classwork:canvas-import` to re-pull. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence / import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)) + **Quarterly / Semester / Annual** labels ([213](docs/decisions/213-contacts-frequency-labels.md)) + **roster sort** (frequency / list / giving, composable — [214](docs/decisions/214-contacts-roster-sort.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)): week split, deferred_until, assignment link, contacts_with_cadence. |
 
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [216 — Canvas classwork import](docs/decisions/216-canvas-classwork-import.md) (2026-08-31) — CLI one-shot; FA-26 5 courses / 34 assignments; Canvas ids for re-pull; skip attendance / 0-pt / stale.
+- [215 — Library Pennington Sermon on the Mount](docs/decisions/215-library-pennington-sermon-flourishing.md) (2026-08-27) — Baker Academic 2018 paperback; Commentary; Matthew coverage + Matt 5–7 passage.
 - [214 — Contacts roster sort](docs/decisions/214-contacts-roster-sort.md) (2026-08-26) — `/contacts` Sort + then (frequency, list, giving, …); group headers; URL `?sort=`.
 - [213 — Contacts frequency labels](docs/decisions/213-contacts-frequency-labels.md) (2026-08-24) — Import frequencies were already mixed; UI/MCP now say Quarterly / Semester / Annual instead of rolling “3 months” / Biannual.
 - [212 — Contacts due integrity](docs/decisions/212-contacts-due-integrity.md) (2026-08-24) — Household Log/Skip fan-out; 2026 Log fulfills a:2027; honest pace; MCP period payload; contacts R2 dump; import attach-to-HH.
-- [211 — Contacts module review](docs/decisions/211-contacts-module-review.md) (2026-08-24) — Due Log/Skip vs household collapse; annual on-ramp; 154-person flood; Christmas roster + R2 dump gaps.
-- [210 — Contacts semester period cadence + import](docs/decisions/210-contacts-semester-period-cadence.md) (2026-08-24) — Replace rolling meet cadence with calendar periods; sheet import; grades/children/vCard/pace.
 
 ---
 
@@ -71,7 +71,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Sermons:** `/sermons` list + Sheet; `/sermons/by-book` commentary × sermon spine (series label + multi-part collapse + latest sermon date — [134](docs/decisions/134-sermons-by-book-series-dedupe.md)); `/settings/sermons/venues`; helpers `src/lib/sermons/` (incl. `loadUpcomingSermons`); migration `20260717190000_ppp_sermons_v1.sql` ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md), [132](docs/decisions/132-desktop-home-dashboard.md)).
 
-**Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`. **Papers:** `/classwork/papers` + `/classwork/papers/[id]` research home (attach books/essays/stubs, per-row cite + page, per-source notes, merged compiled bib; P1 stamp+lock; **research groups** — CRUD + per-row select + Ungrouped-first buckets, G1 null-out) ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
+**Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; Canvas CLI import `npm run classwork:canvas-import` ([216](docs/decisions/216-canvas-classwork-import.md)); migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`, `20260831220000_classwork_canvas_ids.sql`. **Papers:** `/classwork/papers` + `/classwork/papers/[id]` research home (attach books/essays/stubs, per-row cite + page, per-source notes, merged compiled bib; P1 stamp+lock; **research groups** — CRUD + per-row select + Ungrouped-first buckets, G1 null-out) ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
 
 **Contacts:** `/contacts` tabs Contacts \| Households \| Lists + period due strip / Skip (household fan-out) / group filter + **Sort / then** ([214](docs/decisions/214-contacts-roster-sort.md)); Sheets with frequency (**Quarterly / Semester / Annual**), grades, children; import CSV + vCard ([210](docs/decisions/210-contacts-semester-period-cadence.md)/[212](docs/decisions/212-contacts-due-integrity.md)/[213](docs/decisions/213-contacts-frequency-labels.md)); dashboard Due to meet; helpers `src/lib/contacts/`; migrations incl. `20260824190000_contacts_period_cadence_v1.sql`. Desktop sidebar only.
 
@@ -81,7 +81,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** Contacts roster sort [214](docs/decisions/214-contacts-roster-sort.md) — `npm run check` **0 errors**, `npm run test` **498** passed (2026-08-26).
+**Repo gate:** Canvas classwork import [216](docs/decisions/216-canvas-classwork-import.md) — `npm run check` **0 errors**, `npm run test` **515** passed (2026-08-31).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -205,7 +205,7 @@ Acceptance:
 4. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
 5. **Security hardening (051 R2)** — open medium findings; prompt above.
 6. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
-7. **Classwork backlog** — bulk/quick-add if syllabus entry hurts; prefer Canvas one-shot import first ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
+7. **Classwork backlog** — bulk/quick-add if syllabus entry still hurts after Canvas import ([216](docs/decisions/216-canvas-classwork-import.md)).
 8. **Invoicing — key rotation** (tracker #4, Sep 2026) — JWT + Resend when convenient; runbook in [Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md#key-rotation-runbook).
 
 ### Wait for Madison / August
@@ -214,7 +214,7 @@ Acceptance:
 11. **Shared ISBN shelf barcodes** ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)) — Lost Tales 1 vs 2 (`9780780715462`); Foundation vs Second Foundation (`9789993068808`).
 12. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
 13. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
-14. **Classwork — Canvas one-shot import** ([173](docs/decisions/173-canvas-classwork-import-deferred.md)) — late August after first Fall syllabi/bibliographies; mint semester token (≈1 mo life); preview→confirm into `courses`/`assignments`; expect week-1–3 re-pull for drops/adds and professor due-date reloads. Not live sync.
+14. **Classwork — Canvas re-pull** ([216](docs/decisions/216-canvas-classwork-import.md)) — weeks 1–3 as drops/adds and professor due dates settle: `npm run classwork:canvas-import` then `--apply`. Mint a new token if the ~1 mo life lapses.
 
 ### Deferred / someday (pointer only — detail in the cited decision doc)
 - **PWA branded icons** ([057](docs/decisions/057-pwa-consistency.md)) — replace placeholder squares with a monogram set.
@@ -222,4 +222,4 @@ Acceptance:
 - **CRM mailing-list send pipeline** (Resend campaigns + unsubscribe) — designed-for in Contacts v1, not built.
 - **MARC-source prefill proxy** (LoC SRU / Harvard LibraryCloud) — only if GB cross-check + registries leave gaps ([151](docs/decisions/151-book-metadata-source-strategy.md)).
 - **Ops phone smoke** — cold-start / nav watchdog / chunk recovery ([072](docs/decisions/072-pwa-cold-start-resilience.md)); glance backup Actions after a Monday 08:00 UTC run.
-- **Classwork Canvas OAuth / continuous sync** — rejected for now; semester-start token + occasional re-pull ([173](docs/decisions/173-canvas-classwork-import-deferred.md)).
+- **Classwork Canvas OAuth / continuous sync** — rejected; semester-start token + occasional `classwork:canvas-import` re-pull ([216](docs/decisions/216-canvas-classwork-import.md)).

@@ -67,6 +67,7 @@ export type Database = {
       }
       assignments: {
         Row: {
+          canvas_assignment_id: number | null
           completed_at: string | null
           course_id: string
           created_at: string
@@ -83,6 +84,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          canvas_assignment_id?: number | null
           completed_at?: string | null
           course_id: string
           created_at?: string
@@ -99,6 +101,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          canvas_assignment_id?: number | null
           completed_at?: string | null
           course_id?: string
           created_at?: string
@@ -1034,6 +1037,7 @@ export type Database = {
       }
       courses: {
         Row: {
+          canvas_course_id: number | null
           code: string | null
           created_at: string
           created_by: string | null
@@ -1049,6 +1053,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          canvas_course_id?: number | null
           code?: string | null
           created_at?: string
           created_by?: string | null
@@ -1064,6 +1069,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          canvas_course_id?: number | null
           code?: string | null
           created_at?: string
           created_by?: string | null
