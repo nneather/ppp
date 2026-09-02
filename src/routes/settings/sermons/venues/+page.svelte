@@ -8,10 +8,19 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import type { SermonVenueRow } from '$lib/types/sermons';
+	import {
+		CONTEXT_TYPES,
+		CONTEXT_TYPE_BADGE_CLASSES,
+		CONTEXT_TYPE_LABELS,
+		CONTEXT_TYPE_SHORT,
+		type ContextType,
+		type SermonVenueRow
+	} from '$lib/types/sermons';
+	import { cn } from '$lib/utils';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -27,20 +36,34 @@
 	let createOpen = $state(false);
 	let createName = $state('');
 	let createNotes = $state('');
+	let createContextType = $state<ContextType | ''>('');
 
 	let editOpen = $state(false);
 	let editRow = $state<SermonVenueRow | null>(null);
 	let editName = $state('');
 	let editNotes = $state('');
+	let editContextType = $state<ContextType | ''>('');
 
 	let deleteOpen = $state(false);
 	let deleteTarget = $state<SermonVenueRow | null>(null);
 	let deletePending = $state(false);
 	let deleteFormEl = $state<HTMLFormElement | null>(null);
 
+	const NONE = '__none__';
+
+	const createContextSelect = $derived(createContextType || NONE);
+	const editContextSelect = $derived(editContextType || NONE);
+	const createContextLabel = $derived(
+		createContextType ? CONTEXT_TYPE_LABELS[createContextType] : 'None'
+	);
+	const editContextLabel = $derived(
+		editContextType ? CONTEXT_TYPE_LABELS[editContextType] : 'None'
+	);
+
 	function openCreate() {
 		createName = '';
 		createNotes = '';
+		createContextType = '';
 		createOpen = true;
 	}
 
@@ -48,6 +71,7 @@
 		editRow = v;
 		editName = v.name;
 		editNotes = v.notes ?? '';
+		editContextType = v.context_type ?? '';
 		editOpen = true;
 	}
 
@@ -148,7 +172,20 @@
 					class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-card-foreground"
 				>
 					<div class="min-w-0">
-						<p class="truncate text-sm font-medium">{v.name}</p>
+						<p class="flex items-center gap-2 truncate text-sm font-medium">
+							{v.name}
+							{#if v.context_type}
+								<span
+									class={cn(
+										'shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium',
+										CONTEXT_TYPE_BADGE_CLASSES[v.context_type]
+									)}
+									title={CONTEXT_TYPE_LABELS[v.context_type]}
+								>
+									{CONTEXT_TYPE_SHORT[v.context_type]}
+								</span>
+							{/if}
+						</p>
 						<p class="text-xs text-muted-foreground">
 							{v.sermonCount} sermon{v.sermonCount === 1 ? '' : 's'}
 							{#if v.notes}
@@ -204,6 +241,25 @@
 					<Input id="create-name" name="name" bind:value={createName} required />
 				</div>
 				<div class="space-y-2">
+					<Label>Type</Label>
+					<input type="hidden" name="context_type" value={createContextType} />
+					<Select.Root
+						type="single"
+						value={createContextSelect}
+						onValueChange={(v) => {
+							createContextType = !v || v === NONE ? '' : (v as ContextType);
+						}}
+					>
+						<Select.Trigger class="w-full">{createContextLabel}</Select.Trigger>
+						<Select.Content>
+							<Select.Item value={NONE}>None</Select.Item>
+							{#each CONTEXT_TYPES as ct (ct)}
+								<Select.Item value={ct}>{CONTEXT_TYPE_LABELS[ct]}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="space-y-2">
 					<Label for="create-notes">Notes</Label>
 					<Input id="create-notes" name="notes" bind:value={createNotes} />
 				</div>
@@ -228,6 +284,25 @@
 				<div class="space-y-2">
 					<Label for="edit-name">Name</Label>
 					<Input id="edit-name" name="name" bind:value={editName} required />
+				</div>
+				<div class="space-y-2">
+					<Label>Type</Label>
+					<input type="hidden" name="context_type" value={editContextType} />
+					<Select.Root
+						type="single"
+						value={editContextSelect}
+						onValueChange={(v) => {
+							editContextType = !v || v === NONE ? '' : (v as ContextType);
+						}}
+					>
+						<Select.Trigger class="w-full">{editContextLabel}</Select.Trigger>
+						<Select.Content>
+							<Select.Item value={NONE}>None</Select.Item>
+							{#each CONTEXT_TYPES as ct (ct)}
+								<Select.Item value={ct}>{CONTEXT_TYPE_LABELS[ct]}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
 				</div>
 				<div class="space-y-2">
 					<Label for="edit-notes">Notes</Label>

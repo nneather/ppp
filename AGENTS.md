@@ -178,9 +178,10 @@ End-of-session deliverables:
   - **Partial unique upsert:** `project_updates` — PK `id` only ([045](docs/decisions/045-projects-session-1-tree-checkin.md)).
   - **Audit log:** `_PROJECTS_TABLES` includes `project_tasks` + `project_task_series`; soft-delete revert for `projects`, `project_updates`, `project_tasks`, `project_task_series`.
 
-- **Sermons helpers** at `src/lib/sermons/` (schema migration `20260717190000_ppp_sermons_v1.sql`; Session 0 [090](docs/decisions/090-sermons-session-0.md), Session 1 [091](docs/decisions/091-sermons-session-1.md), Session 2 [095](docs/decisions/095-sermons-by-book-stats.md)):
-  - `src/lib/types/sermons.ts` — `CONTEXT_TYPES`, list/venue/passage view-models, `DashboardSermonRow`, `ByBookRow` / `ByBookListFilters` / `ByBookSummary`.
+- **Sermons helpers** at `src/lib/sermons/` (schema migrations `20260717190000_ppp_sermons_v1.sql`, `20260902152000_sermon_venues_context_type.sql`; Session 0 [090](docs/decisions/090-sermons-session-0.md), Session 1 [091](docs/decisions/091-sermons-session-1.md), Session 2 [095](docs/decisions/095-sermons-by-book-stats.md), venue type [217](docs/decisions/217-sermon-venues-context-type.md)):
+  - `src/lib/types/sermons.ts` — `CONTEXT_TYPES`, list/venue/passage view-models (`SermonVenueRow.context_type` default), `DashboardSermonRow`, `ByBookRow` / `ByBookListFilters` / `ByBookSummary`.
  - `src/lib/sermons/passage-parse.ts` — `parsePassageDisplay`, `librarySearchHref`, `formatPassageRow`; unit tests `__tests__/passage-parse.test.ts`.
+ - `src/lib/sermons/venue-context.ts` — `parseContextType` / `contextTypeForVenue` (venue type → sermon context auto-fill — [217](docs/decisions/217-sermon-venues-context-type.md)); unit tests `__tests__/venue-context.test.ts`.
  - `src/lib/sermons/by-book.ts` — pure canon spine, sort/filter, commentary collapse (`collapseCommentaryHits`), URL helpers for `/sermons/by-book`; unit tests `__tests__/by-book.test.ts`.
   - `src/lib/sermons/server/loaders.ts` — `loadSermons` (incl. `bible_book` filter), `loadUpcomingSermons` (dashboard — [132](docs/decisions/132-desktop-home-dashboard.md)), `loadSermonVenues`, `loadByBookStats`, `parseSermonListFilters` / `parseByBookListFilters`.
   - `src/lib/sermons/server/actions.ts` — sermon + venue CRUD; passage sync; venue soft-delete blocked when live sermons reference.

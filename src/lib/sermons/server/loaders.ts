@@ -11,6 +11,7 @@ import {
 	summarizeByBookRows
 } from '$lib/sermons/by-book';
 import { librarySearchHref } from '$lib/sermons/passage-parse';
+import { parseContextType } from '$lib/sermons/venue-context';
 import type { PersonRow } from '$lib/types/library';
 import {
 	CONTEXT_TYPES,
@@ -30,6 +31,7 @@ type VenueDb = {
 	id: string;
 	name: string;
 	notes: string | null;
+	context_type: string | null;
 };
 
 type PassageDb = {
@@ -53,10 +55,6 @@ type SermonDb = {
 	notes: string | null;
 };
 
-function asContextType(v: string | null): ContextType | null {
-	if (v == null) return null;
-	return (CONTEXT_TYPES as readonly string[]).includes(v) ? (v as ContextType) : null;
-}
 
 function mapPassage(p: PassageDb): SermonPassageRow {
 	return {
@@ -77,7 +75,7 @@ export async function loadSermonVenues(supabase: SupabaseClient): Promise<{
 	const [venuesRes, countsRes] = await Promise.all([
 		supabase
 			.from('sermon_venues')
-			.select('id, name, notes')
+			.select('id, name, notes, context_type')
 			.is('deleted_at', null)
 			.order('name', { ascending: true }),
 		supabase.from('sermons').select('venue_id').is('deleted_at', null).not('venue_id', 'is', null)
@@ -102,6 +100,7 @@ export async function loadSermonVenues(supabase: SupabaseClient): Promise<{
 		id: v.id,
 		name: v.name,
 		notes: v.notes,
+		context_type: parseContextType(v.context_type),
 		sermonCount: countByVenue.get(v.id) ?? 0
 	}));
 
@@ -157,7 +156,7 @@ export async function loadUpcomingSermons(
 		id: s.id,
 		preached_on: s.preached_on,
 		venue_name: s.venue_id ? (venueNameById.get(s.venue_id) ?? null) : null,
-		context_type: asContextType(s.context_type),
+		context_type: parseContextType(s.context_type),
 		topic: s.topic,
 		passage_display: s.passage_display
 	}));
@@ -269,7 +268,7 @@ export async function loadSermons(
 			preached_on: s.preached_on,
 			venue_id: s.venue_id,
 			venue_name: s.venue_id ? (venueNameById.get(s.venue_id) ?? null) : null,
-			context_type: asContextType(s.context_type),
+			context_type: parseContextType(s.context_type),
 			topic: s.topic,
 			passage_display: s.passage_display,
 			notes: s.notes,

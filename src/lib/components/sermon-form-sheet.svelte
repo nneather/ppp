@@ -14,11 +14,13 @@
 	import {
 		CONTEXT_TYPES,
 		CONTEXT_TYPE_LABELS,
+		CONTEXT_TYPE_SHORT,
 		type ContextType,
 		type SermonListRow,
 		type SermonPassageRow,
 		type SermonVenueRow
 	} from '$lib/types/sermons';
+	import { contextTypeForVenue } from '$lib/sermons/venue-context';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
@@ -60,6 +62,7 @@
 	let passages = $state<PassageDraft[]>([]);
 
 	let newVenueName = $state('');
+	let newVenueContext = $state<ContextType | ''>('');
 	let creatingVenue = $state(false);
 	let venueCreateError = $state<string | null>(null);
 
@@ -112,6 +115,7 @@
 			passages = [];
 		}
 		newVenueName = '';
+		newVenueContext = '';
 		venueCreateError = null;
 	}
 
@@ -166,6 +170,12 @@
 		}));
 	}
 
+	function applyVenueSelection(nextId: string) {
+		venueId = nextId;
+		const type = contextTypeForVenue(venues, nextId);
+		if (type) contextType = type;
+	}
+
 	async function createVenueInline() {
 		const name = newVenueName.trim();
 		if (!name || creatingVenue) return;
@@ -174,6 +184,7 @@
 		try {
 			const body = new FormData();
 			body.set('name', name);
+			if (newVenueContext) body.set('context_type', newVenueContext);
 			const res = await fetch('?/createVenue', {
 				method: 'POST',
 				body,
@@ -186,15 +197,24 @@
 					kind?: string;
 					success?: boolean;
 					venueId?: string;
+					contextType?: ContextType | null;
 					message?: string;
 				};
 				if (data.kind === 'createVenue' && data.success && data.venueId) {
+					const createdType = data.contextType ?? (newVenueContext || null);
 					venues = [
 						...venues,
-						{ id: data.venueId, name, notes: null, sermonCount: 0 }
+						{
+							id: data.venueId,
+							name,
+							notes: null,
+							context_type: createdType,
+							sermonCount: 0
+						}
 					].sort((a, b) => a.name.localeCompare(b.name));
-					venueId = data.venueId;
+					applyVenueSelection(data.venueId);
 					newVenueName = '';
+					newVenueContext = '';
 					return;
 				}
 				venueCreateError = data.message ?? 'Could not create venue.';
@@ -255,18 +275,20 @@
 					type="single"
 					value={venueSelectValue}
 					onValueChange={(v) => {
-						venueId = !v || v === NONE ? '' : v;
+						applyVenueSelection(!v || v === NONE ? '' : v);
 					}}
 				>
 					<Select.Trigger class="w-full">{venueLabel}</Select.Trigger>
 					<Select.Content>
 						<Select.Item value={NONE}>No venue</Select.Item>
 						{#each venues as v (v.id)}
-							<Select.Item value={v.id}>{v.name}</Select.Item>
+							<Select.Item value={v.id}>
+								{v.name}{v.context_type ? ` · ${CONTEXT_TYPE_SHORT[v.context_type]}` : ''}
+							</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>
-				<div class="flex gap-2">
+				<div class="flex flex-col gap-2 sm:flex-row">
 					<Input
 						placeholder="New venue name"
 						bind:value={newVenueName}
@@ -278,6 +300,16 @@
 							}
 						}}
 					/>
+					<select
+						class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm sm:w-36"
+						bind:value={newVenueContext}
+						aria-label="New venue type"
+					>
+						<option value="">Type…</option>
+						{#each CONTEXT_TYPES as ct (ct)}
+							<option value={ct}>{CONTEXT_TYPE_LABELS[ct]}</option>
+						{/each}
+					</select>
 					<Button
 						type="button"
 						variant="outline"

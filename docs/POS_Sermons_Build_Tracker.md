@@ -1,6 +1,6 @@
 # Personal Operations System — Sermons Module Build Tracker
 
-_Last updated: 2026-07-19 | Module: Sermons (4th) | Sessions 1–2 complete_
+_Last updated: 2026-09-02 | Module: Sermons (4th) | Sessions 1–2 complete + venue type ([217](decisions/217-sermon-venues-context-type.md))_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md`, [090](decisions/090-sermons-session-0.md), [091](decisions/091-sermons-session-1.md), [095](decisions/095-sermons-by-book-stats.md), grill [brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md](../brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md).
 
@@ -19,7 +19,7 @@ Core value — **log sermons preached (including date-only drafts) and jump to l
 
 | Gate | Resolution |
 |---|---|
-| **Taxonomy singular** | Occasion = `sermons.context_type`. Venue = `sermon_venues`. Passage human = `passage_display`. Passage structured = `sermon_passages`. Topic + notes free text. |
+| **Taxonomy singular** | Occasion = `sermons.context_type` (per sermon). Venue = `sermon_venues` with optional `context_type` default ([217](decisions/217-sermon-venues-context-type.md)). Passage human = `passage_display`. Passage structured = `sermon_passages`. Topic + notes free text. |
 | **Nullable / required** | Only `preached_on` required. All other sermon fields nullable. Passage rows require `bible_book`. |
 | **Form delivery** | Sheet for create/edit. List at `/sermons`. Venues at `/settings/sermons/venues`. |
 | **RLS + viewer** | Owner write; SELECT via `app_has_module_read('sermons')`. Viewer write **waived** v1. |
@@ -51,6 +51,7 @@ Core value — **log sermons preached (including date-only drafts) and jump to l
 | 0 | ✅ | Phase 0 + tracker + [090](decisions/090-sermons-session-0.md) |
 | 1 | ✅ | Schema + seed + `/sermons` + Sheet + venues settings + library deep-link + nav/audit — [091](decisions/091-sermons-session-1.md) |
 | 2 | ✅ | `/sermons/by-book` commentary × sermon stats — [095](decisions/095-sermons-by-book-stats.md); grill [brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md](../brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md) |
+| Ad-hoc | ✅ | Venue location type auto-fills sermon context — [217](decisions/217-sermon-venues-context-type.md) |
 
 ---
 

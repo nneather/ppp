@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-08-31 — Canvas classwork one-shot import ([216](docs/decisions/216-canvas-classwork-import.md)); prior Pennington shelf add ([215](docs/decisions/215-library-pennington-sermon-flourishing.md)).
+**Last updated:** 2026-09-02 — Sermon venue type auto-fills context ([217](docs/decisions/217-sermon-venues-context-type.md)); prior Canvas classwork import ([216](docs/decisions/216-canvas-classwork-import.md)).
 
 **How to use this file — read this first:**
 
@@ -36,7 +36,7 @@ Nearest hard dates:
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Latest shelf add: Pennington *Sermon on the Mount* (Matthew coverage + Matt 5–7 passage — [215](docs/decisions/215-library-pennington-sermon-flourishing.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
-| Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. List + by-book smoke passed. |
+| Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. **Venue type** (C/P/A) auto-fills sermon context ([217](docs/decisions/217-sermon-venues-context-type.md)). List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) + **Canvas one-shot import** ([216](docs/decisions/216-canvas-classwork-import.md)) — FA-26 courses/assignments loaded; `npm run classwork:canvas-import` to re-pull. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence / import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)) + **Quarterly / Semester / Annual** labels ([213](docs/decisions/213-contacts-frequency-labels.md)) + **roster sort** (frequency / list / giving, composable — [214](docs/decisions/214-contacts-roster-sort.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)): week split, deferred_until, assignment link, contacts_with_cadence. |
@@ -47,11 +47,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [217 — Sermon venue location type](docs/decisions/217-sermon-venues-context-type.md) (2026-09-02) — `sermon_venues.context_type` C/P/A; picking a church fills Context; majority backfill of 9 venues.
 - [216 — Canvas classwork import](docs/decisions/216-canvas-classwork-import.md) (2026-08-31) — CLI one-shot; FA-26 5 courses / 34 assignments; Canvas ids for re-pull; skip attendance / 0-pt / stale.
 - [215 — Library Pennington Sermon on the Mount](docs/decisions/215-library-pennington-sermon-flourishing.md) (2026-08-27) — Baker Academic 2018 paperback; Commentary; Matthew coverage + Matt 5–7 passage.
 - [214 — Contacts roster sort](docs/decisions/214-contacts-roster-sort.md) (2026-08-26) — `/contacts` Sort + then (frequency, list, giving, …); group headers; URL `?sort=`.
 - [213 — Contacts frequency labels](docs/decisions/213-contacts-frequency-labels.md) (2026-08-24) — Import frequencies were already mixed; UI/MCP now say Quarterly / Semester / Annual instead of rolling “3 months” / Biannual.
-- [212 — Contacts due integrity](docs/decisions/212-contacts-due-integrity.md) (2026-08-24) — Household Log/Skip fan-out; 2026 Log fulfills a:2027; honest pace; MCP period payload; contacts R2 dump; import attach-to-HH.
 
 ---
 
@@ -69,7 +69,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Projects migrations (prod):** `20260603170000_ppp_projects_v1.sql`, `20260603200000_projects_add_not_started_lifecycle.sql`, `20260604030000_ppp_project_tasks_myn.sql`, `20260604100000_project_updates_progress.sql`, `20260709164016_projects_email_inbox_and_domain_colors.sql`, `20260723170000_profiles_task_prefs.sql`, `20260727155538_mcp_monday_protocol_finetune.sql` ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)).
 
-**Sermons:** `/sermons` list + Sheet; `/sermons/by-book` commentary × sermon spine (series label + multi-part collapse + latest sermon date — [134](docs/decisions/134-sermons-by-book-series-dedupe.md)); `/settings/sermons/venues`; helpers `src/lib/sermons/` (incl. `loadUpcomingSermons`); migration `20260717190000_ppp_sermons_v1.sql` ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md), [132](docs/decisions/132-desktop-home-dashboard.md)).
+**Sermons:** `/sermons` list + Sheet (venue type auto-fills context — [217](docs/decisions/217-sermon-venues-context-type.md)); `/sermons/by-book` commentary × sermon spine (series label + multi-part collapse + latest sermon date — [134](docs/decisions/134-sermons-by-book-series-dedupe.md)); `/settings/sermons/venues`; helpers `src/lib/sermons/` (incl. `loadUpcomingSermons`, `venue-context.ts`); migrations `20260717190000_ppp_sermons_v1.sql`, `20260902152000_sermon_venues_context_type.sql` ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md), [132](docs/decisions/132-desktop-home-dashboard.md), [217](docs/decisions/217-sermon-venues-context-type.md)).
 
 **Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; Canvas CLI import `npm run classwork:canvas-import` ([216](docs/decisions/216-canvas-classwork-import.md)); migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`, `20260831220000_classwork_canvas_ids.sql`. **Papers:** `/classwork/papers` + `/classwork/papers/[id]` research home (attach books/essays/stubs, per-row cite + page, per-source notes, merged compiled bib; P1 stamp+lock; **research groups** — CRUD + per-row select + Ungrouped-first buckets, G1 null-out) ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
 
@@ -81,7 +81,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** Canvas classwork import [216](docs/decisions/216-canvas-classwork-import.md) — `npm run check` **0 errors**, `npm run test` **515** passed (2026-08-31).
+**Repo gate:** Sermon venue type [217](docs/decisions/217-sermon-venues-context-type.md) — `npm run check` **0 errors**, `npm run test` **519** passed (2026-09-02).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

@@ -37,6 +37,8 @@ export type SermonVenueRow = {
 	id: string;
 	name: string;
 	notes: string | null;
+	/** Default occasion type for sermons at this venue (C/P/A). Null = untyped. */
+	context_type: ContextType | null;
 	sermonCount: number;
 };
 
