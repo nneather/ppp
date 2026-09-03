@@ -2553,6 +2553,186 @@ export type Database = {
           },
         ]
       }
+      sports_games: {
+        Row: {
+          away_espn_team_id: string | null
+          away_name: string | null
+          away_record: string | null
+          away_score: number | null
+          broadcast: string | null
+          created_at: string
+          deleted_at: string | null
+          display_clock: string | null
+          espn_event_id: string
+          home_espn_team_id: string | null
+          home_name: string | null
+          home_record: string | null
+          home_score: number | null
+          id: string
+          league: string
+          period: number | null
+          start_time: string
+          state: string
+          status_detail: string | null
+          synced_at: string
+          updated_at: string
+          venue: string | null
+        }
+        Insert: {
+          away_espn_team_id?: string | null
+          away_name?: string | null
+          away_record?: string | null
+          away_score?: number | null
+          broadcast?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          display_clock?: string | null
+          espn_event_id: string
+          home_espn_team_id?: string | null
+          home_name?: string | null
+          home_record?: string | null
+          home_score?: number | null
+          id?: string
+          league: string
+          period?: number | null
+          start_time: string
+          state: string
+          status_detail?: string | null
+          synced_at?: string
+          updated_at?: string
+          venue?: string | null
+        }
+        Update: {
+          away_espn_team_id?: string | null
+          away_name?: string | null
+          away_record?: string | null
+          away_score?: number | null
+          broadcast?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          display_clock?: string | null
+          espn_event_id?: string
+          home_espn_team_id?: string | null
+          home_name?: string | null
+          home_record?: string | null
+          home_score?: number | null
+          id?: string
+          league?: string
+          period?: number | null
+          start_time?: string
+          state?: string
+          status_detail?: string | null
+          synced_at?: string
+          updated_at?: string
+          venue?: string | null
+        }
+        Relationships: []
+      }
+      sports_standings: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          espn_team_id: string
+          games_behind: number | null
+          group_name: string | null
+          id: string
+          league: string
+          losses: number
+          rank: number | null
+          season_year: number
+          streak: string | null
+          synced_at: string
+          team_name: string
+          ties: number | null
+          updated_at: string
+          win_percent: number | null
+          wins: number
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          espn_team_id: string
+          games_behind?: number | null
+          group_name?: string | null
+          id?: string
+          league: string
+          losses?: number
+          rank?: number | null
+          season_year: number
+          streak?: string | null
+          synced_at?: string
+          team_name: string
+          ties?: number | null
+          updated_at?: string
+          win_percent?: number | null
+          wins?: number
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          espn_team_id?: string
+          games_behind?: number | null
+          group_name?: string | null
+          id?: string
+          league?: string
+          losses?: number
+          rank?: number | null
+          season_year?: number
+          streak?: string | null
+          synced_at?: string
+          team_name?: string
+          ties?: number | null
+          updated_at?: string
+          win_percent?: number | null
+          wins?: number
+        }
+        Relationships: []
+      }
+      sports_teams: {
+        Row: {
+          abbreviation: string | null
+          color: string | null
+          created_at: string
+          deleted_at: string | null
+          display_name: string
+          espn_team_id: string
+          id: string
+          is_followed: boolean
+          league: string
+          logo_url: string | null
+          sport: string
+          updated_at: string
+        }
+        Insert: {
+          abbreviation?: string | null
+          color?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          display_name: string
+          espn_team_id: string
+          id?: string
+          is_followed?: boolean
+          league: string
+          logo_url?: string | null
+          sport: string
+          updated_at?: string
+        }
+        Update: {
+          abbreviation?: string | null
+          color?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          display_name?: string
+          espn_team_id?: string
+          id?: string
+          is_followed?: boolean
+          league?: string
+          logo_url?: string | null
+          sport?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       time_entries: {
         Row: {
           billable: boolean

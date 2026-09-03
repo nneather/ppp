@@ -8,6 +8,7 @@
 			| 'library'
 			| 'projects'
 			| 'sermons'
+			| 'sports'
 			| 'classwork'
 			| 'contacts'
 			| 'settings'

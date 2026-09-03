@@ -23,6 +23,8 @@ export const _PROJECTS_TABLES = [
 
 export const _SERMONS_TABLES = ['sermon_venues', 'sermons', 'sermon_passages'] as const;
 
+export const _SPORTS_TABLES = ['sports_teams'] as const;
+
 export const _CLASSWORK_TABLES = [
 	'courses',
 	'assignments',
@@ -97,6 +99,8 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'sermon_venues',
 	'sermons',
 	'sermon_passages',
+	// sports (follow toggles only — games/standings are sync caches, not audited)
+	'sports_teams',
 	// classwork
 	'courses',
 	'assignments',
@@ -363,7 +367,7 @@ function entityLabelFor(
 }
 
 export type AuditFilters = {
-	module: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'classwork' | 'contacts';
+	module: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'sports' | 'classwork' | 'contacts';
 	recordId: string;
 	changedBy: string;
 };
@@ -374,6 +378,7 @@ function parseModule(v: string | null): AuditFilters['module'] {
 		v === 'library' ||
 		v === 'projects' ||
 		v === 'sermons' ||
+		v === 'sports' ||
 		v === 'classwork' ||
 		v === 'contacts'
 	)
@@ -448,6 +453,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		q = q.in('table_name', _PROJECTS_TABLES as unknown as string[]);
 	} else if (filters.module === 'sermons') {
 		q = q.in('table_name', _SERMONS_TABLES as unknown as string[]);
+	} else if (filters.module === 'sports') {
+		q = q.in('table_name', _SPORTS_TABLES as unknown as string[]);
 	} else if (filters.module === 'classwork') {
 		q = q.in('table_name', _CLASSWORK_TABLES as unknown as string[]);
 	} else if (filters.module === 'contacts') {

@@ -10,6 +10,7 @@
 	import DashboardLibraryTileFooter from '$lib/components/dashboard-library-tile-footer.svelte';
 	import DashboardInvoicingTileFooter from '$lib/components/dashboard-invoicing-tile-footer.svelte';
 	import DashboardUpcomingSermons from '$lib/components/dashboard-upcoming-sermons.svelte';
+	import DashboardSportsGlance from '$lib/components/dashboard-sports-glance.svelte';
 	import ProjectStatusStrip from '$lib/components/project-status-strip.svelte';
 	import { cn } from '$lib/utils';
 	import { formatWeekLabel } from '$lib/projects/week';
@@ -296,6 +297,7 @@
 			</section>
 
 			<DashboardUpcomingSermons sermons={data.upcomingSermons} />
+			<DashboardSportsGlance games={data.sportsGlanceGames} />
 		</div>
 
 		<aside

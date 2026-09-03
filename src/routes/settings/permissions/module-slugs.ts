@@ -4,6 +4,7 @@ export const MODULE_SLUGS = [
 	'calendar',
 	'projects',
 	'sermons',
+	'sports',
 	'classwork',
 	'contacts'
 ] as const;

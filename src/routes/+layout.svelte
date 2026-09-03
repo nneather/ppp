@@ -17,6 +17,7 @@
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import ListTodo from '@lucide/svelte/icons/list-todo';
 	import Mic from '@lucide/svelte/icons/mic';
+	import Trophy from '@lucide/svelte/icons/trophy';
 	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
 	import Users from '@lucide/svelte/icons/users';
 	import Settings from '@lucide/svelte/icons/settings';
@@ -41,6 +42,7 @@
 		{ href: '/classwork', label: 'Classwork', icon: GraduationCap },
 		{ href: '/contacts', label: 'Contacts', icon: Users },
 		{ href: '/sermons', label: 'Sermons', icon: Mic },
+		{ href: '/sports', label: 'Sports', icon: Trophy },
 		{ href: '/invoicing', label: 'Invoicing', icon: Receipt },
 		{ href: '/library', label: 'Library', icon: BookOpen },
 		{ href: '/projects', label: 'Projects', icon: FolderKanban },
@@ -70,6 +72,7 @@
 		| 'library'
 		| 'projects'
 		| 'sermons'
+		| 'sports'
 		| 'classwork'
 		| 'contacts'
 		| 'settings'
@@ -78,6 +81,7 @@
 		if (path.startsWith('/invoicing')) return 'invoicing';
 		if (path.startsWith('/dashboard')) return 'dashboard';
 		if (path.startsWith('/sermons')) return 'sermons';
+		if (path.startsWith('/sports')) return 'sports';
 		if (path.startsWith('/classwork')) return 'classwork';
 		if (path.startsWith('/contacts')) return 'contacts';
 		if (path.startsWith('/tasks')) return 'projects';

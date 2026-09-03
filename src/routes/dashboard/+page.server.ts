@@ -16,6 +16,7 @@ import { loadDashboardNowTasks } from '$lib/projects/server/task-loaders';
 import { loadDueSoonAssignments } from '$lib/classwork/server/loaders';
 import { loadContactsDue } from '$lib/contacts/server/loaders';
 import { loadUpcomingSermons } from '$lib/sermons/server/loaders';
+import { loadFollowedSportsGlance } from '$lib/sports/server/loaders';
 import type { LatestHealth } from '$lib/types/projects';
 import type { LastWeekInvoiceCandidate } from '$lib/types/invoicing';
 
@@ -88,6 +89,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		latestHealthMap,
 		nowTasks,
 		upcomingSermonsRes,
+		sportsGlanceRes,
 		dueSoonRes,
 		profileRes
 	] = await Promise.all([
@@ -110,6 +112,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		locals.perf.measure('db', () => loadLatestHealth(supabase)),
 		locals.perf.measure('db', () => loadDashboardNowTasks(supabase, { todayYmd: today })),
 		locals.perf.measure('db', () => loadUpcomingSermons(supabase, { todayYmd: today, limit: 5 })),
+		locals.perf.measure('db', () => loadFollowedSportsGlance(supabase)),
 		locals.perf.measure('db', () =>
 			loadDueSoonAssignments(supabase, { todayYmd: today, horizonDays: 14 })
 		),
@@ -122,6 +125,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 
 	if (profileRes.error) console.error(profileRes.error);
 	if (upcomingSermonsRes.error) console.error(upcomingSermonsRes.error);
+	if (sportsGlanceRes.error) console.error(sportsGlanceRes.error);
 	if (dueSoonRes.error) console.error(dueSoonRes.error);
 
 	const contactsDueRes = await locals.perf.measure('db', () =>
@@ -172,6 +176,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 			criticalNowTaskCount,
 			opportunityNowTaskCount,
 			upcomingSermons: upcomingSermonsRes.sermons,
+			sportsGlanceGames: sportsGlanceRes.games,
 			dueSoonAssignments,
 			dueSoonOverdueCount,
 			contactsDue,
@@ -192,6 +197,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		criticalNowTaskCount,
 		opportunityNowTaskCount,
 		upcomingSermons: upcomingSermonsRes.sermons,
+		sportsGlanceGames: sportsGlanceRes.games,
 		dueSoonAssignments,
 		dueSoonOverdueCount,
 		contactsDue,

@@ -1,0 +1,12 @@
+{
+	"crons": [
+		{
+			"path": "/api/sports/sync",
+			"schedule": "*/10 * * * *"
+		},
+		{
+			"path": "/api/sports/sync?standings=1",
+			"schedule": "0 14 * * *"
+		}
+	]
+}

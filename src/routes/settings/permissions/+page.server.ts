@@ -79,6 +79,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			calendar: 'none',
 			projects: 'none',
 			sermons: 'none',
+			sports: 'none',
 			classwork: 'none',
 			contacts: 'none'
 		};

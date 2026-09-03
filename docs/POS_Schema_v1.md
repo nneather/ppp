@@ -11,7 +11,7 @@ _Generated: April 2026 | Updated 2026-06-03 (Projects module). Feeds schema sess
 - All tables have `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` maintained by trigger
 - All tables have `created_by UUID REFERENCES profiles(id)` unless noted as system-managed
 - `deleted_at IS NULL` filter applied by default in all RLS policies and application queries
-- Audit log is trigger-driven on every table — invisible at the app layer
+- Audit log is trigger-driven on every table — invisible at the app layer (**exception:** `sports_games` / `sports_standings` omit audit triggers — high-churn ESPN sync caches; `sports_teams` remains audited for follow toggles — [218](decisions/218-sports-session-1.md))
 - `updated_at` trigger fires on every UPDATE; also recalculates derived fields where noted
 
 ---
@@ -703,6 +703,82 @@ project_tasks
 **Notes:** MYN methodology — see [MYN_TASKS_DESIGN.md](MYN_TASKS_DESIGN.md). No `due_date`. UI: `/projects/tasks`.
 
 **Migration:** `20260604030000_ppp_project_tasks_myn.sql`
+
+---
+
+## Sports
+
+ESPN sync cache for NFL / MLB / college football. Cron writes via service role; browser reads via RLS. Follow toggles are owner-only. Deviations from global conventions: no `created_by` (cron has null uid); full UNIQUE (not partial on `deleted_at`) for PostgREST upsert; audit only on `sports_teams` ([218](decisions/218-sports-session-1.md)).
+
+### `sports_teams`
+
+```sql
+sports_teams
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  league          TEXT NOT NULL CHECK (league IN ('nfl', 'mlb', 'college-football'))
+  sport           TEXT NOT NULL CHECK (sport IN ('football', 'baseball'))
+  espn_team_id    TEXT NOT NULL
+  display_name    TEXT NOT NULL
+  abbreviation    TEXT
+  logo_url        TEXT
+  color           TEXT
+  is_followed     BOOLEAN NOT NULL DEFAULT false
+  deleted_at      TIMESTAMPTZ
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  UNIQUE (league, espn_team_id)
+```
+
+### `sports_games`
+
+```sql
+sports_games
+  id                 UUID PRIMARY KEY
+  league             TEXT NOT NULL  -- same league check
+  espn_event_id      TEXT NOT NULL
+  start_time         TIMESTAMPTZ NOT NULL
+  state              TEXT NOT NULL CHECK (state IN ('pre', 'in', 'post'))
+  status_detail      TEXT
+  period             INT
+  display_clock      TEXT
+  home_espn_team_id  TEXT
+  home_name          TEXT
+  home_score         INT
+  home_record        TEXT
+  away_espn_team_id  TEXT
+  away_name          TEXT
+  away_score         INT
+  away_record        TEXT
+  broadcast          TEXT
+  venue              TEXT
+  synced_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+  deleted_at         TIMESTAMPTZ
+  created_at / updated_at
+  UNIQUE (league, espn_event_id)
+```
+
+### `sports_standings`
+
+```sql
+sports_standings
+  id             UUID PRIMARY KEY
+  league         TEXT NOT NULL
+  season_year    INT NOT NULL
+  espn_team_id   TEXT NOT NULL
+  team_name      TEXT NOT NULL
+  group_name     TEXT
+  wins / losses  INT NOT NULL DEFAULT 0
+  ties           INT
+  win_percent    NUMERIC
+  games_behind   NUMERIC
+  streak         TEXT
+  rank           INT   -- ESPN playoffSeed
+  synced_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  deleted_at / created_at / updated_at
+  UNIQUE (league, season_year, espn_team_id)
+```
+
+**RLS:** SELECT owner or `app_has_module_read('sports')`; ALL writes owner. Service role bypasses for cron.
 
 ---
 

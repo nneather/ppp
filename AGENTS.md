@@ -188,6 +188,17 @@ End-of-session deliverables:
   - Routes: `/sermons` (list + Sheet), `/sermons/by-book` (commentary × sermon spine), `/settings/sermons/venues`. Library hook: deep-link to `/library/search-passage`.
   - Audit: `_SERMONS_TABLES`; soft-delete revert for venues/sermons/passages.
 
+
+- **Sports helpers** at `src/lib/sports/` (schema migration `20260902221000_ppp_sports_v1.sql`; Session 1 [218](docs/decisions/218-sports-session-1.md)):
+  - `src/lib/types/sports.ts` — leagues (`nfl`/`mlb`/`college-football`), game/team/standing/glance view-models.
+  - `src/lib/sports/espn.ts` — ESPN site.api → site.web.api fetch + normalize (broadcast, season year, leaf standings); unit tests `__tests__/espn.test.ts`.
+  - `src/lib/sports/server/sync.ts` — `runSportsSync` upserts (games; optional teams+standings without clobbering `is_followed`).
+  - `src/lib/sports/server/loaders.ts` — `loadSportsPage` / `loadFollowedSportsGlance` (followed filter; CFB hidden when nothing followed).
+  - `src/lib/sports/server/actions.ts` — `toggleFollowedAction` only.
+  - `src/lib/supabase/admin.ts` — service-role client for cron.
+  - Routes: `/sports`; `GET /api/sports/sync` (`CRON_SECRET`); dashboard glance. Nav: desktop sidebar after Sermons (no mobile tab).
+  - Audit: `_SPORTS_TABLES = ['sports_teams']` only. Permissions slug `sports`.
+
 - **Classwork helpers** at `src/lib/classwork/` (schema migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`, `20260831220000_classwork_canvas_ids.sql`; Session 0 [150](docs/decisions/150-classwork-session-0.md), Session 1 [153](docs/decisions/153-classwork-session-1.md), Session 2 [161](docs/decisions/161-classwork-session-2.md), Papers 0–1 [188](docs/decisions/188-classwork-research-papers-session-0.md)/[189](docs/decisions/189-classwork-papers-session-1.md), Canvas import [216](docs/decisions/216-canvas-classwork-import.md)):
  - `src/lib/types/classwork.ts` — `COURSE_STATUSES`, `ASSIGNMENT_KINDS`, `ASSIGNMENT_STATUSES`, `PAPER_STATUSES` (+ labels), list/filter view-models, `ClassworkProjectOption`, `DueSoonAssignment`, `PaperRow` / `PaperListRow`.
  - `src/lib/classwork/parent-picker.ts` — client-safe `parentPickerOptions` (same-course + exclude self/descendants).

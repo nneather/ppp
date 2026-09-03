@@ -16,6 +16,7 @@
 		calendar: 'Calendar',
 		projects: 'Projects',
 		sermons: 'Sermons',
+		sports: 'Sports',
 		classwork: 'Classwork',
 		contacts: 'Contacts'
 	};
