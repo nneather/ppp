@@ -342,6 +342,11 @@
 				</div>
 			{/if}
 		</div>
+		{#if league === 'all' || league === 'college-football'}
+			<p class="mt-1 text-xs text-muted-foreground">
+				College football includes FBS, FCS, Division II, Division III, and NAIA.
+			</p>
+		{/if}
 		{#if !isOwner}
 			<p class="mt-2 text-xs text-muted-foreground">Only the owner can follow teams.</p>
 		{/if}

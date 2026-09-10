@@ -14,6 +14,7 @@ import {
 	fetchStandings,
 	fetchTeams,
 	scoreboardDatesParam,
+	scoreboardDaysAhead,
 	seasonYearForLeague,
 	type NormalizedGame,
 	type NormalizedStanding,
@@ -99,28 +100,33 @@ async function upsert(
 	rows: Record<string, unknown>[]
 ): Promise<number> {
 	if (rows.length === 0) return 0;
-	const endpoint = `${restBase}/${table}?on_conflict=${encodeURIComponent(onConflict)}`;
-	const res = await fetch(endpoint, {
-		method: 'POST',
-		headers: {
-			apikey: key!,
-			Authorization: `Bearer ${key}`,
-			'Content-Type': 'application/json',
-			Prefer: 'resolution=merge-duplicates,return=minimal'
-		},
-		body: JSON.stringify(rows)
-	});
-	if (!res.ok) {
-		const body = await res.text();
-		throw new Error(`${table} upsert ${res.status}: ${body.slice(0, 500)}`);
+	const UPSERT_CHUNK = 200;
+	for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
+		const chunk = rows.slice(i, i + UPSERT_CHUNK);
+		const endpoint = `${restBase}/${table}?on_conflict=${encodeURIComponent(onConflict)}`;
+		const res = await fetch(endpoint, {
+			method: 'POST',
+			headers: {
+				apikey: key!,
+				Authorization: `Bearer ${key}`,
+				'Content-Type': 'application/json',
+				Prefer: 'resolution=merge-duplicates,return=minimal'
+			},
+			body: JSON.stringify(chunk)
+		});
+		if (!res.ok) {
+			const body = await res.text();
+			throw new Error(`${table} upsert ${res.status}: ${body.slice(0, 500)}`);
+		}
 	}
 	return rows.length;
 }
 
-async function syncLeague(dates: string, includeStandings: boolean) {
+async function syncLeague(now: Date, includeStandings: boolean) {
 	const results: { league: string; ok: boolean; error?: string; [k: string]: unknown }[] = [];
 	for (const cfg of ESPN_LEAGUES) {
 		try {
+			const dates = scoreboardDatesParam(now, scoreboardDaysAhead(cfg.league));
 			const games = await fetchScoreboard(cfg, dates);
 			const gamesUpserted = await upsert('sports_games', 'league,espn_event_id', gameRows(games));
 			let teamsUpserted = 0;
@@ -156,8 +162,9 @@ async function syncLeague(dates: string, includeStandings: boolean) {
 	return results;
 }
 
-const dates = scoreboardDatesParam(new Date());
-const leagues = await syncLeague(dates, INCLUDE_STANDINGS);
+const now = new Date();
+const dates = scoreboardDatesParam(now, 6);
+const leagues = await syncLeague(now, INCLUDE_STANDINGS);
 const ok = leagues.every((l) => l.ok);
 const payload = { ok, dates, includeStandings: INCLUDE_STANDINGS, leagues };
 console.log(JSON.stringify(payload, null, 2));

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+	CFB_SCOREBOARD_GROUPS,
+	dedupeGamesByEventId,
 	normalizeScoreboard,
 	normalizeStandings,
 	normalizeTeams,
 	parseOverallRecord,
 	pickBroadcast,
 	scoreboardDatesParam,
+	scoreboardDaysAhead,
 	seasonYearForLeague
 } from '../espn';
 
@@ -26,11 +29,16 @@ describe('seasonYearForLeague', () => {
 });
 
 describe('scoreboardDatesParam', () => {
-	it('returns a yesterday-through-tomorrow YYYYMMDD range', () => {
+	it('returns a yesterday-through-tomorrow YYYYMMDD range by default', () => {
 		const param = scoreboardDatesParam(new Date('2026-09-02T17:00:00Z'));
 		expect(param).toMatch(/^\d{8}-\d{8}$/);
 		const [start, end] = param.split('-');
 		expect(Number(end)).toBeGreaterThan(Number(start));
+	});
+
+	it('extends CFB window through the coming Saturday from midweek', () => {
+		const param = scoreboardDatesParam(new Date('2026-09-10T17:00:00Z'), 6);
+		expect(param).toBe('20260909-20260916');
 	});
 });
 
@@ -226,5 +234,67 @@ describe('normalizeStandings', () => {
 			}
 		});
 		expect(rows[0]).toMatchObject({ wins: 1, losses: 0, rank: 8 });
+	});
+});
+
+describe('CFB coverage groups', () => {
+	it('covers FBS, FCS, D-II, D-III, and NAIA', () => {
+		expect(CFB_SCOREBOARD_GROUPS).toEqual(['80', '81', '57', '58', '186']);
+		expect(scoreboardDaysAhead('college-football')).toBe(6);
+		expect(scoreboardDaysAhead('nfl')).toBe(1);
+	});
+});
+
+describe('dedupeGamesByEventId', () => {
+	it('keeps one row per espn_event_id (FBS/FCS crossovers)', () => {
+		const a = normalizeScoreboard('college-football', {
+			events: [
+				{
+					id: '1',
+					date: '2026-09-12T19:30:00Z',
+					status: { type: { state: 'pre' } },
+					competitions: [
+						{
+							competitors: [
+								{ homeAway: 'home', team: { id: '2636', displayName: 'UTSA' } },
+								{ homeAway: 'away', team: { id: '326', displayName: 'Texas State' } }
+							]
+						}
+					]
+				}
+			]
+		});
+		const b = normalizeScoreboard('college-football', {
+			events: [
+				{
+					id: '1',
+					date: '2026-09-12T19:30:00Z',
+					status: { type: { state: 'pre' } },
+					competitions: [
+						{
+							competitors: [
+								{ homeAway: 'home', team: { id: '2636', displayName: 'UTSA' } },
+								{ homeAway: 'away', team: { id: '326', displayName: 'Texas State' } }
+							]
+						}
+					]
+				},
+				{
+					id: '2',
+					date: '2026-09-12T23:00:00Z',
+					status: { type: { state: 'pre' } },
+					competitions: [
+						{
+							competitors: [
+								{ homeAway: 'home', team: { id: '2888', displayName: 'Ouachita Baptist' } },
+								{ homeAway: 'away', team: { id: '9', displayName: 'SEOSU' } }
+							]
+						}
+					]
+				}
+			]
+		});
+		const merged = dedupeGamesByEventId([a, b]);
+		expect(merged.map((g) => g.espn_event_id).sort()).toEqual(['1', '2']);
 	});
 });

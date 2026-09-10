@@ -5,6 +5,7 @@ import {
 	fetchStandings,
 	fetchTeams,
 	scoreboardDatesParam,
+	scoreboardDaysAhead,
 	seasonYearForLeague,
 	type EspnLeagueConfig,
 	type NormalizedGame,
@@ -27,6 +28,23 @@ export type SyncResult = {
 	includeStandings: boolean;
 	leagues: LeagueSyncResult[];
 };
+
+const UPSERT_CHUNK = 200;
+
+async function upsertChunks(
+	admin: SupabaseClient,
+	table: 'sports_games' | 'sports_teams' | 'sports_standings',
+	onConflict: string,
+	rows: Record<string, unknown>[]
+): Promise<number> {
+	if (rows.length === 0) return 0;
+	for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
+		const chunk = rows.slice(i, i + UPSERT_CHUNK);
+		const { error } = await admin.from(table).upsert(chunk, { onConflict });
+		if (error) throw new Error(error.message);
+	}
+	return rows.length;
+}
 
 async function upsertGames(admin: SupabaseClient, games: NormalizedGame[]): Promise<number> {
 	if (games.length === 0) return 0;
@@ -52,11 +70,7 @@ async function upsertGames(admin: SupabaseClient, games: NormalizedGame[]): Prom
 		synced_at: syncedAt,
 		deleted_at: null
 	}));
-	const { error } = await admin.from('sports_games').upsert(rows, {
-		onConflict: 'league,espn_event_id'
-	});
-	if (error) throw new Error(error.message);
-	return rows.length;
+	return upsertChunks(admin, 'sports_games', 'league,espn_event_id', rows);
 }
 
 /** Upsert teams without clobbering is_followed. */
@@ -72,11 +86,7 @@ async function upsertTeams(admin: SupabaseClient, teams: NormalizedTeam[]): Prom
 		color: t.color,
 		deleted_at: null
 	}));
-	const { error } = await admin.from('sports_teams').upsert(rows, {
-		onConflict: 'league,espn_team_id'
-	});
-	if (error) throw new Error(error.message);
-	return rows.length;
+	return upsertChunks(admin, 'sports_teams', 'league,espn_team_id', rows);
 }
 
 async function upsertStandings(
@@ -101,19 +111,16 @@ async function upsertStandings(
 		synced_at: syncedAt,
 		deleted_at: null
 	}));
-	const { error } = await admin.from('sports_standings').upsert(rows, {
-		onConflict: 'league,season_year,espn_team_id'
-	});
-	if (error) throw new Error(error.message);
-	return rows.length;
+	return upsertChunks(admin, 'sports_standings', 'league,season_year,espn_team_id', rows);
 }
 
 async function syncLeague(
 	admin: SupabaseClient,
 	cfg: EspnLeagueConfig,
-	dates: string,
+	now: Date,
 	includeStandings: boolean
 ): Promise<LeagueSyncResult> {
+	const dates = scoreboardDatesParam(now, scoreboardDaysAhead(cfg.league));
 	try {
 		const games = await fetchScoreboard(cfg, dates);
 		const gamesUpserted = await upsertGames(admin, games);
@@ -150,9 +157,10 @@ export async function runSportsSync(
 	opts: { includeStandings?: boolean; now?: Date } = {}
 ): Promise<SyncResult> {
 	const includeStandings = opts.includeStandings === true;
-	const dates = scoreboardDatesParam(opts.now ?? new Date());
+	const now = opts.now ?? new Date();
+	const dates = scoreboardDatesParam(now, 6);
 	const settled = await Promise.allSettled(
-		ESPN_LEAGUES.map((cfg) => syncLeague(admin, cfg, dates, includeStandings))
+		ESPN_LEAGUES.map((cfg) => syncLeague(admin, cfg, now, includeStandings))
 	);
 	const leagues: LeagueSyncResult[] = settled.map((r, i) => {
 		if (r.status === 'fulfilled') return r.value;

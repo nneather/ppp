@@ -121,14 +121,20 @@ export async function loadSportsPage(
 	const followedEspnIds = new Set(followed.map((t) => t.espn_team_id));
 	const followedGroups = new Set<string>();
 
+	const today = ymdInChicago();
+	const gamesFrom = addDaysYmd(today, -2) ?? today;
+	const gamesTo = addDaysYmd(today, 8) ?? today;
+
 	let gamesQ = supabase
 		.from('sports_games')
 		.select(
 			'id, league, espn_event_id, start_time, state, status_detail, period, display_clock, home_espn_team_id, home_name, home_score, home_record, away_espn_team_id, away_name, away_score, away_record, broadcast, venue, synced_at'
 		)
 		.is('deleted_at', null)
+		.gte('start_time', `${gamesFrom}T00:00:00`)
+		.lt('start_time', `${gamesTo}T00:00:00`)
 		.order('start_time', { ascending: true })
-		.limit(200);
+		.limit(400);
 	if (league !== 'all') gamesQ = gamesQ.eq('league', league);
 
 	let standingsQ = supabase
@@ -138,7 +144,7 @@ export async function loadSportsPage(
 		)
 		.is('deleted_at', null)
 		.order('rank', { ascending: true, nullsFirst: false })
-		.limit(600);
+		.limit(1200);
 	if (league !== 'all') standingsQ = standingsQ.eq('league', league);
 
 	const [gamesRes, standingsRes] = await Promise.all([gamesQ, standingsQ]);

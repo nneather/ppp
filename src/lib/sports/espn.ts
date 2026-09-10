@@ -131,8 +131,19 @@ export function ymdCompactChicago(instant: Date = new Date()): string {
 	return `${y}${m}${d}`;
 }
 
-/** Yesterday → tomorrow compact range for scoreboard queries. */
-export function scoreboardDatesParam(now: Date = new Date()): string {
+/**
+ * ESPN college-football `groups=` ids for scoreboard + standings.
+ * 80 FBS · 81 FCS · 57 D-II · 58 D-III · 186 NAIA.
+ * FBS-only (80) was v1 — Saturday `limit=200` overflowed, but it also hid
+ * Ouachita (D-II) and NAIA entirely. Fetch each bucket and merge.
+ */
+export const CFB_SCOREBOARD_GROUPS = ['80', '81', '57', '58', '186'] as const;
+
+export const CFB_TEAMS_PAGE_SIZE = 500;
+const CFB_TEAMS_MAX_PAGES = 10;
+
+/** Yesterday → `daysAhead` compact range for scoreboard queries. */
+export function scoreboardDatesParam(now: Date = new Date(), daysAhead = 1): string {
 	const today = ymdCompactChicago(now);
 	const y = Number(today.slice(0, 4));
 	const mo = Number(today.slice(4, 6));
@@ -140,15 +151,20 @@ export function scoreboardDatesParam(now: Date = new Date()): string {
 	const noon = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0));
 	const yest = new Date(noon);
 	yest.setUTCDate(yest.getUTCDate() - 1);
-	const tom = new Date(noon);
-	tom.setUTCDate(tom.getUTCDate() + 1);
+	const end = new Date(noon);
+	end.setUTCDate(end.getUTCDate() + daysAhead);
 	const fmt = (dt: Date) => {
 		const yy = dt.getUTCFullYear();
 		const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
 		const dd = String(dt.getUTCDate()).padStart(2, '0');
 		return `${yy}${mm}${dd}`;
 	};
-	return `${fmt(yest)}-${fmt(tom)}`;
+	return `${fmt(yest)}-${fmt(end)}`;
+}
+
+/** CFB needs the coming Saturday from midweek; NFL/MLB stay yest–tomorrow. */
+export function scoreboardDaysAhead(league: SportsLeague): number {
+	return league === 'college-football' ? 6 : 1;
 }
 
 export async function espnFetchJson(pathAndQuery: string): Promise<unknown> {
@@ -441,30 +457,91 @@ export function normalizeStandings(
 	return out;
 }
 
-export async function fetchScoreboard(
+async function fetchOneScoreboard(
 	cfg: EspnLeagueConfig,
-	dates: string
+	dates: string,
+	group: string | null
 ): Promise<NormalizedGame[]> {
 	const qs = new URLSearchParams({ dates, limit: '200' });
-	if (cfg.league === 'college-football') {
-		qs.set('groups', '80');
-	}
+	if (group) qs.set('groups', group);
 	const path = `/apis/site/v2/sports/${cfg.sport}/${cfg.espnLeague}/scoreboard?${qs}`;
 	const json = await espnFetchJson(path);
 	return normalizeScoreboard(cfg.league, json);
 }
 
+/** Merge scoreboard pages; later groups win on the same espn_event_id (crossovers). */
+export function dedupeGamesByEventId(batches: NormalizedGame[][]): NormalizedGame[] {
+	const byId = new Map<string, NormalizedGame>();
+	for (const batch of batches) {
+		for (const g of batch) byId.set(g.espn_event_id, g);
+	}
+	return [...byId.values()];
+}
+
+export async function fetchScoreboard(
+	cfg: EspnLeagueConfig,
+	dates: string
+): Promise<NormalizedGame[]> {
+	if (cfg.league !== 'college-football') {
+		return fetchOneScoreboard(cfg, dates, null);
+	}
+	const settled = await Promise.allSettled(
+		CFB_SCOREBOARD_GROUPS.map((group) => fetchOneScoreboard(cfg, dates, group))
+	);
+	const batches: NormalizedGame[][] = [];
+	let lastErr: Error | null = null;
+	for (const r of settled) {
+		if (r.status === 'fulfilled') batches.push(r.value);
+		else lastErr = r.reason instanceof Error ? r.reason : new Error(String(r.reason));
+	}
+	const games = dedupeGamesByEventId(batches);
+	if (games.length === 0 && lastErr) throw lastErr;
+	return games;
+}
+
 export async function fetchTeams(cfg: EspnLeagueConfig): Promise<NormalizedTeam[]> {
-	const path = `/apis/site/v2/sports/${cfg.sport}/${cfg.espnLeague}/teams?limit=500`;
-	const json = await espnFetchJson(path);
-	return normalizeTeams(cfg.league, json);
+	const byId = new Map<string, NormalizedTeam>();
+	for (let page = 1; page <= CFB_TEAMS_MAX_PAGES; page += 1) {
+		const qs = new URLSearchParams({
+			limit: String(CFB_TEAMS_PAGE_SIZE),
+			page: String(page)
+		});
+		const path = `/apis/site/v2/sports/${cfg.sport}/${cfg.espnLeague}/teams?${qs}`;
+		const json = await espnFetchJson(path);
+		const batch = normalizeTeams(cfg.league, json);
+		for (const t of batch) byId.set(t.espn_team_id, t);
+		if (batch.length < CFB_TEAMS_PAGE_SIZE) break;
+	}
+	return [...byId.values()];
 }
 
 export async function fetchStandings(
 	cfg: EspnLeagueConfig,
 	seasonYear: number
 ): Promise<NormalizedStanding[]> {
-	const path = `/apis/v2/sports/${cfg.sport}/${cfg.espnLeague}/standings?season=${seasonYear}`;
-	const json = await espnFetchJson(path);
-	return normalizeStandings(cfg.league, seasonYear, json);
+	const groups: readonly (string | null)[] =
+		cfg.league === 'college-football' ? CFB_SCOREBOARD_GROUPS : [null];
+	const settled = await Promise.allSettled(
+		groups.map(async (group) => {
+			const qs = new URLSearchParams({ season: String(seasonYear) });
+			if (group) qs.set('group', group);
+			const path = `/apis/v2/sports/${cfg.sport}/${cfg.espnLeague}/standings?${qs}`;
+			const json = await espnFetchJson(path);
+			return normalizeStandings(cfg.league, seasonYear, json);
+		})
+	);
+	const byKey = new Map<string, NormalizedStanding>();
+	let lastErr: Error | null = null;
+	for (const r of settled) {
+		if (r.status === 'fulfilled') {
+			for (const row of r.value) {
+				byKey.set(`${row.league}:${row.season_year}:${row.espn_team_id}`, row);
+			}
+		} else {
+			lastErr = r.reason instanceof Error ? r.reason : new Error(String(r.reason));
+		}
+	}
+	const rows = [...byKey.values()];
+	if (rows.length === 0 && lastErr) throw lastErr;
+	return rows;
 }
