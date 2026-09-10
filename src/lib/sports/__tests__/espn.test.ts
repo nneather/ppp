@@ -9,8 +9,10 @@ import {
 	pickBroadcast,
 	scoreboardDatesParam,
 	scoreboardDaysAhead,
-	seasonYearForLeague
+	seasonYearForLeague,
+	standingsQueryString
 } from '../espn';
+import { compareStandingRows, groupStandings, leagueTeamKey } from '../standings';
 
 describe('seasonYearForLeague', () => {
 	it('uses calendar year for NFL/CFB from August onward', () => {
@@ -208,7 +210,7 @@ describe('normalizeStandings', () => {
 			season_year: 2026,
 			espn_team_id: '12',
 			team_name: 'Chiefs',
-			group_name: 'NFL / AFC / West',
+			group_name: 'West',
 			wins: 1,
 			losses: 0,
 			rank: 1,
@@ -234,6 +236,107 @@ describe('normalizeStandings', () => {
 			}
 		});
 		expect(rows[0]).toMatchObject({ wins: 1, losses: 0, rank: 8 });
+	});
+
+	it('keeps overall W-L when ESPN repeats Home/Away stat blocks', () => {
+		const rows = normalizeStandings('college-football', 2026, {
+			name: 'Southeastern Conference',
+			standings: {
+				entries: [
+					{
+						team: { id: '333', displayName: 'Alabama Crimson Tide' },
+						stats: [
+							{ name: 'wins', type: 'wins', value: 1, displayValue: '1' },
+							{ name: 'streak', type: 'streak', displayValue: 'W1' },
+							{ name: 'overall', type: 'total', displayValue: '1-0' },
+							{ name: 'wins', type: 'homerecord_wins', value: 1, displayValue: '1' },
+							{ name: 'wins', type: 'awayrecord_wins', value: 0, displayValue: '0' },
+							{
+								name: 'wins',
+								type: 'vsusarankedteams_wins',
+								value: 0,
+								displayValue: '0'
+							},
+							{ name: 'overall', type: 'vsusarankedteams', displayValue: '0-0' },
+							{ name: 'streak', type: 'vsusarankedteams_streak', displayValue: '-' },
+							{ name: 'playoffSeed', type: 'playoffseed', value: 1, displayValue: '1' },
+							{ name: 'playoffSeed', type: 'vsusarankedteams_playoffseed', value: 0 }
+						]
+					}
+				]
+			}
+		});
+		expect(rows[0]).toMatchObject({
+			wins: 1,
+			losses: 0,
+			streak: 'W1',
+			rank: 1,
+			group_name: 'Southeastern Conference'
+		});
+	});
+
+	it('treats playoff seed 0 and blank streak as null', () => {
+		const rows = normalizeStandings('nfl', 2026, {
+			name: 'AFC East',
+			standings: {
+				entries: [
+					{
+						team: { id: '2', displayName: 'Bills' },
+						stats: [
+							{ name: 'wins', value: 0 },
+							{ name: 'losses', value: 0 },
+							{ name: 'playoffSeed', value: 0 },
+							{ name: 'streak', displayValue: '-' }
+						]
+					}
+				]
+			}
+		});
+		expect(rows[0]).toMatchObject({ rank: null, streak: null });
+	});
+});
+
+describe('standingsQueryString', () => {
+	it('always asks ESPN for division-level children', () => {
+		expect(standingsQueryString(2026, null)).toBe('season=2026&level=3');
+		expect(standingsQueryString(2026, '80')).toBe('season=2026&level=3&group=80');
+	});
+});
+
+describe('compareStandingRows / groupStandings', () => {
+	it('sorts by wins then losses and groups by leaf name', () => {
+		const rows = [
+			{
+				group_name: 'NL Central',
+				wins: 81,
+				losses: 66,
+				win_percent: 0.551,
+				team_name: 'Cubs'
+			},
+			{
+				group_name: 'NL Central',
+				wins: 91,
+				losses: 56,
+				win_percent: 0.619,
+				team_name: 'Brewers'
+			},
+			{
+				group_name: 'AL East',
+				wins: 87,
+				losses: 58,
+				win_percent: 0.6,
+				team_name: 'Rays'
+			}
+		];
+		const grouped = groupStandings(rows);
+		expect(grouped.map(([name]) => name)).toEqual(['AL East', 'NL Central']);
+		const nl = grouped[1][1].sort(compareStandingRows);
+		expect(nl.map((r) => r.team_name)).toEqual(['Brewers', 'Cubs']);
+	});
+
+	it('keys follows by league so ESPN ids do not collide', () => {
+		expect(leagueTeamKey('nfl', '11')).not.toBe(leagueTeamKey('mlb', '11'));
+		expect(leagueTeamKey('nfl', '11')).toBe('nfl:11');
 	});
 });
 

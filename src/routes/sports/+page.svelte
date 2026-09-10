@@ -15,6 +15,7 @@
 	import { cn } from '$lib/utils';
 	import Star from '@lucide/svelte/icons/star';
 	import type { ToggleFollowedResult, SyncNowResult } from '$lib/sports/server/actions';
+	import { compareStandingRows, groupStandings } from '$lib/sports/standings';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -59,14 +60,11 @@
 	});
 
 	const standingsByGroup = $derived.by(() => {
-		const map = new Map<string, SportsStandingRow[]>();
-		for (const s of standings) {
-			const key = s.group_name ?? 'Standings';
-			const list = map.get(key) ?? [];
-			list.push(s);
-			map.set(key, list);
+		const groups = groupStandings(standings);
+		for (const [, rows] of groups) {
+			rows.sort(compareStandingRows);
 		}
-		return [...map.entries()];
+		return groups;
 	});
 
 	function setLeague(next: SportsLeague | 'all') {
@@ -307,18 +305,20 @@
 									<th class="px-3 py-1.5 font-medium">Team</th>
 									<th class="px-3 py-1.5 font-medium">W</th>
 									<th class="px-3 py-1.5 font-medium">L</th>
+									<th class="px-3 py-1.5 font-medium">GB</th>
 									<th class="px-3 py-1.5 font-medium">Strk</th>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-border">
-								{#each rows as s (s.id)}
+								{#each rows as s, i (s.id)}
 									<tr>
-										<td class="px-3 py-1.5 tabular-nums text-muted-foreground"
-											>{s.rank ?? '—'}</td
-										>
+										<td class="px-3 py-1.5 tabular-nums text-muted-foreground">{i + 1}</td>
 										<td class="px-3 py-1.5">{s.team_name}</td>
 										<td class="px-3 py-1.5 tabular-nums">{s.wins}</td>
 										<td class="px-3 py-1.5 tabular-nums">{s.losses}</td>
+										<td class="px-3 py-1.5 tabular-nums text-muted-foreground">
+											{s.games_behind == null || s.games_behind === 0 ? '—' : s.games_behind}
+										</td>
 										<td class="px-3 py-1.5 tabular-nums text-muted-foreground"
 											>{s.streak ?? '—'}</td
 										>

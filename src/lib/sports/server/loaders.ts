@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { addDaysYmd, ymdInChicago } from '$lib/invoicing/chicago-date';
+import { compareStandingRows, leagueTeamKey } from '$lib/sports/standings';
 import {
 	SPORTS_LEAGUES,
 	type GameState,
@@ -118,7 +119,7 @@ export async function loadSportsPage(
 	const teams = (teamsRes.data ?? []).map((r) => mapTeam(r as Record<string, unknown>));
 	const followed = teams.filter((t) => t.is_followed);
 	const followedCount = followed.length;
-	const followedEspnIds = new Set(followed.map((t) => t.espn_team_id));
+	const followedKeys = new Set(followed.map((t) => leagueTeamKey(t.league, t.espn_team_id)));
 	const followedGroups = new Set<string>();
 
 	const today = ymdInChicago();
@@ -175,22 +176,32 @@ export async function loadSportsPage(
 	if (followedCount > 0) {
 		games = games.filter(
 			(g) =>
-				(g.home_espn_team_id != null && followedEspnIds.has(g.home_espn_team_id)) ||
-				(g.away_espn_team_id != null && followedEspnIds.has(g.away_espn_team_id))
+				(g.home_espn_team_id != null &&
+					followedKeys.has(leagueTeamKey(g.league, g.home_espn_team_id))) ||
+				(g.away_espn_team_id != null &&
+					followedKeys.has(leagueTeamKey(g.league, g.away_espn_team_id)))
 		);
 		for (const s of standings) {
-			if (followedEspnIds.has(s.espn_team_id) && s.group_name) followedGroups.add(s.group_name);
+			if (followedKeys.has(leagueTeamKey(s.league, s.espn_team_id)) && s.group_name) {
+				followedGroups.add(`${s.league}:${s.group_name}`);
+			}
 		}
 		if (followedGroups.size > 0) {
-			standings = standings.filter((s) => s.group_name != null && followedGroups.has(s.group_name));
+			standings = standings.filter(
+				(s) => s.group_name != null && followedGroups.has(`${s.league}:${s.group_name}`)
+			);
 		} else {
-			standings = standings.filter((s) => followedEspnIds.has(s.espn_team_id));
+			standings = standings.filter((s) =>
+				followedKeys.has(leagueTeamKey(s.league, s.espn_team_id))
+			);
 		}
 	} else {
 		// No follows yet — hide the CFB wall; show NFL + MLB only.
 		games = games.filter((g) => g.league === 'nfl' || g.league === 'mlb');
 		standings = standings.filter((s) => s.league === 'nfl' || s.league === 'mlb');
 	}
+
+	standings = [...standings].sort(compareStandingRows);
 
 	return {
 		league,
@@ -214,15 +225,17 @@ export async function loadFollowedSportsGlance(
 
 	const { data: followed, error: followedErr } = await supabase
 		.from('sports_teams')
-		.select('espn_team_id')
+		.select('league, espn_team_id')
 		.eq('is_followed', true)
 		.is('deleted_at', null);
 
 	if (followedErr) return { games: [], error: followedErr.message };
-	const ids = (followed ?? []).map((t) => String(t.espn_team_id));
-	if (ids.length === 0) return { games: [], error: null };
+	const followedRows = followed ?? [];
+	if (followedRows.length === 0) return { games: [], error: null };
 
-	const idSet = new Set(ids);
+	const followedKeys = new Set(
+		followedRows.map((t) => leagueTeamKey(String(t.league), String(t.espn_team_id)))
+	);
 
 	const { data, error } = await supabase
 		.from('sports_games')
@@ -251,9 +264,13 @@ export async function loadFollowedSportsGlance(
 	});
 
 	const involvesFollowed = (g: Record<string, unknown>) => {
+		const league = String(g.league ?? '');
 		const home = g.home_espn_team_id != null ? String(g.home_espn_team_id) : null;
 		const away = g.away_espn_team_id != null ? String(g.away_espn_team_id) : null;
-		return (home != null && idSet.has(home)) || (away != null && idSet.has(away));
+		return (
+			(home != null && followedKeys.has(leagueTeamKey(league, home))) ||
+			(away != null && followedKeys.has(leagueTeamKey(league, away)))
+		);
 	};
 
 	let games = (data ?? [])

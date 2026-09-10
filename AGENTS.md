@@ -191,9 +191,10 @@ End-of-session deliverables:
 
 - **Sports helpers** at `src/lib/sports/` (schema migration `20260902221000_ppp_sports_v1.sql`; Session 1 [218](docs/decisions/218-sports-session-1.md)):
   - `src/lib/types/sports.ts` — leagues (`nfl`/`mlb`/`college-football`), game/team/standing/glance view-models.
-  - `src/lib/sports/espn.ts` — ESPN site.web.api (then site.api) fetch + normalize; CFB teams paginated; scoreboard/standings groups FBS+FCS+D2+D3+NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); unit tests `__tests__/espn.test.ts`.
+  - `src/lib/sports/espn.ts` — ESPN site.web.api (then site.api) fetch + normalize; CFB teams paginated; scoreboard/standings groups FBS+FCS+D2+D3+NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings `level=3` (NFL/MLB divisions) + first/overall stats ([224](docs/decisions/224-sports-standings-divisions.md)); unit tests `__tests__/espn.test.ts`.
+  - `src/lib/sports/standings.ts` — client-safe group/sort for `/sports` tables.
   - `src/lib/sports/server/sync.ts` — `runSportsSync` upserts (games; optional teams+standings without clobbering `is_followed`).
-  - `src/lib/sports/server/loaders.ts` — `loadSportsPage` / `loadFollowedSportsGlance` (followed filter; CFB hidden when nothing followed).
+  - `src/lib/sports/server/loaders.ts` — `loadSportsPage` / `loadFollowedSportsGlance` (followed filter keyed by league+espn id; CFB hidden when nothing followed).
   - `src/lib/sports/server/actions.ts` — `toggleFollowedAction` + owner `syncNowAction`.
   - `src/lib/supabase/admin.ts` — first SvelteKit service-role client (Vercel cron fallback).
   - Routes: `/sports` (owner Refresh scores); `GET /api/sports/sync` (`CRON_SECRET` or owner session); dashboard glance. Nav: desktop sidebar after Sermons (no mobile tab).

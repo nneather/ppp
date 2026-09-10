@@ -342,6 +342,19 @@ export function normalizeTeams(league: SportsLeague, payload: unknown): Normaliz
 	return out;
 }
 
+/**
+ * ESPN CFB concatenates overall + Home + Away + vs Conf stats under the same
+ * `name` (`wins`, `streak`, …). Later blocks use `type` like `homerecord_wins`.
+ * Last-write-wins turned Alabama 1-0 into 0-0. Keep the first overall block.
+ */
+function isSplitRecordType(type: string | null): boolean {
+	return type != null && type.includes('_');
+}
+
+function isBlankStatDisplay(display: string | null): boolean {
+	return display == null || display === '-' || display === '—' || display === '';
+}
+
 function statMap(stats: unknown): Map<string, { value: number | null; display: string | null }> {
 	const map = new Map<string, { value: number | null; display: string | null }>();
 	if (!Array.isArray(stats)) return map;
@@ -349,6 +362,8 @@ function statMap(stats: unknown): Map<string, { value: number | null; display: s
 		if (!isRecord(s)) continue;
 		const name = asString(s.name);
 		if (!name) continue;
+		if (isSplitRecordType(asString(s.type))) continue;
+		if (map.has(name)) continue;
 		map.set(name, {
 			value: asNumber(s.value),
 			display: asString(s.displayValue) ?? asString(s.display)
@@ -398,6 +413,10 @@ function standingFromEntry(
 	if (losses == null) losses = overall?.losses ?? 0;
 	const ties =
 		asInt(stats.get('ties')?.value) ?? asInt(stats.get('otLosses')?.value) ?? overall?.ties ?? null;
+	const played = wins + losses + (ties ?? 0);
+	const winPercent = stats.get('winPercent')?.value ?? (played > 0 ? wins / played : null);
+	const seed = asInt(stats.get('playoffSeed')?.value);
+	const streakDisplay = stats.get('streak')?.display ?? null;
 	return {
 		league,
 		season_year: seasonYear,
@@ -407,10 +426,10 @@ function standingFromEntry(
 		wins,
 		losses,
 		ties,
-		win_percent: stats.get('winPercent')?.value ?? null,
+		win_percent: winPercent,
 		games_behind: gamesBehindValue(stats.get('gamesBehind')),
-		streak: stats.get('streak')?.display ?? null,
-		rank: asInt(stats.get('playoffSeed')?.value)
+		streak: isBlankStatDisplay(streakDisplay) ? null : streakDisplay,
+		rank: seed != null && seed > 0 ? seed : null
 	};
 }
 
@@ -441,7 +460,7 @@ export function normalizeStandings(
 		const entries =
 			isRecord(standings) && Array.isArray(standings.entries) ? standings.entries : null;
 		if (!entries) return;
-		const groupName = path.length > 0 ? path.join(' / ') : name;
+		const groupName = path.length > 0 ? path[path.length - 1]! : name;
 		for (const entry of entries) {
 			if (!isRecord(entry)) continue;
 			const row = standingFromEntry(league, seasonYear, groupName, entry);
@@ -515,6 +534,13 @@ export async function fetchTeams(cfg: EspnLeagueConfig): Promise<NormalizedTeam[
 	return [...byId.values()];
 }
 
+/** `level=3` is divisions (AFC East, AL Central). Default ESPN payload is conference-only. */
+export function standingsQueryString(seasonYear: number, group: string | null): string {
+	const qs = new URLSearchParams({ season: String(seasonYear), level: '3' });
+	if (group) qs.set('group', group);
+	return qs.toString();
+}
+
 export async function fetchStandings(
 	cfg: EspnLeagueConfig,
 	seasonYear: number
@@ -523,8 +549,7 @@ export async function fetchStandings(
 		cfg.league === 'college-football' ? CFB_SCOREBOARD_GROUPS : [null];
 	const settled = await Promise.allSettled(
 		groups.map(async (group) => {
-			const qs = new URLSearchParams({ season: String(seasonYear) });
-			if (group) qs.set('group', group);
+			const qs = standingsQueryString(seasonYear, group);
 			const path = `/apis/v2/sports/${cfg.sport}/${cfg.espnLeague}/standings?${qs}`;
 			const json = await espnFetchJson(path);
 			return normalizeStandings(cfg.league, seasonYear, json);

@@ -14,11 +14,11 @@ Module slug: `sports` · Route: `/sports` · Session 0: inline in [218](../decis
 - [x] ESPN fetch/normalize + unit tests; service-role admin client; `GET /api/sports/sync` with `CRON_SECRET`
 - [x] `/sports` list + follow toggle; dashboard glance; desktop nav; CSP espncdn; permissions + audit whitelist
 - [x] `vercel.json` crons; env docs; decision 218; PLAN / AGENTS / components / POS_Schema
-- [x] Cache populated 2026-09-10 via `npm run sports:sync -- --standings` ([220](../decisions/220-sports-sync-github-actions.md))
+- [x] Cache populated 2026-09-10 via `npm run sports:sync -- --standings` ([220](../decisions/220-sports-sync-github-actions.md)); standings re-synced after [224](../decisions/224-sports-standings-divisions.md)
 - [ ] Owner smoke: follow 2–3 teams, confirm `/sports` + dashboard glance
 - [ ] Viewer without `sports` permission sees empty/graceful UI (not 403)
 
-**Notes:** See [218](../decisions/218-sports-session-1.md) + [220](../decisions/220-sports-sync-github-actions.md) + [221](../decisions/221-sports-cfb-beyond-fbs.md) + [222](../decisions/222-sports-sync-maxduration-export.md). Hobby cannot run `*/10`; GHA is the ticker. CFB follow list is the full ESPN catalog (paginate past 500). Kit routes must use `export const config = { maxDuration }` (bare `maxDuration` broke Vercel on 220/221).
+**Notes:** See [218](../decisions/218-sports-session-1.md) + [220](../decisions/220-sports-sync-github-actions.md) + [221](../decisions/221-sports-cfb-beyond-fbs.md) + [222](../decisions/222-sports-sync-maxduration-export.md) + [224](../decisions/224-sports-standings-divisions.md). Hobby cannot run `*/10`; GHA is the ticker. CFB follow list is the full ESPN catalog (paginate past 500). Kit routes must use `export const config = { maxDuration }` (bare `maxDuration` broke Vercel on 220/221). Standings fetch uses ESPN `level=3` (NFL/MLB divisions).
 
 ## Open questions
 
