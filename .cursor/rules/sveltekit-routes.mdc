@@ -51,6 +51,10 @@ if (clientsRes.error) console.error(clientsRes.error);
 - Order results explicitly — never rely on insert order.
 - Map raw rows to a typed view-model in `load` so the `.svelte` file never sees `Record<string, unknown>`.
 
+## Vercel function duration
+
+SvelteKit endpoints and `+page.server.ts` files must use `export const config = { maxDuration: N }` — never a top-level `export const maxDuration` (Next.js-style). Kit’s postbuild allowlist rejects the latter and fails `npm run build` / Vercel ([222](mdc:docs/decisions/222-sports-sync-maxduration-export.md)). Canonical: [`src/routes/library/books/[id]/+page.server.ts`](mdc:src/routes/library/books/[id]/+page.server.ts).
+
 ## Mobile-first
 
 Forms render in `Sheet` (full-screen on mobile, side-drawer on desktop). Reach for `Dialog` only for confirmations and small modal pickers. See `.cursor/rules/components.mdc` for the component inventory.

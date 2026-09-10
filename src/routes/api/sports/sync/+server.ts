@@ -7,7 +7,7 @@ import type { RequestHandler } from './$types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** Hobby max is 10s; keep the hint for Pro if the project is upgraded. */
-export const maxDuration = 60;
+export const config = { maxDuration: 60 };
 
 function cronAuthorized(request: Request): boolean {
 	const secret = env.CRON_SECRET;

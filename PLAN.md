@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-09-10 — Sports CFB beyond FBS ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); GHA sync ([220](docs/decisions/220-sports-sync-github-actions.md)).
+**Last updated:** 2026-09-10 — Sports sync `maxDuration` build fix ([222](docs/decisions/222-sports-sync-maxduration-export.md)); CFB beyond FBS ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)).
 
 **How to use this file — read this first:**
 
@@ -36,7 +36,7 @@ Nearest hard dates:
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Latest shelf add: Sep 9 batch (Thiselton, Kidner KCC/BST, Leo XIV, Sklar Additional Notes, ACCS OT III — [219](docs/decisions/219-library-sep9-shelf-batch.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
-| Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); CFB follow list is full ESPN catalog (FBS–NAIA) ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)). Hobby Vercel cron is backup only. |
+| Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); CFB follow list is full ESPN catalog (FBS–NAIA) ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)). **Vercel Production was red** until Kit `config.maxDuration` ([222](docs/decisions/222-sports-sync-maxduration-export.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. **Venue type** (C/P/A) auto-fills sermon context ([217](docs/decisions/217-sermon-venues-context-type.md)). List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) + **Canvas one-shot import** ([216](docs/decisions/216-canvas-classwork-import.md)) — FA-26 courses/assignments loaded; `npm run classwork:canvas-import` to re-pull. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence / import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)) + **Quarterly / Semester / Annual** labels ([213](docs/decisions/213-contacts-frequency-labels.md)) + **roster sort** (frequency / list / giving, composable — [214](docs/decisions/214-contacts-roster-sort.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
@@ -48,11 +48,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [222 — Sports sync `maxDuration` export](docs/decisions/222-sports-sync-maxduration-export.md) (2026-09-10) — Bare `maxDuration` on `/api/sports/sync` failed Kit `build` (Vercel + CI). Use `export const config = { maxDuration }`.
 - [221 — Sports CFB beyond FBS](docs/decisions/221-sports-cfb-beyond-fbs.md) (2026-09-10) — Teams list was ESPN `limit=500`; UTSA / Ouachita / NAIA lived on page 2. Paginate teams; scoreboard+standings FBS/FCS/D2/D3/NAIA.
 - [220 — Sports sync via GitHub Actions](docs/decisions/220-sports-sync-github-actions.md) (2026-09-10) — Hobby blocked 10m cron; daily Vercel job 401'd without `CRON_SECRET`. GHA + CLI populate the cache; owner Refresh on `/sports`.
 - [219 — Library Sep 9 shelf batch](docs/decisions/219-library-sep9-shelf-batch.md) (2026-09-09) — Thiselton Two Horizons; Kidner KCC Ezra–Nehemiah + BST Ecclesiastes; Leo XIV *Magnifica humanitas*; Sklar Additional Notes Exod/Lev/Num; ACCS OT III.
 - [218 — Sports scoreboard Session 1](docs/decisions/218-sports-session-1.md) (2026-09-02) — ESPN cron sync, follow toggles, dashboard glance.
-- [217 — Sermon venue location type](docs/decisions/217-sermon-venues-context-type.md) (2026-09-02) — `sermon_venues.context_type` C/P/A; picking a church fills Context; majority backfill of 9 venues.
 
 ---
 
@@ -84,7 +84,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** Sports CFB beyond FBS [221](docs/decisions/221-sports-cfb-beyond-fbs.md) — `npm run check` **0 errors**, `npm run test` **533** passed (2026-09-10). Cache: 762 CFB teams, 671 standings, 302 CFB games.
+**Repo gate:** Sports sync `maxDuration` [222](docs/decisions/222-sports-sync-maxduration-export.md) — `npm run check` **0 errors**, `npm run test` **533** passed, `npm run build` green (2026-09-10). Production still on `9d9c6c7` until this lands.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
