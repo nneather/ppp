@@ -9,7 +9,8 @@ import {
 	listNamesForContact,
 	parseContactSort,
 	sortContacts,
-	sortHouseholds
+	sortHouseholds,
+	uniqueGroupHeaders
 } from '$lib/contacts/sort';
 import type {
 	ContactListDef,
@@ -40,7 +41,7 @@ function contact(
 	return {
 		id,
 		first_name: opts.first_name,
-		last_name: opts.last_name ?? 'Smith',
+		last_name: opts.last_name === undefined ? 'Smith' : opts.last_name,
 		display_name: opts.display_name ?? `${opts.first_name} ${opts.last_name ?? 'Smith'}`,
 		household_id: opts.household_id ?? null,
 		household_name: opts.household_name ?? null,
@@ -214,6 +215,27 @@ describe('group headers', () => {
 		expect(groups.map((g) => [g.header, g.rows.length])).toEqual([
 			['Quarterly', 2],
 			['Annual', 1]
+		]);
+	});
+
+	it('places missing last names with their first-name letter, not at the top', () => {
+		const madonna = contact('m', { first_name: 'Madonna', last_name: null });
+		const miller = contact('t', { first_name: 'Tom', last_name: 'Miller' });
+		const adams = contact('a', { first_name: 'Ann', last_name: 'Adams' });
+		const sorted = sortContacts([madonna, miller, adams], ['name'], ctx);
+		expect(sorted.map((c) => c.id)).toEqual(['a', 'm', 't']);
+		const groups = groupSortedRows(sorted, (row) => contactGroupLabel(row, 'name', ctx));
+		expect(groups.map((g) => g.header)).toEqual(['A', 'M']);
+		expect(uniqueGroupHeaders(groups.map((g) => g.header))).toEqual(['A', 'M']);
+	});
+
+	it('uniqueGroupHeaders keeps first occurrence', () => {
+		expect(uniqueGroupHeaders(['M', 'C', '#', 'A', 'B', 'C', 'M'])).toEqual([
+			'M',
+			'C',
+			'#',
+			'A',
+			'B'
 		]);
 	});
 });

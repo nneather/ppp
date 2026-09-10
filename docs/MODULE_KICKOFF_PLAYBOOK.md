@@ -48,6 +48,7 @@ Paid-for lessons. Append new entries at every module retro.
 | 6 | **Hosted-only Supabase.** No `supabase start` / local Docker / `db reset` unless owner opts in. Schema via `db push`; module ship via `npm run ship-<module>:apply` when defined. | [supabase/README.md](../supabase/README.md) |
 | 7 | **`$bindable` on custom elements.** Lowercase tags break `bind:open`; use PascalCase component tags. | [033](decisions/033-library-pm-review-may-2026.md) |
 | 8 | **API grants on every new table.** Explicit `GRANT`s in migration; don't rely on Dashboard auto-expose. | [039](decisions/039-supabase-postgrest-api-grants.md), `db-changes.mdc` |
+| 9 | **Keyed `{#each}` keys must be unique.** Derived letter/group lists can repeat a header when sort order ≠ group label (empty last name → first-initial at top, then again in the alphabet). Dev throws `each_key_duplicate` and hydration never finishes — looks like a stuck boot shell, not an error page. Dedupe keys; keep sort and header functions in agreement. | [225](decisions/225-contacts-az-jump-duplicate-keys.md) |
 | NEW-D | **Partial unique ≠ PostgREST `onConflict`.** `UNIQUE … WHERE deleted_at IS NULL` is not a conflict target for `.upsert({ onConflict: 'a,b' })`. Pre-load row `id`s (incl. soft-deleted), revive with `deleted_at: null`, upsert on PK. | Projects Session 1 ([045](decisions/045-projects-session-1-tree-checkin.md)) |
 
 ---

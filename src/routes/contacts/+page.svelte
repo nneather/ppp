@@ -37,7 +37,8 @@
 		listNamesForContact,
 		listNamesForHousehold,
 		sortContacts,
-		sortHouseholds
+		sortHouseholds,
+		uniqueGroupHeaders
 	} from '$lib/contacts/sort';
 	import { cn } from '$lib/utils';
 	import Home from '@lucide/svelte/icons/home';
@@ -360,9 +361,7 @@
 		if ((applicableSortKeys(data.filters.sort, 'contact')[0] ?? 'name') !== 'name') {
 			return [] as string[];
 		}
-		return contactGroups
-			.map((g) => g.header)
-			.filter((h): h is string => h != null);
+		return uniqueGroupHeaders(contactGroups.map((g) => g.header));
 	});
 
 	const householdLetterIndex = $derived.by(() => {
@@ -370,9 +369,7 @@
 		if ((applicableSortKeys(data.filters.sort, 'household')[0] ?? 'name') !== 'name') {
 			return [] as string[];
 		}
-		return householdGroups
-			.map((g) => g.header)
-			.filter((h): h is string => h != null);
+		return uniqueGroupHeaders(householdGroups.map((g) => g.header));
 	});
 
 	function formatTouch(ymd: string | null): string {

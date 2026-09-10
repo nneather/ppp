@@ -191,11 +191,11 @@ function compareName(
 	bFirst: string,
 	bId: string
 ): number {
-	return (
-		(aLast ?? '').localeCompare(bLast ?? '') ||
-		aFirst.localeCompare(bFirst) ||
-		aId.localeCompare(bId)
-	);
+	// Empty last name sorts by first name so groups match nameLetterHeader
+	// (Madonna → M, not a stray M block at the top of the roster).
+	const aKey = aLast?.trim() || aFirst;
+	const bKey = bLast?.trim() || bFirst;
+	return aKey.localeCompare(bKey) || aFirst.localeCompare(bFirst) || aId.localeCompare(bId);
 }
 
 function compareByKey(
@@ -389,6 +389,18 @@ export function groupSortedRows<T>(
 		} else {
 			out.push({ header, rows: [row] });
 		}
+	}
+	return out;
+}
+
+/** First occurrence of each header — keyed A–Z jump cannot repeat a letter. */
+export function uniqueGroupHeaders(headers: readonly (string | null)[]): string[] {
+	const seen = new Set<string>();
+	const out: string[] = [];
+	for (const h of headers) {
+		if (h == null || seen.has(h)) continue;
+		seen.add(h);
+		out.push(h);
 	}
 	return out;
 }

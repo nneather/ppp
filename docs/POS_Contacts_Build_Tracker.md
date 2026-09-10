@@ -1,6 +1,6 @@
 # Personal Operations System — Contacts / CRM Module Build Tracker
 
-_Last updated: 2026-09-10 | Module: Contacts / CRM | Roster search/density [223](decisions/223-contacts-roster-search-density.md)_
+_Last updated: 2026-09-10 | Module: Contacts / CRM | A–Z jump unique keys [225](decisions/225-contacts-az-jump-duplicate-keys.md)_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md` (footgun registry + Phase 0), [000](decisions/000-invoicing-retro.md), [041](decisions/041-library-module-retro.md), [138](decisions/138-fall-semester-priorities.md), [139](decisions/139-lightweight-crm-fall-priority.md), [175](decisions/175-contacts-session-0.md).
 
@@ -222,7 +222,7 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | Integrity | ✅ 2026-08-24 | Household Log/Skip fan-out + annual pre-start + pace/MCP/backup + import attach-to-HH — [212](decisions/212-contacts-due-integrity.md) |
 | Labels | ✅ 2026-08-24 | Frequency UI/MCP say Quarterly / Semester / Annual (not rolling 3 months / Biannual) — [213](decisions/213-contacts-frequency-labels.md) |
 | Sort | ✅ 2026-08-26 | Contacts + Households **Sort / then** (frequency, list, giving, relationship, last meet, name); URL `?sort=`; group headers — [214](decisions/214-contacts-roster-sort.md) |
-| Roster UX | ✅ 2026-09-10 | Live typeahead search (AND tokens, household/phone/list); compact rows; A–Z jump; due strip collapsed — [223](decisions/223-contacts-roster-search-density.md) |
+| Roster UX | ✅ 2026-09-10 | Live typeahead search (AND tokens, household/phone/list); compact rows; A–Z jump; due strip collapsed — [223](decisions/223-contacts-roster-search-density.md); jump keys unique + name-sort matches headers — [225](decisions/225-contacts-az-jump-duplicate-keys.md) |
 | — | note | Decision number **174** was taken by a parallel library session ([174-everlasting-man-original-1925](decisions/174-everlasting-man-original-1925.md)) — Session 0 record is **[175](decisions/175-contacts-session-0.md)**, not 174. |
 | — | backlog | Mailing-list send pipeline (Resend campaigns + unsubscribe) — designed-for, not built ([139](decisions/139-lightweight-crm-fall-priority.md)). |
 | — | backlog | Optional FK contact → library person or invoicing client — only if owner asks. |
