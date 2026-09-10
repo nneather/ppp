@@ -36,6 +36,9 @@ export type ParsedAddress = {
 	country: string | null;
 };
 
+const LEADING_HONORIFIC =
+	/^(aunt|uncle|pastor|dr|mr|mrs|ms|miss)\.?$/i;
+
 /** Split "Tanner and Crystal Erisman" / "Jonathan Shaheen and Sara". */
 export function splitCoupleName(raw: string): SheetPerson[] {
 	const name = raw.trim().replace(/\s+/g, ' ');
@@ -60,8 +63,18 @@ export function splitCoupleName(raw: string): SheetPerson[] {
 
 function parseSinglePerson(raw: string): SheetPerson {
 	const tokens = raw.trim().split(/\s+/).filter(Boolean);
+	while (tokens.length > 1 && LEADING_HONORIFIC.test(tokens[0]!)) {
+		tokens.shift();
+	}
 	if (tokens.length === 0) return { first_name: 'Unknown', last_name: null };
 	if (tokens.length === 1) return { first_name: tokens[0]!, last_name: null };
+	// "Patrick (Weiqiang) Yu" → first keeps the parenthetical; last is Yu.
+	if (tokens.length >= 3 && /^\(.*\)$/.test(tokens[tokens.length - 2]!)) {
+		return {
+			first_name: tokens.slice(0, -1).join(' '),
+			last_name: tokens[tokens.length - 1]!
+		};
+	}
 	return {
 		first_name: tokens[0]!,
 		last_name: tokens.slice(1).join(' ')

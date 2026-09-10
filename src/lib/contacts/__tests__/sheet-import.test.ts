@@ -26,6 +26,25 @@ describe('splitCoupleName', () => {
 			{ first_name: 'Hannah', last_name: 'Neathery' }
 		]);
 	});
+
+	it('keeps compound last names', () => {
+		expect(splitCoupleName('Hannah Ten Pas')).toEqual([
+			{ first_name: 'Hannah', last_name: 'Ten Pas' }
+		]);
+	});
+
+	it('strips Aunt/Uncle and inherits the shared last name', () => {
+		expect(splitCoupleName('Aunt Mindy and Uncle Ric Schwab')).toEqual([
+			{ first_name: 'Mindy', last_name: 'Schwab' },
+			{ first_name: 'Ric', last_name: 'Schwab' }
+		]);
+	});
+
+	it('keeps a parenthetical given name on first, surname last', () => {
+		expect(splitCoupleName('Patrick (Weiqiang) Yu')).toEqual([
+			{ first_name: 'Patrick (Weiqiang)', last_name: 'Yu' }
+		]);
+	});
 });
 
 describe('parseSheet1Csv', () => {
