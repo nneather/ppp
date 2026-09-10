@@ -191,12 +191,13 @@ End-of-session deliverables:
 
 - **Sports helpers** at `src/lib/sports/` (schema migration `20260902221000_ppp_sports_v1.sql`; Session 1 [218](docs/decisions/218-sports-session-1.md)):
   - `src/lib/types/sports.ts` — leagues (`nfl`/`mlb`/`college-football`), game/team/standing/glance view-models.
-  - `src/lib/sports/espn.ts` — ESPN site.api → site.web.api fetch + normalize (broadcast, season year, leaf standings); unit tests `__tests__/espn.test.ts`.
+  - `src/lib/sports/espn.ts` — ESPN site.web.api (then site.api) fetch + normalize (broadcast, season year, leaf standings); unit tests `__tests__/espn.test.ts`.
   - `src/lib/sports/server/sync.ts` — `runSportsSync` upserts (games; optional teams+standings without clobbering `is_followed`).
   - `src/lib/sports/server/loaders.ts` — `loadSportsPage` / `loadFollowedSportsGlance` (followed filter; CFB hidden when nothing followed).
-  - `src/lib/sports/server/actions.ts` — `toggleFollowedAction` only.
-  - `src/lib/supabase/admin.ts` — service-role client for cron.
-  - Routes: `/sports`; `GET /api/sports/sync` (`CRON_SECRET`); dashboard glance. Nav: desktop sidebar after Sermons (no mobile tab).
+  - `src/lib/sports/server/actions.ts` — `toggleFollowedAction` + owner `syncNowAction`.
+  - `src/lib/supabase/admin.ts` — first SvelteKit service-role client (Vercel cron fallback).
+  - Routes: `/sports` (owner Refresh scores); `GET /api/sports/sync` (`CRON_SECRET` or owner session); dashboard glance. Nav: desktop sidebar after Sermons (no mobile tab).
+  - CLI / GHA: `npm run sports:sync` (`--standings` for teams+records); `.github/workflows/sports-sync.yml` every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)).
   - Audit: `_SPORTS_TABLES = ['sports_teams']` only. Permissions slug `sports`.
 
 - **Classwork helpers** at `src/lib/classwork/` (schema migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`, `20260831220000_classwork_canvas_ids.sql`; Session 0 [150](docs/decisions/150-classwork-session-0.md), Session 1 [153](docs/decisions/153-classwork-session-1.md), Session 2 [161](docs/decisions/161-classwork-session-2.md), Papers 0–1 [188](docs/decisions/188-classwork-research-papers-session-0.md)/[189](docs/decisions/189-classwork-papers-session-1.md), Canvas import [216](docs/decisions/216-canvas-classwork-import.md)):
@@ -250,6 +251,7 @@ End-of-session deliverables:
 - **`library:review-research`** — AI research pass ([068](docs/decisions/068-library-review-ai-research-pass.md)): OL + optional Anthropic genre proposals into `book_metadata_proposals` (pending; owner confirms on `/library/review`). Dry-run default; `LIBRARY_RESEARCH_CONFIRM=yes … --apply`. IPv4 networks need the **Session Pooler** URI (`LIBRARY_RESEARCH_DATABASE_URL`; derive via `scripts/backup-restore-verify/derive-pooler-url.ts`) — the Direct host is IPv6-only. See [`scripts/library-review-research/README.md`](scripts/library-review-research/README.md).
 - **`mcp:smoke` / [`scripts/ppp-mcp/`](scripts/ppp-mcp/)** — local stdio **read-only** MCP for Cursor + Claude Code ([144](docs/decisions/144-ppp-mcp-readonly-v1.md), filters [164](docs/decisions/164-mcp-list-project-health-filters.md), week horizon [165](docs/decisions/165-mcp-list-week-tasks.md)/[184](docs/decisions/184-mcp-monday-protocol-finetune.md), contacts [180](docs/decisions/180-contacts-session-2.md)). Loads `.env` + `.env.local`; requires `PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `POS_OWNER_ID` (owner assert). Tools wrap existing loaders. Wiring: [`scripts/ppp-mcp/README.md`](scripts/ppp-mcp/README.md). Helpers: [`src/lib/mcp/bible-book.ts`](src/lib/mcp/bible-book.ts), [`course.ts`](src/lib/mcp/course.ts), [`project.ts`](src/lib/mcp/project.ts).
 - **`classwork:canvas-import`** — Covenant Canvas → `courses` / `assignments` one-shot ([216](docs/decisions/216-canvas-classwork-import.md)). Dry-run default; `--apply` writes. Needs `CANVAS_HOST`, `CANVAS_TOKEN`, `PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `POS_OWNER_ID`. Re-pull updates title/`due_date` only.
+- **`sports:sync`** — ESPN → `sports_games` / optional teams+standings (`--standings`). Needs `PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`. Also runs from GitHub Actions every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)).
 
 ## Git / ship (solo)
 
@@ -288,6 +290,8 @@ Two files. Both are gitignored.
 | `R2_BUCKET` | Private R2 bucket for weekly dumps |
 | `R2_ACCESS_KEY_ID` | R2 API token access key |
 | `R2_SECRET_ACCESS_KEY` | R2 API token secret |
+| `PUBLIC_SUPABASE_URL` | Prod API URL for sports ESPN sync (GHA; same value as `.env.local`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role for sports ESPN sync (GHA; never browser) |
 
 Setup commands: [`scripts/backup-restore-verify/README.md`](scripts/backup-restore-verify/README.md).
 

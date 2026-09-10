@@ -1,14 +1,15 @@
 /**
  * ESPN unofficial site API — fetch + normalize for the sports sync cache.
  *
- * Hosted endpoints are undocumented and may 403; we try site.api then
- * site.web.api, and every field access is defensive.
+ * Hosted endpoints are undocumented and may 403; we try site.web.api first
+ * (site.api often 403s), and every field access is defensive.
  */
-import { LEAGUE_SPORT, type GameState, type SportsLeague, type SportsSport } from '$lib/types/sports';
+import { LEAGUE_SPORT, type GameState, type SportsLeague, type SportsSport } from '../types/sports';
 
 export const ESPN_USER_AGENT = 'ppp-sports-sync/1.0';
 
-const ESPN_HOSTS = ['https://site.api.espn.com', 'https://site.web.api.espn.com'] as const;
+/** site.api often 403s; try site.web.api first so cron/CLI don't burn the timeout. */
+const ESPN_HOSTS = ['https://site.web.api.espn.com', 'https://site.api.espn.com'] as const;
 
 export type EspnLeagueConfig = {
 	league: SportsLeague;

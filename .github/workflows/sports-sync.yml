@@ -1,0 +1,45 @@
+name: Sports ESPN sync
+
+# Hobby Vercel only allows a daily cron and the 10m job blocked deploys ([218]/[220]).
+# This workflow writes the sports_* cache via service role (no Vercel hop).
+
+on:
+  schedule:
+    # Scores ~every 10 minutes (GitHub may delay a few minutes).
+    - cron: '*/10 * * * *'
+    # Teams + standings ~9:05am Chicago CDT (14:05 UTC).
+    - cron: '5 14 * * *'
+  workflow_dispatch:
+    inputs:
+      standings:
+        description: Also refresh teams and standings
+        type: boolean
+        default: true
+
+concurrency:
+  group: sports-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Pull ESPN into sports cache
+        env:
+          PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          STANDINGS=""
+          if [ "${{ github.event.schedule }}" = "5 14 * * *" ] \
+            || [ "${{ github.event.inputs.standings }}" = "true" ]; then
+            STANDINGS="--standings"
+          fi
+          npx --yes tsx@4.21.0 scripts/sports-sync.ts $STANDINGS

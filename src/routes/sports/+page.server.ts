@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { toggleFollowedAction } from '$lib/sports/server/actions';
+import { syncNowAction, toggleFollowedAction } from '$lib/sports/server/actions';
 import { loadSportsPage, parseSportsLeagueParam } from '$lib/sports/server/loaders';
 
 export const load: PageServerLoad = async ({ locals, url, depends }) => {
@@ -34,5 +34,21 @@ export const actions: Actions = {
 		}
 
 		return toggleFollowedAction(locals.supabase, await request.formData());
+	},
+
+	syncNow: async ({ locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'syncNow' as const, message: 'Unauthorized' });
+
+		const profileRes = await locals.supabase
+			.from('profiles')
+			.select('role')
+			.eq('id', user.id)
+			.maybeSingle();
+		if ((profileRes.data?.role as string | null) !== 'owner') {
+			return fail(403, { kind: 'syncNow' as const, message: 'Owner only.' });
+		}
+
+		return syncNowAction(locals.supabase);
 	}
 };

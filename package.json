@@ -36,7 +36,8 @@
 		"library:review-research": "dotenv -e .env -e .env.local -- tsx scripts/library-review-research/proposeMetadata.ts",
 		"mcp:smoke": "tsx scripts/ppp-mcp/smoke.ts",
 		"mcp:serve": "tsx scripts/ppp-mcp/index.ts",
-		"classwork:canvas-import": "dotenv -e .env -e .env.local -- tsx scripts/classwork-canvas-import.ts"
+		"classwork:canvas-import": "dotenv -e .env -e .env.local -- tsx scripts/classwork-canvas-import.ts",
+		"sports:sync": "dotenv -e .env -e .env.local -- tsx scripts/sports-sync.ts"
 	},
 	"devDependencies": {
 		"@fontsource-variable/geist": "^5.2.8",

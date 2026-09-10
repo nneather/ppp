@@ -4,8 +4,12 @@ import { env } from '$env/dynamic/private';
 import { createServiceRoleClient } from '$lib/supabase/admin';
 import { runSportsSync } from '$lib/sports/server/sync';
 import type { RequestHandler } from './$types';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-function authorize(request: Request): boolean {
+/** Hobby max is 10s; keep the hint for Pro if the project is upgraded. */
+export const maxDuration = 60;
+
+function cronAuthorized(request: Request): boolean {
 	const secret = env.CRON_SECRET;
 	if (!secret) return false;
 	const header = request.headers.get('authorization');
@@ -21,8 +25,26 @@ function authorize(request: Request): boolean {
 	}
 }
 
-export const GET: RequestHandler = async ({ request, url }) => {
-	if (!authorize(request)) {
+async function ownerAuthorized(locals: App.Locals): Promise<boolean> {
+	const { user } = await locals.safeGetSession();
+	if (!user) return false;
+	const profileRes = await locals.supabase
+		.from('profiles')
+		.select('role')
+		.eq('id', user.id)
+		.maybeSingle();
+	return (profileRes.data?.role as string | null) === 'owner';
+}
+
+function writerClient(asOwner: boolean, locals: App.Locals): SupabaseClient {
+	if (asOwner) return locals.supabase;
+	return createServiceRoleClient();
+}
+
+export const GET: RequestHandler = async ({ request, url, locals }) => {
+	const cronOk = cronAuthorized(request);
+	const asOwner = cronOk ? false : await ownerAuthorized(locals);
+	if (!cronOk && !asOwner) {
 		return json({ ok: false, error: 'Unauthorized' }, { status: 401 });
 	}
 
@@ -30,7 +52,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		url.searchParams.get('standings') === '1' || url.searchParams.get('standings') === 'true';
 
 	try {
-		const admin = createServiceRoleClient();
+		const admin = writerClient(asOwner, locals);
 		const result = await runSportsSync(admin, { includeStandings });
 		return json(result, { status: result.ok ? 200 : 207 });
 	} catch (e) {

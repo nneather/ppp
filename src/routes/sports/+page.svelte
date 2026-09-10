@@ -14,7 +14,7 @@
 	} from '$lib/types/sports';
 	import { cn } from '$lib/utils';
 	import Star from '@lucide/svelte/icons/star';
-	import type { ToggleFollowedResult } from '$lib/sports/server/actions';
+	import type { ToggleFollowedResult, SyncNowResult } from '$lib/sports/server/actions';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -27,6 +27,22 @@
 	const teams = $derived(data.teams as SportsTeamRow[]);
 	const isOwner = $derived(data.isOwner);
 	const followedCount = $derived(data.followedCount);
+	const lastSyncedAt = $derived(data.lastSyncedAt);
+	let syncing = $state(false);
+
+	function formatSynced(iso: string): string {
+		try {
+			return new Intl.DateTimeFormat('en-US', {
+				timeZone: 'America/Chicago',
+				month: 'short',
+				day: 'numeric',
+				hour: 'numeric',
+				minute: '2-digit'
+			}).format(new Date(iso));
+		} catch {
+			return iso;
+		}
+	}
 
 	const liveGames = $derived(games.filter((g) => g.state === 'in'));
 	const upcomingGames = $derived(games.filter((g) => g.state === 'pre'));
@@ -81,9 +97,16 @@
 	}
 
 	const formMsg = $derived.by(() => {
-		const f = form as ToggleFollowedResult | null | undefined;
-		if (!f || f.kind !== 'toggleFollowed' || f.success === true) return null;
-		return f.message ?? null;
+		const f = form as ToggleFollowedResult | SyncNowResult | null | undefined;
+		if (!f) return null;
+		if (f.kind === 'toggleFollowed' && f.success !== true) return f.message ?? null;
+		if (f.kind === 'syncNow' && f.success !== true) return f.message ?? null;
+		return null;
+	});
+	const syncOk = $derived.by(() => {
+		const f = form as ToggleFollowedResult | SyncNowResult | null | undefined;
+		if (f?.kind !== 'syncNow' || f.success !== true) return null;
+		return f.message ?? 'Scores updated.';
 	});
 </script>
 
@@ -92,7 +115,31 @@
 </svelte:head>
 
 <div class="mx-auto max-w-3xl px-4 py-6 pb-tabbar md:px-6 md:py-8">
-	<PageHeader title="Sports" subtitle="Live scores, TV, and standings for followed teams." />
+	<PageHeader title="Sports" subtitle="Live scores, TV, and standings for followed teams.">
+		{#snippet actions()}
+			{#if isOwner}
+				<form
+					method="POST"
+					action="?/syncNow"
+					use:enhance={() => {
+						syncing = true;
+						return async ({ update }) => {
+							try {
+								await update({ reset: false });
+								await invalidate('app:sports:list');
+							} finally {
+								syncing = false;
+							}
+						};
+					}}
+				>
+					<Button type="submit" variant="outline" disabled={syncing}>
+						{syncing ? 'Refreshing…' : 'Refresh scores'}
+					</Button>
+				</form>
+			{/if}
+		{/snippet}
+	</PageHeader>
 
 	{#if data.loadError}
 		<p
@@ -106,6 +153,19 @@
 	{#if formMsg}
 		<p class="mt-4 text-sm text-destructive" role="alert">{formMsg}</p>
 	{/if}
+	{#if syncOk}
+		<p class="mt-4 text-sm text-muted-foreground">{syncOk}</p>
+	{/if}
+
+	<p class="mt-3 text-xs text-muted-foreground">
+		{#if lastSyncedAt}
+			Last synced {formatSynced(lastSyncedAt)}.
+		{:else if isOwner}
+			No scores in the cache yet — refresh to pull from ESPN.
+		{:else}
+			No scores yet — the owner needs to run a sync.
+		{/if}
+	</p>
 
 	<div class="mt-6 flex flex-wrap gap-2">
 		<button
@@ -225,7 +285,11 @@
 		<h2 class="text-sm font-semibold tracking-tight text-foreground">Standings</h2>
 		{#if standingsByGroup.length === 0}
 			<p class="mt-2 text-sm text-muted-foreground">
-				No standings yet — run a sync with <code class="text-xs">?standings=1</code>.
+				{#if isOwner && teams.length === 0}
+					No standings yet — refresh scores to pull teams and records.
+				{:else}
+					No standings yet.
+				{/if}
 			</p>
 		{:else}
 			<div class="mt-3 space-y-4">

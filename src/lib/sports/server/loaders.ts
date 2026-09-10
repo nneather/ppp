@@ -17,6 +17,7 @@ export type SportsPageData = {
 	teams: SportsTeamRow[];
 	followedCount: number;
 	isOwner: boolean;
+	lastSyncedAt: string | null;
 	loadError: string | null;
 };
 
@@ -110,6 +111,7 @@ export async function loadSportsPage(
 			teams: [],
 			followedCount: 0,
 			isOwner: opts.isOwner,
+			lastSyncedAt: null,
 			loadError: teamsRes.error.message
 		};
 	}
@@ -148,12 +150,21 @@ export async function loadSportsPage(
 			teams,
 			followedCount,
 			isOwner: opts.isOwner,
+			lastSyncedAt: null,
 			loadError: gamesRes.error?.message ?? standingsRes.error?.message ?? 'Load failed'
 		};
 	}
 
 	let games = (gamesRes.data ?? []).map((r) => mapGame(r as Record<string, unknown>));
 	let standings = (standingsRes.data ?? []).map((r) => mapStanding(r as Record<string, unknown>));
+
+	let lastSyncedAt: string | null = null;
+	for (const g of games) {
+		if (!lastSyncedAt || g.synced_at > lastSyncedAt) lastSyncedAt = g.synced_at;
+	}
+	for (const s of standings) {
+		if (!lastSyncedAt || s.synced_at > lastSyncedAt) lastSyncedAt = s.synced_at;
+	}
 
 	if (followedCount > 0) {
 		games = games.filter(
@@ -182,6 +193,7 @@ export async function loadSportsPage(
 		teams,
 		followedCount,
 		isOwner: opts.isOwner,
+		lastSyncedAt,
 		loadError: null
 	};
 }

@@ -14,15 +14,17 @@ Module slug: `sports` · Route: `/sports` · Session 0: inline in [218](../decis
 - [x] ESPN fetch/normalize + unit tests; service-role admin client; `GET /api/sports/sync` with `CRON_SECRET`
 - [x] `/sports` list + follow toggle; dashboard glance; desktop nav; CSP espncdn; permissions + audit whitelist
 - [x] `vercel.json` crons; env docs; decision 218; PLAN / AGENTS / components / POS_Schema
-- [ ] Owner smoke: set `CRON_SECRET`, hit sync locally, follow 2–3 teams, confirm `/sports` + dashboard
+- [x] Cache populated 2026-09-10 via `npm run sports:sync -- --standings` ([220](../decisions/220-sports-sync-github-actions.md))
+- [ ] Owner smoke: follow 2–3 teams, confirm `/sports` + dashboard glance
 - [ ] Viewer without `sports` permission sees empty/graceful UI (not 403)
 
-**Notes:** See [218](../decisions/218-sports-session-1.md). Hobby plan may block sub-daily crons.
+**Notes:** See [218](../decisions/218-sports-session-1.md) + [220](../decisions/220-sports-sync-github-actions.md). Hobby cannot run `*/10`; GHA is the ticker.
 
 ## Open questions
 
-- Confirm Vercel plan (Pro vs Hobby) before relying on `*/10` cron.
+- ~~Confirm Vercel plan (Pro vs Hobby) before relying on `*/10` cron.~~ **Hobby** — confirmed Sep 4 (deploy failed until 10m cron dropped). GHA owns the 10m path.
 - Optional later: NBA/NHL, push notifications, MCP `list_followed_scores`.
+- Optional: set `CRON_SECRET` + `SUPABASE_SERVICE_ROLE_KEY` on Vercel for the daily backup cron.
 
 ## Out of scope (v1)
 
