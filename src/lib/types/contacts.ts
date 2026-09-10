@@ -38,6 +38,15 @@ export const CONTACT_FREQUENCY_LABELS: Record<ContactFrequency, string> = {
 	none: 'None scheduled'
 };
 
+/** Compact roster / due-row captions — same taxonomy, shorter. */
+export const CONTACT_FREQUENCY_SHORT_LABELS: Record<ContactFrequency, string> = {
+	common: 'Common',
+	quarterly: 'Quarterly',
+	semiannual: 'Semester',
+	annual: 'Annual',
+	none: 'None'
+};
+
 /** Sheet letter / word → enum (keys are uppercase). */
 export const FREQUENCY_FROM_SHEET: Record<string, ContactFrequency> = {
 	C: 'common',

@@ -5,6 +5,7 @@ import {
 	contactGroupLabel,
 	contactsListFiltersToSearchParams,
 	groupSortedRows,
+	householdGroupLabel,
 	listNamesForContact,
 	parseContactSort,
 	sortContacts,
@@ -197,7 +198,8 @@ describe('group headers', () => {
 	it('labels frequency groups', () => {
 		const c = contact('alice', { first_name: 'Alice', frequency: 'semiannual' });
 		expect(contactGroupLabel(c, 'frequency', ctx)).toBe('Semester');
-		expect(contactGroupLabel(c, 'name', ctx)).toBeNull();
+		expect(contactGroupLabel(c, 'name', ctx)).toBe('S');
+		expect(householdGroupLabel(household('hh-j', 'The Jones Family'), 'name', ctx)).toBe('T');
 	});
 
 	it('splits sorted rows when the header changes', () => {

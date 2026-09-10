@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-09-10 — Sports sync `maxDuration` build fix ([222](docs/decisions/222-sports-sync-maxduration-export.md)); CFB beyond FBS ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)).
+**Last updated:** 2026-09-10 — Contacts roster live search + density ([223](docs/decisions/223-contacts-roster-search-density.md)); Sports sync `maxDuration` ([222](docs/decisions/222-sports-sync-maxduration-export.md)).
 
 **How to use this file — read this first:**
 
@@ -19,7 +19,7 @@
 **Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later).
 
 - **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)). **Papers Sessions 1–2 shipped** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)). **Canvas FA-26 import applied** ([216](docs/decisions/216-canvas-classwork-import.md)) — re-pull in weeks 1–3 as dates churn.
-- **Contacts / CRM** — Sessions 1–3 + period cadence + import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)) + frequency labels ([213](docs/decisions/213-contacts-frequency-labels.md)) + roster sort ([214](docs/decisions/214-contacts-roster-sort.md)). Christmas Has-address seed in November; mailing send later.
+- **Contacts / CRM** — Sessions 1–3 + period cadence / import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)) + frequency labels ([213](docs/decisions/213-contacts-frequency-labels.md)) + roster sort ([214](docs/decisions/214-contacts-roster-sort.md)) + **live search / compact roster** ([223](docs/decisions/223-contacts-roster-search-density.md)). Christmas Has-address seed in November; mailing send later.
 - **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + health filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)/[184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + contacts ([180](docs/decisions/180-contacts-session-2.md)).
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
 
@@ -39,7 +39,7 @@ Nearest hard dates:
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); CFB follow list is full ESPN catalog (FBS–NAIA) ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)). **Vercel Production was red** until Kit `config.maxDuration` ([222](docs/decisions/222-sports-sync-maxduration-export.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. **Venue type** (C/P/A) auto-fills sermon context ([217](docs/decisions/217-sermon-venues-context-type.md)). List + by-book smoke passed. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) + **Canvas one-shot import** ([216](docs/decisions/216-canvas-classwork-import.md)) — FA-26 courses/assignments loaded; `npm run classwork:canvas-import` to re-pull. |
-| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence / import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)) + **Quarterly / Semester / Annual** labels ([213](docs/decisions/213-contacts-frequency-labels.md)) + **roster sort** (frequency / list / giving, composable — [214](docs/decisions/214-contacts-roster-sort.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
+| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence / import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)) + **Quarterly / Semester / Annual** labels ([213](docs/decisions/213-contacts-frequency-labels.md)) + **roster sort** ([214](docs/decisions/214-contacts-roster-sort.md)) + **live search / compact list** ([223](docs/decisions/223-contacts-roster-search-density.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)): week split, deferred_until, assignment link, contacts_with_cadence. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -48,11 +48,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [223 — Contacts roster search and density](docs/decisions/223-contacts-roster-search-density.md) (2026-09-10) — Live typeahead search; compact rows + A–Z jump; due strip collapsed so the roster is findable.
 - [222 — Sports sync `maxDuration` export](docs/decisions/222-sports-sync-maxduration-export.md) (2026-09-10) — Bare `maxDuration` on `/api/sports/sync` failed Kit `build` (Vercel + CI). Use `export const config = { maxDuration }`.
 - [221 — Sports CFB beyond FBS](docs/decisions/221-sports-cfb-beyond-fbs.md) (2026-09-10) — Teams list was ESPN `limit=500`; UTSA / Ouachita / NAIA lived on page 2. Paginate teams; scoreboard+standings FBS/FCS/D2/D3/NAIA.
 - [220 — Sports sync via GitHub Actions](docs/decisions/220-sports-sync-github-actions.md) (2026-09-10) — Hobby blocked 10m cron; daily Vercel job 401'd without `CRON_SECRET`. GHA + CLI populate the cache; owner Refresh on `/sports`.
 - [219 — Library Sep 9 shelf batch](docs/decisions/219-library-sep9-shelf-batch.md) (2026-09-09) — Thiselton Two Horizons; Kidner KCC Ezra–Nehemiah + BST Ecclesiastes; Leo XIV *Magnifica humanitas*; Sklar Additional Notes Exod/Lev/Num; ACCS OT III.
-- [218 — Sports scoreboard Session 1](docs/decisions/218-sports-session-1.md) (2026-09-02) — ESPN cron sync, follow toggles, dashboard glance.
 
 ---
 
@@ -76,7 +76,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; Canvas CLI import `npm run classwork:canvas-import` ([216](docs/decisions/216-canvas-classwork-import.md)); migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`, `20260831220000_classwork_canvas_ids.sql`. **Papers:** `/classwork/papers` + `/classwork/papers/[id]` research home (attach books/essays/stubs, per-row cite + page, per-source notes, merged compiled bib; P1 stamp+lock; **research groups** — CRUD + per-row select + Ungrouped-first buckets, G1 null-out) ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
 
-**Contacts:** `/contacts` tabs Contacts \| Households \| Lists + period due strip / Skip (household fan-out) / group filter + **Sort / then** ([214](docs/decisions/214-contacts-roster-sort.md)); Sheets with frequency (**Quarterly / Semester / Annual**), grades, children; import CSV + vCard ([210](docs/decisions/210-contacts-semester-period-cadence.md)/[212](docs/decisions/212-contacts-due-integrity.md)/[213](docs/decisions/213-contacts-frequency-labels.md)); dashboard Due to meet; helpers `src/lib/contacts/`; migrations incl. `20260824190000_contacts_period_cadence_v1.sql`. Desktop sidebar only.
+**Contacts:** `/contacts` tabs Contacts \| Households \| Lists + **live search** / compact roster / A–Z jump ([223](docs/decisions/223-contacts-roster-search-density.md)) + collapsed due strip / Skip (household fan-out) / group filter + **Sort / then** ([214](docs/decisions/214-contacts-roster-sort.md)); Sheets with frequency (**Quarterly / Semester / Annual**), grades, children; import CSV + vCard ([210](docs/decisions/210-contacts-semester-period-cadence.md)/[212](docs/decisions/212-contacts-due-integrity.md)/[213](docs/decisions/213-contacts-frequency-labels.md)); dashboard Due to meet; helpers `src/lib/contacts/`; migrations incl. `20260824190000_contacts_period_cadence_v1.sql`. Desktop sidebar only.
 
 **Invoicing helpers:** `src/lib/invoicing/` — `chicago-date.ts` (incl. `firstOfYearThroughYmd`), `hours.ts`, `consultation-lines.ts` ([050](docs/decisions/050-invoicing-client-billing-preferences.md)), `analytics.ts` ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)), `one-off.ts` ([201](docs/decisions/201-invoicing-analytics-range-one-offs.md)), `mark-paid.ts` ([202](docs/decisions/202-invoicing-list-mark-paid.md)). Routes: `/invoicing`, `/invoicing/invoices`, `/invoicing/analytics` (Time \| Invoices \| Analytics toggle; analytics default range YTD). Loaders/actions live inline in route `+page.server.ts` files **by design** (see AGENTS.md › Module structure).
 
@@ -84,7 +84,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**.
 
-**Repo gate:** Sports sync `maxDuration` [222](docs/decisions/222-sports-sync-maxduration-export.md) — `npm run check` **0 errors**, `npm run test` **533** passed, `npm run build` green (2026-09-10). Production still on `9d9c6c7` until this lands.
+**Repo gate:** Contacts roster search [223](docs/decisions/223-contacts-roster-search-density.md) — `npm run check` **0 errors / 0 warnings**, `npm run test` **540** passed (2026-09-10). Sports sync `maxDuration` [222](docs/decisions/222-sports-sync-maxduration-export.md) still needs to land on Production.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

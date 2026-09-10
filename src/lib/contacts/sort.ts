@@ -3,6 +3,7 @@
  * URL: `?sort=frequency,list` — name is default and always the last tiebreaker.
  */
 
+import { nameLetterHeader } from '$lib/contacts/search';
 import {
 	CONTACT_FREQUENCY_LABELS,
 	CONTACT_SORT_KEYS,
@@ -345,6 +346,8 @@ export function contactGroupLabel(
 			return row.relationship_grade
 				? `Relationship ${row.relationship_grade}`
 				: 'No relationship grade';
+		case 'name':
+			return nameLetterHeader(row.last_name, row.first_name);
 		default:
 			return null;
 	}
@@ -366,6 +369,8 @@ export function householdGroupLabel(
 			return row.relationship_grade
 				? `Relationship ${row.relationship_grade}`
 				: 'No relationship grade';
+		case 'name':
+			return nameLetterHeader(row.name);
 		default:
 			return null;
 	}

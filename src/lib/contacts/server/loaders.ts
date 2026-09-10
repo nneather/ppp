@@ -34,6 +34,7 @@ import {
 	recentClosedPeriods,
 	touchFulfillsPeriod
 } from '$lib/contacts/period';
+import { contactMatchesQuery } from '$lib/contacts/search';
 import { parseContactSort } from '$lib/contacts/sort';
 import {
 	contactDisplayName,
@@ -192,15 +193,7 @@ export async function loadContacts(
 		);
 	}
 
-	const qText = opts.filters.q?.toLowerCase() ?? null;
-	if (qText) {
-		rows = rows.filter((r) => {
-			const name = contactDisplayName(r).toLowerCase();
-			const email = (r.email ?? '').toLowerCase();
-			const phone = (r.phone ?? '').toLowerCase();
-			return name.includes(qText) || email.includes(qText) || phone.includes(qText);
-		});
-	}
+	// `filters.q` is applied client-side so typing stays instant on the ~200-row roster.
 
 	const contactIds = rows.map((r) => r.id);
 	const householdIds = [...new Set(rows.map((r) => r.household_id).filter((id): id is string => id != null))];
@@ -919,16 +912,17 @@ export async function searchContacts(
 
 	const rows = (contactsRes.data ?? []) as ContactDb[];
 	const matched = rows.filter((r) => {
-		const name = contactDisplayName(r).toLowerCase();
 		const hh = r.household_id ? hhById.get(r.household_id) : null;
-		const hhName = (hh?.name ?? '').toLowerCase();
-		const email = (r.email ?? '').toLowerCase();
-		const phone = (r.phone ?? '').toLowerCase();
-		return (
-			name.includes(qText) ||
-			hhName.includes(qText) ||
-			email.includes(qText) ||
-			phone.includes(qText)
+		return contactMatchesQuery(
+			{
+				display_name: contactDisplayName(r),
+				first_name: r.first_name,
+				last_name: r.last_name,
+				household_name: hh?.name ?? null,
+				email: r.email,
+				phone: r.phone
+			},
+			qText
 		);
 	});
 

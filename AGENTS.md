@@ -217,9 +217,10 @@ End-of-session deliverables:
  - Audit: `_CLASSWORK_TABLES` incl. `papers` / `paper_research_groups` / `paper_sources`; soft-delete revert for all. Permissions slug `classwork` (papers ride it — no new slug).
 
 - **Contacts helpers** at `src/lib/contacts/` (schema migrations `20260725020000_ppp_contacts_v1.sql`, `20260725180115_contacts_touch_kind_and_cadence_ui.sql`, `20260824190000_contacts_period_cadence_v1.sql`; Sessions 0–3 + [210](docs/decisions/210-contacts-semester-period-cadence.md) + due integrity [212](docs/decisions/212-contacts-due-integrity.md)):
-  - `src/lib/types/contacts.ts` — `CONTACT_FREQUENCIES`, **labels** Quarterly / Semester / Annual (enum `semiannual` stays), grades, list kinds, due/pace view-models (legacy `DEFAULT_CONTACT_CADENCE_DAYS` / `ContactDueRow` / `ContactSearchHit`, `ListMembershipMaps`).
+  - `src/lib/types/contacts.ts` — `CONTACT_FREQUENCIES`, **labels** Quarterly / Semester / Annual (enum `semiannual` stays) + `CONTACT_FREQUENCY_SHORT_LABELS` for compact roster, grades, list kinds, due/pace view-models (legacy `DEFAULT_CONTACT_CADENCE_DAYS` / `ContactDueRow` / `ContactSearchHit`, `ListMembershipMaps`).
   - `src/lib/contacts/names.ts` — display names, `parseFrequency`, grade/list-kind guards, legacy `effectiveCadenceDays`.
-  - `src/lib/contacts/sort.ts` — composable roster sort (`?sort=frequency,list`) + group headers; unit tests `__tests__/sort.test.ts` ([214](docs/decisions/214-contacts-roster-sort.md)).
+  - `src/lib/contacts/search.ts` — live roster query (AND tokens, phone digits, household/member names) + last-name letter headers; unit tests `__tests__/search.test.ts` ([223](docs/decisions/223-contacts-roster-search-density.md)).
+  - `src/lib/contacts/sort.ts` — composable roster sort (`?sort=frequency,list`) + group headers (name → A–Z); unit tests `__tests__/sort.test.ts` ([214](docs/decisions/214-contacts-roster-sort.md), [223](docs/decisions/223-contacts-roster-search-density.md)).
   - `src/lib/contacts/period.ts` — calendar Q/S/A windows + import on-ramp keys; 2026 Log fulfills `a:2027`.
   - `src/lib/contacts/due.ts` — period due + household collapse + oldest-meet sort + uncapped pace; `dueFanoutContactIds`; `householdEligibleForCardList` (C2).
   - `src/lib/contacts/sheet-import.ts` / `server/sheet-import-action.ts` — Sheet1 couple split + CSV import (attach missing spouse to existing HH); `scripts/contacts-sheet-import.ts`.
@@ -227,9 +228,9 @@ End-of-session deliverables:
   - `src/lib/contacts/cadence.ts` — legacy months/years ↔ days (UI mostly replaced by frequency).
   - `src/lib/contacts/list-candidates.ts` — Lists-tab mass-add filters ([183](docs/decisions/183-contacts-list-mass-add.md)).
   - `src/lib/contacts/list-member.ts` — `validateListMemberXor` / `listMemberToColumns` (contact XOR household for list membership).
-  - `src/lib/contacts/server/loaders.ts` — list + due + period history + children/grades; `list_filter` for standing groups; last-touch queries filter `kind=meet`.
+  - `src/lib/contacts/server/loaders.ts` — list + due + period history + children/grades; `list_filter` for standing groups; last-touch queries filter `kind=meet`; list `q` is client-side ([223](docs/decisions/223-contacts-roster-search-density.md)).
   - `src/lib/contacts/server/actions.ts` — CRUD + Skip period (household fan-out) + clone list + children; meet Log Contact / Log all (active-only); `logListCardsAction` (`kind=card`); list membership revive-by-PK.
-  - Routes: `/contacts` (tabs Contacts \| Households \| Lists + due strip + **Sort/then** roster sort + Sheets); `/settings/contacts/lists` 308→ Lists tab; dashboard Due to meet. Desktop sidebar only (mobile tab bar stays at 5).
+  - Routes: `/contacts` (tabs Contacts \| Households \| Lists + **live search** + collapsed due strip + A–Z jump + **Sort / then** — [223](docs/decisions/223-contacts-roster-search-density.md)/[214](docs/decisions/214-contacts-roster-sort.md)); `/settings/contacts/lists` 308→ Lists tab; dashboard Due to meet. Desktop sidebar only (mobile tab bar stays at 5).
   - Audit: `_CONTACTS_TABLES` incl. period skips / grade changes / children; soft-delete revert for all. Permissions slug `contacts`. **≠ library `people`, ≠ invoicing `clients`.** Viewer write solo-waivered v1.
 
 ### Scripts
