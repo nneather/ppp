@@ -21,7 +21,7 @@ Work in this repo **builds into files**, not chat history. A session that doesn'
 2. **PLAN.md refreshed** — last-updated line, Recent decisions, Next up
 3. AGENTS.md inventory + [components.mdc](mdc:.cursor/rules/components.mdc) updated if helpers/components were added
 4. `npm run check` + `npm run test` pass (note the date in PLAN.md › Repo gate). Prefer waiting for GitHub Actions **CI** green on `main` before assuming Vercel will succeed — CI now also runs `npm run build` (same compile path as Vercel).
-5. **Provide a copy-paste commit message** for the session's changes (scoped to this session's files if the working tree mixes sessions), then **explicitly confirm we're good to close out** — Parker commits/pushes himself unless he explicitly asks the agent to commit/push.
+5. **Provide a copy-paste commit message** for the session's changes (scoped to this session's files if the working tree mixes sessions). Parker commits/pushes himself unless he explicitly asks the agent to commit/push. **Do not say "good to close out" until that commit is on `origin`** (agent push or Parker landed it). Uncommitted work is not closed.
 
 ## Git / ship (solo — read before opening a PR)
 
@@ -30,7 +30,7 @@ Work in this repo **builds into files**, not chat history. A session that doesn'
 | Do | Don't |
 |---|---|
 | Prefer working on **`main`** for solo sessions when the tree is clean | Invent a PR solely because `main` is protected |
-| End with a **copy-paste commit message**; when Parker asks to commit/push, **push to `main`** (admin bypass) | Reuse an open feature branch / PR for **unrelated** work from another chat |
+| End with a **copy-paste commit message**; say **good to close out only after push**; when Parker asks to commit/push, **push to `main`** (admin bypass) | Reuse an open feature branch / PR for **unrelated** work from another chat |
 | Open a PR only when Parker asks, or if a push is blocked for a non-bypass path | `git reset --hard` / rewrite history to “fix” a push without checking for other WIP |
 | Keep local `npm run check` (+ `test` / `build` when touching ship paths) before pushing to `main` | Treat Cursor’s commit-and-push “current branch” as permission to pile onto someone else’s PR |
 

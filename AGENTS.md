@@ -259,7 +259,7 @@ End-of-session deliverables:
 
 Personal repo, one primary owner. **`main` requires `check-and-test` for non-admin lands; Parker (admin) may push straight to `main` — no PR theater.** Full rules: [.cursor/rules/workflow.mdc](.cursor/rules/workflow.mdc) › Git / ship. Summary:
 
-- Default end-of-session: **copy-paste commit message**; when Parker asks the agent to commit/push, prefer **`main`** (admin bypass — [106](docs/decisions/106-main-admin-bypass.md)).
+- Default end-of-session: **copy-paste commit message**; **do not say "good to close out" until the commit is pushed**. When Parker asks the agent to commit/push, prefer **`main`** (admin bypass — [106](docs/decisions/106-main-admin-bypass.md)).
 - **Do not invent PRs.** Open one only when Parker asks, or if a push is blocked without bypass.
 - **Never reuse** an open feature branch / PR for unrelated work. Never `git reset --hard` without checking for other WIP.
 - Decisions: [105](docs/decisions/105-solo-git-ship-agent-guidance.md), [106](docs/decisions/106-main-admin-bypass.md). Protection origin: [097](docs/decisions/097-vercel-deploy-ci-build-gate.md).
