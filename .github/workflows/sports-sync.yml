@@ -31,6 +31,8 @@ jobs:
         with:
           node-version: '24'
 
+      # No npm ci: tsx via npx only. scripts/sports-sync.ts must stay package-free
+      # (a dotenv import crashed every scheduled run — [227]).
       - name: Pull ESPN into sports cache
         env:
           PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}

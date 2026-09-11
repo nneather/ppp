@@ -4,10 +4,10 @@
  *   npm run sports:sync
  *   npm run sports:sync -- --standings
  *
- * Env: PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (.env + .env.local).
- * GHA sets the same vars as secrets; dotenv files are optional there.
+ * Env: PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+ * Local npm script loads them via dotenv-cli. GHA injects the same secrets and
+ * does not `npm ci` — do not import `dotenv` or any other package here ([227]).
  */
-import { config } from 'dotenv';
 import {
 	ESPN_LEAGUES,
 	fetchScoreboard,
@@ -20,9 +20,6 @@ import {
 	type NormalizedStanding,
 	type NormalizedTeam
 } from '../src/lib/sports/espn.ts';
-
-config({ path: '.env' });
-config({ path: '.env.local', override: true });
 
 const INCLUDE_STANDINGS = process.argv.includes('--standings');
 

@@ -18,7 +18,7 @@ Module slug: `sports` · Route: `/sports` · Session 0: inline in [218](../decis
 - [ ] Owner smoke: follow 2–3 teams, confirm `/sports` + dashboard glance
 - [ ] Viewer without `sports` permission sees empty/graceful UI (not 403)
 
-**Notes:** See [218](../decisions/218-sports-session-1.md) + [220](../decisions/220-sports-sync-github-actions.md) + [221](../decisions/221-sports-cfb-beyond-fbs.md) + [222](../decisions/222-sports-sync-maxduration-export.md) + [224](../decisions/224-sports-standings-divisions.md). Hobby cannot run `*/10`; GHA is the ticker. CFB follow list is the full ESPN catalog (paginate past 500). Kit routes must use `export const config = { maxDuration }` (bare `maxDuration` broke Vercel on 220/221). Standings fetch uses ESPN `level=3` (NFL/MLB divisions).
+**Notes:** See [218](../decisions/218-sports-session-1.md) + [220](../decisions/220-sports-sync-github-actions.md) + [221](../decisions/221-sports-cfb-beyond-fbs.md) + [222](../decisions/222-sports-sync-maxduration-export.md) + [224](../decisions/224-sports-standings-divisions.md) + [227](../decisions/227-sports-sync-gha-dotenv.md). Hobby cannot run `*/10`; GHA is the ticker. CFB follow list is the full ESPN catalog (paginate past 500). Kit routes must use `export const config = { maxDuration }` (bare `maxDuration` broke Vercel on 220/221). Standings fetch uses ESPN `level=3` (NFL/MLB divisions). GHA `npx tsx` has no `node_modules` — `scripts/sports-sync.ts` must not import npm packages.
 
 ## Open questions
 
