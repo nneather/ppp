@@ -13,6 +13,7 @@ import {
 	fetchScoreboard,
 	fetchStandings,
 	fetchTeams,
+	scoreboardDateList,
 	scoreboardDatesParam,
 	scoreboardDaysAhead,
 	seasonYearForLeague,
@@ -123,7 +124,7 @@ async function syncLeague(now: Date, includeStandings: boolean) {
 	const results: { league: string; ok: boolean; error?: string; [k: string]: unknown }[] = [];
 	for (const cfg of ESPN_LEAGUES) {
 		try {
-			const dates = scoreboardDatesParam(now, scoreboardDaysAhead(cfg.league));
+			const dates = scoreboardDateList(now, scoreboardDaysAhead(cfg.league));
 			const games = await fetchScoreboard(cfg, dates);
 			const gamesUpserted = await upsert('sports_games', 'league,espn_event_id', gameRows(games));
 			let teamsUpserted = 0;

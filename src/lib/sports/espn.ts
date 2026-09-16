@@ -3,6 +3,7 @@
  *
  * Hosted endpoints are undocumented and may 403; we try site.web.api first
  * (site.api often 403s), and every field access is defensive.
+ * Scoreboard `dates=` must be a single YYYYMMDD — hyphenated ranges 400 ([228]).
  */
 import { LEAGUE_SPORT, type GameState, type SportsLeague, type SportsSport } from '../types/sports';
 
@@ -142,8 +143,18 @@ export const CFB_SCOREBOARD_GROUPS = ['80', '81', '57', '58', '186'] as const;
 export const CFB_TEAMS_PAGE_SIZE = 500;
 const CFB_TEAMS_MAX_PAGES = 10;
 
-/** Yesterday → `daysAhead` compact range for scoreboard queries. */
-export function scoreboardDatesParam(now: Date = new Date(), daysAhead = 1): string {
+function compactYmdUtc(dt: Date): string {
+	const yy = dt.getUTCFullYear();
+	const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+	const dd = String(dt.getUTCDate()).padStart(2, '0');
+	return `${yy}${mm}${dd}`;
+}
+
+/**
+ * Inclusive Chicago civil days: yesterday through today+`daysAhead`.
+ * ESPN `site.web.api` 400s on `YYYYMMDD-YYYYMMDD` ranges ([228]) — fetch one day at a time.
+ */
+export function scoreboardDateList(now: Date = new Date(), daysAhead = 1): string[] {
 	const today = ymdCompactChicago(now);
 	const y = Number(today.slice(0, 4));
 	const mo = Number(today.slice(4, 6));
@@ -153,13 +164,19 @@ export function scoreboardDatesParam(now: Date = new Date(), daysAhead = 1): str
 	yest.setUTCDate(yest.getUTCDate() - 1);
 	const end = new Date(noon);
 	end.setUTCDate(end.getUTCDate() + daysAhead);
-	const fmt = (dt: Date) => {
-		const yy = dt.getUTCFullYear();
-		const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
-		const dd = String(dt.getUTCDate()).padStart(2, '0');
-		return `${yy}${mm}${dd}`;
-	};
-	return `${fmt(yest)}-${fmt(end)}`;
+	const out: string[] = [];
+	for (let dt = new Date(yest); dt.getTime() <= end.getTime(); dt.setUTCDate(dt.getUTCDate() + 1)) {
+		out.push(compactYmdUtc(dt));
+	}
+	return out;
+}
+
+/** Log/display window `YYYYMMDD-YYYYMMDD` — do not send this as ESPN `dates=`. */
+export function scoreboardDatesParam(now: Date = new Date(), daysAhead = 1): string {
+	const days = scoreboardDateList(now, daysAhead);
+	if (days.length === 0) return '';
+	if (days.length === 1) return days[0]!;
+	return `${days[0]}-${days[days.length - 1]}`;
 }
 
 /** CFB needs the coming Saturday from midweek; NFL/MLB stay yest–tomorrow. */
@@ -179,7 +196,10 @@ export async function espnFetchJson(pathAndQuery: string): Promise<unknown> {
 				}
 			});
 			if (!res.ok) {
-				lastErr = new Error(`ESPN ${res.status} from ${host}`);
+				const body = (await res.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 180);
+				lastErr = new Error(
+					body ? `ESPN ${res.status} from ${host}: ${body}` : `ESPN ${res.status} from ${host}`
+				);
 				continue;
 			}
 			return await res.json();
@@ -476,16 +496,42 @@ export function normalizeStandings(
 	return out;
 }
 
+/** Single civil day only — hyphenated ranges 400 (`Failed to get events endpoint`). */
+export function scoreboardQueryString(date: string, group: string | null): string {
+	const qs = new URLSearchParams({ dates: date, limit: '200' });
+	if (group) qs.set('groups', group);
+	return qs.toString();
+}
+
 async function fetchOneScoreboard(
 	cfg: EspnLeagueConfig,
-	dates: string,
+	date: string,
 	group: string | null
 ): Promise<NormalizedGame[]> {
-	const qs = new URLSearchParams({ dates, limit: '200' });
-	if (group) qs.set('groups', group);
-	const path = `/apis/site/v2/sports/${cfg.sport}/${cfg.espnLeague}/scoreboard?${qs}`;
+	const path = `/apis/site/v2/sports/${cfg.sport}/${cfg.espnLeague}/scoreboard?${scoreboardQueryString(date, group)}`;
 	const json = await espnFetchJson(path);
 	return normalizeScoreboard(cfg.league, json);
+}
+
+async function fetchScoreboardForDate(
+	cfg: EspnLeagueConfig,
+	date: string
+): Promise<NormalizedGame[]> {
+	if (cfg.league !== 'college-football') {
+		return fetchOneScoreboard(cfg, date, null);
+	}
+	const settled = await Promise.allSettled(
+		CFB_SCOREBOARD_GROUPS.map((group) => fetchOneScoreboard(cfg, date, group))
+	);
+	const batches: NormalizedGame[][] = [];
+	let lastErr: Error | null = null;
+	for (const r of settled) {
+		if (r.status === 'fulfilled') batches.push(r.value);
+		else lastErr = r.reason instanceof Error ? r.reason : new Error(String(r.reason));
+	}
+	const games = dedupeGamesByEventId(batches);
+	if (games.length === 0 && lastErr) throw lastErr;
+	return games;
 }
 
 /** Merge scoreboard pages; later groups win on the same espn_event_id (crossovers). */
@@ -499,19 +545,16 @@ export function dedupeGamesByEventId(batches: NormalizedGame[][]): NormalizedGam
 
 export async function fetchScoreboard(
 	cfg: EspnLeagueConfig,
-	dates: string
+	dates: string[]
 ): Promise<NormalizedGame[]> {
-	if (cfg.league !== 'college-football') {
-		return fetchOneScoreboard(cfg, dates, null);
-	}
-	const settled = await Promise.allSettled(
-		CFB_SCOREBOARD_GROUPS.map((group) => fetchOneScoreboard(cfg, dates, group))
-	);
 	const batches: NormalizedGame[][] = [];
 	let lastErr: Error | null = null;
-	for (const r of settled) {
-		if (r.status === 'fulfilled') batches.push(r.value);
-		else lastErr = r.reason instanceof Error ? r.reason : new Error(String(r.reason));
+	for (const date of dates) {
+		try {
+			batches.push(await fetchScoreboardForDate(cfg, date));
+		} catch (e) {
+			lastErr = e instanceof Error ? e : new Error(String(e));
+		}
 	}
 	const games = dedupeGamesByEventId(batches);
 	if (games.length === 0 && lastErr) throw lastErr;

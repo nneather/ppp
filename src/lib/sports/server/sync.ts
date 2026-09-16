@@ -4,6 +4,7 @@ import {
 	fetchScoreboard,
 	fetchStandings,
 	fetchTeams,
+	scoreboardDateList,
 	scoreboardDatesParam,
 	scoreboardDaysAhead,
 	seasonYearForLeague,
@@ -120,7 +121,7 @@ async function syncLeague(
 	now: Date,
 	includeStandings: boolean
 ): Promise<LeagueSyncResult> {
-	const dates = scoreboardDatesParam(now, scoreboardDaysAhead(cfg.league));
+	const dates = scoreboardDateList(now, scoreboardDaysAhead(cfg.league));
 	try {
 		const games = await fetchScoreboard(cfg, dates);
 		const gamesUpserted = await upsertGames(admin, games);

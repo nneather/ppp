@@ -7,8 +7,10 @@ import {
 	normalizeTeams,
 	parseOverallRecord,
 	pickBroadcast,
+	scoreboardDateList,
 	scoreboardDatesParam,
 	scoreboardDaysAhead,
+	scoreboardQueryString,
 	seasonYearForLeague,
 	standingsQueryString
 } from '../espn';
@@ -41,6 +43,37 @@ describe('scoreboardDatesParam', () => {
 	it('extends CFB window through the coming Saturday from midweek', () => {
 		const param = scoreboardDatesParam(new Date('2026-09-10T17:00:00Z'), 6);
 		expect(param).toBe('20260909-20260916');
+	});
+});
+
+describe('scoreboardDateList', () => {
+	it('expands NFL/MLB window to three civil days', () => {
+		expect(scoreboardDateList(new Date('2026-09-02T17:00:00Z'), 1)).toEqual([
+			'20260901',
+			'20260902',
+			'20260903'
+		]);
+	});
+
+	it('expands CFB window to yesterday through +6', () => {
+		expect(scoreboardDateList(new Date('2026-09-10T17:00:00Z'), 6)).toEqual([
+			'20260909',
+			'20260910',
+			'20260911',
+			'20260912',
+			'20260913',
+			'20260914',
+			'20260915',
+			'20260916'
+		]);
+	});
+});
+
+describe('scoreboardQueryString', () => {
+	it('sends a single YYYYMMDD dates param (ranges 400 on site.web.api)', () => {
+		expect(scoreboardQueryString('20260916', null)).toBe('dates=20260916&limit=200');
+		expect(scoreboardQueryString('20260916', '80')).toBe('dates=20260916&limit=200&groups=80');
+		expect(scoreboardQueryString('20260916', null)).not.toMatch(/\d{8}-\d{8}/);
 	});
 });
 
