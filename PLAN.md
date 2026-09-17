@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-09-16 — Sports ESPN scoreboard date-range 400 ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); Sports GHA sync `dotenv` crash ([227](docs/decisions/227-sports-sync-gha-dotenv.md)).
+**Last updated:** 2026-09-16 — Library Sep 16 shelf batch ([229](docs/decisions/229-library-sep16-shelf-batch.md)); Sports ESPN scoreboard date-range 400 ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Latest shelf add: Sep 9 batch (Thiselton, Kidner KCC/BST, Leo XIV, Sklar Additional Notes, ACCS OT III — [219](docs/decisions/219-library-sep9-shelf-batch.md)). |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Latest shelf add: Sep 16 batch (NIDNTTE, TGC AI Apocalypse, Lewis Poems, Dostoevsky P&V, DPL 1st — [229](docs/decisions/229-library-sep16-shelf-batch.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. **Venue type** (C/P/A) auto-fills sermon context ([217](docs/decisions/217-sermon-venues-context-type.md)). List + by-book smoke passed. |
@@ -48,11 +48,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [229 — Library Sep 16 shelf batch](docs/decisions/229-library-sep16-shelf-batch.md) (2026-09-16) — NIDNTTE 5 vols, TGC *AI Apocalypse*, Lewis *Poems* / *Narrative Poems*, Dostoevsky P&V *Dead House*, DPL 1st beside 2nd (`DPL` / `DPL2`).
 - [228 — Sports ESPN scoreboard date-range 400](docs/decisions/228-sports-espn-scoreboard-date-range.md) (2026-09-16) — GHA ticker red since Sep 15 evening; `site.web.api` rejects `YYYYMMDD-YYYYMMDD`. Fetch one civil day at a time.
 - [227 — Sports GHA sync `dotenv` crash](docs/decisions/227-sports-sync-gha-dotenv.md) (2026-09-11) — Scheduled ESPN job never fetched; `npx tsx` has no `node_modules`, so `import 'dotenv'` died. CLI is package-free; local env stays on dotenv-cli.
 - [226 — Contacts couple last-name backfill](docs/decisions/226-contacts-couple-last-name-backfill.md) (2026-09-10) — Ben Kroese / Claire Kilgore (different surnames); Aunt/Uncle honorifics; Patrick Yu. Do not copy last name from spouse.
 - [225 — Contacts A–Z jump duplicate keys](docs/decisions/225-contacts-az-jump-duplicate-keys.md) (2026-09-10) — Empty last names grouped under first initial at the top, then again in the alphabet; keyed each crashed hydration (stuck “Loading ppp…”).
-- [224 — Sports standings divisions + W-L](docs/decisions/224-sports-standings-divisions.md) (2026-09-10) — ESPN default was conference-only; CFB last-write stats zeroed records. `level=3` + first/overall stats; table rank is W-L order.
 
 ---
 
