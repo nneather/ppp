@@ -17,6 +17,7 @@ import {
 	computePaceSummary,
 	dueFanoutContactIds,
 	householdEligibleForCardList,
+	isContactCurrentForPeriod,
 	isContactDueForPeriod,
 	selectContactsDue
 } from '$lib/contacts/due';
@@ -239,6 +240,53 @@ describe('period due (isContactDueForPeriod + selectContactsDue)', () => {
 				skipped_period_keys: ['q:2026-Q4'],
 				todayYmd: today
 			}).due
+		).toBe(false);
+	});
+
+	it('marks current after a period meet or skip, not when due or unscheduled', () => {
+		const base = {
+			status: 'active' as const,
+			frequency: 'quarterly' as const,
+			todayYmd: today
+		};
+		expect(
+			isContactCurrentForPeriod({
+				...base,
+				last_touched_on: '2026-08-01',
+				skipped_period_keys: []
+			})
+		).toBe(true);
+		expect(
+			isContactCurrentForPeriod({
+				...base,
+				last_touched_on: null,
+				skipped_period_keys: ['q:2026-Q4']
+			})
+		).toBe(true);
+		expect(
+			isContactCurrentForPeriod({
+				...base,
+				last_touched_on: null,
+				skipped_period_keys: []
+			})
+		).toBe(false);
+		expect(
+			isContactCurrentForPeriod({
+				status: 'active',
+				frequency: 'common',
+				last_touched_on: '2026-08-01',
+				skipped_period_keys: [],
+				todayYmd: today
+			})
+		).toBe(false);
+		expect(
+			isContactCurrentForPeriod({
+				status: 'retired',
+				frequency: 'quarterly',
+				last_touched_on: '2026-08-01',
+				skipped_period_keys: [],
+				todayYmd: today
+			})
 		).toBe(false);
 	});
 

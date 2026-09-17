@@ -55,6 +55,7 @@ function contact(
 		notes: null,
 		birthday: null,
 		last_touched_on: opts.last_touched_on ?? null,
+		period_current: opts.period_current ?? false,
 		giving_grade: opts.giving_grade ?? null,
 		relationship_grade: opts.relationship_grade ?? null
 	};

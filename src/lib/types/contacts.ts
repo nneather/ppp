@@ -136,6 +136,8 @@ export type ContactListRow = {
 	notes: string | null;
 	birthday: string | null;
 	last_touched_on: string | null;
+	/** Active Q/S/A with this period already met or skipped ([230]). */
+	period_current: boolean;
 	giving_grade: GivingGrade | null;
 	relationship_grade: RelationshipGrade | null;
 };

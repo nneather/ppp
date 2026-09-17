@@ -1,6 +1,7 @@
 /**
  * Period-based due helpers for dashboard + MCP (pure; unit-tested).
  * Due = active, scheduled frequency (Q/S/A), unfulfilled current period, not skipped.
+ * Current = the inverse for scheduled actives (meet or skip this period).
  * Suggestion order = oldest last meet first. Couples collapse to one household
  * row; due-row Log/Skip fans out via dueFanoutContactIds.
  */
@@ -71,6 +72,22 @@ export function isContactDueForPeriod(opts: {
 	if (opts.skipped_period_keys.includes(period.key)) return { due: false, period };
 	if (touchFulfillsPeriod(opts.last_touched_on, period)) return { due: false, period };
 	return { due: true, period };
+}
+
+/**
+ * Roster “up to date”: active Q/S/A whose current period is already met or skipped.
+ * Common / none / retired never show a check — they have no period obligation.
+ */
+export function isContactCurrentForPeriod(opts: {
+	status: 'active' | 'retired';
+	frequency: ContactFrequency;
+	last_touched_on: string | null;
+	skipped_period_keys: readonly string[];
+	todayYmd: string;
+}): boolean {
+	if (opts.status !== 'active') return false;
+	if (!isScheduledFrequency(opts.frequency)) return false;
+	return !isContactDueForPeriod(opts).due;
 }
 
 /** @deprecated Use isContactDueForPeriod */

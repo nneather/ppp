@@ -223,7 +223,7 @@ End-of-session deliverables:
   - `src/lib/contacts/search.ts` — live roster query (AND tokens, phone digits, household/member names) + last-name letter headers; unit tests `__tests__/search.test.ts` ([223](docs/decisions/223-contacts-roster-search-density.md)).
   - `src/lib/contacts/sort.ts` — composable roster sort (`?sort=frequency,list`) + group headers (name → A–Z) + `uniqueGroupHeaders` for the jump rail; unit tests `__tests__/sort.test.ts` ([214](docs/decisions/214-contacts-roster-sort.md), [223](docs/decisions/223-contacts-roster-search-density.md), [225](docs/decisions/225-contacts-az-jump-duplicate-keys.md)).
   - `src/lib/contacts/period.ts` — calendar Q/S/A windows + import on-ramp keys; 2026 Log fulfills `a:2027`.
-  - `src/lib/contacts/due.ts` — period due + household collapse + oldest-meet sort + uncapped pace; `dueFanoutContactIds`; `householdEligibleForCardList` (C2).
+  - `src/lib/contacts/due.ts` — period due + household collapse + oldest-meet sort + uncapped pace; `isContactCurrentForPeriod` (roster check — [230](docs/decisions/230-contacts-roster-current-check.md)); `dueFanoutContactIds`; `householdEligibleForCardList` (C2).
   - `src/lib/contacts/sheet-import.ts` / `server/sheet-import-action.ts` — Sheet1 couple split + CSV import (Aunt/Uncle honorifics + parenthetical given names — [226](docs/decisions/226-contacts-couple-last-name-backfill.md)); `scripts/contacts-sheet-import.ts`.
   - `src/lib/contacts/vcard.ts` / `server/vcard-import-action.ts` — Mac Contacts `.vcf` match (birthday + empty email/phone).
   - `src/lib/contacts/cadence.ts` — legacy months/years ↔ days (UI mostly replaced by frequency).
@@ -231,7 +231,7 @@ End-of-session deliverables:
   - `src/lib/contacts/list-member.ts` — `validateListMemberXor` / `listMemberToColumns` (contact XOR household for list membership).
   - `src/lib/contacts/server/loaders.ts` — list + due + period history + children/grades; `list_filter` for standing groups; last-touch queries filter `kind=meet`; list `q` is client-side ([223](docs/decisions/223-contacts-roster-search-density.md)).
   - `src/lib/contacts/server/actions.ts` — CRUD + Skip period (household fan-out) + clone list + children; meet Log Contact / Log all (active-only); `logListCardsAction` (`kind=card`); list membership revive-by-PK.
-  - Routes: `/contacts` (tabs Contacts \| Households \| Lists + **live search** + collapsed due strip + A–Z jump + **Sort / then** — [223](docs/decisions/223-contacts-roster-search-density.md)/[214](docs/decisions/214-contacts-roster-sort.md)); `/settings/contacts/lists` 308→ Lists tab; dashboard Due to meet. Desktop sidebar only (mobile tab bar stays at 5).
+  - Routes: `/contacts` (tabs Contacts \| Households \| Lists + **live search** + collapsed due strip + A–Z jump + **Sort / then** — [223](docs/decisions/223-contacts-roster-search-density.md)/[214](docs/decisions/214-contacts-roster-sort.md); green check when Q/S/A current this period — [230](docs/decisions/230-contacts-roster-current-check.md)); `/settings/contacts/lists` 308→ Lists tab; dashboard Due to meet. Desktop sidebar only (mobile tab bar stays at 5).
   - Audit: `_CONTACTS_TABLES` incl. period skips / grade changes / children; soft-delete revert for all. Permissions slug `contacts`. **≠ library `people`, ≠ invoicing `clients`.** Viewer write solo-waivered v1.
 
 ### Scripts

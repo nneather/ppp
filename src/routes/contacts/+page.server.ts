@@ -81,6 +81,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const contactsRes = await loadContacts(supabase, {
 		filters: tab === 'lists' ? { ...filters, status: 'all', q: null, listId: null } : filters,
 		profileCadenceDefault,
+		todayYmd,
 		membershipMaps: membershipMapsRes.maps
 	});
 

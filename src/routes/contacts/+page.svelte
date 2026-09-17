@@ -41,6 +41,7 @@
 		uniqueGroupHeaders
 	} from '$lib/contacts/sort';
 	import { cn } from '$lib/utils';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import Home from '@lucide/svelte/icons/home';
 	import List from '@lucide/svelte/icons/list';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -751,7 +752,21 @@
 										if (data.isOwner) openEditContact(c);
 									}}
 								>
-									<p class="truncate font-medium">{c.display_name}</p>
+									<p class="flex min-w-0 items-center gap-1.5">
+										<span class="truncate font-medium">{c.display_name}</span>
+										{#if c.period_current}
+											<span
+												class="inline-flex shrink-0"
+												title="Up to date this period"
+											>
+												<CircleCheck
+													class="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+													aria-hidden="true"
+												/>
+												<span class="sr-only">Up to date this period</span>
+											</span>
+										{/if}
+									</p>
 									<p class="truncate text-xs text-muted-foreground">
 										{CONTACT_FREQUENCY_SHORT_LABELS[c.frequency]}
 										{#if c.household_name}

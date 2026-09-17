@@ -22,6 +22,7 @@ import {
 import {
 	computePaceSummary,
 	householdEligibleForCardList,
+	isContactCurrentForPeriod,
 	selectContactsDue,
 	type ContactDueCandidate
 } from '$lib/contacts/due';
@@ -156,6 +157,7 @@ export async function loadContacts(
 	opts: {
 		filters: ContactsListFilters;
 		profileCadenceDefault: number | null;
+		todayYmd: string;
 		/** Preloaded membership maps — when filters.listId set, filter to members. */
 		membershipMaps?: ListMembershipMaps | null;
 	}
@@ -198,7 +200,7 @@ export async function loadContacts(
 	const contactIds = rows.map((r) => r.id);
 	const householdIds = [...new Set(rows.map((r) => r.household_id).filter((id): id is string => id != null))];
 
-	const [touchesRes, householdsRes] = await Promise.all([
+	const [touchesRes, householdsRes, skipsRes] = await Promise.all([
 		contactIds.length
 			? supabase
 					.from('contact_touches')
@@ -221,11 +223,30 @@ export async function loadContacts(
 						relationship_grade: string | null;
 					}[],
 					error: null
+				}),
+		contactIds.length
+			? supabase
+					.from('contact_period_skips')
+					.select('contact_id, period_key')
+					.in('contact_id', contactIds)
+					.is('deleted_at', null)
+			: Promise.resolve({
+					data: [] as { contact_id: string; period_key: string }[],
+					error: null
 				})
 	]);
 
 	if (touchesRes.error) console.error('[contacts] last touches', touchesRes.error);
 	if (householdsRes.error) console.error('[contacts] households for list', householdsRes.error);
+	if (skipsRes.error) console.error('[contacts] roster skips', skipsRes.error);
+
+	const skipsByContact = new Map<string, string[]>();
+	for (const s of skipsRes.data ?? []) {
+		const row = s as { contact_id: string; period_key: string };
+		const arr = skipsByContact.get(row.contact_id) ?? [];
+		arr.push(row.period_key);
+		skipsByContact.set(row.contact_id, arr);
+	}
 
 	const lastByContact = new Map<string, string>();
 	for (const t of touchesRes.data ?? []) {
@@ -258,6 +279,7 @@ export async function loadContacts(
 		const status = raw.status as ContactStatus;
 		const freq = isContactFrequency(raw.frequency) ? raw.frequency : 'quarterly';
 		const hh = raw.household_id ? hhMeta.get(raw.household_id) : null;
+		const lastTouched = lastByContact.get(raw.id) ?? null;
 		contacts.push({
 			id: raw.id,
 			first_name: raw.first_name,
@@ -277,7 +299,14 @@ export async function loadContacts(
 			status,
 			notes: raw.notes,
 			birthday: raw.birthday,
-			last_touched_on: lastByContact.get(raw.id) ?? null,
+			last_touched_on: lastTouched,
+			period_current: isContactCurrentForPeriod({
+				status,
+				frequency: freq,
+				last_touched_on: lastTouched,
+				skipped_period_keys: skipsByContact.get(raw.id) ?? [],
+				todayYmd: opts.todayYmd
+			}),
 			giving_grade: hh?.giving ?? null,
 			relationship_grade: hh?.rel ?? null
 		});
