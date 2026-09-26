@@ -72,6 +72,7 @@ FROM books WHERE deleted_at IS NULL AND publisher ILIKE ANY(ARRAY[…]) LIMIT 20
 | AOT / Apollos OT | SBL `AOTC` = Abingdon; ours is **`ApOTC`** | Attach **`ApOTC`**, never create bare `AOT` / `AOTC` |
 | Kidner Classic Commentaries | `TOTC` is Tyndale OT (different ISBNs) | Create **`KCC`** for IVP “Kidner Classic” reprints — do **not** hang on `TOTC` |
 | Hermeneia | abbr is full word **`Hermeneia`** (not `Herm`) | Match sibling rows ([171](../../docs/decisions/171-hermeneia-cite-full-name.md)) |
+| Concordia / ConC | was homemade all-caps `CONC` | Use **`ConC`** (name *Concordia Commentary*). SBL `CC` is Continental ([232](../../docs/decisions/232-library-sep26-shelf-batch.md)) |
 | Loeb / LCL | `volume_number` = Loeb **catalog** # (e.g. `105`) | English title house style: `Odyssey, Volume II: Books 13–24` — not Greek-only titles ([172](../../docs/decisions/172-loeb-series-number-not-multivol.md)) |
 
 Full series/ISBN/publisher notes: [reference.md](reference.md).
@@ -153,7 +154,7 @@ Standalone (no series) books: separate `INSERT` with `WHERE NOT EXISTS (… titl
 ## End-of-batch checklist
 
 - [ ] Dupes handled (skip / UPDATE / soft-delete-with-ask)
-- [ ] Series abbr collisions checked (incl. ApOTC / KCC / Hermeneia / LCL)
+- [ ] Series abbr collisions checked (incl. ApOTC / KCC / Hermeneia / LCL / ConC)
 - [ ] ISBN checksums OK or null (no reprint barcode on true early prints)
 - [ ] Coverage attached **and verified** for every Commentary in the batch
 - [ ] Migration applied + verify SELECT (series + standalone)
