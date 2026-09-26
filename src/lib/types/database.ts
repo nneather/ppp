@@ -1800,6 +1800,7 @@ export type Database = {
       profiles: {
         Row: {
           contact_cadence_days_default: number | null
+          contacts_default_sort: string | null
           created_at: string
           default_cc_emails: string[]
           default_task_project_id: string | null
@@ -1813,6 +1814,7 @@ export type Database = {
         }
         Insert: {
           contact_cadence_days_default?: number | null
+          contacts_default_sort?: string | null
           created_at?: string
           default_cc_emails?: string[]
           default_task_project_id?: string | null
@@ -1826,6 +1828,7 @@ export type Database = {
         }
         Update: {
           contact_cadence_days_default?: number | null
+          contacts_default_sort?: string | null
           created_at?: string
           default_cc_emails?: string[]
           default_task_project_id?: string | null

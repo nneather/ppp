@@ -31,6 +31,7 @@
 		applicableSortKeys,
 		buildSortContext,
 		contactGroupLabel,
+		contactSortEquals,
 		contactsListFiltersToSearchParams,
 		groupSortedRows,
 		householdGroupLabel,
@@ -131,6 +132,7 @@
 			return 'Cards logged (does not clear due-to-meet).';
 		}
 		if (f.kind === 'skipContactPeriod') return 'Skipped for this period.';
+		if (f.kind === 'setContactsDefaultSort') return 'Default grouping saved.';
 		if (f.kind === 'importSheet') {
 			const r = f as FormShape & {
 				contactsCreated?: number;
@@ -231,6 +233,15 @@
 		};
 	};
 
+	const defaultSortEnhance: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type === 'success') {
+				await invalidate('app:contacts:list');
+			}
+		};
+	};
+
 	async function onSaved() {
 		await invalidate('app:contacts:list');
 	}
@@ -251,7 +262,8 @@
 		const params = contactsListFiltersToSearchParams({
 			tab: next.tab ?? data.tab,
 			filters,
-			selectedListId: data.selectedListId
+			selectedListId: data.selectedListId,
+			defaultSort: data.defaultSort
 		});
 		const qs = params.toString();
 		lastUrlQ = filters.q ?? '';
@@ -357,21 +369,61 @@
 		);
 	});
 
-	const contactLetterIndex = $derived.by(() => {
+	const contactPrimary = $derived(
+		applicableSortKeys(data.filters.sort, 'contact')[0] ?? 'name'
+	);
+	const householdPrimary = $derived(
+		applicableSortKeys(data.filters.sort, 'household')[0] ?? 'name'
+	);
+
+	const contactGroupIndex = $derived.by(() => {
 		if (searchActive) return [] as string[];
-		if ((applicableSortKeys(data.filters.sort, 'contact')[0] ?? 'name') !== 'name') {
-			return [] as string[];
-		}
 		return uniqueGroupHeaders(contactGroups.map((g) => g.header));
 	});
 
-	const householdLetterIndex = $derived.by(() => {
+	const householdGroupIndex = $derived.by(() => {
 		if (searchActive) return [] as string[];
-		if ((applicableSortKeys(data.filters.sort, 'household')[0] ?? 'name') !== 'name') {
-			return [] as string[];
-		}
 		return uniqueGroupHeaders(householdGroups.map((g) => g.header));
 	});
+
+	function contactMetaLine(c: ContactListRow, listLabels: string[]): string {
+		const spec = applicableSortKeys(data.filters.sort, 'contact');
+		const parts: string[] = [];
+		if (contactPrimary !== 'frequency') parts.push(CONTACT_FREQUENCY_SHORT_LABELS[c.frequency]);
+		const household = c.household_name?.trim();
+		if (household && household.toLowerCase() !== c.display_name.trim().toLowerCase()) {
+			parts.push(household);
+		}
+		parts.push(formatTouch(c.last_touched_on));
+		if (spec.includes('list') && contactPrimary !== 'list' && listLabels.length > 0) {
+			parts.push(listLabels.join(' · '));
+		}
+		if (c.status !== 'active') parts.push(CONTACT_STATUS_LABELS[c.status]);
+		if (spec.includes('giving') && contactPrimary !== 'giving' && c.giving_grade) {
+			parts.push(`Giving ${c.giving_grade}`);
+		}
+		if (spec.includes('relationship') && contactPrimary !== 'relationship' && c.relationship_grade) {
+			parts.push(`Rel ${c.relationship_grade}`);
+		}
+		return parts.join(' · ');
+	}
+
+	function householdMetaLine(h: HouseholdRow, listLabels: string[]): string {
+		const spec = applicableSortKeys(data.filters.sort, 'household');
+		const parts = [`${h.memberCount} member${h.memberCount === 1 ? '' : 's'}`];
+		if (spec.includes('list') && householdPrimary !== 'list' && listLabels.length > 0) {
+			parts.push(listLabels.join(' · '));
+		}
+		if (spec.includes('giving') && householdPrimary !== 'giving' && h.giving_grade) {
+			parts.push(`Giving ${h.giving_grade}`);
+		}
+		if (spec.includes('relationship') && householdPrimary !== 'relationship' && h.relationship_grade) {
+			parts.push(`Rel ${h.relationship_grade}`);
+		}
+		const addr = formatHouseholdAddress(h);
+		if (addr) parts.push(addr);
+		return parts.join(' · ');
+	}
 
 	function formatTouch(ymd: string | null): string {
 		if (!ymd) return 'Never';
@@ -415,8 +467,8 @@
 	{@const primary = spec[0] ?? 'name'}
 	{@const thenKey = spec[1] ?? ''}
 	<div class="flex flex-wrap items-center gap-1.5">
-		<span class="text-xs text-muted-foreground">Sort</span>
-		<label class="sr-only" for={`contact-sort-${entity}`}>Sort by</label>
+		<span class="text-xs text-muted-foreground">Group</span>
+		<label class="sr-only" for={`contact-sort-${entity}`}>Group by</label>
 		<select
 			id={`contact-sort-${entity}`}
 			class="h-9 rounded-md border border-border bg-background px-2 text-xs"
@@ -444,25 +496,49 @@
 				{/if}
 			{/each}
 		</select>
+		{#if entity === 'contact' && data.isOwner}
+			{#if contactSortEquals(data.filters.sort, data.defaultSort)}
+				<span class="text-xs text-muted-foreground">Default</span>
+			{:else}
+				<form method="POST" action="?/setContactsDefaultSort" use:enhance={defaultSortEnhance}>
+					<input type="hidden" name="sort" value={data.filters.sort.join(',')} />
+					<button
+						type="submit"
+						class="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+					>
+						Set default
+					</button>
+				</form>
+			{/if}
+		{/if}
 	</div>
 {/snippet}
 
-{#snippet letterJump(entity: 'contact' | 'household', letters: string[])}
+{#snippet groupJump(entity: 'contact' | 'household', letters: string[], label: string)}
 	{#if letters.length > 1}
-		<nav
-			class="flex flex-wrap gap-0.5"
-			aria-label={entity === 'household' ? 'Jump to household name' : 'Jump to last name'}
-		>
+		<nav class="flex flex-wrap gap-1" aria-label={label}>
 			{#each letters as L (L)}
 				<a
 					href={`#${letterAnchorId(entity, L)}`}
-					class="inline-flex min-w-6 items-center justify-center rounded px-1 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+					class="inline-flex min-w-6 items-center justify-center rounded-md px-1.5 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
 				>
 					{L}
 				</a>
 			{/each}
 		</nav>
 	{/if}
+{/snippet}
+
+{#snippet rosterGroupHeader(entity: 'contact' | 'household', header: string, count: number)}
+	<li class="list-none bg-muted/50 px-3 py-1">
+		<p
+			id={letterAnchorId(entity, header)}
+			class="scroll-mt-40 flex items-baseline justify-between gap-3 text-xs font-semibold text-muted-foreground"
+		>
+			<span class={header.length <= 2 ? 'uppercase tracking-wide' : ''}>{header}</span>
+			<span class="font-normal tabular-nums">{count}</span>
+		</p>
+	</li>
 {/snippet}
 
 {#snippet rosterSearch(placeholder: string, resultLabel: string, shown: number, total: number)}
@@ -499,10 +575,7 @@
 {/snippet}
 
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 pb-tabbar">
-	<PageHeader
-		title="Contacts"
-		subtitle="Calendar meet periods, standing groups, and seasonal lists."
-	>
+	<PageHeader title="Contacts">
 		{#snippet actions()}
 			{#if data.isOwner}
 				<div class="flex flex-wrap gap-2">
@@ -604,20 +677,26 @@
 						</button>
 					{/each}
 				</div>
+				<label class="sr-only" for="contact-list-filter">Standing group</label>
 				<select
+					id="contact-list-filter"
 					class="h-9 rounded-md border border-border bg-background px-2 text-xs"
 					value={data.filters.listId ?? ''}
 					onchange={(e) =>
 						pushFilters({ listId: (e.currentTarget as HTMLSelectElement).value || null })}
 				>
-					<option value="">All groups</option>
+					<option value="">All lists</option>
 					{#each data.lists.filter((l) => l.kind === 'standing') as l (l.id)}
 						<option value={l.id}>{l.name}</option>
 					{/each}
 				</select>
-				{@render sortControls('contact')}
 			</div>
-			{@render letterJump('contact', contactLetterIndex)}
+			{@render sortControls('contact')}
+			{@render groupJump(
+				'contact',
+				contactGroupIndex,
+				contactPrimary === 'name' ? 'Jump to last name' : 'Jump to group'
+			)}
 		</div>
 
 		{#if data.duePace && !searchActive}
@@ -679,9 +758,101 @@
 			</details>
 		{/if}
 
+		<ul class="mt-3 divide-y overflow-hidden rounded-lg border border-border">
+			{#if data.contacts.length === 0}
+				<li class="px-4 py-10 text-center text-sm text-muted-foreground">
+					No contacts yet. Add people before Thanksgiving for Christmas cards.
+				</li>
+			{:else if filteredContacts.length === 0}
+				<li class="px-4 py-10 text-center text-sm text-muted-foreground">
+					No contacts match “{searchQ.trim()}”.
+				</li>
+			{:else}
+				{#each contactGroups as group, gi (`g-${gi}`)}
+					{#if group.header}
+						{@render rosterGroupHeader('contact', group.header, group.rows.length)}
+					{/if}
+					{#each group.rows as c (c.id)}
+						{@const listLabels = listNamesForContact(c.id, c.household_id, sortCtx)}
+						<li class="bg-card px-3 py-2 text-card-foreground">
+							<div class="flex items-center justify-between gap-2">
+								<button
+									type="button"
+									class={cn('min-w-0 flex-1 text-left', data.isOwner && 'cursor-pointer')}
+									onclick={() => {
+										if (data.isOwner) openEditContact(c);
+									}}
+								>
+									<p class="flex min-w-0 items-center gap-1.5">
+										<span class="truncate font-medium">{c.display_name}</span>
+										{#if c.period_current}
+											<span
+												class="inline-flex shrink-0"
+												title="Up to date this period"
+											>
+												<CircleCheck
+													class="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+													aria-hidden="true"
+												/>
+												<span class="sr-only">Up to date this period</span>
+											</span>
+										{/if}
+									</p>
+									<p class="truncate text-xs text-muted-foreground">
+										{contactMetaLine(c, listLabels)}
+									</p>
+									{#if searchActive && (c.email || c.phone)}
+										<p class="truncate text-xs text-muted-foreground">
+											{[c.email, c.phone].filter(Boolean).join(' · ')}
+										</p>
+									{/if}
+								</button>
+								{#if data.isOwner}
+									<div class="flex shrink-0 items-center gap-0.5">
+										<form method="POST" action="?/logContactQuick" use:enhance={quickLogEnhance}>
+											<input type="hidden" name="contact_id" value={c.id} />
+											<Button type="submit" size="sm" variant="secondary" label="Log" />
+										</form>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											class="hidden sm:inline-flex"
+											onclick={() => openLogDetailed(c)}
+										>
+											Note
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon-sm"
+											aria-label="Edit contact"
+											onclick={() => openEditContact(c)}
+										>
+											<Pencil class="size-4" />
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon-sm"
+											class="text-muted-foreground hover:text-destructive"
+											aria-label="Delete contact"
+											onclick={() => askDeleteContact(c)}
+										>
+											<Trash2 class="size-4" />
+										</Button>
+									</div>
+								{/if}
+							</div>
+						</li>
+					{/each}
+				{/each}
+			{/if}
+		</ul>
+
 		{#if data.isOwner && !searchActive}
-			<details class="mt-3 rounded-lg border border-dashed border-border px-3 py-2 text-sm">
-				<summary class="cursor-pointer font-medium">Import sheet / vCard</summary>
+			<details class="mt-4 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
+				<summary class="cursor-pointer font-medium text-foreground">Import sheet / vCard</summary>
 				<form
 					method="POST"
 					action="?/importSheet"
@@ -719,121 +890,6 @@
 				</form>
 			</details>
 		{/if}
-
-		<ul class="mt-3 divide-y overflow-hidden rounded-lg border border-border">
-			{#if data.contacts.length === 0}
-				<li class="px-4 py-10 text-center text-sm text-muted-foreground">
-					No contacts yet. Add people before Thanksgiving for Christmas cards.
-				</li>
-			{:else if filteredContacts.length === 0}
-				<li class="px-4 py-10 text-center text-sm text-muted-foreground">
-					No contacts match “{searchQ.trim()}”.
-				</li>
-			{:else}
-				{#each contactGroups as group, gi (`g-${gi}`)}
-					{#if group.header}
-						<li class="list-none bg-muted/40 px-3 py-1">
-							<p
-								id={letterAnchorId('contact', group.header)}
-								class="scroll-mt-28 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-							>
-								{group.header}
-							</p>
-						</li>
-					{/if}
-					{#each group.rows as c (c.id)}
-						{@const listLabels = listNamesForContact(c.id, c.household_id, sortCtx)}
-						<li class="bg-card px-3 py-2 text-card-foreground">
-							<div class="flex items-center justify-between gap-2">
-								<button
-									type="button"
-									class={cn('min-w-0 flex-1 text-left', data.isOwner && 'cursor-pointer')}
-									onclick={() => {
-										if (data.isOwner) openEditContact(c);
-									}}
-								>
-									<p class="flex min-w-0 items-center gap-1.5">
-										<span class="truncate font-medium">{c.display_name}</span>
-										{#if c.period_current}
-											<span
-												class="inline-flex shrink-0"
-												title="Up to date this period"
-											>
-												<CircleCheck
-													class="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-													aria-hidden="true"
-												/>
-												<span class="sr-only">Up to date this period</span>
-											</span>
-										{/if}
-									</p>
-									<p class="truncate text-xs text-muted-foreground">
-										{CONTACT_FREQUENCY_SHORT_LABELS[c.frequency]}
-										{#if c.household_name}
-											· {c.household_name}
-										{/if}
-										· {formatTouch(c.last_touched_on)}
-										{#if listLabels.length > 0}
-											· {listLabels.join(' · ')}
-										{/if}
-										{#if c.status !== 'active'}
-											· {CONTACT_STATUS_LABELS[c.status]}
-										{/if}
-										{#if c.giving_grade}
-											· Giving {c.giving_grade}
-										{/if}
-										{#if c.relationship_grade}
-											· Rel {c.relationship_grade}
-										{/if}
-									</p>
-									{#if searchActive && (c.email || c.phone)}
-										<p class="truncate text-xs text-muted-foreground">
-											{[c.email, c.phone].filter(Boolean).join(' · ')}
-										</p>
-									{/if}
-								</button>
-								{#if data.isOwner}
-									<div class="flex shrink-0 items-center gap-0.5">
-										<form method="POST" action="?/logContactQuick" use:enhance={quickLogEnhance}>
-											<input type="hidden" name="contact_id" value={c.id} />
-											<Button type="submit" size="sm" variant="secondary" label="Log" />
-										</form>
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											class="hidden sm:inline-flex"
-											onclick={() => openLogDetailed(c)}
-										>
-											Note
-										</Button>
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon-sm"
-											aria-label="Edit contact"
-											onclick={() => openEditContact(c)}
-										>
-											<Pencil class="size-4" />
-										</Button>
-										<Button
-											type="button"
-											variant="outline"
-											size="icon-sm"
-											class="text-destructive"
-											aria-label="Delete contact"
-											onclick={() => askDeleteContact(c)}
-										>
-											<Trash2 class="size-4" />
-										</Button>
-									</div>
-								{/if}
-							</div>
-						</li>
-					{/each}
-				{/each}
-			{/if}
-		</ul>
 	{:else if tab === 'households'}
 		<div
 			class="sticky top-0 z-10 -mx-4 mt-3 space-y-2 border-b border-border bg-background/95 px-4 py-2 backdrop-blur-sm"
@@ -847,7 +903,11 @@
 				)}
 			</div>
 			{@render sortControls('household')}
-			{@render letterJump('household', householdLetterIndex)}
+			{@render groupJump(
+				'household',
+				householdGroupIndex,
+				householdPrimary === 'name' ? 'Jump to household name' : 'Jump to group'
+			)}
 		</div>
 		<ul class="mt-3 divide-y overflow-hidden rounded-lg border border-border">
 			{#if data.households.length === 0}
@@ -861,17 +921,9 @@
 			{:else}
 				{#each householdGroups as group, gi (`hg-${gi}`)}
 					{#if group.header}
-						<li class="list-none bg-muted/40 px-3 py-1">
-							<p
-								id={letterAnchorId('household', group.header)}
-								class="scroll-mt-28 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-							>
-								{group.header}
-							</p>
-						</li>
+						{@render rosterGroupHeader('household', group.header, group.rows.length)}
 					{/if}
 					{#each group.rows as h (h.id)}
-						{@const addr = formatHouseholdAddress(h)}
 						{@const listLabels = listNamesForHousehold(h.id, sortCtx)}
 						<li class="bg-card px-3 py-2 text-card-foreground">
 							<div class="flex items-center justify-between gap-2">
@@ -884,19 +936,7 @@
 								>
 									<p class="truncate font-medium">{h.name}</p>
 									<p class="truncate text-xs text-muted-foreground">
-										{h.memberCount} member{h.memberCount === 1 ? '' : 's'}
-										{#if listLabels.length > 0}
-											· {listLabels.join(' · ')}
-										{/if}
-										{#if h.giving_grade}
-											· Giving {h.giving_grade}
-										{/if}
-										{#if h.relationship_grade}
-											· Rel {h.relationship_grade}
-										{/if}
-										{#if addr}
-											· {addr}
-										{/if}
+										{householdMetaLine(h, listLabels)}
 									</p>
 								</button>
 								{#if data.isOwner}
@@ -916,9 +956,9 @@
 										</Button>
 										<Button
 											type="button"
-											variant="outline"
+											variant="ghost"
 											size="icon-sm"
-											class="text-destructive"
+											class="text-muted-foreground hover:text-destructive"
 											aria-label="Delete household"
 											onclick={() => askDeleteHousehold(h)}
 										>
