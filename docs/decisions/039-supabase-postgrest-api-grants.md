@@ -40,7 +40,19 @@ In [Supabase Dashboard](https://supabase.com/dashboard/project/objtrdmmqlndtfddt
 | **Leave ON** (recommended until grants migration ships) | Matches today’s behavior; less urgent until Oct 2026 |
 | **Turn OFF** | Stricter surface; **every** new table migration **must** include `GRANT`s (checklist in `db-changes.mdc`) |
 
-Record what you chose in a personal note; the repo does not store this flag.
+**Recorded 2026-09-26 — the toggle is ON** (left at the default, i.e. the recommended row above).
+Verified from database state rather than the dashboard: `pg_default_acl` on schema `public` carries
+table-level default grants of `arwdDxtm` to `anon`, `authenticated` and `service_role`, from both the
+`postgres` and `supabase_admin` grantors (sequences and functions likewise). If those rows ever
+disappear, either the toggle was turned off or the 2026-10-30 platform flip has landed.
+
+```sql
+-- Re-check the toggle without opening Studio:
+SELECT pg_get_userbyid(d.defaclrole) AS grantor, d.defaclobjtype AS objtype, d.defaclacl
+FROM pg_default_acl d
+JOIN pg_namespace n ON n.oid = d.defaclnamespace
+WHERE n.nspname = 'public';
+```
 
 ### 3. Run Security Advisor
 
@@ -114,6 +126,61 @@ CREATE EXTENSION IF NOT EXISTS pg_graphql;
 
 Not required for ppp today.
 
+## Verification pass — 2026-09-26
+
+Run against prod (`objtrdmmqlndtfddtzan`) ahead of the 2026-10-30 flip. Read-only. The Supabase MCP
+connector has no access to this project (it is scoped to the work org), so the queries went over
+`LIBRARY_DST_DATABASE_URL`.
+
+| Check | Result |
+|-------|--------|
+| `20260528120000` applied on remote | ✅ row present in `supabase_migrations.schema_migrations` |
+| Local ↔ remote migration parity since 2026-05-28 | ✅ 107 files, 107 applied, no drift either direction |
+| Tables where `anon` **and** `authenticated` **and** `service_role` all lack SELECT | ✅ **0** of 48 public tables |
+| Tables lacking SELECT for **any one** of the three roles | ✅ 0 |
+| Tables where `authenticated` lacks INSERT | ✅ 0 |
+| Views / matviews lacking `authenticated` SELECT | ✅ 0 |
+| Every live public table traces to a `CREATE TABLE` in a migration | ✅ 48/48 — nothing created in Studio |
+| RLS enabled on every public table | ✅ 48/48 (`library_ocr_usage` has 0 policies **by design** — service-role-only counter) |
+| Create-table migrations since 2026-05-28 carrying `GRANT`s | ⚠️ all 10 carry one, but **2 were incomplete** — below |
+
+### The gap: Projects v1 granted to `authenticated` only
+
+`20260603170000_ppp_projects_v1.sql` (`projects`, `project_updates`, `project_links`) and
+`20260604030000_ppp_project_tasks_myn.sql` (`project_tasks`) omitted `service_role` and the `anon`
+SELECT. Ironically the first one carries the comment *"footgun #8 — explicit, don't rely on Dashboard
+auto-expose"* while doing exactly that for two of the three roles.
+
+Prod looks clean only because those grants came from the schema default ACL. Proof: both migrations
+ran **after** 20260528120000, so the bulk-grants migration never touched their tables, and the tables'
+`relacl` reads `anon=arwdDxtm/postgres` — the full default-privilege set, not the SELECT-only that the
+convention produces.
+
+Fixed by `20260926111500_projects_grants_backfill_service_role_anon.sql`. No-op on prod; it exists so
+a replay onto a fresh project survives the flip.
+
+### Footgun: grant-audit queries over `pg_tables` are plan-dependent
+
+`has_table_privilege(role, format('public.%I', tablename), …)` filtered on `pg_tables` intermittently
+fails with `relation "public.schema_migrations" does not exist`. `pg_tables` is a view, and the planner
+may evaluate the function before the `schemaname = 'public'` qualifier — and `schema_migrations` exists
+in `auth`, `realtime` and `supabase_migrations`, just not in `public`. It is plan-dependent, so the same
+query can pass once and fail the next time. **Audit over `pg_class` with the OID overload instead:**
+
+```sql
+SELECT count(*)
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind = 'r'
+  AND NOT has_table_privilege('anon',          c.oid, 'SELECT')
+  AND NOT has_table_privilege('authenticated', c.oid, 'SELECT')
+  AND NOT has_table_privilege('service_role',  c.oid, 'SELECT');
+```
+
+(The `information_schema.role_table_grants` form in step 4 above is not affected — it never resolves a
+relation name — but it only shows grants where the current role is grantor or grantee, so run it as
+`postgres`.)
+
 ## Repo follow-ups (planned)
 
 | Item | Status |
@@ -122,11 +189,12 @@ Not required for ppp today.
 | `db-changes.mdc` grant checklist | ✅ |
 | `supabase/README.md` pointer | ✅ |
 | Per-table grants inside **future** `CREATE TABLE` migrations | Ongoing convention |
-| October 2026 re-check before platform flip | Calendar reminder |
+| October 2026 re-check before platform flip | ✅ Verification pass **2026-09-26** (section above); re-check once more after 10-30 |
+| Projects v1 grant backfill | ✅ `20260926111500_projects_grants_backfill_service_role_anon.sql` |
 
 ## Open questions surfaced
 
-- Exact Oct 30, 2026 behavior on **existing** projects (revoke existing grants vs. only change defaults for new tables) — re-read [Supabase changelog](https://supabase.com/changelog) that week; explicit migration is insurance either way.
+- ~~Exact Oct 30, 2026 behavior on **existing** projects (revoke existing grants vs. only change defaults for new tables).~~ **Answered 2026-09-26 by the verification pass.** Grants are materialized per-table in `pg_class.relacl` at creation time; `pg_default_acl` only seeds them. Removing or changing the default ACL cannot retroactively revoke what is already in `relacl`, so the flip **cannot break existing tables**. The exposure is (a) **new** tables and (b) — until the backfill migration above — a **replay onto a fresh project**, i.e. the staging fork in step 7. Still worth re-reading the [Supabase changelog](https://supabase.com/changelog) that week.
 
 ## Surprises (read these before the next session)
 
@@ -136,5 +204,5 @@ Not required for ppp today.
 ## Carry-forward updates
 
 - [x] `db-changes.mdc` updated
-- [ ] `AGENTS.md` inventory updated (optional one-liner under migrations)
-- [ ] `PLAN.md` — optional note under Supabase workflow
+- [x] `AGENTS.md` inventory updated — API-grants bullet under **Scripts › Supabase workflow** (2026-09-26)
+- [x] `PLAN.md` — note under **Supabase workflow**, plus the backfill migration in **Projects migrations** (2026-09-26)

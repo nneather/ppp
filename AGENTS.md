@@ -237,6 +237,7 @@ End-of-session deliverables:
 ### Scripts
 
 - **Supabase workflow:** one hosted project. Do **not** use `supabase start` or a local Docker stack for this repo; apply migrations with `npm run supabase:db:push` to the linked project. See [supabase/README.md](supabase/README.md).
+- **API grants on new tables:** every `CREATE TABLE` migration ships explicit `GRANT`s — `authenticated, service_role` plus `anon` SELECT — instead of relying on Supabase auto-expose, which **ends 2026-10-30**. Checklist in [db-changes.mdc](.cursor/rules/db-changes.mdc); rationale and the 2026-09-26 verification pass in [039](docs/decisions/039-supabase-postgrest-api-grants.md). Audit with `has_table_privilege(role, c.oid, …)` over `pg_class`, never over `pg_tables`.
 - `npm run check` — svelte-check
 - `npm run build` — production Vite build (same path as Vercel). GitHub Actions CI runs check + test + **build** ([097](docs/decisions/097-vercel-deploy-ci-build-gate.md)). Prefer green CI on `main` before trusting a deploy.
 - **`PPP_BUNDLE_VIZ=1 npm run build`** — client treemap at `.bundle-viz/treemap.html` (gitignored; `rollup-plugin-visualizer` in [vite.config.ts](vite.config.ts)). See [docs/decisions/025-library-bundle-split.md](docs/decisions/025-library-bundle-split.md).
