@@ -1,6 +1,8 @@
 /**
  * Composable roster sort for `/contacts` (Contacts + Households tabs).
- * URL: `?sort=frequency,list` — name is default and always the last tiebreaker.
+ * URL: `?sort=frequency,list` — omitted when it matches the saved default
+ * (name, unless `profiles.contacts_default_sort` says otherwise).
+ * Name is always the last tiebreaker.
  */
 
 import { nameLetterHeader } from '$lib/contacts/search';
@@ -62,6 +64,34 @@ export function isDefaultContactSort(keys: readonly ContactSortKey[]): boolean {
 	return keys.length === 1 && keys[0] === 'name';
 }
 
+export function contactSortEquals(
+	a: readonly ContactSortKey[],
+	b: readonly ContactSortKey[]
+): boolean {
+	return a.length === b.length && a.every((key, i) => key === b[i]);
+}
+
+/** Profile column value. NULL means the name grouping. */
+export function storedContactSortValue(keys: readonly ContactSortKey[]): string | null {
+	const parsed = parseContactSort(keys.join(','));
+	return isDefaultContactSort(parsed) ? null : parsed.join(',');
+}
+
+/**
+ * Explicit `?sort=` wins. When the param is absent, use the profile value
+ * (null / invalid → name).
+ */
+export function resolveContactSort(
+	url: URL,
+	stored: string | null | undefined
+): { sort: ContactSortKey[]; defaultSort: ContactSortKey[] } {
+	const defaultSort = parseContactSort(stored);
+	const sort = url.searchParams.has('sort')
+		? parseContactSort(url.searchParams.get('sort'))
+		: [...defaultSort];
+	return { sort, defaultSort };
+}
+
 export function applicableSortKeys(
 	keys: readonly ContactSortKey[],
 	entity: 'contact' | 'household'
@@ -75,6 +105,8 @@ export function contactsListFiltersToSearchParams(opts: {
 	tab?: 'contacts' | 'households' | 'lists';
 	filters: ContactsListFilters;
 	selectedListId?: string | null;
+	/** Saved grouping. Omitted `sort` means this (name when unset). */
+	defaultSort?: readonly ContactSortKey[];
 }): URLSearchParams {
 	const params = new URLSearchParams();
 	const tab = opts.tab ?? 'contacts';
@@ -82,7 +114,8 @@ export function contactsListFiltersToSearchParams(opts: {
 	if (opts.filters.status !== 'active') params.set('status', opts.filters.status);
 	if (opts.filters.q) params.set('q', opts.filters.q);
 	if (opts.filters.listId) params.set('list_filter', opts.filters.listId);
-	if (!isDefaultContactSort(opts.filters.sort)) {
+	const baseline = opts.defaultSort ?? DEFAULT_CONTACT_SORT;
+	if (!contactSortEquals(opts.filters.sort, baseline)) {
 		params.set('sort', opts.filters.sort.join(','));
 	}
 	if (tab === 'lists' && opts.selectedListId) {

@@ -14,6 +14,7 @@ import {
 	logHouseholdTouchAction,
 	logListCardsAction,
 	skipContactPeriodAction,
+	setContactsDefaultSortAction,
 	softDeleteContactAction,
 	softDeleteContactListAction,
 	softDeleteContactListMemberAction,
@@ -39,6 +40,7 @@ import { importSheet1AndPotentialInvite } from '$lib/contacts/server/sheet-impor
 import { applyVCardImportAction } from '$lib/contacts/server/vcard-import-action';
 import type { ContactListCandidate } from '$lib/contacts/list-candidates';
 import { isGivingGrade, isRelationshipGrade } from '$lib/contacts/names';
+import { resolveContactSort } from '$lib/contacts/sort';
 import type { HouseholdChildRow, HouseholdGradeChangeRow } from '$lib/types/contacts';
 
 const TABS = ['contacts', 'households', 'lists'] as const;
@@ -64,7 +66,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const [profileRes, householdsRes, listsRes, membershipMapsRes] = await Promise.all([
 		supabase
 			.from('profiles')
-			.select('role, contact_cadence_days_default')
+			.select('role, contact_cadence_days_default, contacts_default_sort')
 			.eq('id', user.id)
 			.maybeSingle(),
 		loadHouseholds(supabase),
@@ -77,6 +79,8 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const isOwner = role === 'owner';
 	const profileCadenceDefault =
 		(profileRes.data?.contact_cadence_days_default as number | null | undefined) ?? null;
+	const resolvedSort = resolveContactSort(url, profileRes.data?.contacts_default_sort);
+	filters.sort = resolvedSort.sort;
 
 	const contactsRes = await loadContacts(supabase, {
 		filters: tab === 'lists' ? { ...filters, status: 'all', q: null, listId: null } : filters,
@@ -199,6 +203,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		duePoolSize: dueRes.contacts_with_cadence,
 		periodHistory: historyRes.history,
 		filters,
+		defaultSort: resolvedSort.defaultSort,
 		tab,
 		todayYmd,
 		profileCadenceDefault,
@@ -269,6 +274,12 @@ export const actions: Actions = {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'logListCards' as const, message: 'Unauthorized' });
 		return logListCardsAction(locals.supabase, user.id, await request.formData());
+	},
+	setContactsDefaultSort: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'setContactsDefaultSort' as const, message: 'Unauthorized' });
+		return setContactsDefaultSortAction(locals.supabase, user.id, await request.formData());
 	},
 	updateContactCadenceDefault: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

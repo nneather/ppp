@@ -3,11 +3,14 @@ import {
 	applicableSortKeys,
 	buildSortContext,
 	contactGroupLabel,
+	contactSortEquals,
 	contactsListFiltersToSearchParams,
 	groupSortedRows,
 	householdGroupLabel,
 	listNamesForContact,
 	parseContactSort,
+	resolveContactSort,
+	storedContactSortValue,
 	sortContacts,
 	sortHouseholds,
 	uniqueGroupHeaders
@@ -116,6 +119,22 @@ describe('contactsListFiltersToSearchParams', () => {
 		expect(p.toString()).toBe('');
 	});
 
+	it('omits sort when it matches the saved grouping', () => {
+		const p = contactsListFiltersToSearchParams({
+			filters: { status: 'active', q: null, listId: null, sort: ['frequency', 'list'] },
+			defaultSort: ['frequency', 'list']
+		});
+		expect(p.has('sort')).toBe(false);
+	});
+
+	it('keeps sort=name when the saved grouping is not name', () => {
+		const p = contactsListFiltersToSearchParams({
+			filters: { status: 'active', q: null, listId: null, sort: ['name'] },
+			defaultSort: ['frequency']
+		});
+		expect(p.get('sort')).toBe('name');
+	});
+
 	it('emits sort, list_filter, and tab', () => {
 		const p = contactsListFiltersToSearchParams({
 			tab: 'households',
@@ -131,6 +150,30 @@ describe('contactsListFiltersToSearchParams', () => {
 		expect(p.get('q')).toBe('tom');
 		expect(p.get('list_filter')).toBe('l-church');
 		expect(p.get('sort')).toBe('frequency,list');
+	});
+});
+
+describe('resolveContactSort', () => {
+	it('uses the saved grouping when sort is absent', () => {
+		const url = new URL('https://ppp.test/contacts');
+		expect(resolveContactSort(url, 'frequency,list')).toEqual({
+			sort: ['frequency', 'list'],
+			defaultSort: ['frequency', 'list']
+		});
+	});
+
+	it('lets an explicit sort win, including name', () => {
+		const url = new URL('https://ppp.test/contacts?sort=name');
+		const resolved = resolveContactSort(url, 'list');
+		expect(resolved.sort).toEqual(['name']);
+		expect(resolved.defaultSort).toEqual(['list']);
+		expect(contactSortEquals(resolved.sort, resolved.defaultSort)).toBe(false);
+	});
+
+	it('stores name as null and keeps other keys', () => {
+		expect(storedContactSortValue(['name'])).toBeNull();
+		expect(storedContactSortValue(['frequency', 'list'])).toBe('frequency,list');
+		expect(storedContactSortValue(['frequency', 'frequency'])).toBe('frequency');
 	});
 });
 

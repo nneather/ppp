@@ -17,6 +17,7 @@ import {
 	parseFrequency
 } from '$lib/contacts/names';
 import { activePeriodForFrequency, isScheduledFrequency } from '$lib/contacts/period';
+import { parseContactSort, storedContactSortValue } from '$lib/contacts/sort';
 import type {
 	ContactFrequency,
 	ContactListKind,
@@ -1037,6 +1038,41 @@ export async function updateContactCadenceDefaultAction(
 		kind: 'updateContactCadenceDefault' as const,
 		success: true as const,
 		contact_cadence_days_default: cadence
+	};
+}
+
+export async function setContactsDefaultSortAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const keys = parseContactSort(String(fd.get('sort') ?? ''));
+	const stored = storedContactSortValue(keys);
+	const { data, error } = await supabase
+		.from('profiles')
+		.update({ contacts_default_sort: stored })
+		.eq('id', userId)
+		.select('id')
+		.maybeSingle();
+
+	if (error) {
+		console.error('[contacts] setContactsDefaultSort', error);
+		return fail(500, {
+			kind: 'setContactsDefaultSort' as const,
+			message: error.message ?? 'Could not save the default grouping.'
+		});
+	}
+	if (!data) {
+		return fail(403, {
+			kind: 'setContactsDefaultSort' as const,
+			message: 'Could not save the default grouping.'
+		});
+	}
+
+	return {
+		kind: 'setContactsDefaultSort' as const,
+		success: true as const,
+		sort: keys
 	};
 }
 
