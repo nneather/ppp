@@ -9,6 +9,9 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    # Only for the failure notice below; this job never checks out the repo.
+    permissions:
+      issues: write
     steps:
       - name: Install PostgreSQL 17 client
         run: |
@@ -103,3 +106,42 @@ jobs:
             --endpoint-url "$R2_ENDPOINT"
           aws s3 cp "ppp-contacts-${MONTH}.dump" "s3://${R2_BUCKET}/${YEAR}/ppp-contacts-${MONTH}.dump" \
             --endpoint-url "$R2_ENDPOINT"
+
+      # This runs unattended at ~2-3am Monday, so a failure is otherwise silent
+      # and the first sign would be a missing dump in R2 weeks later. A GitHub
+      # issue needs no new secret (GITHUB_TOKEN) and mails the repo owner. One
+      # open issue is reused across consecutive failures so a broken week does
+      # not file a new issue every Monday.
+      - name: Report backup failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: Weekly database backup is failing
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "The scheduled ppp backup failed - no dumps reached R2 for this week."
+            echo
+            echo "Run: $RUN_URL"
+            echo
+            echo "Check the failing step first: the PostgreSQL client install (apt/PGDG),"
+            echo "pg_dump against BACKUP_DATABASE_URL, or the R2 upload."
+            echo
+            echo "After fixing, re-run this workflow from the Actions tab to take the"
+            echo "missed backup - the next scheduled run will not backfill it."
+          } > /tmp/backup-failure.md
+
+          # --jq cannot take --arg, so the title comes through the environment.
+          # Fails open: if the lookup itself errors, file a fresh issue rather
+          # than letting set -e kill the step and send nothing.
+          existing="$(gh issue list --state open --limit 100 --json number,title \
+            --jq '[.[] | select(.title == env.TITLE)] | .[0].number // empty' 2>/dev/null || true)"
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file /tmp/backup-failure.md
+          else
+            gh issue create --title "$TITLE" --body-file /tmp/backup-failure.md
+          fi
