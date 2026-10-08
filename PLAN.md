@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-07 — Oct 7 shelf batch ([237](docs/decisions/237-library-oct7-shelf-batch.md)).
+**Last updated:** 2026-10-07 — IVP Bible dictionaries ([238](docs/decisions/238-library-ivp-dictionaries.md)).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Latest shelf add: Allender marriage, Marshall/Peterson Acts (25 essays), Hartley NICOT Job, Schnittjer/Harmon, Rahlfs hand edition, LEH 3rd corrected ([237](docs/decisions/237-library-oct7-shelf-batch.md)). |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Latest shelf add: IVP dictionaries DNTB, DJG + DJG2, DOTP, DLNT, DOTPr ([238](docs/decisions/238-library-ivp-dictionaries.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. **Venue type** (C/P/A) auto-fills sermon context ([217](docs/decisions/217-sermon-venues-context-type.md)). List + by-book smoke passed. |
@@ -48,11 +48,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [238 — IVP Bible dictionaries](docs/decisions/238-library-ivp-dictionaries.md) (2026-10-07) — DNTB, DJG 1st corrected + DJG2, DOTP, DLNT, DOTPr. Same edition split as DPL / DPL2.
 - [237 — Library Oct 7 shelf batch](docs/decisions/237-library-oct7-shelf-batch.md) (2026-10-07) — Allender marriage, Marshall/Peterson Acts (25 essays), Hartley NICOT Job, Schnittjer/Harmon, Rahlfs hand edition, LEH 3rd corrected (DBG 2015). Coverage: Job.
 - [236 — Witherington SRC + Jobes LXX reader](docs/decisions/236-library-oct1-witherington-jobes.md) (2026-10-01) — New series SRC. Coverage: 1–2 Corinthians. Jobes as editor; Greek Language Tools.
 - [235 — Walton WBC Acts 1-9:42](docs/decisions/235-library-walton-wbc-acts.md) (2026-09-27) — Steve Walton, WBC 37A, Zondervan Academic 2024. Coverage: Acts.
 - [234 — Hatch–Redpath LXX concordance](docs/decisions/234-library-hatch-redpath-lxx-concordance.md) (2026-09-26) — One set row, Baker Book House 1983 reprint of 1897. `total_volumes` 2. Greek Language Tools.
-- [233 — ConC Proverbs (Steinmann)](docs/decisions/233-library-conc-proverbs-steinmann.md) (2026-09-26) — Andrew E. Steinmann, Concordia Pub. House 2009. Coverage: Proverbs.
 
 ---
 
