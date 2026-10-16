@@ -112,6 +112,37 @@ describe('formatPaperBibliographyEntries', () => {
 		expect(entries[0]!.plain).toMatch(/^Adams/);
 	});
 
+	it('lists a commentary volume once when two of its parts are cited', () => {
+		const volume = {
+			...book('kd-6', 'Proverbs, Ecclesiastes, Song of Songs', [author('Delitzsch', 'Franz')], 1996),
+			genre: 'Commentary',
+			series_name: 'Keil and Delitzsch Commentary',
+			series_abbreviation: 'K&D',
+			volume_number: '6',
+			publisher: 'Hendrickson',
+			publisher_location: 'Peabody, MA'
+		};
+		const part = (title: string): PaperEssaySourceView => ({
+			kind: 'essay',
+			sourceId: `src-${title}`,
+			groupId: null,
+			notes: null,
+			essayId: `essay-${title}`,
+			essay: {
+				essay_title: title,
+				authors: [author('Delitzsch', 'Franz')]
+			},
+			volume,
+			parentBookId: 'kd-6',
+			parentOwned: true,
+			authorsLabel: 'Delitzsch'
+		});
+		const entries = formatPaperBibliographyEntries([part('Proverbs'), part('Ecclesiastes')]);
+		expect(entries).toHaveLength(1);
+		expect(entries[0]!.plain).toContain('Proverbs, Ecclesiastes, Song of Songs');
+		expect(entries[0]!.plain).not.toContain('"Proverbs."');
+	});
+
 	it('keeps a book and an essay from the same volume as separate entries', () => {
 		const essay = essaySource('A Reading of Ruth', [author('Miller', 'Mary')]);
 		const volumeAsBook: PaperBookSourceView = {

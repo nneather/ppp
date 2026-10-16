@@ -36,7 +36,7 @@ function compareSortKeys(a: BibliographySortKey, b: BibliographySortKey): number
  * entry and are dropped (they are note-only citations, e.g. BDAG s.v.).
  */
 export function formatPaperBibliographyEntries(sources: PaperSourceView[]): CitationFormatted[] {
-	return sources
+	const entries = sources
 		.map((s) =>
 			s.kind === 'book'
 				? { key: bibliographySortKey(s.citation), entry: formatBibliography(s.citation) }
@@ -45,6 +45,14 @@ export function formatPaperBibliographyEntries(sources: PaperSourceView[]): Cita
 		.sort((a, b) => compareSortKeys(a.key, b.key))
 		.map((k) => k.entry)
 		.filter((e) => e.plain.length > 0);
+	// Commentary parts share one volume bibliography. Citing Proverbs and
+	// Ecclesiastes from the same volume should list that volume once.
+	const seen = new Set<string>();
+	return entries.filter((e) => {
+		if (seen.has(e.plain)) return false;
+		seen.add(e.plain);
+		return true;
+	});
 }
 
 export function compilePaperBibliography(sources: PaperSourceView[]): CitationFormatted {

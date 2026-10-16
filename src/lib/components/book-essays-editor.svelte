@@ -31,7 +31,8 @@
 	import { cn } from '$lib/utils.js';
 
 	/**
-	 * Essays & articles CRUD on book detail (reference_work + edited_volume parents).
+	 * Essays & articles CRUD on book detail (reference_work, edited_volume, and
+	 * commentary volumes that already have biblical-book parts).
 	 * Batch create (N draft rows → `?/createEssaysBatch`); single-row edit.
 	 */
 

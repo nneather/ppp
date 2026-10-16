@@ -230,19 +230,21 @@ async function assertEssayParent(
 ): Promise<{ ok: true } | { ok: false; status: 400 | 404; message: string }> {
 	const { data: parent, error: parentErr } = await supabase
 		.from('books')
-		.select('id, work_type')
+		.select('id, work_type, genre')
 		.eq('id', parentBookId)
 		.is('deleted_at', null)
 		.maybeSingle();
 	if (parentErr || !parent) {
 		return { ok: false, status: 404, message: 'Parent book not found.' };
 	}
-	const workType = parent.work_type as string | null;
-	if (workType !== 'reference_work' && workType !== 'edited_volume') {
+	const row = parent as { work_type: string | null; genre: string | null };
+	const workType = row.work_type;
+	const commentaryVolume = workType === 'monograph' && row.genre === 'Commentary';
+	if (workType !== 'reference_work' && workType !== 'edited_volume' && !commentaryVolume) {
 		return {
 			ok: false,
 			status: 400,
-			message: 'Essays are only supported on reference works and edited volumes.'
+			message: 'Essays belong on reference works, edited volumes, or commentaries.'
 		};
 	}
 	return { ok: true };

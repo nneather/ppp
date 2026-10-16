@@ -353,10 +353,6 @@
 		incompleteCitationCaption(citationMissing, data.book.needs_review)
 	);
 
-	const showEssaysSection = $derived(
-		data.book.work_type === 'reference_work' || data.book.work_type === 'edited_volume'
-	);
-
 	let seriesSiblings = $state<BookSiblingRow[]>([]);
 	let alsoByAuthor = $state<AlsoByAuthorShelf>({
 		books: [],
@@ -397,6 +393,11 @@
 	const showOnTheShelf = $derived(seriesSiblings.length > 0 || alsoByAuthor.books.length > 0);
 
 	let essays = $state<EssayRow[]>([]);
+	const showEssaysSection = $derived(
+		data.book.work_type === 'reference_work' ||
+			data.book.work_type === 'edited_volume' ||
+			essays.length > 0
+	);
 	$effect(() => {
 		void data.essaysPromise.then((rows) => {
 			if (notesFocused || notesEditing) {

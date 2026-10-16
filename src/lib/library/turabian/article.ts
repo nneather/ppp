@@ -1,4 +1,6 @@
-import type { BookAuthorAssignment } from '$lib/types/library';
+import type { BookAuthorAssignment, EssayRow } from '$lib/types/library';
+import { resolveCitationSourceType } from './dispatch';
+import { formatBibliography } from './format';
 import {
 	formatAuthorsBibliography,
 	formatAuthorsNote,
@@ -6,11 +8,9 @@ import {
 	formatEditorsInlineBibliography,
 	parseAuthorAssignment
 } from './names';
-import { formatPublicationFacts, formatTitleWithSubtitle } from './publication';
+import { formatPublicationFacts, formatSeriesSegment, formatTitleWithSubtitle } from './publication';
 import { normalizeCitationText } from './text-normalize';
 import type { BookCitationInput, CitationFormatted, CitationSourceType } from './types';
-
-import type { EssayRow } from '$lib/types/library';
 
 export { isUnsignedLexiconVolume, UNSIGNED_LEXICON_ABBREVS } from './lexicon';
 
@@ -77,6 +77,28 @@ function bibPageSegment(essay: EssayCitationInput): string {
 
 function hasEssayAuthors(essay: EssayCitationInput): boolean {
 	return (essay.authors?.length ?? 0) > 0;
+}
+
+/**
+ * A titled biblical book inside a commentary volume (Keil on Genesis in the
+ * Pentateuch volume). Not an edited-volume contribution (Expositor's "Luke").
+ * Notes name the part; the bibliography stays the volume (Turabian §17.1.8
+ * when more than one part of the same book is cited).
+ */
+function isCommentaryVolumePart(volume: BookCitationInput): boolean {
+	return (
+		(volume.work_type ?? 'monograph') === 'monograph' &&
+		resolveCitationSourceType(volume) === 'commentary-in-series'
+	);
+}
+
+function commentaryPartAuthors(
+	essay: EssayCitationInput,
+	volume: BookCitationInput
+): BookAuthorAssignment[] | null {
+	if (hasEssayAuthors(essay)) return essay.authors!;
+	const volumeAuthors = volume.authors.filter((a) => a.role === 'author');
+	return volumeAuthors.length > 0 ? volumeAuthors : null;
 }
 
 /**
@@ -190,6 +212,39 @@ function formatShortEssayFootnote(
 }
 
 /**
+ * Part of a commentary volume: `Delitzsch, "Proverbs," in Proverbs, Ecclesiastes,
+ * Song of Songs, K&D 6 (Peabody, MA: Hendrickson, 1996), 45.`
+ * Series number stays on the series label. Page is not `6:45`.
+ */
+function formatCommentaryPartFootnote(
+	essay: EssayCitationInput,
+	authors: BookAuthorAssignment[],
+	volume: BookCitationInput,
+	page: string
+): CitationFormatted {
+	const sourceType: CitationSourceType = 'commentary-in-series';
+	const author = formatAuthorsNote(authors);
+	const article = essay.essay_title.trim();
+	const volTitle = formatTitleWithSubtitle(volume, 'plain');
+	const volTitleHtml = formatTitleWithSubtitle(volume, 'html');
+	const series = formatSeriesSegment(volume, 'note');
+	const pub = formatPublicationFacts(volume, 'note');
+	let plain = `${author}, ${quotedTitle(article, 'plain')} in ${volTitle}`;
+	let html = `${escapeHtml(author)}, ${quotedTitle(article, 'html')} in ${volTitleHtml}`;
+	if (series) {
+		plain += `, ${series}`;
+		html += `, ${escapeHtml(series)}`;
+	}
+	if (pub.plain) {
+		plain += ` ${pub.plain}`;
+		html += ` ${pub.html}`;
+	}
+	plain += `, ${page}.`;
+	html += `, ${escapeHtml(page)}.`;
+	return { plain, html, sourceType };
+}
+
+/**
  * Turabian dictionary / encyclopedia article or chapter in edited volume.
  * @see Turabian §14.112 (well-known reference works), §17.1.8 (chapters).
  */
@@ -200,6 +255,21 @@ export function formatEssayFootnote(
 ): CitationFormatted {
 	const page = notePageSegment(opts);
 	const sourceType = resolveEssaySourceType(volume);
+
+	if (isCommentaryVolumePart(volume)) {
+		const authors = commentaryPartAuthors(essay, volume);
+		if (authors) {
+			if (opts?.shortForm === 'short') {
+				return formatShortEssayFootnote(
+					{ ...essay, authors },
+					volume,
+					page,
+					'commentary-in-series'
+				);
+			}
+			return formatCommentaryPartFootnote(essay, authors, volume, page);
+		}
+	}
 
 	if (opts?.shortForm === 'short') {
 		return formatShortEssayFootnote(essay, volume, page, sourceType);
@@ -226,6 +296,11 @@ export function formatEssayBibliography(
 	volume: BookCitationInput
 ): CitationFormatted {
 	const sourceType = resolveEssaySourceType(volume);
+
+	// Several biblical books share one volume. The bibliography cites the volume.
+	if (isCommentaryVolumePart(volume) && commentaryPartAuthors(essay, volume)) {
+		return formatBibliography(volume);
+	}
 
 	if (!hasEssayAuthors(essay)) {
 		return { plain: '', html: '', sourceType };

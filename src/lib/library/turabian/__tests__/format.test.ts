@@ -1086,6 +1086,40 @@ describe('formatBibliography', () => {
 	});
 });
 
+describe('commentary volume parts (Keil & Delitzsch)', () => {
+	const volume = book({
+		genre: 'Commentary',
+		title: 'Proverbs, Ecclesiastes, Song of Songs',
+		authors: [
+			{ person_id: 'd1', person_label: 'Franz Delitzsch', role: 'author', sort_order: 0 }
+		],
+		series_name: 'Keil and Delitzsch Commentary',
+		series_abbreviation: 'K&D',
+		volume_number: '6',
+		publisher: 'Hendrickson',
+		publisher_location: 'Peabody, MA',
+		year: 1996
+	});
+	const proverbs = {
+		essay_title: 'Proverbs',
+		authors: [
+			{ person_id: 'd1', person_label: 'Franz Delitzsch', role: 'author' as const, sort_order: 0 }
+		]
+	};
+
+	it('names the biblical book in the footnote and keeps the volume bibliography', () => {
+		expect(formatEssayFootnote(proverbs, volume, { page: '45' }).plain).toBe(
+			'Franz Delitzsch, "Proverbs," in Proverbs, Ecclesiastes, Song of Songs, K&D 6 (Peabody, MA: Hendrickson, 1996), 45.'
+		);
+		expect(formatEssayFootnote(proverbs, volume, { page: '45', shortForm: 'short' }).plain).toBe(
+			'Delitzsch, "Proverbs," 45.'
+		);
+		expect(formatEssayBibliography(proverbs, volume).plain).toBe(
+			'Delitzsch, Franz. Proverbs, Ecclesiastes, Song of Songs. Keil and Delitzsch Commentary 6. Peabody, MA: Hendrickson, 1996.'
+		);
+	});
+});
+
 describe('publisher resolution in citations', () => {
 	it('uses City: Publisher when location is provided', () => {
 		const fn = formatFootnote(

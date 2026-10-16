@@ -79,10 +79,13 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		((profileRow.data as { role?: string | null } | null)?.role ?? null) === 'owner';
 
 	const essaysEligible =
-		book.work_type === 'reference_work' || book.work_type === 'edited_volume';
+		book.work_type === 'reference_work' ||
+		book.work_type === 'edited_volume' ||
+		(book.work_type === 'monograph' && book.genre === 'Commentary' && book.series_id != null);
 
 	// PersonAutocomplete on essays needs live book counts; skip the round-trip
-	// on monographs where the essays section never mounts.
+	// on monographs. Commentary parts still load essays (the section mounts
+	// once rows exist) and reuse the people list already on the page.
 	const personBookCounts = essaysEligible
 		? Object.fromEntries(await loadPersonBookCounts(supabase))
 		: ({} as Record<string, number>);
