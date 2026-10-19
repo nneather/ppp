@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Add a book on a set searches title or abbreviation and adds the whole multi-volume work ([257](docs/decisions/257-sets-sections-septuagint.md)).
+**Last updated:** 2026-10-19 — Study attachments (scans, audio, documents) sized and parked ([258](docs/decisions/258-study-attachments-parked.md)); set add-a-book searches title or abbreviation and adds the whole multi-volume work ([257](docs/decisions/257-sets-sections-septuagint.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [258 — Study attachments parked](docs/decisions/258-study-attachments-parked.md) (2026-10-19) — Scans as PDF fit Free for years; audio is the budget breaker (links first). One table + one bucket + one panel when picked up.
 - [257 — Sets sections + Septuagint](docs/decisions/257-sets-sections-septuagint.md) (2026-10-19) — Commentaries load again; sections collapse; LXX studies leave NT language tools; concordances can stay in a set as reference-only.
 - [256 — Nachfolge and Eastman from the shelf](docs/decisions/256-nachfolge-eastman-shelf-contents.md) (2026-10-19) — Brunnen contents: same passages as the English Bonhoeffer. Eastman: Romans 7, Philippians 2, Galatians 2.
 - [255 — Sermon on the Mount as passages](docs/decisions/255-sermon-mount-passages-not-coverage.md) (2026-10-19) — Guelich (from 4:23), Pennington, and Augustine are one sermon each.
 - [254 — Passage sections wave 2](docs/decisions/254-passage-sections-wave-2.md) (2026-10-19) — Bonhoeffer English, Augustine on the Mount, Carson *Praying with Paul*.
-- [253 — Systematics by passage S1–S5](docs/decisions/253-systematics-by-passage-s1-s5.md) (2026-10-19) — Outline table, systematic band, MCP, OCR index mode, gold eval harness.
 
 ---
 
@@ -242,6 +242,7 @@ Acceptance:
 16. **Classwork — Canvas re-pull** ([216](docs/decisions/216-canvas-classwork-import.md)) — weeks 1–3 as drops/adds and professor due dates settle: `npm run classwork:canvas-import` then `--apply`. Mint a new token if the ~1 mo life lapses.
 
 ### Deferred / someday (pointer only — detail in the cited decision doc)
+- **Study attachments** — handwritten sermon/paper scans, audio (links first), `.docx` on `/studies` detail; `study_attachments` + `studies-attachments` bucket, two sessions ([258](docs/decisions/258-study-attachments-parked.md)).
 - **PWA branded icons** ([057](docs/decisions/057-pwa-consistency.md)) — replace placeholder squares with a monogram set.
 - **Contacts Christmas Has-address seed** ([211](docs/decisions/211-contacts-module-review.md)) — November; list exists, import did not fill it.
 - **CRM mailing-list send pipeline** (Resend campaigns + unsubscribe) — designed-for in Contacts v1, not built.
