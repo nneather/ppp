@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Book detail Outline and Passage sections start collapsed ([266](docs/decisions/266-book-detail-outline-passage-collapsed.md)). Add-books asks about study sets ([265](docs/decisions/265-library-add-books-ask-sets.md)).
+**Last updated:** 2026-10-19 — Turretin’s scripture index comes from Parker’s English PDF (tracked outside the repo); Calvin’s from shelf photos ([267](docs/decisions/267-systematics-index-sources.md)). Book detail Outline and Passage sections start collapsed ([266](docs/decisions/266-book-detail-outline-passage-collapsed.md)).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books, including Brunnen *Nachfolge* and Eastman ([256](docs/decisions/256-nachfolge-eastman-shelf-contents.md)). **Systematics:** Battles index capture keeps `1.13.7` on the volume that owns that chapter, plus version tags ([262](docs/decisions/262-calvin-index-capture-rules.md)). Page-index gold passed at 99.610% on three Turretin leaves ([263](docs/decisions/263-systematics-page-index-gold-gate.md)); Turretin bulk capture has not started. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books, including Brunnen *Nachfolge* and Eastman ([256](docs/decisions/256-nachfolge-eastman-shelf-contents.md)). **Systematics:** Calvin from Battles shelf photos; Turretin from Parker’s English PDF of the P&R set, tracked outside the repo ([267](docs/decisions/267-systematics-index-sources.md)). van Mastricht and Bavinck sources are written down there and not chosen. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [267 — Systematics index sources](docs/decisions/267-systematics-index-sources.md) (2026-10-19) — Turretin from Parker’s English PDF. Calvin from shelf photos. van Mastricht and Bavinck theories stored, not chosen.
 - [266 — Outline and passage sections start collapsed](docs/decisions/266-book-detail-outline-passage-collapsed.md) (2026-10-19) — Book detail headers keep the count. A `#section-` link still opens Passage sections.
 - [265 — Ask about study sets when adding books](docs/decisions/265-library-add-books-ask-sets.md) (2026-10-19) — Confirm a set before insert. Girdlestone is already on OT language tools by genre rule.
 - [264 — Girdlestone OT synonyms](docs/decisions/264-library-girdlestone-ot-synonyms.md) (2026-10-19) — Eerdmans 1981 reprint of 1897. Short title, middle initial, no series, matching Trench.
 - [263 — Systematics page-index gold gate](docs/decisions/263-systematics-page-index-gold-gate.md) (2026-10-19) — Three Turretin index leaves, 1,021/1,025 exact (99.610%). OCR about 3 minutes a leaf. Bulk Turretin not started.
-- [262 — Calvin index capture rules](docs/decisions/262-calvin-index-capture-rules.md) (2026-10-19) — Arabic locators (`1.13.7`) save on the volume that owns that chapter. Version tags stay on the note. `PA` / `VG` / `VL` are flagged.
 
 ---
 
@@ -201,14 +201,14 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Turretin scripture index** — gold gate passed ([263](docs/decisions/263-systematics-page-index-gold-gate.md)). Capture vol. 3 only: three columns, Arabic `vol:page`, Genesis opening through printed p. 780. One set this session. Do not start van Mastricht or Bavinck. Calvin’s full index still waits on shelf photos ([262](docs/decisions/262-calvin-index-capture-rules.md)).
+1. **Turretin scripture index** — from Parker’s English PDF of P&R vol. 3 (tracked outside the repo; same owner scan as the gold leaves). Arabic `vol:page`, Genesis through printed p. 780 ([267](docs/decisions/267-systematics-index-sources.md)). Do not start van Mastricht or Bavinck.
 2. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
 3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
 5. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
 
 ### Next / parallel
-5b. **Systematics capture** — Battles shelf photos can start ([262](docs/decisions/262-calvin-index-capture-rules.md)). Page-index order after Turretin: van Mastricht, then Bavinck ([docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md)).
+5b. **Systematics capture** — Calvin Battles shelf photos ([262](docs/decisions/262-calvin-index-capture-rules.md)). After Turretin: van Mastricht, then Bavinck; sources in [267](docs/decisions/267-systematics-index-sources.md) and [docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md).
 6. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
 7. **Security hardening (051 R2)** — open medium findings; prompt above.
 8. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
