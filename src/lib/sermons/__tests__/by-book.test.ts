@@ -68,6 +68,13 @@ describe('compareCommentaryHits', () => {
 		const sorted = [a, b, c, d].sort(compareCommentaryHits);
 		expect(sorted.map((h) => h.title)).toEqual(['Alpha', 'Gamma', 'Zebra', 'Beta']);
 	});
+
+	it('ignores leading articles when ranking equal-rated titles', () => {
+		const a = hit({ title: 'The Odyssey', rating: 5, bookId: 'a' });
+		const b = hit({ title: 'A Greek Grammar', rating: 5, bookId: 'b' });
+		const sorted = [a, b].sort(compareCommentaryHits);
+		expect(sorted.map((h) => h.title)).toEqual(['A Greek Grammar', 'The Odyssey']);
+	});
 });
 
 describe('collapseCommentaryHits', () => {

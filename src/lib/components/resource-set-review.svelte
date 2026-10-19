@@ -151,28 +151,28 @@
 			{@render memberMeta(member)}
 		</span>
 		{#if isOwner}
-			<span class="flex shrink-0 items-center gap-1.5">
+			<span class="flex shrink-0 items-center gap-1">
 				{#if list === 'included'}
 					<form method="POST" action="?/setBibliographical" use:enhance={enhancePending([key])}>
 						{@render memberFields(member)}
 						<input type="hidden" name="bibliographical" value={member.bibliographical ? 'false' : 'true'} />
-						<Button type="submit" variant="outline" size="sm" disabled={busy}>
+						<Button type="submit" variant="outline" size="xs" disabled={busy}>
 							{member.bibliographical ? 'Reference only' : 'For bibliography'}
 						</Button>
 					</form>
 					<form method="POST" action="?/excludeMember" use:enhance={enhancePending([key])}>
 						{@render memberFields(member)}
-						<Button type="submit" variant="outline" size="sm" disabled={busy}>Not included</Button>
+						<Button type="submit" variant="outline" size="xs" disabled={busy}>Not included</Button>
 					</form>
 				{:else}
 					<form method="POST" action="?/restoreMember" use:enhance={enhancePending([key])}>
 						{@render memberFields(member)}
-						<Button type="submit" variant="outline" size="sm" disabled={busy}>Include</Button>
+						<Button type="submit" variant="outline" size="xs" disabled={busy}>Include</Button>
 					</form>
 				{/if}
 				<form method="POST" action="?/removeMember" use:enhance={enhancePending([key])}>
 					{@render memberFields(member)}
-					<Button type="submit" variant="outline" size="sm" class="text-destructive" disabled={busy}>Remove</Button>
+					<Button type="submit" variant="outline" size="xs" class="text-destructive" disabled={busy}>Remove</Button>
 				</form>
 			</span>
 		{/if}
@@ -234,7 +234,7 @@
 								{#each hit.bookIds as id (id)}
 									<input type="hidden" name="book_id" value={id} />
 								{/each}
-								<Button type="submit" variant="outline" size="sm">Add</Button>
+								<Button type="submit" variant="outline" size="xs">Add</Button>
 							</form>
 						{/if}
 					</li>
@@ -261,7 +261,7 @@
 			{/each}
 			<select
 				name="target_set_id"
-				class="h-8 rounded-md border border-input bg-background px-2 text-sm"
+				class="h-6 rounded-md border border-input bg-background px-2 text-xs"
 				bind:value={moveTargetId}
 				required
 				aria-label="Move to set"
@@ -273,28 +273,28 @@
 					</option>
 				{/each}
 			</select>
-			<Button type="submit" size="sm" disabled={busy || !moveTargetId}>Move</Button>
+			<Button type="submit" size="xs" disabled={busy || !moveTargetId}>Move</Button>
 		</form>
 		<form method="POST" action="?/restoreMember" use:enhance={enhancePending([...selected])}>
 			<input type="hidden" name="set_id" value={setId} />
 			{#each [...selectedMembers(included), ...selectedMembers(excluded)] as member (memberKey(member))}
 				{@render memberFields(member)}
 			{/each}
-			<Button type="submit" variant="outline" size="sm" disabled={busy}>Include</Button>
+			<Button type="submit" variant="outline" size="xs" disabled={busy}>Include</Button>
 		</form>
 		<form method="POST" action="?/excludeMember" use:enhance={enhancePending([...selected])}>
 			<input type="hidden" name="set_id" value={setId} />
 			{#each [...selectedMembers(included), ...selectedMembers(excluded)] as member (memberKey(member))}
 				{@render memberFields(member)}
 			{/each}
-			<Button type="submit" variant="outline" size="sm" disabled={busy}>Not included</Button>
+			<Button type="submit" variant="outline" size="xs" disabled={busy}>Not included</Button>
 		</form>
 		<form method="POST" action="?/removeMember" use:enhance={enhancePending([...selected])}>
 			<input type="hidden" name="set_id" value={setId} />
 			{#each [...selectedMembers(included), ...selectedMembers(excluded)] as member (memberKey(member))}
 				{@render memberFields(member)}
 			{/each}
-			<Button type="submit" variant="outline" size="sm" class="text-destructive" disabled={busy}>Remove</Button>
+			<Button type="submit" variant="outline" size="xs" class="text-destructive" disabled={busy}>Remove</Button>
 		</form>
 		<button type="button" class="text-xs text-muted-foreground underline-offset-2 hover:underline" onclick={clearSelected}>
 			Clear

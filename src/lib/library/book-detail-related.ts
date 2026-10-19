@@ -1,3 +1,4 @@
+import { titleSortKey } from '$lib/library/title-sort';
 import type {
 	AuthorRole,
 	BookAuthorAssignment,
@@ -50,5 +51,5 @@ export function compareSiblingBooks(
 	if (kb.n != null && ka.n == null && ka.s) return 1;
 	const sCmp = ka.s.localeCompare(kb.s);
 	if (sCmp !== 0) return sCmp;
-	return (a.title ?? '').localeCompare(b.title ?? '', undefined, { sensitivity: 'base' });
+	return titleSortKey(a.title).localeCompare(titleSortKey(b.title));
 }

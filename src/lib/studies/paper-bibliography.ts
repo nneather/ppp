@@ -5,6 +5,7 @@
  * Library's `formatCompiledBibliography` is books-only, so the merge + shared
  * sort key live here rather than widening the library helper.
  */
+import { titleSortKey } from '$lib/library/title-sort';
 import {
 	bibliographySortKey,
 	bibliographySortLastName,
@@ -37,7 +38,7 @@ function essaySortKey(source: Extract<PaperSourceView, { kind: 'essay' }>): Bibl
 	return {
 		lastName: bibliographySortLastName(source.essay.authors ?? []),
 		year: source.volume.year ?? source.volume.reprint_year ?? source.volume.original_year,
-		title: source.essay.essay_title.toLowerCase()
+		title: titleSortKey(source.essay.essay_title)
 	};
 }
 

@@ -8,6 +8,7 @@
  */
 import { assignPassageBands } from '$lib/library/passage-search-bands';
 import { formatScriptureRefPageSummary } from '$lib/library/scripture-ref-format';
+import { titleSortKey } from '$lib/library/title-sort';
 import type { ImportCandidate } from '$lib/studies/import-suggest';
 
 export const PASSAGE_SECTION_IMPORT_KEY = 'sections';
@@ -104,7 +105,7 @@ export function passageSectionImportCandidates(
 	}
 
 	const books = [...byBook.entries()].sort((a, b) =>
-		(a[1][0]?.title ?? '').localeCompare(b[1][0]?.title ?? '', undefined, { sensitivity: 'base' })
+		titleSortKey(a[1][0]?.title ?? '').localeCompare(titleSortKey(b[1][0]?.title ?? ''))
 	);
 
 	const out: ImportCandidate[] = [];

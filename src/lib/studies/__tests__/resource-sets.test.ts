@@ -123,6 +123,23 @@ describe('resolveSetMembers', () => {
 		expect(groups.find((group) => group.title === 'NIDOTTE')?.bookIds).toEqual(['v1', 'v1b', 'v2']);
 	});
 
+	it('sorts members without leading articles', () => {
+		const { included } = resolveSetMembers({
+			candidates: [
+				cand({ bookId: '1', title: 'The Odyssey' }),
+				cand({ bookId: '2', title: 'A Greek Grammar' }),
+				cand({ bookId: '3', title: 'Der Römerbrief' })
+			],
+			overrides: [],
+			lastReviewedAt: null
+		});
+		expect(included.map((m) => m.title)).toEqual([
+			'A Greek Grammar',
+			'The Odyssey',
+			'Der Römerbrief'
+		]);
+	});
+
 	it('keeps a reference-only rule match in the set', () => {
 		const { included } = resolveSetMembers({
 			candidates,

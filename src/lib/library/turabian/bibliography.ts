@@ -1,3 +1,4 @@
+import { titleSortKey } from '$lib/library/title-sort';
 import { formatBibliography } from './format';
 import { bibliographySortLastName } from './names';
 import type { BibliographySortKey, BookCitationInput, CitationFormatted } from './types';
@@ -6,7 +7,7 @@ export function bibliographySortKey(book: BookCitationInput): BibliographySortKe
 	return {
 		lastName: bibliographySortLastName(book.authors),
 		year: book.year ?? book.reprint_year ?? book.original_year,
-		title: (book.title ?? '').toLowerCase()
+		title: titleSortKey(book.title)
 	};
 }
 

@@ -14,6 +14,7 @@ import {
 	resolveOutlineForPointer,
 	type SystematicSetBlock
 } from '$lib/library/outline';
+import { titleSortKey } from '$lib/library/title-sort';
 
 function parseIntOrNull(v: string | null): number | null {
 	if (v == null || v.trim() === '') return null;
@@ -336,7 +337,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 					review_note: null
 				})
 			)
-			.sort((a, b) => (a.book_title ?? '').localeCompare(b.book_title ?? ''));
+			.sort((a, b) => titleSortKey(a.book_title).localeCompare(titleSortKey(b.book_title)));
 
 		const sectionRows: PassageResult[] = sections
 			.filter((s) => bands.sectionBookIds.has(s.book_id))
@@ -384,7 +385,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 					review_note: null
 				})
 			)
-			.sort((a, b) => (a.book_title ?? '').localeCompare(b.book_title ?? ''));
+			.sort((a, b) => titleSortKey(a.book_title).localeCompare(titleSortKey(b.book_title)));
 
 		results = [
 			...commentaryRows,

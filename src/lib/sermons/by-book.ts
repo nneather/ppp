@@ -4,6 +4,7 @@
  */
 
 import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
+import { titleSortKey } from '$lib/library/title-sort';
 import {
 	BY_BOOK_SORTS,
 	type ByBookListFilters,
@@ -45,7 +46,7 @@ export function compareCommentaryHits(a: ByBookShelfHit, b: ByBookShelfHit): num
 	if (ar != null && br != null && ar !== br) return br - ar;
 	if (ar != null && br == null) return -1;
 	if (ar == null && br != null) return 1;
-	return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+	return titleSortKey(a.title).localeCompare(titleSortKey(b.title));
 }
 
 export function sortShelfHits(hits: ByBookShelfHit[]): ByBookShelfHit[] {

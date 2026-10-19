@@ -11,6 +11,7 @@
  * nothing counts as "new" (the seed would otherwise badge the whole catalog).
  */
 import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
+import { titleSortKey } from '$lib/library/title-sort';
 import {
 	collapseCommentaryHits,
 	commentaryCollapseKey
@@ -325,7 +326,7 @@ export function collapseVolumeSets(members: ResolvedMember[]): ResolvedMember[] 
 		const group = groups.get(key)!;
 		out.push(group.length > 1 && !key.startsWith('solo:') ? mergeVolumeSet(group) : group[0]!);
 	}
-	out.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+	out.sort((a, b) => titleSortKey(a.title).localeCompare(titleSortKey(b.title)));
 	return out;
 }
 
@@ -384,7 +385,7 @@ export function groupVolumeSearchHits(rows: VolumeSearchRow[]): VolumeSearchGrou
 			volumeCount: bookIds.length
 		});
 	}
-	out.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+	out.sort((a, b) => titleSortKey(a.title).localeCompare(titleSortKey(b.title)));
 	return out;
 }
 

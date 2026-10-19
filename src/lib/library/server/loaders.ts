@@ -800,24 +800,18 @@ export async function loadBookListFiltered(
 		return { books, filteredCount: books.length };
 	}
 
+	// Article-stripped order cannot be expressed in PostgREST `.order('title')`.
+	// Fetch the filtered set, sort with `titleSortKey`, then page. Fine under ~10k.
 	const limit = opts.limit ?? 50;
 	const offset = opts.offset ?? 0;
-	const hasKeyword = Boolean(filters.q && filters.q.trim().length > 0);
-	const countMode = hasKeyword ? ('estimated' as const) : ('exact' as const);
-
-	let pageQuery = supabase.from('books').select(BOOK_LIST_SELECT, { count: countMode });
-	pageQuery = applyBookListFilters(pageQuery, filters, ctx);
-	const pageRes = await pageQuery
-		.order('title', { ascending: true, nullsFirst: false })
-		.range(offset, offset + limit - 1);
-
-	if (pageRes.error) {
-		console.error('[loadBookListFiltered] paginated page', pageRes.error);
-		return { books: [], filteredCount: 0 };
-	}
-
-	const books = mapBookListRowsFromDenorm(pageRes.data ?? []);
-	const filteredCount = pageRes.count ?? books.length;
+	const data = await paginateAll<unknown>(([from, to]) => {
+		let query = supabase.from('books').select(BOOK_LIST_SELECT);
+		query = applyBookListFilters(query, filters, ctx);
+		return query.range(from, to);
+	}, 'loadBookListFiltered:page');
+	const sorted = mapBookListRowsFromDenorm(data);
+	const filteredCount = sorted.length;
+	const books = sorted.slice(offset, offset + limit);
 	return { books, filteredCount };
 }
 
@@ -2050,7 +2044,7 @@ export async function loadPassageSectionsOverlapping(
 		});
 	}
 
-	out.sort((a, b) => (a.book_title ?? '').localeCompare(b.book_title ?? ''));
+	out.sort((a, b) => titleSortKey(a.book_title).localeCompare(titleSortKey(b.book_title)));
 	return out;
 }
 
