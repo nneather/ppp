@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Brunnen *Nachfolge* and Eastman passage sections from the shelf contents ([256](docs/decisions/256-nachfolge-eastman-shelf-contents.md)).
+**Last updated:** 2026-10-19 — Add a book on a set searches title or abbreviation and adds the whole multi-volume work ([257](docs/decisions/257-sets-sections-septuagint.md)).
 
 **How to use this file — read this first:**
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Overlapping passage sections import as books and prefill the footnote page ([251](docs/decisions/251-studies-passage-section-import.md)). |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Sets: collapsible sections, commentaries load, Septuagint pulled out of NT language tools, reference-only members ([257](docs/decisions/257-sets-sections-septuagint.md)). |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [257 — Sets sections + Septuagint](docs/decisions/257-sets-sections-septuagint.md) (2026-10-19) — Commentaries load again; sections collapse; LXX studies leave NT language tools; concordances can stay in a set as reference-only.
 - [256 — Nachfolge and Eastman from the shelf](docs/decisions/256-nachfolge-eastman-shelf-contents.md) (2026-10-19) — Brunnen contents: same passages as the English Bonhoeffer. Eastman: Romans 7, Philippians 2, Galatians 2.
 - [255 — Sermon on the Mount as passages](docs/decisions/255-sermon-mount-passages-not-coverage.md) (2026-10-19) — Guelich (from 4:23), Pennington, and Augustine are one sermon each.
 - [254 — Passage sections wave 2](docs/decisions/254-passage-sections-wave-2.md) (2026-10-19) — Bonhoeffer English, Augustine on the Mount, Carson *Praying with Paul*.
 - [253 — Systematics by passage S1–S5](docs/decisions/253-systematics-by-passage-s1-s5.md) (2026-10-19) — Outline table, systematic band, MCP, OCR index mode, gold eval harness.
-- [252 — Systematics by passage Session 0](docs/decisions/252-systematics-by-passage-session-0.md) (2026-10-19) — Outline + scripture-index join; OCR ≥99.5% gate; surfaces locked.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Systematics-by-passage [253](docs/decisions/253-systematics-by-passage-s1-s5.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **649/649** (2026-10-19). Migration `20261019210000_book_outline_sections.sql` pushed; OCR Edge deployed with `index_mode` + `index_pass`.
+**Repo gate:** Set add-by-abbreviation [257](docs/decisions/257-sets-sections-septuagint.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **665/665** (2026-10-19). Migrations `20261019223000_resource_set_sections.sql` and `20261019234500_resource_set_member_bibliographical.sql` pushed.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

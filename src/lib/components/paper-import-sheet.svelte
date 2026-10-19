@@ -28,7 +28,7 @@
 		paperId: string;
 		parentField?: 'paper_id' | 'sermon_id';
 		suggestions?: SetSuggestion[];
-		importSets: { bibleBooks: SetOption[]; language: SetOption[]; custom: SetOption[] };
+		importSets: { label: string; sets: SetOption[] }[];
 		importPapers?: PaperOption[];
 		checklist?: {
 			key: string;
@@ -203,11 +203,7 @@
 					</ul>
 				{/if}
 
-				{#each [
-					{ label: 'Bible books', sets: importSets.bibleBooks },
-					{ label: 'Language', sets: importSets.language },
-					{ label: 'Custom', sets: importSets.custom }
-				] as section (section.label)}
+				{#each importSets as section (section.label)}
 					{#if section.sets.length > 0}
 						<h3 class="mt-4 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 							{section.label}

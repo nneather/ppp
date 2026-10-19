@@ -35,6 +35,7 @@ export const _STUDIES_TABLES = [
 	'paper_sources',
 	'paper_passages',
 	'resource_sets',
+	'resource_set_sections',
 	'resource_set_members'
 ] as const;
 
@@ -119,6 +120,7 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'study_sources',
 	'paper_passages',
 	'resource_sets',
+	'resource_set_sections',
 	'resource_set_members',
 	// contacts
 	'households',
@@ -321,6 +323,7 @@ function entityLabelFor(
 		case 'paper_research_groups':
 		case 'study_research_groups':
 		case 'resource_sets':
+		case 'resource_set_sections':
 			return get('name');
 		case 'paper_sources':
 		case 'study_sources': {

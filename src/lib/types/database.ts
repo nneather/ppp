@@ -2356,6 +2356,7 @@ export type Database = {
       }
       resource_set_members: {
         Row: {
+          bibliographical: boolean
           book_id: string | null
           created_at: string
           created_by: string | null
@@ -2367,6 +2368,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bibliographical?: boolean
           book_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -2378,6 +2380,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bibliographical?: boolean
           book_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -2419,6 +2422,53 @@ export type Database = {
           },
         ]
       }
+      resource_set_sections: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          locked: boolean
+          name: string
+          set_kind: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          locked?: boolean
+          name: string
+          set_kind: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          locked?: boolean
+          name?: string
+          set_kind?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_set_sections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resource_sets: {
         Row: {
           created_at: string
@@ -2430,6 +2480,7 @@ export type Database = {
           last_reviewed_at: string | null
           name: string
           rules: Json
+          section_id: string
           slug: string
           sort_order: number
           updated_at: string
@@ -2444,6 +2495,7 @@ export type Database = {
           last_reviewed_at?: string | null
           name: string
           rules?: Json
+          section_id: string
           slug: string
           sort_order?: number
           updated_at?: string
@@ -2458,6 +2510,7 @@ export type Database = {
           last_reviewed_at?: string | null
           name?: string
           rules?: Json
+          section_id?: string
           slug?: string
           sort_order?: number
           updated_at?: string
@@ -2468,6 +2521,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_sets_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "resource_set_sections"
             referencedColumns: ["id"]
           },
         ]

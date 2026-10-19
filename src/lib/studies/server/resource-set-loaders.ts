@@ -5,12 +5,15 @@
  * `/studies/by-book`) — documented in decision 244.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { authorsLabelForBook } from '$lib/library/authors-label';
+import type { PersonRow } from '$lib/types/library';
 import type { ByBookShelfHit } from '$lib/types/sermons';
 import {
 	bibleBookFromRules,
 	candidatesFromCommentaryHits,
 	countNewMembers,
-	groupResourceSetList,
+	groupVolumeSearchHits,
+	groupSetsIntoSections,
 	parseResourceSetRules,
 	refKey,
 	resolveSetMembers,
@@ -18,9 +21,13 @@ import {
 	type ResourceSetKind,
 	type ResourceSetListItem,
 	type ResourceSetRule,
+	type ResourceSetSectionGroup,
+	type ResourceSetSectionMeta,
 	type ResolvedMember,
 	type RuleCandidate,
-	type SetOverride
+	type SetOverride,
+	type VolumeSearchRow,
+	type VolumeSearchGroup
 } from '$lib/studies/resource-sets';
 
 type SeriesEmbed = {
@@ -66,9 +73,19 @@ type SetDb = {
 	name: string;
 	slug: string;
 	kind: string;
+	section_id: string;
 	rules: unknown;
 	default_for: string[] | null;
 	last_reviewed_at: string | null;
+	sort_order: number;
+};
+
+type SectionDb = {
+	id: string;
+	name: string;
+	slug: string;
+	set_kind: string;
+	locked: boolean;
 	sort_order: number;
 };
 
@@ -77,6 +94,7 @@ type MemberDb = {
 	book_id: string | null;
 	essay_id: string | null;
 	kind: string;
+	bibliographical: boolean;
 };
 
 export type ResourceSetDetail = {
@@ -92,7 +110,22 @@ export type ResourceSetDetail = {
 };
 
 const SET_COLUMNS =
-	'id, name, slug, kind, rules, default_for, last_reviewed_at, sort_order';
+	'id, name, slug, kind, section_id, rules, default_for, last_reviewed_at, sort_order';
+
+const SECTION_COLUMNS = 'id, name, slug, set_kind, locked, sort_order';
+
+function asSection(row: SectionDb): ResourceSetSectionMeta | null {
+	const setKind = asKind(row.set_kind);
+	if (!setKind) return null;
+	return {
+		id: row.id,
+		name: row.name,
+		slug: row.slug,
+		setKind,
+		locked: row.locked,
+		sortOrder: row.sort_order
+	};
+}
 
 function oneEmbed<T>(v: T | T[] | null | undefined): T | null {
 	if (v == null) return null;
@@ -156,8 +189,7 @@ async function commentaryCandidatesByBook(
 			)
 		`
 		)
-		.in('bible_book', bibleBooks)
-		.is('deleted_at', null);
+		.in('bible_book', bibleBooks);
 
 	if (error) {
 		console.error('[studies] commentary coverage', error);
@@ -268,26 +300,37 @@ async function candidatesByGenre(
 	if (genres.length === 0) return out;
 	const { data, error } = await supabase
 		.from('books')
-		.select('id, title, genre, created_at')
+		.select('id, title, genre, created_at, series_id, volume_number, series ( id, abbreviation, deleted_at )')
 		.in('genre', genres)
 		.is('deleted_at', null);
 	if (error) {
 		console.error('[studies] genre candidates', error);
 		return out;
 	}
-	for (const row of (data ?? []) as {
+	for (const row of (data ?? []) as unknown as {
 		id: string;
 		title: string | null;
 		genre: string | null;
 		created_at: string;
+		series_id: string | null;
+		volume_number: string | null;
+		series:
+			| { id: string; abbreviation: string | null; deleted_at: string | null }
+			| { id: string; abbreviation: string | null; deleted_at: string | null }[]
+			| null;
 	}[]) {
 		if (!row.genre) continue;
+		const series = oneEmbed(row.series);
+		const seriesLive = row.series_id && series && !series.deleted_at ? series : null;
 		const list = out.get(row.genre) ?? [];
 		list.push({
 			bookId: row.id,
 			essayId: null,
 			title: (row.title ?? '').trim() || 'Untitled',
-			createdAt: row.created_at
+			createdAt: row.created_at,
+			seriesId: seriesLive?.id ?? null,
+			volumeNumber: row.volume_number,
+			seriesAbbreviation: seriesLive?.abbreviation?.trim() || null
 		});
 		out.set(row.genre, list);
 	}
@@ -303,7 +346,7 @@ async function candidatesByTopic(
 	if (lowered.length === 0) return out;
 	const { data, error } = await supabase
 		.from('book_topics')
-		.select('topic, book_id, books ( id, title, created_at, deleted_at )')
+		.select('topic, book_id, books ( id, title, created_at, deleted_at, series_id, volume_number, series ( id, abbreviation, deleted_at ) )')
 		.in('topic', lowered)
 		.is('deleted_at', null);
 	if (error) {
@@ -314,19 +357,46 @@ async function candidatesByTopic(
 		topic: string;
 		book_id: string | null;
 		books:
-			| { id: string; title: string | null; created_at: string; deleted_at: string | null }
-			| { id: string; title: string | null; created_at: string; deleted_at: string | null }[]
+			| {
+					id: string;
+					title: string | null;
+					created_at: string;
+					deleted_at: string | null;
+					series_id: string | null;
+					volume_number: string | null;
+					series:
+						| { id: string; abbreviation: string | null; deleted_at: string | null }
+						| { id: string; abbreviation: string | null; deleted_at: string | null }[]
+						| null;
+			  }
+			| {
+					id: string;
+					title: string | null;
+					created_at: string;
+					deleted_at: string | null;
+					series_id: string | null;
+					volume_number: string | null;
+					series:
+						| { id: string; abbreviation: string | null; deleted_at: string | null }
+						| { id: string; abbreviation: string | null; deleted_at: string | null }[]
+						| null;
+			  }[]
 			| null;
 	}[]) {
 		const book = oneEmbed(row.books);
 		if (!book || book.deleted_at || !row.book_id) continue;
+		const series = oneEmbed(book.series);
+		const seriesLive = book.series_id && series && !series.deleted_at ? series : null;
 		const list = out.get(row.topic) ?? [];
 		if (list.some((c) => c.bookId === book.id)) continue;
 		list.push({
 			bookId: book.id,
 			essayId: null,
 			title: (book.title ?? '').trim() || 'Untitled',
-			createdAt: book.created_at
+			createdAt: book.created_at,
+			seriesId: seriesLive?.id ?? null,
+			volumeNumber: book.volume_number,
+			seriesAbbreviation: seriesLive?.abbreviation?.trim() || null
 		});
 		out.set(row.topic, list);
 	}
@@ -366,7 +436,7 @@ async function loadOverrides(
 	if (setIds.length === 0) return out;
 	const { data, error } = await supabase
 		.from('resource_set_members')
-		.select('set_id, book_id, essay_id, kind')
+		.select('set_id, book_id, essay_id, kind, bibliographical')
 		.in('set_id', setIds)
 		.is('deleted_at', null);
 	if (error) {
@@ -378,20 +448,42 @@ async function loadOverrides(
 	const essayIds = [...new Set(rows.map((r) => r.essay_id).filter((v): v is string => !!v))];
 	const [booksRes, essaysRes] = await Promise.all([
 		bookIds.length
-			? supabase.from('books').select('id, title').in('id', bookIds).is('deleted_at', null)
-			: Promise.resolve({ data: [] as { id: string; title: string | null }[], error: null }),
+			? supabase
+					.from('books')
+					.select('id, title, series_id, volume_number, series ( id, abbreviation, deleted_at )')
+					.in('id', bookIds)
+					.is('deleted_at', null)
+			: Promise.resolve({
+					data: [] as {
+						id: string;
+						title: string | null;
+						series_id: string | null;
+						volume_number: string | null;
+						series:
+							| { id: string; abbreviation: string | null; deleted_at: string | null }
+							| { id: string; abbreviation: string | null; deleted_at: string | null }[]
+							| null;
+					}[],
+					error: null
+				}),
 		essayIds.length
 			? supabase.from('essays').select('id, essay_title').in('id', essayIds).is('deleted_at', null)
 			: Promise.resolve({ data: [] as { id: string; essay_title: string }[], error: null })
 	]);
 	if (booksRes.error) console.error('[studies] override books', booksRes.error);
 	if (essaysRes.error) console.error('[studies] override essays', essaysRes.error);
-	const bookTitle = new Map(
-		((booksRes.data ?? []) as { id: string; title: string | null }[]).map((b) => [
-			b.id,
-			(b.title ?? '').trim() || 'Untitled'
-		])
-	);
+	type OverrideBook = {
+		id: string;
+		title: string | null;
+		series_id: string | null;
+		volume_number: string | null;
+		series:
+			| { id: string; abbreviation: string | null; deleted_at: string | null }
+			| { id: string; abbreviation: string | null; deleted_at: string | null }[]
+			| null;
+	};
+	const bookMeta = new Map<string, OverrideBook>();
+	for (const book of (booksRes.data ?? []) as OverrideBook[]) bookMeta.set(book.id, book);
 	const essayTitle = new Map(
 		((essaysRes.data ?? []) as { id: string; essay_title: string }[]).map((e) => [
 			e.id,
@@ -401,8 +493,11 @@ async function loadOverrides(
 
 	for (const row of rows) {
 		if (row.kind !== 'include' && row.kind !== 'exclude') continue;
-		const title = row.book_id
-			? (bookTitle.get(row.book_id) ?? null)
+		const book = row.book_id ? bookMeta.get(row.book_id) : undefined;
+		const series = book ? oneEmbed(book.series) : null;
+		const seriesLive = book?.series_id && series && !series.deleted_at ? series : null;
+		const title = book
+			? (book.title ?? '').trim() || 'Untitled'
 			: row.essay_id
 				? (essayTitle.get(row.essay_id) ?? null)
 				: null;
@@ -411,7 +506,11 @@ async function loadOverrides(
 			bookId: row.book_id,
 			essayId: row.essay_id,
 			kind: row.kind,
-			title
+			title,
+			bibliographical: row.bibliographical !== false,
+			seriesId: seriesLive?.id ?? null,
+			volumeNumber: book?.volume_number ?? null,
+			seriesAbbreviation: seriesLive?.abbreviation?.trim() || null
 		});
 		out.set(row.set_id, list);
 	}
@@ -461,27 +560,31 @@ async function loadContext(supabase: SupabaseClient, sets: SetDb[]) {
 }
 
 export async function loadResourceSetList(supabase: SupabaseClient): Promise<{
-	groups: ReturnType<typeof groupResourceSetList>;
+	sections: ResourceSetSectionGroup[];
 	error: string | null;
 }> {
-	const { data, error } = await supabase
-		.from('resource_sets')
-		.select(SET_COLUMNS)
-		.is('deleted_at', null)
-		.order('sort_order', { ascending: true });
-	if (error) {
+	const [setsRes, sectionsRes] = await Promise.all([
+		supabase.from('resource_sets').select(SET_COLUMNS).is('deleted_at', null).order('sort_order', { ascending: true }),
+		supabase
+			.from('resource_set_sections')
+			.select(SECTION_COLUMNS)
+			.is('deleted_at', null)
+			.order('sort_order', { ascending: true })
+	]);
+	if (setsRes.error || sectionsRes.error) {
+		const error = setsRes.error ?? sectionsRes.error;
 		console.error('[studies] loadResourceSetList', error);
-		return {
-			groups: { bibleBooks: [], language: [], custom: [] },
-			error: error.message
-		};
+		return { sections: [], error: error?.message ?? 'Could not load sets.' };
 	}
-	const sets = (data ?? []) as SetDb[];
+	const sets = (setsRes.data ?? []) as SetDb[];
+	const sections = ((sectionsRes.data ?? []) as SectionDb[])
+		.map(asSection)
+		.filter((s): s is ResourceSetSectionMeta => s != null);
 	const ctx = await loadContext(supabase, sets);
 	const items: ResourceSetListItem[] = [];
 	for (const set of sets) {
 		const kind = asKind(set.kind);
-		if (!kind) continue;
+		if (!kind || !set.section_id) continue;
 		const resolved = resolveOne(set, ctx.commentary, ctx.genreMap, ctx.topicMap, ctx.overrides);
 		if (!resolved) continue;
 		items.push({
@@ -489,13 +592,146 @@ export async function loadResourceSetList(supabase: SupabaseClient): Promise<{
 			name: set.name,
 			slug: set.slug,
 			kind,
+			sectionId: set.section_id,
 			sortOrder: set.sort_order,
 			bibleBook: bibleBookFromRules(resolved.rules),
 			memberCount: resolved.included.length,
 			newCount: countNewMembers(resolved.included)
 		});
 	}
-	return { groups: groupResourceSetList(items), error: null };
+	return { sections: groupSetsIntoSections(sections, items), error: null };
+}
+
+type AuthorJunction = { person_id: string; role: string; sort_order: number };
+
+/** Short author line per catalog ref. Essay authors win; otherwise the parent book. */
+export async function authorLabelsForRefs(
+	supabase: SupabaseClient,
+	refs: CatalogRef[]
+): Promise<Map<string, string>> {
+	const out = new Map<string, string>();
+	const bookIds = [...new Set(refs.flatMap((r) => (r.bookId && !r.essayId ? [r.bookId] : [])))];
+	const essayIds = [...new Set(refs.flatMap((r) => (r.essayId ? [r.essayId] : [])))];
+	if (bookIds.length === 0 && essayIds.length === 0) return out;
+
+	const [bookAuthorsRes, essayAuthorsRes, essaysRes] = await Promise.all([
+		bookIds.length
+			? supabase
+					.from('book_authors')
+					.select('book_id, person_id, role, sort_order')
+					.in('book_id', bookIds)
+			: Promise.resolve({
+					data: [] as { book_id: string; person_id: string; role: string; sort_order: number }[],
+					error: null
+				}),
+		essayIds.length
+			? supabase
+					.from('essay_authors')
+					.select('essay_id, person_id, role, sort_order')
+					.in('essay_id', essayIds)
+			: Promise.resolve({
+					data: [] as { essay_id: string; person_id: string; role: string; sort_order: number }[],
+					error: null
+				}),
+		essayIds.length
+			? supabase.from('essays').select('id, parent_book_id').in('id', essayIds).is('deleted_at', null)
+			: Promise.resolve({ data: [] as { id: string; parent_book_id: string }[], error: null })
+	]);
+	if (bookAuthorsRes.error) console.error('[studies] set author labels', bookAuthorsRes.error);
+	if (essayAuthorsRes.error) console.error('[studies] set essay author labels', essayAuthorsRes.error);
+	if (essaysRes.error) console.error('[studies] set essay parents', essaysRes.error);
+
+	const parentByEssay = new Map(
+		((essaysRes.data ?? []) as { id: string; parent_book_id: string }[]).map((e) => [
+			e.id,
+			e.parent_book_id
+		])
+	);
+	const parentIds = [...parentByEssay.values()].filter((id) => !bookIds.includes(id));
+	let parentAuthors: { book_id: string; person_id: string; role: string; sort_order: number }[] = [];
+	if (parentIds.length > 0) {
+		const parentRes = await supabase
+			.from('book_authors')
+			.select('book_id, person_id, role, sort_order')
+			.in('book_id', parentIds);
+		if (parentRes.error) console.error('[studies] set parent authors', parentRes.error);
+		parentAuthors = (parentRes.data ?? []) as typeof parentAuthors;
+	}
+
+	const junctionsByBook = new Map<string, AuthorJunction[]>();
+	for (const row of [
+		...((bookAuthorsRes.data ?? []) as {
+			book_id: string;
+			person_id: string;
+			role: string;
+			sort_order: number;
+		}[]),
+		...parentAuthors
+	]) {
+		const list = junctionsByBook.get(row.book_id) ?? [];
+		list.push(row);
+		junctionsByBook.set(row.book_id, list);
+	}
+	const junctionsByEssay = new Map<string, AuthorJunction[]>();
+	for (const row of (essayAuthorsRes.data ?? []) as {
+		essay_id: string;
+		person_id: string;
+		role: string;
+		sort_order: number;
+	}[]) {
+		const list = junctionsByEssay.get(row.essay_id) ?? [];
+		list.push(row);
+		junctionsByEssay.set(row.essay_id, list);
+	}
+
+	const personIds = new Set<string>();
+	for (const rows of junctionsByBook.values()) for (const row of rows) personIds.add(row.person_id);
+	for (const rows of junctionsByEssay.values()) for (const row of rows) personIds.add(row.person_id);
+	if (personIds.size === 0) return out;
+
+	const peopleRes = await supabase
+		.from('people')
+		.select('id, first_name, middle_name, last_name, suffix')
+		.in('id', [...personIds])
+		.is('deleted_at', null);
+	if (peopleRes.error) {
+		console.error('[studies] set people', peopleRes.error);
+		return out;
+	}
+	const people = new Map<string, PersonRow>();
+	for (const row of (peopleRes.data ?? []) as {
+		id: string;
+		first_name: string | null;
+		middle_name: string | null;
+		last_name: string;
+		suffix: string | null;
+	}[]) {
+		people.set(row.id, { ...row, aliases: [] });
+	}
+
+	const labelFor = (rows: AuthorJunction[] | undefined): string | null =>
+		rows && rows.length > 0 ? authorsLabelForBook(rows, people) : null;
+
+	for (const ref of refs) {
+		const key = refKey(ref);
+		if (!key || out.has(key)) continue;
+		if (ref.essayId) {
+			const essayLabel = labelFor(junctionsByEssay.get(ref.essayId));
+			const parentId = parentByEssay.get(ref.essayId);
+			const label = essayLabel ?? (parentId ? labelFor(junctionsByBook.get(parentId)) : null);
+			if (label) out.set(key, label);
+			continue;
+		}
+		if (ref.bookId) {
+			const label = labelFor(junctionsByBook.get(ref.bookId));
+			if (label) out.set(key, label);
+		}
+	}
+	return out;
+}
+
+function withAuthorLabels(members: ResolvedMember[], labels: Map<string, string>): ResolvedMember[] {
+	return members.map((member) => ({ ...member, authors: labels.get(refKey(member)) ?? null }));
 }
 
 export async function loadResourceSetDetail(
@@ -519,6 +755,7 @@ export async function loadResourceSetDetail(
 	const ctx = await loadContext(supabase, [set]);
 	const resolved = resolveOne(set, ctx.commentary, ctx.genreMap, ctx.topicMap, ctx.overrides);
 	if (!resolved) return { set: null, error: 'Could not resolve set.' };
+	const labels = await authorLabelsForRefs(supabase, [...resolved.included, ...resolved.excluded]);
 	return {
 		set: {
 			id: set.id,
@@ -528,8 +765,8 @@ export async function loadResourceSetDetail(
 			rules: resolved.rules,
 			defaultFor: set.default_for ?? [],
 			lastReviewedAt: set.last_reviewed_at,
-			included: resolved.included,
-			excluded: resolved.excluded
+			included: withAuthorLabels(resolved.included, labels),
+			excluded: withAuthorLabels(resolved.excluded, labels)
 		},
 		error: null
 	};
@@ -542,12 +779,16 @@ export async function loadResourceSetSummaries(supabase: SupabaseClient): Promis
 		name: string;
 		kind: ResourceSetKind;
 		rules: ResourceSetRule[];
+		sectionName: string | null;
+		sectionSort: number;
 	}[];
 	error: string | null;
 }> {
 	const { data, error } = await supabase
 		.from('resource_sets')
-		.select('id, name, kind, rules')
+		.select(
+			'id, name, kind, rules, resource_set_sections!resource_sets_section_id_fkey ( name, sort_order )'
+		)
 		.is('deleted_at', null)
 		.order('name', { ascending: true });
 	if (error) {
@@ -555,17 +796,118 @@ export async function loadResourceSetSummaries(supabase: SupabaseClient): Promis
 		return { sets: [], error: error.message };
 	}
 	const sets = [];
-	for (const row of (data ?? []) as { id: string; name: string; kind: string; rules: unknown }[]) {
+	for (const row of (data ?? []) as {
+		id: string;
+		name: string;
+		kind: string;
+		rules: unknown;
+		resource_set_sections:
+			| { name: string; sort_order: number }
+			| { name: string; sort_order: number }[]
+			| null;
+	}[]) {
 		const kind = asKind(row.kind);
 		if (!kind) continue;
+		const section = oneEmbed(row.resource_set_sections);
 		sets.push({
 			id: row.id,
 			name: row.name,
 			kind,
-			rules: parseResourceSetRules(row.rules)
+			rules: parseResourceSetRules(row.rules),
+			sectionName: section?.name ?? null,
+			sectionSort: section?.sort_order ?? 0
 		});
 	}
 	return { sets, error: null };
+}
+
+type AddSearchBook = {
+	id: string;
+	title: string | null;
+	series_id: string | null;
+	volume_number: string | null;
+	series:
+		| { id: string; abbreviation: string | null; deleted_at: string | null }
+		| { id: string; abbreviation: string | null; deleted_at: string | null }[]
+		| null;
+};
+
+function addSearchRow(book: AddSearchBook): VolumeSearchRow | null {
+	if (!book.id) return null;
+	const series = oneEmbed(book.series);
+	const seriesLive = book.series_id && series && !series.deleted_at ? series : null;
+	return {
+		id: book.id,
+		title: (book.title ?? '').trim() || 'Untitled',
+		seriesId: seriesLive?.id ?? null,
+		volumeNumber: book.volume_number,
+		seriesAbbreviation: seriesLive?.abbreviation?.trim() || null
+	};
+}
+
+const ADD_SEARCH_COLUMNS =
+	'id, title, series_id, volume_number, series ( id, abbreviation, deleted_at )';
+
+/** Title, citation abbreviation, or series name/abbreviation. Volumes of one work come back together. */
+export async function searchBooksToAdd(
+	supabase: SupabaseClient,
+	needle: string
+): Promise<VolumeSearchGroup[]> {
+	const like = `%${needle}%`;
+	const [titleRes, citeRes, seriesAbbrRes, seriesNameRes] = await Promise.all([
+		supabase.from('books').select(ADD_SEARCH_COLUMNS).ilike('title', like).is('deleted_at', null).limit(24),
+		supabase
+			.from('books')
+			.select(ADD_SEARCH_COLUMNS)
+			.ilike('citation_abbreviation', like)
+			.is('deleted_at', null)
+			.limit(12),
+		supabase.from('series').select('id').ilike('abbreviation', like).is('deleted_at', null).limit(8),
+		supabase.from('series').select('id').ilike('name', like).is('deleted_at', null).limit(8)
+	]);
+	for (const res of [titleRes, citeRes, seriesAbbrRes, seriesNameRes]) {
+		if (res.error) console.error('[studies] set add search', res.error);
+	}
+	const seriesIds = [
+		...new Set(
+			[...(seriesAbbrRes.data ?? []), ...(seriesNameRes.data ?? [])].map((row) => (row as { id: string }).id)
+		)
+	];
+	const seriesRes =
+		seriesIds.length > 0
+			? await supabase
+					.from('books')
+					.select(ADD_SEARCH_COLUMNS)
+					.in('series_id', seriesIds)
+					.is('deleted_at', null)
+					.limit(80)
+			: { data: [] as AddSearchBook[], error: null };
+	if (seriesRes.error) console.error('[studies] set add search series books', seriesRes.error);
+
+	const seeds = [...(titleRes.data ?? []), ...(citeRes.data ?? []), ...(seriesRes.data ?? [])] as AddSearchBook[];
+	const seedRows = seeds.flatMap((book) => {
+		const row = addSearchRow(book);
+		return row ? [row] : [];
+	});
+	const siblingSeries = [...new Set(seedRows.flatMap((row) => (row.seriesId ? [row.seriesId] : [])))];
+	const siblingTitles = [...new Set(seedRows.map((row) => row.title))];
+	let siblings: AddSearchBook[] = [];
+	if (siblingSeries.length > 0 && siblingTitles.length > 0) {
+		const siblingRes = await supabase
+			.from('books')
+			.select(ADD_SEARCH_COLUMNS)
+			.in('series_id', siblingSeries)
+			.in('title', siblingTitles)
+			.is('deleted_at', null)
+			.limit(80);
+		if (siblingRes.error) console.error('[studies] set add search siblings', siblingRes.error);
+		siblings = (siblingRes.data ?? []) as AddSearchBook[];
+	}
+	const rows = [...seedRows, ...siblings.flatMap((book) => {
+		const row = addSearchRow(book);
+		return row ? [row] : [];
+	})];
+	return groupVolumeSearchHits(rows).slice(0, 8);
 }
 
 export type { CatalogRef };

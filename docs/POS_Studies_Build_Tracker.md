@@ -160,3 +160,4 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 ### Follow-on (not a tracker session)
 
 - [x] Overlapping passage sections import as the book; footnote page prefills from the tightest span ([251](decisions/251-studies-passage-section-import.md)). Sections stay off by-book, hit rate, and auto-attach.
+- [x] Sets sections collapse; commentaries load; Septuagint studies leave NT language tools; reference-only members ([257](decisions/257-sets-sections-septuagint.md)).

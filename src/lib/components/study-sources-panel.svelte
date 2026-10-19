@@ -70,11 +70,7 @@
 		bookHits: BookListRow[];
 		essayHits: EssaySearchHit[];
 		suggestions: SetSuggestion[];
-		importSets: {
-			bibleBooks: { id: string; name: string }[];
-			language: { id: string; name: string }[];
-			custom: { id: string; name: string }[];
-		};
+		importSets: { label: string; sets: { id: string; name: string }[] }[];
 		importPapers: { id: string; title: string; passageDisplay: string | null }[];
 		importChecklist: {
 			key: string;

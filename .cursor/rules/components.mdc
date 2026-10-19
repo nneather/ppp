@@ -90,7 +90,8 @@ If you reach for one of these capabilities, use the existing component.
 | Classwork Assignments \| Papers view toggle (Papers links to `/studies/papers`) | [src/lib/components/classwork-view-toggle.svelte](mdc:src/lib/components/classwork-view-toggle.svelte) |
 | Sermons List \| By book view toggle (legacy; studies tabs replaced it on the moved pages) | [src/lib/components/sermons-view-toggle.svelte](mdc:src/lib/components/sermons-view-toggle.svelte) |
 | Studies tab chips (Overview \| Papers \| Sermons \| Sets \| By book) | [src/lib/components/studies-nav.svelte](mdc:src/lib/components/studies-nav.svelte) |
-| Resource set review (included, excluded add-back, rule chips, save review) | [src/lib/components/resource-set-review.svelte](mdc:src/lib/components/resource-set-review.svelte) |
+| Resource set list (collapsible sections, Bible books split Old/New Testament, new set / new section outside Bible books) | [src/lib/components/resource-set-browser.svelte](mdc:src/lib/components/resource-set-browser.svelte) |
+| Resource set review (included, excluded add-back, reference-only toggle, add by title or abbreviation, rule chips, save review) | [src/lib/components/resource-set-review.svelte](mdc:src/lib/components/resource-set-review.svelte) |
 | Invoicing Time \| Invoices \| Analytics view toggle (shared by `/invoicing`, `/invoicing/invoices`, `/invoicing/analytics`) | [src/lib/components/invoicing-view-toggle.svelte](mdc:src/lib/components/invoicing-view-toggle.svelte) |
 | Invoice mark-paid undo toast (10s; list + detail; `liftForFab` on the invoices list) | [src/lib/components/invoice-paid-undo-toast.svelte](mdc:src/lib/components/invoice-paid-undo-toast.svelte) |
 | Invoicing analytics SVG chart (hours/money/both; dual-axis when both) | [src/lib/components/invoicing-analytics-chart.svelte](mdc:src/lib/components/invoicing-analytics-chart.svelte) |

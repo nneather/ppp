@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadBookListFiltered, loadEssaySearchHits } from '$lib/library/server/loaders';
 import {
 	buildImportChecklist,
-	groupImportSets,
+	groupImportSetSections,
 	importGroupName,
 	parseImportTarget,
 	suggestResourceSets,
@@ -20,6 +20,7 @@ import {
 	loadPrimaryStudyPassages
 } from '$lib/studies/server/passage-section-suggest';
 import type { PaperGroupView, PaperSourceView, OrphanPaperSource } from '$lib/studies/paper-sources';
+import { citeableSetMembers } from '$lib/studies/resource-sets';
 import { loadResourceSetDetail, loadResourceSetSummaries } from '$lib/studies/server/resource-set-loaders';
 import type { StudyParent } from '$lib/studies/study-parent';
 import type { BookListRow, EssaySearchHit } from '$lib/types/library';
@@ -41,11 +42,7 @@ export type StudyWorkspace = {
 	bookHits: BookListRow[];
 	essayHits: EssaySearchHit[];
 	suggestions: SetSuggestion[];
-	importSets: {
-		bibleBooks: { id: string; name: string }[];
-		language: { id: string; name: string }[];
-		custom: { id: string; name: string }[];
-	};
+	importSets: { label: string; sets: { id: string; name: string }[] }[];
 	setNames: { id: string; name: string }[];
 	importPapers: { id: string; title: string; passageDisplay: string | null }[];
 	importChecklist: {
@@ -115,7 +112,7 @@ export async function loadStudyWorkspace(
 		},
 		setSummaries
 	);
-	const groupedSets = groupImportSets(setSummaries);
+	const groupedSets = groupImportSetSections(setSummaries);
 	const importPapers = ((otherPapersRes.data ?? []) as {
 		id: string;
 		title: string;
@@ -169,7 +166,7 @@ export async function loadStudyWorkspace(
 				sourceLabel: detail.set.name,
 				copyNotes: false,
 				rows: buildImportChecklist(
-					detail.set.included.map((member) => ({
+					citeableSetMembers(detail.set.included).map((member) => ({
 						bookId: member.bookId,
 						essayId: member.essayId,
 						title: member.title,
@@ -232,11 +229,10 @@ export async function loadStudyWorkspace(
 		bookHits,
 		essayHits,
 		suggestions,
-		importSets: {
-			bibleBooks: groupedSets.bibleBooks.map((set) => ({ id: set.id, name: set.name })),
-			language: groupedSets.language.map((set) => ({ id: set.id, name: set.name })),
-			custom: groupedSets.custom.map((set) => ({ id: set.id, name: set.name }))
-		},
+		importSets: groupedSets.map((section) => ({
+			label: section.label,
+			sets: section.sets.map((set) => ({ id: set.id, name: set.name }))
+		})),
 		setNames: setSummaries.map((set) => ({ id: set.id, name: set.name })),
 		importPapers,
 		importChecklist,

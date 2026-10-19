@@ -1,4 +1,4 @@
-import type { ResolvedMember } from '$lib/studies/resource-sets';
+import { citeableSetMembers, type ResolvedMember } from '$lib/studies/resource-sets';
 
 export type DefaultAttachSource = {
 	bookId: string | null;
@@ -6,13 +6,13 @@ export type DefaultAttachSource = {
 };
 
 /**
- * Auto-attach uses the resolved include list. Sticky excludes are already
- * removed by `resolveSetMembers`, so they never become candidate rows.
+ * Auto-attach uses the resolved include list. Sticky excludes and reference-only
+ * members (concordances) never become candidate rows.
  */
 export function sourcesForDefaultAttach(included: ResolvedMember[]): DefaultAttachSource[] {
 	const out: DefaultAttachSource[] = [];
 	const seen = new Set<string>();
-	for (const member of included) {
+	for (const member of citeableSetMembers(included)) {
 		const bookId = member.bookId;
 		const essayId = member.essayId;
 		if (essayId && bookId) continue;

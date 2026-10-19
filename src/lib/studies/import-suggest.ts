@@ -20,6 +20,8 @@ export type ImportSetSummary = {
 	name: string;
 	kind: ResourceSetKind;
 	rules: ResourceSetRule[];
+	sectionName?: string | null;
+	sectionSort?: number;
 };
 
 export type PaperSuggestInput = {
@@ -180,6 +182,36 @@ export function groupImportSets(sets: ImportSetSummary[]): {
 		language: sets.filter((s) => s.kind === 'language').slice().sort(byName),
 		custom: sets.filter((s) => s.kind === 'custom').slice().sort(byName)
 	};
+}
+
+/** Import picker groups follow the Sets page sections, canon order inside Bible books. */
+export function groupImportSetSections(
+	sets: ImportSetSummary[]
+): { label: string; sets: ImportSetSummary[] }[] {
+	const canon = new Map(BIBLE_BOOK_NAMES.map((name, i) => [name, i]));
+	const buckets = new Map<string, { sort: number; sets: ImportSetSummary[] }>();
+	for (const set of sets) {
+		const label =
+			set.sectionName?.trim() ||
+			(set.kind === 'bible_book' ? 'Bible books' : set.kind === 'language' ? 'Language tools' : 'Custom');
+		const sort = set.sectionSort ?? (set.kind === 'bible_book' ? 0 : set.kind === 'language' ? 1 : 2);
+		const bucket = buckets.get(label) ?? { sort, sets: [] };
+		bucket.sets.push(set);
+		buckets.set(label, bucket);
+	}
+	return [...buckets.entries()]
+		.sort((a, b) => a[1].sort - b[1].sort || a[0].localeCompare(b[0]))
+		.map(([label, bucket]) => ({
+			label,
+			sets: bucket.sets.slice().sort((a, b) => {
+				if (a.kind === 'bible_book' || b.kind === 'bible_book') {
+					const ai = canon.get(bibleBookFromRules(a.rules) ?? '') ?? 999;
+					const bi = canon.get(bibleBookFromRules(b.rules) ?? '') ?? 999;
+					if (ai !== bi) return ai - bi;
+				}
+				return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+			})
+		}));
 }
 
 /** Set imports keep the set name. Prior papers land in `From: <title>`. */

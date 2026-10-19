@@ -29,5 +29,7 @@
 		included={data.set.included}
 		excluded={data.set.excluded}
 		isOwner={data.isOwner}
+		addQuery={data.addQuery}
+		addHits={data.addHits}
 	/>
 </div>

@@ -3,9 +3,15 @@ import type { ByBookShelfHit } from '$lib/types/sermons';
 import {
 	candidatesFromCommentaryHits,
 	countNewMembers,
+	filterResourceSetItems,
 	groupResourceSetList,
+	groupSetsIntoSections,
+	groupVolumeSearchHits,
 	parseResourceSetRules,
 	resolveSetMembers,
+	resourceSetListLabel,
+	slugifyResourceName,
+	testamentOfBibleBook,
 	type ResourceSetListItem,
 	type RuleCandidate,
 	type SetOverride
@@ -16,7 +22,10 @@ function cand(partial: Partial<RuleCandidate> & Pick<RuleCandidate, 'title'>): R
 		bookId: partial.bookId ?? null,
 		essayId: partial.essayId ?? null,
 		title: partial.title,
-		createdAt: partial.createdAt ?? null
+		createdAt: partial.createdAt ?? null,
+		seriesId: partial.seriesId ?? null,
+		volumeNumber: partial.volumeNumber ?? null,
+		seriesAbbreviation: partial.seriesAbbreviation ?? null
 	};
 }
 
@@ -84,6 +93,48 @@ describe('resolveSetMembers', () => {
 		expect(excluded.map((m) => m.title)).toEqual(['Alpha']);
 	});
 
+	it('rolls volumes that share a series and a title into one row', () => {
+		const { included } = resolveSetMembers({
+			candidates: [
+				cand({ bookId: 'v2', title: 'TDNT', seriesId: 'tdnt', volumeNumber: '2', seriesAbbreviation: 'TDNT' }),
+				cand({ bookId: 'v10', title: 'TDNT', seriesId: 'tdnt', volumeNumber: '10', seriesAbbreviation: 'TDNT' }),
+				cand({ bookId: 'v1', title: 'TDNT', seriesId: 'tdnt', volumeNumber: '1', seriesAbbreviation: 'TDNT' }),
+				cand({ bookId: 'iliad', title: 'Iliad', seriesId: 'loeb', volumeNumber: '1', seriesAbbreviation: 'LCL' }),
+				cand({ bookId: 'odyssey', title: 'Odyssey', seriesId: 'loeb', volumeNumber: '1', seriesAbbreviation: 'LCL' })
+			],
+			overrides: [],
+			lastReviewedAt: null
+		});
+		const tdnt = included.find((member) => member.title === 'TDNT');
+		expect(tdnt?.bookId).toBe('v1');
+		expect(tdnt?.volumeBookIds).toEqual(['v1', 'v2', 'v10']);
+		expect(tdnt?.volumeCount).toBe(3);
+		expect(included.map((member) => member.title)).toEqual(['Iliad', 'Odyssey', 'TDNT']);
+	});
+
+	it('groups a multi-volume search hit and leaves different titles apart', () => {
+		const groups = groupVolumeSearchHits([
+			{ id: 'v2', title: 'NIDOTTE', seriesId: 'nid', volumeNumber: '2', seriesAbbreviation: 'NIDOTTE' },
+			{ id: 'v1', title: 'NIDOTTE', seriesId: 'nid', volumeNumber: '1', seriesAbbreviation: 'NIDOTTE' },
+			{ id: 'v1b', title: 'NIDOTTE', seriesId: 'nid', volumeNumber: '1', seriesAbbreviation: 'NIDOTTE' },
+			{ id: 'bdb', title: 'BDB', seriesId: null, volumeNumber: null, seriesAbbreviation: null }
+		]);
+		expect(groups.map((group) => group.title)).toEqual(['BDB', 'NIDOTTE']);
+		expect(groups.find((group) => group.title === 'NIDOTTE')?.bookIds).toEqual(['v1', 'v1b', 'v2']);
+	});
+
+	it('keeps a reference-only rule match in the set', () => {
+		const { included } = resolveSetMembers({
+			candidates,
+			overrides: [{ ...ov('include', 'a', 'Alpha'), bibliographical: false }],
+			lastReviewedAt: null
+		});
+		const alpha = included.find((m) => m.bookId === 'a');
+		expect(alpha?.origin).toBe('rule');
+		expect(alpha?.bibliographical).toBe(false);
+		expect(included.find((m) => m.bookId === 'b')?.bibliographical).toBe(true);
+	});
+
 	it('lets exclude win over a sticky include of the same book', () => {
 		const { included, excluded } = resolveSetMembers({
 			candidates: [],
@@ -111,6 +162,73 @@ describe('groupResourceSetList', () => {
 			'OT language tools'
 		]);
 		expect(grouped.custom.map((i) => i.name)).toEqual(['Systematic Theology']);
+	});
+});
+
+describe('set sections', () => {
+	it('slugifies names the same way the seed does', () => {
+		expect(slugifyResourceName('  NT language tools ')).toBe('nt-language-tools');
+		expect(slugifyResourceName('Septuagint')).toBe('septuagint');
+		expect(slugifyResourceName('---')).toBe('');
+	});
+
+	it('labels a commentary set by the Bible book', () => {
+		expect(resourceSetListLabel(item('bible_book', 'Commentaries: Romans', 0, 'Romans'))).toBe(
+			'Romans'
+		);
+	});
+
+	it('splits the canon at Matthew', () => {
+		expect(testamentOfBibleBook('Malachi')).toBe('ot');
+		expect(testamentOfBibleBook('Matthew')).toBe('nt');
+		expect(testamentOfBibleBook('Romans')).toBe('nt');
+		expect(testamentOfBibleBook(null)).toBeNull();
+	});
+
+	it('keeps an empty section and sorts Bible books in canon order', () => {
+		const sections = groupSetsIntoSections(
+			[
+				{
+					id: 'custom',
+					name: 'Custom',
+					slug: 'custom',
+					setKind: 'custom',
+					locked: false,
+					sortOrder: 3
+				},
+				{
+					id: 'bible',
+					name: 'Bible books',
+					slug: 'bible-books',
+					setKind: 'bible_book',
+					locked: true,
+					sortOrder: 0
+				},
+				{
+					id: 'empty',
+					name: 'Septuagint',
+					slug: 'septuagint',
+					setKind: 'custom',
+					locked: false,
+					sortOrder: 2
+				}
+			],
+			[
+				item('bible_book', 'Commentaries: Romans', 0, 'Romans'),
+				item('bible_book', 'Commentaries: Genesis', 0, 'Genesis')
+			].map((row) => ({ ...row, sectionId: 'bible' }))
+		);
+		expect(sections.map((s) => s.slug)).toEqual(['bible-books', 'septuagint', 'custom']);
+		expect(sections[0]?.items.map((row) => row.bibleBook)).toEqual(['Genesis', 'Romans']);
+		expect(sections[1]?.items).toEqual([]);
+	});
+
+	it('filters on the book name', () => {
+		const rows = [
+			item('bible_book', 'Commentaries: Romans', 0, 'Romans'),
+			item('language', 'NT language tools', 0)
+		];
+		expect(filterResourceSetItems(rows, 'rom').map((row) => row.bibleBook)).toEqual(['Romans']);
 	});
 });
 
@@ -150,6 +268,7 @@ function item(
 		name,
 		slug: name,
 		kind,
+		sectionId: kind,
 		sortOrder,
 		bibleBook,
 		memberCount: 0,
