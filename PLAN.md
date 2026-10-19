@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Turretin’s scripture index comes from Parker’s English PDF (tracked outside the repo); Calvin’s from shelf photos ([267](docs/decisions/267-systematics-index-sources.md)). Book detail Outline and Passage sections start collapsed ([266](docs/decisions/266-book-detail-outline-passage-collapsed.md)).
+**Last updated:** 2026-10-19 — OCR daily cap is 300 so the Turretin index can finish in one sitting ([268](docs/decisions/268-ocr-daily-cap-turretin-index.md)). Turretin’s scripture index comes from Parker’s English PDF ([267](docs/decisions/267-systematics-index-sources.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [268 — OCR daily cap for the Turretin index](docs/decisions/268-ocr-daily-cap-turretin-index.md) (2026-10-19) — 50 calls stopped index mode around leaf 8. Cap is 300 for this capture.
 - [267 — Systematics index sources](docs/decisions/267-systematics-index-sources.md) (2026-10-19) — Turretin from Parker’s English PDF. Calvin from shelf photos. van Mastricht and Bavinck theories stored, not chosen.
 - [266 — Outline and passage sections start collapsed](docs/decisions/266-book-detail-outline-passage-collapsed.md) (2026-10-19) — Book detail headers keep the count. A `#section-` link still opens Passage sections.
 - [265 — Ask about study sets when adding books](docs/decisions/265-library-add-books-ask-sets.md) (2026-10-19) — Confirm a set before insert. Girdlestone is already on OT language tools by genre rule.
 - [264 — Girdlestone OT synonyms](docs/decisions/264-library-girdlestone-ot-synonyms.md) (2026-10-19) — Eerdmans 1981 reprint of 1897. Short title, middle initial, no series, matching Trench.
-- [263 — Systematics page-index gold gate](docs/decisions/263-systematics-page-index-gold-gate.md) (2026-10-19) — Three Turretin index leaves, 1,021/1,025 exact (99.610%). OCR about 3 minutes a leaf. Bulk Turretin not started.
 
 ---
 

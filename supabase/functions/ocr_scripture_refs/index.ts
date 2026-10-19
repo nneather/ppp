@@ -6,7 +6,11 @@ import { PDFDocument } from 'pdf-lib';
 import { BIBLE_BOOK_SET, BIBLE_BOOK_NAMES } from './bible-book-allowlist.ts';
 import { normalizeSectionPageFields } from './section-pointer.ts';
 
-const OCR_DAILY_CAP = 50;
+/**
+ * Per-user UTC-day cap. Phone batches stay far under this.
+ * Index mode spends 6 calls per leaf (3 columns × 2 passes); Turretin vol. 3 is ~252.
+ */
+const OCR_DAILY_CAP = 300;
 
 function resolveCorsOrigin(req: Request): string | null {
 	const origin = req.headers.get('Origin');
