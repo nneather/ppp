@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Calvin index capture keeps Arabic locators, version tags, and the volume that owns each chapter ([262](docs/decisions/262-calvin-index-capture-rules.md)).
+**Last updated:** 2026-10-19 — Girdlestone, *Synonyms of the Old Testament* (Eerdmans, 1981 / 1897), shelved like Trench ([264](docs/decisions/264-library-girdlestone-ot-synonyms.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [264 — Girdlestone OT synonyms](docs/decisions/264-library-girdlestone-ot-synonyms.md) (2026-10-19) — Eerdmans 1981 reprint of 1897. Short title, middle initial, no series, matching Trench.
 - [262 — Calvin index capture rules](docs/decisions/262-calvin-index-capture-rules.md) (2026-10-19) — Arabic locators (`1.13.7`) save on the volume that owns that chapter. Version tags stay on the note. `PA` / `VG` / `VL` are flagged.
 - [261 — Essay roman page labels](docs/decisions/261-essay-roman-page-labels.md) (2026-10-19) — Essay pages are text (`835` or `xiii`). Cook’s NETS essay is xiii–xx.
 - [260 — Muraoka’s Septuagint lexicon](docs/decisions/260-library-muraoka-gels.md) (2026-10-19) — 2009 Peeters GELS, keyed by ISBN beside LEH. Included on Septuagint studies; dismissed from NT language tools.
 - [259 — Calvin section-index practice](docs/decisions/259-calvin-section-index-practice.md) (2026-10-19) — Section locators join the outline; a short Battles outline and verified refs show on the systematic band. Page-index bulk capture still waits on the gold gate.
-- [258 — Study attachments parked](docs/decisions/258-study-attachments-parked.md) (2026-10-19) — Scans as PDF fit Free for years; audio is the budget breaker (links first). One table + one bucket + one panel when picked up.
 
 ---
 
