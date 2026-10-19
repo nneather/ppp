@@ -462,6 +462,43 @@ export async function updateTaskAction(supabase: SupabaseClient, fd: FormData) {
 	return { kind: 'updateTask' as const, taskId: id, success: true as const };
 }
 
+/**
+ * Stamp completed_at and spawn the next series occurrence when applicable.
+ * Shared by the form action and ritual auto-complete.
+ */
+export async function completeTaskRecord(
+	supabase: SupabaseClient,
+	task: TaskRow
+): Promise<{ ok: true } | { ok: false; message: string }> {
+	if (task.deleted_at) return { ok: false, message: 'Task not found.' };
+	if (task.completed_at) return { ok: true };
+
+	const { error } = await supabase
+		.from('project_tasks')
+		.update({ completed_at: new Date().toISOString() } as never)
+		.eq('id', task.id);
+
+	if (error) {
+		console.error('completeTaskRecord', error);
+		return { ok: false, message: error.message ?? 'Could not complete task.' };
+	}
+
+	if (task.series_id) {
+		const series = await fetchSeries(supabase, task.series_id);
+		if (series && !series.deleted_at) {
+			const spawned = await spawnNextOccurrence(
+				supabase,
+				task.created_by,
+				series,
+				task.start_date
+			);
+			if (!spawned.ok) return spawned;
+		}
+	}
+
+	return { ok: true };
+}
+
 export async function completeTaskAction(supabase: SupabaseClient, fd: FormData) {
 	const id = parseUuid(fd.get('id'));
 	if (!id) return fail(400, { kind: 'completeTask' as const, message: 'Missing task id.' });
@@ -475,37 +512,13 @@ export async function completeTaskAction(supabase: SupabaseClient, fd: FormData)
 		});
 	}
 
-	const { error } = await supabase
-		.from('project_tasks')
-		.update({ completed_at: new Date().toISOString() } as never)
-		.eq('id', id);
-
-	if (error) {
-		console.error('completeTaskAction', error);
+	const result = await completeTaskRecord(supabase, task);
+	if (!result.ok) {
 		return fail(500, {
 			kind: 'completeTask' as const,
 			taskId: id,
-			message: error.message ?? 'Could not complete task.'
+			message: result.message
 		});
-	}
-
-	if (task.series_id) {
-		const series = await fetchSeries(supabase, task.series_id);
-		if (series && !series.deleted_at) {
-			const spawned = await spawnNextOccurrence(
-				supabase,
-				task.created_by,
-				series,
-				task.start_date
-			);
-			if (!spawned.ok) {
-				return fail(500, {
-					kind: 'completeTask' as const,
-					taskId: id,
-					message: spawned.message
-				});
-			}
-		}
 	}
 
 	return { kind: 'completeTask' as const, taskId: id, success: true as const };

@@ -23,6 +23,7 @@ import {
 	softDeleteTaskAction,
 	undoSoftDeleteTaskAction
 } from '$lib/projects/server/task-actions';
+import { reconcileWeeklyCheckinRitual } from '$lib/projects/server/ritual-checkin-reconcile';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -50,12 +51,17 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		loadProjectRows(supabase),
 		supabase
 			.from('profiles')
-			.select('default_task_project_id, task_saved_views')
+			.select('role, default_task_project_id, task_saved_views')
 			.eq('id', user.id)
 			.maybeSingle()
 	]);
 
 	if (profileRes.error) console.error(profileRes.error);
+
+	if (profileRes.data?.role === 'owner') {
+		const ritual = await reconcileWeeklyCheckinRitual(supabase);
+		if (ritual.kind === 'error') console.error('[tasks] ritual reconcile', ritual.message);
+	}
 
 	const savedViews = parseTaskSavedViews(profileRes.data?.task_saved_views);
 	const defaultTaskProjectId = profileRes.data?.default_task_project_id ?? null;

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Sermon venue logistics ([241](docs/decisions/241-sermon-venue-logistics.md)).
+**Last updated:** 2026-10-19 — Ritual check-in auto-complete + flexible assignments ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)).
 
 **How to use this file — read this first:**
 
@@ -18,7 +18,7 @@
 
 **Fall semester window ([138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md)):** **classwork** + **lightweight CRM/contacts** (meet cadence, Christmas cards; mailing-list send later).
 
-- **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)). **Papers Sessions 1–2 shipped** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)). **Canvas FA-26 import applied** ([216](docs/decisions/216-canvas-classwork-import.md)) — re-pull in weeks 1–3 as dates churn.
+- **Classwork** — Sessions 0–2 shipped ([153](docs/decisions/153-classwork-session-1.md), [161](docs/decisions/161-classwork-session-2.md)). **Papers Sessions 1–2 shipped** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)). **Canvas FA-26 import applied** ([216](docs/decisions/216-canvas-classwork-import.md)). **List/dashboard quick complete + reschedule** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)).
 - **Contacts / CRM** — Sessions 1–3 + period cadence / import ([210](docs/decisions/210-contacts-semester-period-cadence.md)) + due integrity ([212](docs/decisions/212-contacts-due-integrity.md)) + frequency labels ([213](docs/decisions/213-contacts-frequency-labels.md)) + roster sort ([214](docs/decisions/214-contacts-roster-sort.md)) + **live search / compact roster** ([223](docs/decisions/223-contacts-roster-search-density.md)) + **green check when current this period** ([230](docs/decisions/230-contacts-roster-current-check.md)) + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Christmas Has-address seed in November; mailing send later.
 - **MCP read-only v1** ([144](docs/decisions/144-ppp-mcp-readonly-v1.md)) + classwork tools ([161](docs/decisions/161-classwork-session-2.md)) + health filters ([164](docs/decisions/164-mcp-list-project-health-filters.md)) + `list_week_tasks` ([165](docs/decisions/165-mcp-list-week-tasks.md)/[184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + contacts ([180](docs/decisions/180-contacts-session-2.md)).
 - Madison shelf QA after Aug 9. Personal priorities: `~/Neal/context/current-priorities.md`.
@@ -35,10 +35,10 @@ Nearest hard dates:
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Keil and Delitzsch is one Hendrickson 1996 set ([239](docs/decisions/239-keil-delitzsch-volume-parts.md)). Oct 19 shelf: Louw–Nida, Schnabel ZECNT Acts, Loeb Epictetus, Hardy, Andersen TOTC Job ([240](docs/decisions/240-library-oct19-shelf-batch.md)). |
-| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
+| Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. **Venue type** auto-fills context ([217](docs/decisions/217-sermon-venues-context-type.md)). Venues now carry service start, drive, leave-by, hymnal, and notes ([241](docs/decisions/241-sermon-venue-logistics.md)). |
-| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) + **Canvas one-shot import** ([216](docs/decisions/216-canvas-classwork-import.md)) — FA-26 courses/assignments loaded; `npm run classwork:canvas-import` to re-pull. |
+| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) + **Canvas one-shot import** ([216](docs/decisions/216-canvas-classwork-import.md)) + **list/dashboard quick complete + due move** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). FA-26 courses/assignments loaded; `npm run classwork:canvas-import` to re-pull. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)): week split, deferred_until, assignment link, contacts_with_cadence. |
 
@@ -48,11 +48,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [242 — Ritual check-in + flexible assignments](docs/decisions/242-ritual-checkin-flexible-assignments.md) (2026-10-19) — Weekly Status completes when check-in is done; assignment checkbox / status / due move on list + dashboard.
 - [241 — Sermon venue logistics](docs/decisions/241-sermon-venue-logistics.md) (2026-10-19) — Service start, drive, leave-by, hymnal preset, notes. Mt. Zion, Grandcoate, Marissa, Res Pres filled.
 - [240 — Library Oct 19 shelf batch](docs/decisions/240-library-oct19-shelf-batch.md) (2026-10-19) — Louw–Nida (ISBN empty), Schnabel ZECNT Acts, Loeb Epictetus 131/218, Hardy standalone, Andersen TOTC 14. Coverage: Acts, Job.
 - [239 — Keil and Delitzsch volume parts](docs/decisions/239-keil-delitzsch-volume-parts.md) (2026-10-15) — Hendrickson 1996 on all 10 volumes. Footnotes name the biblical book; bibliography stays the volume.
 - [238 — IVP Bible dictionaries](docs/decisions/238-library-ivp-dictionaries.md) (2026-10-07) — DNTB, DJG 1st corrected + DJG2, DOTP, DLNT, DOTPr. Same edition split as DPL / DPL2.
-- [237 — Library Oct 7 shelf batch](docs/decisions/237-library-oct7-shelf-batch.md) (2026-10-07) — Allender marriage, Marshall/Peterson Acts (25 essays), Hartley NICOT Job, Schnittjer/Harmon, Rahlfs hand edition, LEH 3rd corrected (DBG 2015). Coverage: Job.
 
 ---
 
@@ -84,7 +84,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Sermon venue logistics [241](docs/decisions/241-sermon-venue-logistics.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **569/569** (2026-10-19). Venue migration applied to prod. Oct 19 shelf batch [240](docs/decisions/240-library-oct19-shelf-batch.md) is on prod too.
+**Repo gate:** Ritual check-in + flexible assignments [242](docs/decisions/242-ritual-checkin-flexible-assignments.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **575/575** (2026-10-19). `ritual_kind` migration applied to prod.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

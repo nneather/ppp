@@ -1912,6 +1912,7 @@ export type Database = {
           occurrence_seq: number
           priority: string
           project_id: string
+          ritual_kind: string | null
           stopped_at: string | null
           title: string
           updated_at: string
@@ -1932,6 +1933,7 @@ export type Database = {
           occurrence_seq?: number
           priority?: string
           project_id: string
+          ritual_kind?: string | null
           stopped_at?: string | null
           title: string
           updated_at?: string
@@ -1952,6 +1954,7 @@ export type Database = {
           occurrence_seq?: number
           priority?: string
           project_id?: string
+          ritual_kind?: string | null
           stopped_at?: string | null
           title?: string
           updated_at?: string

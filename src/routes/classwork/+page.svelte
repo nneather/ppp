@@ -6,12 +6,11 @@
 	import ClassworkViewToggle from '$lib/components/classwork-view-toggle.svelte';
 	import CourseFormSheet from '$lib/components/course-form-sheet.svelte';
 	import AssignmentFormSheet from '$lib/components/assignment-form-sheet.svelte';
+	import AssignmentRow from '$lib/components/assignment-row.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import {
-		ASSIGNMENT_KIND_LABELS,
-		ASSIGNMENT_STATUS_LABELS,
 		type AssignmentListRow,
 		type ClassworkGroup,
 		type CourseRow
@@ -327,7 +326,16 @@
 					</h2>
 					<ul class="space-y-2">
 						{#each g.assignments as a (a.id)}
-							{@render assignmentRow(a, true)}
+							<AssignmentRow
+								assignment={a}
+								showCourse={true}
+								todayYmd={data.todayYmd}
+								isOwner={data.isOwner}
+								{formatDate}
+								{daysLabel}
+								onEdit={openEditAssignment}
+								onDelete={askDeleteAssignment}
+							/>
 						{/each}
 					</ul>
 				</section>
@@ -370,7 +378,16 @@
 					</div>
 					<ul class="space-y-2">
 						{#each g.assignments as a (a.id)}
-							{@render assignmentRow(a, false)}
+							<AssignmentRow
+								assignment={a}
+								showCourse={false}
+								todayYmd={data.todayYmd}
+								isOwner={data.isOwner}
+								{formatDate}
+								{daysLabel}
+								onEdit={openEditAssignment}
+								onDelete={askDeleteAssignment}
+							/>
 						{/each}
 					</ul>
 				</section>
@@ -427,71 +444,6 @@
 		</section>
 	{/if}
 </div>
-
-{#snippet assignmentRow(a: AssignmentListRow, showCourse: boolean)}
-	<li
-		class={cn(
-			'rounded-lg border border-border px-3 py-2.5',
-			a.status === 'done' && 'opacity-60',
-			a.days_until != null && a.days_until < 0 && a.status !== 'done' && 'border-destructive/40'
-		)}
-	>
-		<div class="flex items-start justify-between gap-3">
-			<button
-				type="button"
-				class="min-w-0 flex-1 text-left"
-				onclick={() => data.isOwner && openEditAssignment(a)}
-				disabled={!data.isOwner}
-			>
-				<p class="text-sm font-medium">
-					{#if a.parent_id}
-						<span class="text-muted-foreground">↳ </span>
-					{/if}
-					{a.title}
-				</p>
-				<p class="mt-0.5 text-xs text-muted-foreground">
-					{ASSIGNMENT_KIND_LABELS[a.kind]}
-					· {ASSIGNMENT_STATUS_LABELS[a.status]}
-					{#if showCourse}
-						· {a.course_code ?? a.course_name}
-					{:else}
-						· {formatDate(a.due_date)}
-					{/if}
-					{#if daysLabel(a)}
-						· <span
-							class={cn(
-								a.days_until != null && a.days_until < 0 && 'font-medium text-destructive'
-							)}>{daysLabel(a)}</span
-						>
-					{/if}
-				</p>
-			</button>
-			{#if data.isOwner}
-				<div class="flex shrink-0 gap-1">
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-sm"
-						aria-label="Edit assignment"
-						onclick={() => openEditAssignment(a)}
-					>
-						<Pencil class="size-3.5" />
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						size="icon-sm"
-						class="text-destructive"
-						aria-label="Delete assignment"
-						onclick={() => askDeleteAssignment(a)}
-					>
-						<Trash2 class="size-3.5" />
-					</Button>
-				</div>
-			{/if}
-		</div>
-	</li>
-{/snippet}
 
 {#if data.isOwner}
 	<CourseFormSheet

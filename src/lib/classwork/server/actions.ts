@@ -8,6 +8,11 @@ import {
 	type AssignmentStatus,
 	type CourseStatus
 } from '$lib/types/classwork';
+import {
+	dueDateForPreset,
+	parseAssignmentDuePreset
+} from '$lib/classwork/due-presets';
+import { ymdInChicago } from '$lib/invoicing/chicago-date';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -552,4 +557,203 @@ export async function softDeleteAssignmentAction(supabase: SupabaseClient, fd: F
 	}
 
 	return { kind: 'softDeleteAssignment' as const, success: true as const, assignmentId };
+}
+
+async function loadLiveAssignmentStatus(
+	supabase: SupabaseClient,
+	assignmentId: string
+): Promise<{ id: string; status: AssignmentStatus } | null> {
+	const { data, error } = await supabase
+		.from('assignments')
+		.select('id, status')
+		.eq('id', assignmentId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (error) {
+		console.error('[classwork] loadLiveAssignmentStatus', error);
+		return null;
+	}
+	if (!data) return null;
+	const status = parseAssignmentStatus(data.status as string);
+	if (!status) return null;
+	return { id: data.id as string, status };
+}
+
+/** One-tap complete — status=done + stamp completed_at. */
+export async function completeAssignmentAction(supabase: SupabaseClient, fd: FormData) {
+	const assignmentId = trimOrNull(fd.get('assignment_id'));
+	if (!assignmentId || !UUID_RE.test(assignmentId)) {
+		return fail(400, { kind: 'completeAssignment' as const, message: 'Invalid assignment.' });
+	}
+
+	const existing = await loadLiveAssignmentStatus(supabase, assignmentId);
+	if (!existing) {
+		return fail(404, {
+			kind: 'completeAssignment' as const,
+			assignmentId,
+			message: 'Assignment not found.'
+		});
+	}
+	if (existing.status === 'done') {
+		return { kind: 'completeAssignment' as const, success: true as const, assignmentId };
+	}
+
+	const patch: Record<string, unknown> = {
+		status: 'done',
+		completed_at: new Date().toISOString()
+	};
+	const { error } = await supabase
+		.from('assignments')
+		.update(patch as never)
+		.eq('id', assignmentId)
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error('[classwork] completeAssignment', error);
+		return fail(500, {
+			kind: 'completeAssignment' as const,
+			assignmentId,
+			message: error.message
+		});
+	}
+
+	return { kind: 'completeAssignment' as const, success: true as const, assignmentId };
+}
+
+/** Reopen — status=not_started, clear completed_at. */
+export async function uncompleteAssignmentAction(supabase: SupabaseClient, fd: FormData) {
+	const assignmentId = trimOrNull(fd.get('assignment_id'));
+	if (!assignmentId || !UUID_RE.test(assignmentId)) {
+		return fail(400, { kind: 'uncompleteAssignment' as const, message: 'Invalid assignment.' });
+	}
+
+	const existing = await loadLiveAssignmentStatus(supabase, assignmentId);
+	if (!existing) {
+		return fail(404, {
+			kind: 'uncompleteAssignment' as const,
+			assignmentId,
+			message: 'Assignment not found.'
+		});
+	}
+
+	const { error } = await supabase
+		.from('assignments')
+		.update({ status: 'not_started', completed_at: null } as never)
+		.eq('id', assignmentId)
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error('[classwork] uncompleteAssignment', error);
+		return fail(500, {
+			kind: 'uncompleteAssignment' as const,
+			assignmentId,
+			message: error.message
+		});
+	}
+
+	return { kind: 'uncompleteAssignment' as const, success: true as const, assignmentId };
+}
+
+/** Sparse status patch (not_started | in_progress | done) with completed_at stamp rules. */
+export async function setAssignmentStatusAction(supabase: SupabaseClient, fd: FormData) {
+	const assignmentId = trimOrNull(fd.get('assignment_id'));
+	if (!assignmentId || !UUID_RE.test(assignmentId)) {
+		return fail(400, { kind: 'setAssignmentStatus' as const, message: 'Invalid assignment.' });
+	}
+
+	const status = parseAssignmentStatus(trimOrNull(fd.get('status')));
+	if (!status) {
+		return fail(400, {
+			kind: 'setAssignmentStatus' as const,
+			assignmentId,
+			message: 'Invalid status.'
+		});
+	}
+
+	const existing = await loadLiveAssignmentStatus(supabase, assignmentId);
+	if (!existing) {
+		return fail(404, {
+			kind: 'setAssignmentStatus' as const,
+			assignmentId,
+			message: 'Assignment not found.'
+		});
+	}
+
+	const patch: Record<string, unknown> = { status };
+	const completedPatch = completedAtForStatus(status, existing.status);
+	if (completedPatch !== undefined) {
+		patch.completed_at = completedPatch;
+	}
+
+	const { error } = await supabase
+		.from('assignments')
+		.update(patch as never)
+		.eq('id', assignmentId)
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error('[classwork] setAssignmentStatus', error);
+		return fail(500, {
+			kind: 'setAssignmentStatus' as const,
+			assignmentId,
+			message: error.message
+		});
+	}
+
+	return { kind: 'setAssignmentStatus' as const, success: true as const, assignmentId };
+}
+
+/**
+ * Move due_date only. Accepts `due_date` YMD or `preset` (tomorrow|monday|week).
+ * Past dates allowed. Does not change status.
+ */
+export async function rescheduleAssignmentAction(supabase: SupabaseClient, fd: FormData) {
+	const assignmentId = trimOrNull(fd.get('assignment_id'));
+	if (!assignmentId || !UUID_RE.test(assignmentId)) {
+		return fail(400, { kind: 'rescheduleAssignment' as const, message: 'Invalid assignment.' });
+	}
+
+	const existing = await loadLiveAssignmentStatus(supabase, assignmentId);
+	if (!existing) {
+		return fail(404, {
+			kind: 'rescheduleAssignment' as const,
+			assignmentId,
+			message: 'Assignment not found.'
+		});
+	}
+
+	let due_date = trimOrNull(fd.get('due_date'));
+	const preset = parseAssignmentDuePreset(trimOrNull(fd.get('preset')));
+	if (preset) {
+		due_date = dueDateForPreset(preset, ymdInChicago());
+	}
+	if (!due_date || !DATE_RE.test(due_date)) {
+		return fail(400, {
+			kind: 'rescheduleAssignment' as const,
+			assignmentId,
+			message: 'Valid due date is required.'
+		});
+	}
+
+	const { error } = await supabase
+		.from('assignments')
+		.update({ due_date } as never)
+		.eq('id', assignmentId)
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error('[classwork] rescheduleAssignment', error);
+		return fail(500, {
+			kind: 'rescheduleAssignment' as const,
+			assignmentId,
+			message: error.message
+		});
+	}
+
+	return {
+		kind: 'rescheduleAssignment' as const,
+		success: true as const,
+		assignmentId,
+		due_date
+	};
 }

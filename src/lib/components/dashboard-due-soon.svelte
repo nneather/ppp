@@ -1,25 +1,26 @@
 <script lang="ts">
-	import { formatYmdMediumChicago } from '$lib/invoicing/chicago-date';
-	import {
-		ASSIGNMENT_KIND_LABELS,
-		type DueSoonAssignment
-	} from '$lib/types/classwork';
-	import { cn } from '$lib/utils';
+	import AssignmentRow from '$lib/components/assignment-row.svelte';
+	import { formatYmdMediumChicago, ymdInChicago } from '$lib/invoicing/chicago-date';
+	import type { DueSoonAssignment } from '$lib/types/classwork';
 
 	let {
-		assignments
+		assignments,
+		isOwner = true
 	}: {
 		assignments: DueSoonAssignment[];
+		isOwner?: boolean;
 	} = $props();
 
-	function dueLabel(days: number): string {
-		if (days < 0) {
-			const n = Math.abs(days);
+	const todayYmd = ymdInChicago();
+
+	function dueLabel(a: DueSoonAssignment): string {
+		if (a.days_until < 0) {
+			const n = Math.abs(a.days_until);
 			return n === 1 ? '1d overdue' : `${n}d overdue`;
 		}
-		if (days === 0) return 'Due today';
-		if (days === 1) return 'Due tomorrow';
-		return `Due in ${days}d`;
+		if (a.days_until === 0) return 'Due today';
+		if (a.days_until === 1) return 'Due tomorrow';
+		return `Due in ${a.days_until}d`;
 	}
 
 	const overdueCount = $derived(assignments.filter((a) => a.days_until < 0).length);
@@ -65,32 +66,15 @@
 	{:else}
 		<ul class="divide-y divide-border">
 			{#each assignments as a (a.id)}
-				<li class="py-2 first:pt-0 last:pb-0">
-					<a
-						href="/classwork?group=date"
-						class="block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
-					>
-						<p
-							class={cn(
-								'text-xs font-medium tracking-wide uppercase',
-								a.days_until < 0
-									? 'text-destructive'
-									: 'text-muted-foreground'
-							)}
-						>
-							{dueLabel(a.days_until)}
-							<span class="ml-1.5 normal-case tracking-normal">
-								· {formatYmdMediumChicago(a.due_date)}
-							</span>
-						</p>
-						<p class="mt-0.5 text-sm font-medium text-foreground">{a.title}</p>
-						<p class="mt-0.5 text-xs text-muted-foreground">
-							{a.course_code?.trim() || a.course_name}
-							<span aria-hidden="true"> · </span>
-							{ASSIGNMENT_KIND_LABELS[a.kind]}
-						</p>
-					</a>
-				</li>
+				<AssignmentRow
+					assignment={a}
+					variant="compact"
+					actionPrefix="/classwork?"
+					{todayYmd}
+					{isOwner}
+					formatDate={formatYmdMediumChicago}
+					daysLabel={(row) => dueLabel(row as DueSoonAssignment)}
+				/>
 			{/each}
 		</ul>
 	{/if}

@@ -13,6 +13,7 @@ import { currentSundayChicago } from '$lib/projects/week';
 import { countMissingWeekCheckIns } from '$lib/projects/filter';
 import { loadProjectTree, loadLatestHealth } from '$lib/projects/server/loaders';
 import { loadDashboardNowTasks } from '$lib/projects/server/task-loaders';
+import { reconcileWeeklyCheckinRitual } from '$lib/projects/server/ritual-checkin-reconcile';
 import { loadDueSoonAssignments } from '$lib/classwork/server/loaders';
 import { loadContactsDue } from '$lib/contacts/server/loaders';
 import { loadUpcomingSermons } from '$lib/sermons/server/loaders';
@@ -118,7 +119,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		),
 		supabase
 			.from('profiles')
-			.select('contact_cadence_days_default')
+			.select('role, contact_cadence_days_default')
 			.eq('id', user.id)
 			.maybeSingle()
 	]);
@@ -127,6 +128,22 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 	if (upcomingSermonsRes.error) console.error(upcomingSermonsRes.error);
 	if (sportsGlanceRes.error) console.error(sportsGlanceRes.error);
 	if (dueSoonRes.error) console.error(dueSoonRes.error);
+
+	let criticalNowTaskCount = nowTasks.criticalNowCount;
+	let opportunityNowTaskCount = nowTasks.opportunityNowCount;
+
+	if (profileRes.data?.role === 'owner') {
+		const ritual = await reconcileWeeklyCheckinRitual(supabase, { weekOf, todayYmd: today });
+		if (ritual.kind === 'error') console.error('[dashboard] ritual reconcile', ritual.message);
+		// Recompute Now counts after a possible ritual complete.
+		if (ritual.kind === 'completed') {
+			const refreshed = await locals.perf.measure('db', () =>
+				loadDashboardNowTasks(supabase, { todayYmd: today })
+			);
+			criticalNowTaskCount = refreshed.criticalNowCount;
+			opportunityNowTaskCount = refreshed.opportunityNowCount;
+		}
+	}
 
 	const contactsDueRes = await locals.perf.measure('db', () =>
 		loadContactsDue(supabase, {
@@ -156,13 +173,11 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		);
 	}
 
-	const criticalNowTaskCount = nowTasks.criticalNowCount;
-	const opportunityNowTaskCount = nowTasks.opportunityNowCount;
-
 	const dueSoonAssignments = dueSoonRes.assignments;
 	const dueSoonOverdueCount = dueSoonAssignments.filter((a) => a.days_until < 0).length;
 	const contactsDue = contactsDueRes.contacts;
 	const contactsDueNeverCount = contactsDue.filter((c) => c.last_touched_on == null).length;
+	const isOwner = profileRes.data?.role === 'owner';
 
 	if (unbilledRes.error) {
 		console.error(unbilledRes.error);
@@ -183,6 +198,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 			contactsDueNeverCount,
 			missingCheckInCount,
 			weekOf,
+			isOwner,
 			dashboardError: 'Could not load unbilled count.' as string | null
 		};
 	}
@@ -204,6 +220,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		contactsDueNeverCount,
 		missingCheckInCount,
 		weekOf,
+		isOwner,
 		dashboardError: null as string | null
 	};
 };

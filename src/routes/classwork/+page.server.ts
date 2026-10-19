@@ -2,10 +2,14 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
 import {
+	completeAssignmentAction,
 	createAssignmentAction,
 	createCourseAction,
+	rescheduleAssignmentAction,
+	setAssignmentStatusAction,
 	softDeleteAssignmentAction,
 	softDeleteCourseAction,
+	uncompleteAssignmentAction,
 	updateAssignmentAction,
 	updateCourseAction
 } from '$lib/classwork/server/actions';
@@ -90,5 +94,27 @@ export const actions: Actions = {
 		if (!user)
 			return fail(401, { kind: 'softDeleteAssignment' as const, message: 'Unauthorized' });
 		return softDeleteAssignmentAction(locals.supabase, await request.formData());
+	},
+	completeAssignment: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'completeAssignment' as const, message: 'Unauthorized' });
+		return completeAssignmentAction(locals.supabase, await request.formData());
+	},
+	uncompleteAssignment: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'uncompleteAssignment' as const, message: 'Unauthorized' });
+		return uncompleteAssignmentAction(locals.supabase, await request.formData());
+	},
+	setAssignmentStatus: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'setAssignmentStatus' as const, message: 'Unauthorized' });
+		return setAssignmentStatusAction(locals.supabase, await request.formData());
+	},
+	rescheduleAssignment: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'rescheduleAssignment' as const, message: 'Unauthorized' });
+		return rescheduleAssignmentAction(locals.supabase, await request.formData());
 	}
 };

@@ -304,7 +304,7 @@
 			class="mt-6 hidden min-h-0 space-y-4 md:sticky md:top-0 md:mt-0 md:block md:max-h-[calc(100dvh-5rem)] md:overflow-y-auto"
 			aria-label="Classwork and contacts"
 		>
-			<DashboardDueSoon assignments={data.dueSoonAssignments} />
+			<DashboardDueSoon assignments={data.dueSoonAssignments} isOwner={data.isOwner} />
 			<DashboardContactsDue contacts={data.contactsDue} />
 		</aside>
 	</div>

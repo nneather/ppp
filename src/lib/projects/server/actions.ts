@@ -20,6 +20,8 @@ import {
 } from '$lib/projects/progress';
 import { parseProjectColorKey } from '$lib/projects/project-colors';
 import { parseYmd, sundayContaining } from '$lib/projects/week';
+import { ymdInChicago } from '$lib/invoicing/chicago-date';
+import { reconcileWeeklyCheckinRitual } from '$lib/projects/server/ritual-checkin-reconcile';
 
 export type ProjectsActionKind =
 	| 'saveCheckin'
@@ -200,6 +202,15 @@ export async function saveWeeklyCheckinAction(
 			kind: 'saveCheckin' as const,
 			message: error.message ?? 'Could not save weekly check-in.'
 		});
+	}
+
+	// When this week is fully checked in, complete the Weekly Status ritual task.
+	const ritual = await reconcileWeeklyCheckinRitual(supabase, {
+		weekOf: week_of,
+		todayYmd: ymdInChicago()
+	});
+	if (ritual.kind === 'error') {
+		console.error('saveWeeklyCheckinAction ritual', ritual.message);
 	}
 
 	return { kind: 'saveCheckin' as const, success: true as const };
