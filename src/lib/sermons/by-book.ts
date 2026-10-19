@@ -227,12 +227,12 @@ export function byBookFiltersToSearchParams(filters: ByBookListFilters): URLSear
 export function librarySearchPassageHref(bibleBook: string): string {
 	const params = new URLSearchParams({
 		bible_book: bibleBook,
-		returnTo: '/sermons/by-book'
+		returnTo: '/studies/by-book'
 	});
 	return `/library/search-passage?${params.toString()}`;
 }
 
 export function sermonsListByBookHref(bibleBook: string): string {
 	const params = new URLSearchParams({ bible_book: bibleBook });
-	return `/sermons?${params.toString()}`;
+	return `/studies/sermons?${params.toString()}`;
 }

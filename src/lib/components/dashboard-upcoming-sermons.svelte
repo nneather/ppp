@@ -24,7 +24,7 @@
 			Upcoming sermons
 		</h2>
 		<a
-			href="/sermons"
+			href="/studies/sermons"
 			class="text-sm font-medium text-primary underline-offset-4 hover:underline"
 		>
 			All sermons
@@ -34,7 +34,7 @@
 	{#if sermons.length === 0}
 		<p class="text-sm text-muted-foreground">
 			No sermons scheduled from today onward.
-			<a href="/sermons" class="font-medium text-primary underline-offset-4 hover:underline"
+			<a href="/studies/sermons" class="font-medium text-primary underline-offset-4 hover:underline"
 				>Log a sermon</a
 			>
 		</p>
@@ -43,7 +43,7 @@
 			{#each sermons as sermon (sermon.id)}
 				<li class="py-2.5 first:pt-0 last:pb-0">
 					<a
-						href="/sermons"
+						href="/studies/sermons"
 						class="block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					>
 						<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">

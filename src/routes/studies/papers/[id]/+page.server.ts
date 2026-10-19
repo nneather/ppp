@@ -12,12 +12,12 @@ import {
 	softDeletePaperGroupAction,
 	updatePaperAction,
 	updatePaperSourceNotesAction
-} from '$lib/classwork/server/paper-actions';
+} from '$lib/studies/server/paper-actions';
 import {
 	loadPaperDetail,
 	loadPaperGroups,
 	loadPaperSourceViews
-} from '$lib/classwork/server/paper-loaders';
+} from '$lib/studies/server/paper-loaders';
 import { loadAssignments, loadCourses } from '$lib/classwork/server/loaders';
 import { loadBookListFiltered, loadEssaySearchHits } from '$lib/library/server/loaders';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';

@@ -1,0 +1,158 @@
+# Personal Operations System — Studies Module Build Tracker
+
+_Last updated: 2026-10-19 | Module: Studies | Session 1 shipped ([244](decisions/244-studies-session-1.md)); Session 2 next_
+
+**Read before any session:** [docs/MODULE_KICKOFF_PLAYBOOK.md](MODULE_KICKOFF_PLAYBOOK.md), [243](decisions/243-studies-session-0.md), papers retro [188](decisions/188-classwork-research-papers-session-0.md) / [189](decisions/189-classwork-papers-session-1.md) / [190](decisions/190-classwork-papers-session-2.md), sermons [090](decisions/090-sermons-session-0.md) / [095](decisions/095-sermons-by-book-stats.md). Brainstorm: [brainstorms/2026-10-19-papers-research-tool.md](../brainstorms/2026-10-19-papers-research-tool.md).
+
+---
+
+## Critical path
+
+Core value — **a study (paper or sermon) can pull a maintained resource set and keep a bibliography that outlives the semester.**
+
+- **End of Session 1** = schema + `/studies` shell + Sets list/detail (rule + sticky overrides).
+- **Session 2** = import into a paper (set or prior paper) + usage + archived view.
+- **Session 3** = sermon detail shares the sources panel; hit rate.
+- **Session 4** = sectioned `.docx` + read-only MCP + Overview polish.
+
+---
+
+## Phase 0 — Structure Lock (signed off 2026-10-19)
+
+| Gate | Resolution |
+|---|---|
+| **Taxonomy singular** | The paper is the bibliography container. No `bibliographies` or `research_projects` table. Sermons stay a separate table. Shared junction is `study_sources` (paper XOR sermon). Resource sets are rule + sticky overrides, resolved at read time — members are not materialized on insert. |
+| **Nav** | One desktop sidebar item **Studies** replaces Sermons (no mobile tab). Tabs: Overview (default) \| Papers \| Sermons \| Sets \| By book. Routes under `/studies/*`. 308 from `/classwork/papers*` and `/sermons*`. Venues stay `/settings/sermons/venues`. Classwork keeps a Papers link. |
+| **Nullable / required** | Papers: `title` + `status` required. Sets: `name`, `slug`, `kind`, `rules` (default `[]`), `default_for` (default `{}`). Set members: `set_id` + book XOR essay + `kind` include\|exclude. Study sources: exactly one parent (paper XOR sermon) + book XOR essay; `usage` default `candidate`. Passages: `bible_book` required; `role` default `primary`. |
+| **Form delivery** | Sets list + detail are pages (`/studies/sets`, `/studies/sets/[id]`). Paper identity stays a Sheet; paper detail stays the research home. Sermon metadata stays a Sheet; sermon sources detail is Session 3. |
+| **RLS + viewer** | New `studies` slug for papers, groups, sources, sets, set members, `paper_passages`. SELECT `app_is_owner() OR app_has_module_read('studies')`; writes owner-only. Viewer write **waived** v1. Sermons tables keep `sermons`. |
+| **Seed** | 66 `Commentaries: {Book}` (`bible_book` rule; Commentary genre applied by the resolver, not stored as a second rule). NT language tools (`Greek Language Tools`). OT language tools (`Hebrew Language Tools`). Systematic Theology static includes, `default_for={sermon}` — auto-attach on sermon create is Session 3. |
+| **Edge Function ↔ `deleted_at`** | N/A. |
+
+**Checklist:**
+
+- [x] Taxonomy singular
+- [x] Nullable matrix signed
+- [x] Routes / form surfaces decided
+- [x] RLS plan (`studies` slug; sermons unchanged)
+- [x] MCP deferred to Session 4
+- [x] Open questions ≤2 per entity
+
+---
+
+## Schema sketch (Session 1 ships `ppp_studies_v1`)
+
+Standard conventions: `deleted_at`, `created_at` / `updated_at` + `set_updated_at`, `created_by`, audit trigger, explicit GRANTs, RLS helpers only.
+
+### `resource_sets`
+
+```sql
+resource_sets
+  id               UUID PRIMARY KEY
+  name             TEXT NOT NULL
+  slug             TEXT NOT NULL          -- partial unique while live
+  kind             TEXT NOT NULL CHECK (kind IN ('bible_book','language','custom'))
+  rules            JSONB NOT NULL DEFAULT '[]'
+                   -- array of {kind:'bible_book'|'genre'|'topic', value}
+  default_for      TEXT[] NOT NULL DEFAULT '{}'
+                   -- values subset of sermon, paper
+  last_reviewed_at TIMESTAMPTZ            -- null = never reviewed; "N new" stays 0
+  sort_order       INT NOT NULL DEFAULT 0
+  deleted_at, created_at, updated_at, created_by
+```
+
+**Read-time members** = rule matches ∪ `include` overrides − `exclude` overrides. A `bible_book` rule matches Commentary coverage for that book (same collapse as `/sermons/by-book`). Genre and topic rules match catalog books. New catalog rows appear until sticky-excluded.
+
+### `resource_set_members` (overrides only)
+
+```sql
+resource_set_members
+  id, set_id, book_id XOR essay_id,
+  kind TEXT NOT NULL CHECK (kind IN ('include','exclude')),
+  deleted_at, created_at, updated_at, created_by
+```
+
+Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one override per catalog row.
+
+### Rename
+
+- `paper_sources` → `study_sources`: `sermon_id` nullable; `paper_id` nullable; XOR parent; `usage` `candidate` \| `consulted` \| `cited` default `candidate`. Partial uniques widened to sermon parent.
+- `paper_research_groups` → `study_research_groups`: `sermon_id` nullable; `paper_id` nullable; XOR parent.
+
+### Passages + flags
+
+- `paper_passages` mirrors `sermon_passages`.
+- `role` `primary` \| `secondary` default `primary` on both passage tables. Secondary passages are display-only for hit-rate (Session 3).
+- `secondary_passage_display` on `papers` and `sermons`.
+- `topical` boolean: papers default **true**, sermons default **false**.
+- `papers.status`: `researching` \| `drafting` \| `submitted` \| `published` \| `archived`. Migrate `draft` → `researching`, `in_progress` → `drafting`. Default list hides `archived` (archived view is Session 2).
+- `books.acquired_on date`, backfill `created_at::date`.
+
+### Nullable / required matrix
+
+| Table | Required | Nullable |
+|---|---|---|
+| `papers` | `title`, `status`, `topical` (default true), `sort_order` | `course_id`, `assignment_id`, `due_date`, `topic`, `passage_display`, `secondary_passage_display`, `notes`, `created_by` |
+| `study_research_groups` | `name`, XOR parent, `sort_order` | the other parent, `created_by` |
+| `study_sources` | XOR parent, XOR book/essay, `usage` (default), `sort_order` | `group_id`, `notes`, `created_by` |
+| `paper_passages` | `paper_id`, `bible_book`, `role` (default), `sort_order` | chapter/verse ends, `created_by` |
+| `resource_sets` | `name`, `slug`, `kind`, `rules`, `default_for`, `sort_order` | `last_reviewed_at`, `created_by` |
+| `resource_set_members` | `set_id`, XOR book/essay, `kind` | `created_by` |
+
+### RLS / audit
+
+- Papers, groups, sources, `paper_passages`, sets, set members: module `studies`.
+- Sermons + `sermon_passages`: module `sermons` (unchanged), new columns only.
+- Audit UI: `_STUDIES_TABLES`; soft-delete revert for the studies tables. Drop renamed names from `_CLASSWORK_TABLES`.
+
+---
+
+## Open questions (≤2 per entity)
+
+| # | Entity | Q | Resolve by |
+|---|---|---|---|
+| S1 | resource set | Systematic Theology seed: which catalog titles count as Calvin / van Mastricht / Bavinck / Leiden Synopsis / Turretin? | Session 1 — exact title + genre `Systematic Theology` (multi-volume includes). Empty includes only if a title is missing. |
+| B1 | book | `acquired_on` backfill from `created_at::date` is wrong for some pre-app commentaries. | Parker, hand-correct notable ones during Session 1 smoke. |
+
+---
+
+## Session arc
+
+| Session | Status | Goal |
+|---|---|---|
+| 0 | ✅ 2026-10-19 | Phase 0 + this tracker + [243](decisions/243-studies-session-0.md) |
+| 1 | ✅ 2026-10-19 | `ppp_studies_v1` applied. `/studies` shell + moved papers/sermons/by-book + 308s. Sets list/detail. Seeds: 66 commentary sets, NT/OT language tools, Systematic Theology (18 volume includes). [244](decisions/244-studies-session-1.md). |
+| 2 | | Import (set or prior paper) → auto-named group; remove-from-study vs remove-from-set with undo; usage cycle; bib scope; Complete/archived view; title-vs-passage display |
+| 3 | | `/studies/sermons/[id]` + shared sources panel; Systematic Theology auto-attach on sermon create; By book papers column; book-detail "Used in"; hit rate (expository + primary passage + since `acquired_on`) |
+| 4 | | Sectioned `.docx`; MCP `list_studies` / `get_study_sources` / `suggest_sources`; Overview polish |
+
+### Session 1 acceptance
+
+- [x] Migration applied (`db push` + `gen-types`)
+- [x] `studies` slug; papers/groups/sources RLS moved; sermons slug unchanged
+- [x] Seeds: 66 commentary sets, NT/OT language tools, Systematic Theology (`default_for` sermon; 18 volumes)
+- [x] `/studies` tabs; papers + sermons + by-book moved; old paths 308
+- [x] Sets list (Bible books / Language / Custom, counts, N new) + detail review (included, excluded add-back, rule chips)
+- [x] Audit whitelist + `npm run check` + `npm run test` (582) + `npm run build`
+- [x] Security review launched on the uncommitted diff (RLS)
+
+### Session 2 acceptance
+
+- [ ] Import from set (suggestion from passage / testament / topical) or prior paper (notes copied)
+- [ ] Auto-named research group; checklist; already-attached rows greyed
+- [ ] Remove-from-study vs remove-from-set, both undo
+- [ ] Usage candidate → consulted → cited; compiled bib defaults to consulted+cited
+- [ ] Archived = complete terminal; default list hides it; `?show=archived`
+
+### Session 3 acceptance
+
+- [ ] Sermon detail shares the sources panel
+- [ ] New sermon auto-attaches Systematic Theology as `candidate` rows, respecting set excludes
+- [ ] By book papers column + book-detail "Used in"
+- [ ] Hit rate per resource per Bible book
+
+### Session 4 acceptance
+
+- [ ] Clipboard + `.docx`, optional sectioned-by-group
+- [ ] Read-only MCP tools wrapping loaders
+- [ ] Overview: active papers + upcoming sermons (stub may land in Session 1)

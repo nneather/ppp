@@ -44,7 +44,7 @@
 	let pending = $state(false);
 
 	let title = $state('');
-	let status = $state<PaperStatus>('draft');
+	let status = $state<PaperStatus>('researching');
 	let assignmentId = $state('');
 	let courseId = $state('');
 	let dueDate = $state('');
@@ -91,7 +91,7 @@
 			notes = paper.notes ?? '';
 		} else {
 			title = '';
-			status = 'draft';
+			status = 'researching';
 			assignmentId = '';
 			courseId = '';
 			dueDate = '';

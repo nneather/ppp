@@ -11,15 +11,15 @@
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { compilePaperBibliography } from '$lib/classwork/paper-bibliography';
+	import { compilePaperBibliography } from '$lib/studies/paper-bibliography';
 	import {
 		groupPaperSources,
 		paperSourceTitle,
 		type PaperGroupView,
 		type PaperSourceView
-	} from '$lib/classwork/paper-sources';
+	} from '$lib/studies/paper-sources';
 	import { copyCitationToClipboard } from '$lib/library/turabian';
-	import { PAPER_STATUS_LABELS } from '$lib/types/classwork';
+	import { PAPER_STATUS_LABELS, type PaperStatus } from '$lib/types/classwork';
 	import { cn } from '$lib/utils';
 	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -241,15 +241,17 @@
 			await update({ reset: false });
 			if (result.type === 'success') {
 				deletePaperOpen = false;
-				await goto('/classwork/papers');
+				await goto('/studies/papers');
 			}
 		};
 	};
 
-	const statusBadgeClass: Record<string, string> = {
-		draft: 'bg-muted text-muted-foreground',
-		in_progress: 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200',
-		submitted: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+	const statusBadgeClass: Record<PaperStatus, string> = {
+		researching: 'bg-muted text-muted-foreground',
+		drafting: 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200',
+		submitted: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
+		published: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
+		archived: 'bg-muted text-muted-foreground'
 	};
 </script>
 
@@ -258,7 +260,7 @@
 </svelte:head>
 
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 pb-tabbar">
-	<PageHeader title={data.paper.title} back={{ href: '/classwork/papers', label: 'Research papers' }}>
+	<PageHeader title={data.paper.title} back={{ href: '/studies/papers', label: 'Research papers' }}>
 		{#snippet meta()}
 			<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
 				<span

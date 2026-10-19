@@ -83,7 +83,7 @@
 	}
 
 	const moduleOptions: {
-		value: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'sports' | 'classwork' | 'contacts';
+		value: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'sports' | 'classwork' | 'studies' | 'contacts';
 		label: string;
 	}[] = [
 		{ value: 'all', label: 'All modules' },
@@ -93,6 +93,7 @@
 		{ value: 'sermons', label: 'Sermons' },
 		{ value: 'sports', label: 'Sports' },
 		{ value: 'classwork', label: 'Classwork' },
+		{ value: 'studies', label: 'Studies' },
 		{ value: 'contacts', label: 'Contacts' }
 	];
 

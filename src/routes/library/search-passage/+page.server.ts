@@ -13,6 +13,8 @@ function parseReturnTo(raw: string | null): string | null {
 	if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null;
 	if (raw === '/sermons' || raw.startsWith('/sermons?')) return raw;
 	if (raw === '/sermons/by-book' || raw.startsWith('/sermons/by-book?')) return raw;
+	if (raw === '/studies/sermons' || raw.startsWith('/studies/sermons?')) return raw;
+	if (raw === '/studies/by-book' || raw.startsWith('/studies/by-book?')) return raw;
 	if (raw === '/library' || raw.startsWith('/library?')) return raw;
 	return null;
 }

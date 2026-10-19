@@ -16,6 +16,7 @@
 		calendar: 'Calendar',
 		projects: 'Projects',
 		sermons: 'Sermons',
+		studies: 'Studies',
 		sports: 'Sports',
 		classwork: 'Classwork',
 		contacts: 'Contacts'

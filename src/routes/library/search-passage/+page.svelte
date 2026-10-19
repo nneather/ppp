@@ -27,7 +27,9 @@
 
 	const backHref = $derived(data.returnTo ?? '/library');
 	const backLabel = $derived(
-		data.returnTo?.startsWith('/sermons') ? 'Sermons' : 'Library'
+		data.returnTo?.startsWith('/sermons') || data.returnTo?.startsWith('/studies')
+			? 'Studies'
+			: 'Library'
 	);
 
 	function onSubmit(e: SubmitEvent) {

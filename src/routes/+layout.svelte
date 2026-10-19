@@ -41,7 +41,7 @@
 		{ href: '/tasks', label: 'Tasks', icon: ListTodo },
 		{ href: '/classwork', label: 'Classwork', icon: GraduationCap },
 		{ href: '/contacts', label: 'Contacts', icon: Users },
-		{ href: '/sermons', label: 'Sermons', icon: Mic },
+		{ href: '/studies', label: 'Studies', icon: Mic },
 		{ href: '/sports', label: 'Sports', icon: Trophy },
 		{ href: '/invoicing', label: 'Invoicing', icon: Receipt },
 		{ href: '/library', label: 'Library', icon: BookOpen },
@@ -80,6 +80,7 @@
 		if (path.startsWith('/library')) return 'library';
 		if (path.startsWith('/invoicing')) return 'invoicing';
 		if (path.startsWith('/dashboard')) return 'dashboard';
+		if (path.startsWith('/studies')) return 'sermons';
 		if (path.startsWith('/sermons')) return 'sermons';
 		if (path.startsWith('/sports')) return 'sports';
 		if (path.startsWith('/classwork')) return 'classwork';

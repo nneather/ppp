@@ -328,7 +328,7 @@ export async function loadSermons(
 							chapter_end: first.chapter_end,
 							verse_end: first.verse_end
 						},
-						{ returnTo: '/sermons' }
+						{ returnTo: '/studies/sermons' }
 					)
 				: null
 		};

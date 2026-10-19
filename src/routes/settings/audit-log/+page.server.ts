@@ -25,12 +25,17 @@ export const _SERMONS_TABLES = ['sermon_venues', 'sermons', 'sermon_passages'] a
 
 export const _SPORTS_TABLES = ['sports_teams'] as const;
 
-export const _CLASSWORK_TABLES = [
-	'courses',
-	'assignments',
+export const _CLASSWORK_TABLES = ['courses', 'assignments'] as const;
+
+export const _STUDIES_TABLES = [
 	'papers',
+	'study_research_groups',
+	'study_sources',
 	'paper_research_groups',
-	'paper_sources'
+	'paper_sources',
+	'paper_passages',
+	'resource_sets',
+	'resource_set_members'
 ] as const;
 
 export const _CONTACTS_TABLES = [
@@ -104,9 +109,13 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	// classwork
 	'courses',
 	'assignments',
+	// studies
 	'papers',
-	'paper_research_groups',
-	'paper_sources',
+	'study_research_groups',
+	'study_sources',
+	'paper_passages',
+	'resource_sets',
+	'resource_set_members',
 	// contacts
 	'households',
 	'contacts',
@@ -306,14 +315,29 @@ function entityLabelFor(
 			return title;
 		}
 		case 'paper_research_groups':
+		case 'study_research_groups':
+		case 'resource_sets':
 			return get('name');
-		case 'paper_sources': {
+		case 'paper_sources':
+		case 'study_sources': {
 			const bookId = get('book_id');
 			const essayId = get('essay_id');
 			if (bookId) return `Book source #${bookId.slice(0, 8)}`;
 			if (essayId) return `Essay source #${essayId.slice(0, 8)}`;
 			return null;
 		}
+		case 'paper_passages': {
+			const bibleBook = get('bible_book');
+			const cs = data.chapter_start;
+			const vs = data.verse_start;
+			if (!bibleBook) return null;
+			if (cs == null) return bibleBook;
+			let ref = `${bibleBook} ${cs}`;
+			if (vs != null) ref += `:${vs}`;
+			return ref;
+		}
+		case 'resource_set_members':
+			return get('kind');
 		case 'contacts': {
 			const first = get('first_name');
 			const last = get('last_name');
@@ -367,7 +391,7 @@ function entityLabelFor(
 }
 
 export type AuditFilters = {
-	module: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'sports' | 'classwork' | 'contacts';
+	module: 'all' | 'invoicing' | 'library' | 'projects' | 'sermons' | 'sports' | 'classwork' | 'studies' | 'contacts';
 	recordId: string;
 	changedBy: string;
 };
@@ -380,6 +404,7 @@ function parseModule(v: string | null): AuditFilters['module'] {
 		v === 'sermons' ||
 		v === 'sports' ||
 		v === 'classwork' ||
+		v === 'studies' ||
 		v === 'contacts'
 	)
 		return v;
@@ -457,6 +482,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		q = q.in('table_name', _SPORTS_TABLES as unknown as string[]);
 	} else if (filters.module === 'classwork') {
 		q = q.in('table_name', _CLASSWORK_TABLES as unknown as string[]);
+	} else if (filters.module === 'studies') {
+		q = q.in('table_name', _STUDIES_TABLES as unknown as string[]);
 	} else if (filters.module === 'contacts') {
 		q = q.in('table_name', _CONTACTS_TABLES as unknown as string[]);
 	}

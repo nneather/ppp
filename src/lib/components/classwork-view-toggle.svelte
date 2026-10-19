@@ -26,7 +26,7 @@
 		Assignments
 	</a>
 	<a
-		href="/classwork/papers"
+		href="/studies/papers"
 		class={cn(
 			'rounded-sm px-3 py-1.5 transition-colors',
 			active === 'papers'

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Ritual check-in auto-complete + flexible assignments ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)).
+**Last updated:** 2026-10-19 — Studies Session 1 shipped ([244](docs/decisions/244-studies-session-1.md)): `/studies` shell, resource sets, shared `study_sources`.
 
 **How to use this file — read this first:**
 
@@ -37,8 +37,9 @@ Nearest hard dates:
 | Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Keil and Delitzsch is one Hendrickson 1996 set ([239](docs/decisions/239-keil-delitzsch-volume-parts.md)). Oct 19 shelf: Louw–Nida, Schnabel ZECNT Acts, Loeb Epictetus, Hardy, Andersen TOTC Job ([240](docs/decisions/240-library-oct19-shelf-batch.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
-| Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 Sessions 1–2 + by-book series/dedupe. **Venue type** auto-fills context ([217](docs/decisions/217-sermon-venues-context-type.md)). Venues now carry service start, drive, leave-by, hymnal, and notes ([241](docs/decisions/241-sermon-venue-logistics.md)). |
-| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + **Papers Sessions 0–2** ([190](docs/decisions/190-classwork-papers-session-2.md)) + **Canvas one-shot import** ([216](docs/decisions/216-canvas-classwork-import.md)) + **list/dashboard quick complete + due move** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). FA-26 courses/assignments loaded; `npm run classwork:canvas-import` to re-pull. |
+| Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Session 1 shipped ([244](docs/decisions/244-studies-session-1.md)): `/studies` tabs, Sets review, 66 commentary sets + language tools + Systematic Theology. **Next:** Session 2 import + usage. |
+| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)): week split, deferred_until, assignment link, contacts_with_cadence. |
 
@@ -48,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [244 — Studies Session 1](docs/decisions/244-studies-session-1.md) (2026-10-19) — `/studies` shell, resource sets (66 commentaries + language tools + Systematic Theology), `study_sources`.
+- [243 — Studies Session 0](docs/decisions/243-studies-session-0.md) (2026-10-19) — `/studies` umbrella; resource sets are rule + sticky overrides; shared sources for papers and sermons.
 - [242 — Ritual check-in + flexible assignments](docs/decisions/242-ritual-checkin-flexible-assignments.md) (2026-10-19) — Weekly Status completes when check-in is done; assignment checkbox / status / due move on list + dashboard.
 - [241 — Sermon venue logistics](docs/decisions/241-sermon-venue-logistics.md) (2026-10-19) — Service start, drive, leave-by, hymnal preset, notes. Mt. Zion, Grandcoate, Marissa, Res Pres filled.
 - [240 — Library Oct 19 shelf batch](docs/decisions/240-library-oct19-shelf-batch.md) (2026-10-19) — Louw–Nida (ISBN empty), Schnabel ZECNT Acts, Loeb Epictetus 131/218, Hardy standalone, Andersen TOTC 14. Coverage: Acts, Job.
-- [239 — Keil and Delitzsch volume parts](docs/decisions/239-keil-delitzsch-volume-parts.md) (2026-10-15) — Hendrickson 1996 on all 10 volumes. Footnotes name the biblical book; bibliography stays the volume.
-- [238 — IVP Bible dictionaries](docs/decisions/238-library-ivp-dictionaries.md) (2026-10-07) — DNTB, DJG 1st corrected + DJG2, DOTP, DLNT, DOTPr. Same edition split as DPL / DPL2.
 
 ---
 
@@ -72,9 +73,9 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Sports:** `/sports` scoreboard + follow stars + owner Refresh; dashboard glance; GHA `.github/workflows/sports-sync.yml` every 10m (`npx tsx` — no `npm ci`, script must not import npm packages — [227](docs/decisions/227-sports-sync-gha-dotenv.md)); scoreboard `dates=` is one YYYYMMDD per request ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); CFB catalog is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are division tables ([224](docs/decisions/224-sports-standings-divisions.md)); Vercel daily cron is Hobby backup only. Helpers `src/lib/sports/`; migration `20260902221000_ppp_sports_v1.sql` ([218](docs/decisions/218-sports-session-1.md), [220](docs/decisions/220-sports-sync-github-actions.md)).
 
-**Sermons:** `/sermons` list + Sheet (venue type auto-fills context — [217](docs/decisions/217-sermon-venues-context-type.md); selected venue shows service / drive / hymnal / notes — [241](docs/decisions/241-sermon-venue-logistics.md)); `/sermons/by-book` commentary × sermon spine (series label + multi-part collapse + latest sermon date — [134](docs/decisions/134-sermons-by-book-series-dedupe.md)); `/settings/sermons/venues`; helpers `src/lib/sermons/` (incl. `loadUpcomingSermons`, `venue-context.ts`, `venue-logistics.ts`); migrations `20260717190000_ppp_sermons_v1.sql`, `20260902152000_sermon_venues_context_type.sql`, `20261019152923_sermon_venue_logistics.sql` ([091](docs/decisions/091-sermons-session-1.md), [095](docs/decisions/095-sermons-by-book-stats.md), [132](docs/decisions/132-desktop-home-dashboard.md), [217](docs/decisions/217-sermon-venues-context-type.md), [241](docs/decisions/241-sermon-venue-logistics.md)).
+**Sermons:** `/studies/sermons` list + Sheet (308 from `/sermons`; venue type — [217](docs/decisions/217-sermon-venues-context-type.md); venue logistics — [241](docs/decisions/241-sermon-venue-logistics.md)); `/studies/by-book`; `/settings/sermons/venues`. Helpers `src/lib/sermons/`.
 
-**Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; Canvas CLI import `npm run classwork:canvas-import` ([216](docs/decisions/216-canvas-classwork-import.md)); migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`, `20260831220000_classwork_canvas_ids.sql`. **Papers:** `/classwork/papers` + `/classwork/papers/[id]` research home (attach books/essays/stubs, per-row cite + page, per-source notes, merged compiled bib; P1 stamp+lock; **research groups** — CRUD + per-row select + Ungrouped-first buckets, G1 null-out) ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
+**Classwork:** `/classwork` list + Sheets; dashboard Due soon under Now + mobile Classwork tile ([161](docs/decisions/161-classwork-session-2.md)); helpers `src/lib/classwork/` + MCP course resolve; Canvas CLI import `npm run classwork:canvas-import` ([216](docs/decisions/216-canvas-classwork-import.md)); migrations `20260724220000_ppp_classwork_v1.sql`, `20260801120600_ppp_classwork_papers_v1.sql`, `20260831220000_classwork_canvas_ids.sql`. **Papers:** `/studies/papers` (308 from `/classwork/papers`) research home (attach books/essays/stubs, per-row cite + page, per-source notes, merged compiled bib; P1 stamp+lock; **research groups** — CRUD + per-row select + Ungrouped-first buckets, G1 null-out) ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
 
 **Contacts:** `/contacts` tabs Contacts \| Households \| Lists + **live search** / compact roster / group jump ([223](docs/decisions/223-contacts-roster-search-density.md)/[225](docs/decisions/225-contacts-az-jump-duplicate-keys.md)/[226](docs/decisions/226-contacts-couple-last-name-backfill.md)) + **green check when current this period** ([230](docs/decisions/230-contacts-roster-current-check.md)) + collapsed due strip / Skip (household fan-out) / list filter + **Group / then** with a **saved default** ([214](docs/decisions/214-contacts-roster-sort.md)/[231](docs/decisions/231-contacts-default-grouping.md)); Sheets with frequency (**Quarterly / Semester / Annual**), grades, children; import CSV + vCard ([210](docs/decisions/210-contacts-semester-period-cadence.md)/[212](docs/decisions/212-contacts-due-integrity.md)/[213](docs/decisions/213-contacts-frequency-labels.md)); dashboard Due to meet; helpers `src/lib/contacts/`; migrations incl. `20260824190000_contacts_period_cadence_v1.sql`, `20260926203859_profiles_contacts_default_sort.sql`. Desktop sidebar only.
 
@@ -84,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Ritual check-in + flexible assignments [242](docs/decisions/242-ritual-checkin-flexible-assignments.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **575/575** (2026-10-19). `ritual_kind` migration applied to prod.
+**Repo gate:** Studies Session 1 [244](docs/decisions/244-studies-session-1.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **582/582**; `npm run build` done (2026-10-19). `ppp_studies_v1` applied to prod.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -98,6 +99,52 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ---
 
 ## Session prompts (copy-paste) — LIVE only
+
+### Studies — Sessions 2–4 ([244](docs/decisions/244-studies-session-1.md))
+
+```
+Session: studies #2 — paper import + usage
+Tracker: docs/POS_Studies_Build_Tracker.md, Session 2
+Read: AGENTS.md, docs/decisions/243-studies-session-0.md, latest studies decision,
+  src/lib/studies/
+Supabase: hosted only; new migration only if Session 1 left a column gap
+Goal: Import a set or a prior paper into a paper, with usage and archived.
+Acceptance:
+ - [ ] Import checklist; suggestion from passage / testament / topical
+ - [ ] Prior-paper import copies notes; auto-named research group
+ - [ ] Remove-from-study vs remove-from-set, both with undo
+ - [ ] Usage candidate → consulted → cited; bib defaults to consulted+cited
+ - [ ] Archived hides from the default list; ?show=archived
+ - [ ] npm run check + npm run test
+```
+
+```
+Session: studies #3 — sermon sources + hit rate
+Tracker: docs/POS_Studies_Build_Tracker.md, Session 3
+Read: AGENTS.md, docs/decisions/243-studies-session-0.md, latest studies decisions
+Goal: Sermons use the same sources panel; hit rate per commentary per Bible book.
+Acceptance:
+ - [ ] /studies/sermons/[id] shares the sources panel
+ - [ ] Systematic Theology auto-attaches on sermon create (respects set excludes)
+ - [ ] By book papers column; book-detail Used in
+ - [ ] Hit rate: expository, primary passage, since books.acquired_on
+ - [ ] npm run check + npm run test
+```
+
+```
+Session: studies #4 — docx + MCP + Overview
+Tracker: docs/POS_Studies_Build_Tracker.md, Session 4
+Read: AGENTS.md, docs/decisions/243-studies-session-0.md, src/lib/library/server/bibliography-docx.ts,
+  scripts/ppp-mcp/README.md
+Goal: Sectioned bibliography export and read-only study MCP tools.
+Acceptance:
+ - [ ] Clipboard + .docx; optional sectioned-by-group; essays included
+ - [ ] MCP list_studies, get_study_sources, suggest_sources (read-only)
+ - [ ] Overview polish if the Session 1 stub is still thin
+ - [ ] npm run check + npm run test
+```
+
+
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
 
@@ -200,24 +247,26 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
-2. **Owner — use `/classwork/papers` for the St. Louis publication edit** ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)) — create the real paper, attach sources, file them into research groups, report friction.
-3. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
+1. **Studies Session 2** — import a set or prior paper, usage cycle, archived view ([244](docs/decisions/244-studies-session-1.md)). Prompt above.
+2. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
+3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
+4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
+5. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
 
 ### Next / parallel
-4. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
-5. **Security hardening (051 R2)** — open medium findings; prompt above.
-6. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
-7. **Classwork backlog** — bulk/quick-add if syllabus entry still hurts after Canvas import ([216](docs/decisions/216-canvas-classwork-import.md)).
-8. **Invoicing — key rotation** (tracker #4, Sep 2026) — JWT + Resend when convenient; runbook in [Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md#key-rotation-runbook).
+6. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
+7. **Security hardening (051 R2)** — open medium findings; prompt above.
+8. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
+9. **Classwork backlog** — bulk/quick-add if syllabus entry still hurts after Canvas import ([216](docs/decisions/216-canvas-classwork-import.md)).
+10. **Invoicing — key rotation** (tracker #4, Sep 2026) — JWT + Resend when convenient; runbook in [Supabase_deployment_and_go_live.md](docs/Supabase_deployment_and_go_live.md#key-rotation-runbook).
 
 ### Wait for Madison / August
-9. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.
-10. **Needs the shelf** — 50 shelf-bound needs_review ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)); plus Research-deck phone smoke at ~673 proposals + the 45 no-AI-signal books ([068](docs/decisions/068-library-review-ai-research-pass.md)). Prompt above.
-11. **Shared ISBN shelf barcodes** ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)) — Lost Tales 1 vs 2 (`9780780715462`); Foundation vs Second Foundation (`9789993068808`).
-12. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
-13. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
-14. **Classwork — Canvas re-pull** ([216](docs/decisions/216-canvas-classwork-import.md)) — weeks 1–3 as drops/adds and professor due dates settle: `npm run classwork:canvas-import` then `--apply`. Mint a new token if the ~1 mo life lapses.
+11. **August shelf QA Track B** — 20 fixture rows ([docs/library-turabian-fixtures.md](docs/library-turabian-fixtures.md)); Track A done ([102](docs/decisions/102-august-qa-covenant-fixtures.md)). Prompt above.
+12. **Needs the shelf** — 50 shelf-bound needs_review ([087](docs/decisions/087-library-review-queue-research-cleanup.md)) + Goodreads leftovers ([096](docs/decisions/096-goodreads-owned-adds-enrichment.md)); plus Research-deck phone smoke at ~673 proposals + the 45 no-AI-signal books ([068](docs/decisions/068-library-review-ai-research-pass.md)). Prompt above.
+13. **Shared ISBN shelf barcodes** ([194](docs/decisions/194-library-isbn-integrity-collins-dups.md)) — Lost Tales 1 vs 2 (`9780780715462`); Foundation vs Second Foundation (`9789993068808`).
+14. **Harvard Classics full essay breakout** ([093](docs/decisions/093-goodreads-triage-execution.md)) — with other Madison library cleanup.
+15. **Writing smoke** — one paper/sermon path: footnote → short form → page → `.docx` into Word.
+16. **Classwork — Canvas re-pull** ([216](docs/decisions/216-canvas-classwork-import.md)) — weeks 1–3 as drops/adds and professor due dates settle: `npm run classwork:canvas-import` then `--apply`. Mint a new token if the ~1 mo life lapses.
 
 ### Deferred / someday (pointer only — detail in the cited decision doc)
 - **PWA branded icons** ([057](docs/decisions/057-pwa-consistency.md)) — replace placeholder squares with a monogram set.

@@ -150,7 +150,7 @@
 			<!-- Sibling of the main form — nested forms are invalid HTML. -->
 			<form
 				method="POST"
-				action="/classwork/papers?/openResearchPaper"
+				action="/studies/papers?/openResearchPaper"
 				use:enhance
 				class="flex items-center justify-between gap-3 border-b border-border px-1 py-3"
 			>

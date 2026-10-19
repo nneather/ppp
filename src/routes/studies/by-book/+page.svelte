@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/page-header.svelte';
-	import SermonsViewToggle from '$lib/components/sermons-view-toggle.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		BY_BOOK_SORT_LABELS,
@@ -36,7 +35,7 @@
 			next.sortDir = defaultSortDir(patch.sort);
 		}
 		const qs = byBookFiltersToSearchParams(next).toString();
-		void goto(`/sermons/by-book${qs ? `?${qs}` : ''}`, { keepFocus: true, noScroll: true });
+		void goto(`/studies/by-book${qs ? `?${qs}` : ''}`, { keepFocus: true, noScroll: true });
 	}
 
 	function toggleSort(sort: ByBookSort) {
@@ -77,9 +76,6 @@
 		title="Sermons"
 		subtitle="Bible-book spine — sermons preached and commentaries on the shelf."
 	>
-		{#snippet actions()}
-			<SermonsViewToggle active="by-book" />
-		{/snippet}
 	</PageHeader>
 
 	{#if data.loadError}

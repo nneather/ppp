@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
 	import PageHeader from '$lib/components/page-header.svelte';
-	import ClassworkViewToggle from '$lib/components/classwork-view-toggle.svelte';
 	import PaperFormSheet from '$lib/components/paper-form-sheet.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
-	import { PAPER_STATUS_LABELS, type PaperListRow } from '$lib/types/classwork';
+	import { PAPER_STATUS_LABELS, type PaperListRow, type PaperStatus } from '$lib/types/classwork';
 	import { cn } from '$lib/utils';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -64,10 +63,12 @@
 		});
 	}
 
-	const statusBadgeClass: Record<string, string> = {
-		draft: 'bg-muted text-muted-foreground',
-		in_progress: 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200',
-		submitted: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+	const statusBadgeClass: Record<PaperStatus, string> = {
+		researching: 'bg-muted text-muted-foreground',
+		drafting: 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200',
+		submitted: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
+		published: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
+		archived: 'bg-muted text-muted-foreground'
 	};
 </script>
 
@@ -89,10 +90,6 @@
 			{/if}
 		{/snippet}
 	</PageHeader>
-
-	<div class="mt-4">
-		<ClassworkViewToggle active="papers" />
-	</div>
 
 	{#if data.loadError}
 		<p class="mt-4 text-sm text-destructive" role="alert">{data.loadError}</p>
@@ -125,7 +122,7 @@
 				{@const due = effectiveDue(p)}
 				<li class="rounded-lg border border-border px-3 py-2.5">
 					<div class="flex items-start justify-between gap-3">
-						<a href={`/classwork/papers/${p.id}`} class="min-w-0 flex-1">
+						<a href={`/studies/papers/${p.id}`} class="min-w-0 flex-1">
 							<p class="text-sm font-medium break-words">{p.title}</p>
 							<p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
 								<span

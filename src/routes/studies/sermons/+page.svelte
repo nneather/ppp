@@ -4,7 +4,6 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import SermonFormSheet from '$lib/components/sermon-form-sheet.svelte';
-	import SermonsViewToggle from '$lib/components/sermons-view-toggle.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
@@ -116,7 +115,7 @@
 		if (venueId) params.set('venue', venueId);
 		if (bibleBook) params.set('bible_book', bibleBook);
 		const qs = params.toString();
-		void goto(`/sermons${qs ? `?${qs}` : ''}`, { keepFocus: true, noScroll: true });
+		void goto(`/studies/sermons${qs ? `?${qs}` : ''}`, { keepFocus: true, noScroll: true });
 	}
 
 	function formatDate(ymd: string): string {
@@ -139,7 +138,6 @@
 	<PageHeader title="Sermons" subtitle="Sermons you have preached — draft with a date, fill in later.">
 		{#snippet actions()}
 			<div class="flex flex-wrap items-center gap-2">
-				<SermonsViewToggle active="list" />
 				{#if data.isOwner}
 					<Button type="button" class="gap-2" hotkey="b" onclick={openCreate}>
 						<Plus class="size-4" />
@@ -169,7 +167,7 @@
 				Clear
 			</button>
 			<a
-				href="/sermons/by-book"
+				href="/studies/by-book"
 				class="text-xs text-muted-foreground underline-offset-2 hover:underline"
 			>
 				Back to by-book

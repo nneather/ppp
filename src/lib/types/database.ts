@@ -483,6 +483,7 @@ export type Database = {
       }
       books: {
         Row: {
+          acquired_on: string | null
           author_display: string | null
           barcode: string | null
           borrowed_to: string | null
@@ -527,6 +528,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          acquired_on?: string | null
           author_display?: string | null
           barcode?: string | null
           borrowed_to?: string | null
@@ -571,6 +573,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          acquired_on?: string | null
           author_display?: string | null
           barcode?: string | null
           borrowed_to?: string | null
@@ -1541,125 +1544,69 @@ export type Database = {
         }
         Relationships: []
       }
-      paper_research_groups: {
+      paper_passages: {
         Row: {
+          bible_book: string
+          chapter_end: number | null
+          chapter_start: number | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
           id: string
-          name: string
           paper_id: string
+          role: string
           sort_order: number
           updated_at: string
+          verse_end: number | null
+          verse_start: number | null
         }
         Insert: {
+          bible_book: string
+          chapter_end?: number | null
+          chapter_start?: number | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           id?: string
-          name: string
           paper_id: string
+          role?: string
           sort_order?: number
           updated_at?: string
+          verse_end?: number | null
+          verse_start?: number | null
         }
         Update: {
+          bible_book?: string
+          chapter_end?: number | null
+          chapter_start?: number | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           id?: string
-          name?: string
           paper_id?: string
+          role?: string
           sort_order?: number
           updated_at?: string
+          verse_end?: number | null
+          verse_start?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "paper_research_groups_created_by_fkey"
+            foreignKeyName: "paper_passages_bible_book_fkey"
+            columns: ["bible_book"]
+            isOneToOne: false
+            referencedRelation: "bible_books"
+            referencedColumns: ["name"]
+          },
+          {
+            foreignKeyName: "paper_passages_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "paper_research_groups_paper_id_fkey"
-            columns: ["paper_id"]
-            isOneToOne: false
-            referencedRelation: "papers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      paper_sources: {
-        Row: {
-          book_id: string | null
-          created_at: string
-          created_by: string | null
-          deleted_at: string | null
-          essay_id: string | null
-          group_id: string | null
-          id: string
-          notes: string | null
-          paper_id: string
-          sort_order: number
-          updated_at: string
-        }
-        Insert: {
-          book_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          deleted_at?: string | null
-          essay_id?: string | null
-          group_id?: string | null
-          id?: string
-          notes?: string | null
-          paper_id: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Update: {
-          book_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          deleted_at?: string | null
-          essay_id?: string | null
-          group_id?: string | null
-          id?: string
-          notes?: string | null
-          paper_id?: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "paper_sources_book_id_fkey"
-            columns: ["book_id"]
-            isOneToOne: false
-            referencedRelation: "books"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "paper_sources_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "paper_sources_essay_id_fkey"
-            columns: ["essay_id"]
-            isOneToOne: false
-            referencedRelation: "essays"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "paper_sources_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "paper_research_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "paper_sources_paper_id_fkey"
+            foreignKeyName: "paper_passages_paper_id_fkey"
             columns: ["paper_id"]
             isOneToOne: false
             referencedRelation: "papers"
@@ -1678,10 +1625,12 @@ export type Database = {
           id: string
           notes: string | null
           passage_display: string | null
+          secondary_passage_display: string | null
           sort_order: number
           status: string
           title: string
           topic: string | null
+          topical: boolean
           updated_at: string
         }
         Insert: {
@@ -1694,10 +1643,12 @@ export type Database = {
           id?: string
           notes?: string | null
           passage_display?: string | null
+          secondary_passage_display?: string | null
           sort_order?: number
           status?: string
           title: string
           topic?: string | null
+          topical?: boolean
           updated_at?: string
         }
         Update: {
@@ -1710,10 +1661,12 @@ export type Database = {
           id?: string
           notes?: string | null
           passage_display?: string | null
+          secondary_passage_display?: string | null
           sort_order?: number
           status?: string
           title?: string
           topic?: string | null
+          topical?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -2255,6 +2208,124 @@ export type Database = {
           },
         ]
       }
+      resource_set_members: {
+        Row: {
+          book_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          essay_id: string | null
+          id: string
+          kind: string
+          set_id: string
+          updated_at: string
+        }
+        Insert: {
+          book_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          essay_id?: string | null
+          id?: string
+          kind: string
+          set_id: string
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          essay_id?: string | null
+          id?: string
+          kind?: string
+          set_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_set_members_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_set_members_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_set_members_essay_id_fkey"
+            columns: ["essay_id"]
+            isOneToOne: false
+            referencedRelation: "essays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_set_members_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "resource_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_sets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_for: string[]
+          deleted_at: string | null
+          id: string
+          kind: string
+          last_reviewed_at: string | null
+          name: string
+          rules: Json
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_for?: string[]
+          deleted_at?: string | null
+          id?: string
+          kind: string
+          last_reviewed_at?: string | null
+          name: string
+          rules?: Json
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_for?: string[]
+          deleted_at?: string | null
+          id?: string
+          kind?: string
+          last_reviewed_at?: string | null
+          name?: string
+          rules?: Json
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_sets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scripture_references: {
         Row: {
           bible_book: string
@@ -2403,6 +2474,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          role: string
           sermon_id: string
           sort_order: number
           updated_at: string
@@ -2417,6 +2489,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          role?: string
           sermon_id: string
           sort_order?: number
           updated_at?: string
@@ -2431,6 +2504,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          role?: string
           sermon_id?: string
           sort_order?: number
           updated_at?: string
@@ -2524,7 +2598,9 @@ export type Database = {
           notes: string | null
           passage_display: string | null
           preached_on: string
+          secondary_passage_display: string | null
           topic: string | null
+          topical: boolean
           updated_at: string
           venue_id: string | null
         }
@@ -2537,7 +2613,9 @@ export type Database = {
           notes?: string | null
           passage_display?: string | null
           preached_on: string
+          secondary_passage_display?: string | null
           topic?: string | null
+          topical?: boolean
           updated_at?: string
           venue_id?: string | null
         }
@@ -2550,7 +2628,9 @@ export type Database = {
           notes?: string | null
           passage_display?: string | null
           preached_on?: string
+          secondary_passage_display?: string | null
           topic?: string | null
+          topical?: boolean
           updated_at?: string
           venue_id?: string | null
         }
@@ -2750,6 +2830,155 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      study_research_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          name: string
+          paper_id: string | null
+          sermon_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name: string
+          paper_id?: string | null
+          sermon_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          paper_id?: string | null
+          sermon_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paper_research_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_research_groups_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_research_groups_sermon_id_fkey"
+            columns: ["sermon_id"]
+            isOneToOne: false
+            referencedRelation: "sermons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_sources: {
+        Row: {
+          book_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          essay_id: string | null
+          group_id: string | null
+          id: string
+          notes: string | null
+          paper_id: string | null
+          sermon_id: string | null
+          sort_order: number
+          updated_at: string
+          usage: string
+        }
+        Insert: {
+          book_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          essay_id?: string | null
+          group_id?: string | null
+          id?: string
+          notes?: string | null
+          paper_id?: string | null
+          sermon_id?: string | null
+          sort_order?: number
+          updated_at?: string
+          usage?: string
+        }
+        Update: {
+          book_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          essay_id?: string | null
+          group_id?: string | null
+          id?: string
+          notes?: string | null
+          paper_id?: string | null
+          sermon_id?: string | null
+          sort_order?: number
+          updated_at?: string
+          usage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paper_sources_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_sources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_sources_essay_id_fkey"
+            columns: ["essay_id"]
+            isOneToOne: false
+            referencedRelation: "essays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_sources_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "study_research_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_sources_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_sources_sermon_id_fkey"
+            columns: ["sermon_id"]
+            isOneToOne: false
+            referencedRelation: "sermons"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       time_entries: {
         Row: {

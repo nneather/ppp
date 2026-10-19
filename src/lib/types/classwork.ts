@@ -39,13 +39,21 @@ export const ASSIGNMENT_STATUS_LABELS: Record<AssignmentStatus, string> = {
 export const CLASSWORK_GROUPS = ['date', 'course'] as const;
 export type ClassworkGroup = (typeof CLASSWORK_GROUPS)[number];
 
-export const PAPER_STATUSES = ['draft', 'in_progress', 'submitted'] as const;
+export const PAPER_STATUSES = [
+	'researching',
+	'drafting',
+	'submitted',
+	'published',
+	'archived'
+] as const;
 export type PaperStatus = (typeof PAPER_STATUSES)[number];
 
 export const PAPER_STATUS_LABELS: Record<PaperStatus, string> = {
-	draft: 'Draft',
-	in_progress: 'In progress',
-	submitted: 'Submitted'
+	researching: 'Researching',
+	drafting: 'Drafting',
+	submitted: 'Submitted',
+	published: 'Published',
+	archived: 'Complete'
 };
 
 /**
