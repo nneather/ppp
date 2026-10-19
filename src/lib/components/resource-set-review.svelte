@@ -8,6 +8,8 @@
 		type ResourceSetRule
 	} from '$lib/studies/resource-sets';
 
+	type MoveTarget = { id: string; name: string; sectionName: string | null };
+
 	let {
 		setId,
 		rules,
@@ -15,7 +17,8 @@
 		excluded,
 		isOwner,
 		addQuery = '',
-		addHits = []
+		addHits = [],
+		moveTargets = []
 	}: {
 		setId: string;
 		rules: ResourceSetRule[];
@@ -32,9 +35,70 @@
 			volumeCount: number;
 			included: boolean;
 		}[];
+		moveTargets?: MoveTarget[];
 	} = $props();
 
-	let showExcluded = $state(false);
+	let showNotIncluded = $state(false);
+	let selected = $state(new Set<string>());
+	let pendingKeys = $state(new Set<string>());
+	let moveTargetId = $state('');
+	let busy = $state(false);
+
+	function memberKey(member: ResolvedMember): string {
+		return `${member.bookId ?? ''}:${member.essayId ?? ''}`;
+	}
+
+	function toggle(key: string, on: boolean) {
+		const next = new Set(selected);
+		if (on) next.add(key);
+		else next.delete(key);
+		selected = next;
+	}
+
+	function clearSelected() {
+		selected = new Set();
+		moveTargetId = '';
+	}
+
+	function markPending(keys: string[]) {
+		pendingKeys = new Set([...pendingKeys, ...keys]);
+		busy = true;
+	}
+
+	function selectedMembers(pool: ResolvedMember[]): ResolvedMember[] {
+		return pool.filter((member) => selected.has(memberKey(member)));
+	}
+
+	function displayLabel(member: ResolvedMember): string {
+		return member.seriesAbbreviation?.trim() || member.title;
+	}
+
+	function tooltip(member: ResolvedMember): string {
+		const parts = [member.title];
+		if (member.authors) parts.push(member.authors);
+		if (member.volumeCount > 1) {
+			parts.push(
+				`${member.seriesAbbreviation ? `${member.seriesAbbreviation} · ` : ''}${member.volumeCount} vols.`
+			);
+		}
+		return parts.join(' — ');
+	}
+
+	function enhancePending(keys: string[]) {
+		return () => {
+			markPending(keys);
+			return async ({ update }: { update: () => Promise<void> }) => {
+				await update();
+				pendingKeys = new Set([...pendingKeys].filter((k) => !keys.includes(k)));
+				selected = new Set([...selected].filter((k) => !keys.includes(k)));
+				busy = false;
+			};
+		};
+	}
+
+	const visibleIncluded = $derived(included.filter((m) => !pendingKeys.has(memberKey(m))));
+	const visibleExcluded = $derived(excluded.filter((m) => !pendingKeys.has(memberKey(m))));
+	const selectedCount = $derived(selected.size);
 </script>
 
 {#snippet memberFields(member: ResolvedMember)}
@@ -46,13 +110,73 @@
 {/snippet}
 
 {#snippet memberMeta(member: ResolvedMember)}
-	{#if member.authors || member.volumeCount > 1}
-		<span class="mt-0.5 block text-xs text-muted-foreground">
-			{member.authors}{#if member.authors && member.volumeCount > 1}{' · '}{/if}{#if member.volumeCount > 1}{member.seriesAbbreviation
-				? `${member.seriesAbbreviation} · `
-				: ''}{member.volumeCount} vols.{/if}
+	{#if member.authors || (member.volumeCount > 1 && !member.seriesAbbreviation)}
+		<span class="mt-0.5 block truncate text-xs text-muted-foreground">
+			{member.authors}{#if member.authors && member.volumeCount > 1 && !member.seriesAbbreviation}{' · '}{/if}{#if member.volumeCount > 1 && !member.seriesAbbreviation}{member.volumeCount} vols.{/if}
 		</span>
+	{:else if member.authors}
+		<span class="mt-0.5 block truncate text-xs text-muted-foreground">{member.authors}</span>
 	{/if}
+{/snippet}
+
+{#snippet memberRow(member: ResolvedMember, list: 'included' | 'excluded')}
+	{@const key = memberKey(member)}
+	<li class="flex items-center gap-2 px-3 py-2 text-sm">
+		{#if isOwner}
+			<input
+				type="checkbox"
+				class="size-4 shrink-0"
+				checked={selected.has(key)}
+				disabled={busy}
+				aria-label={`Select ${displayLabel(member)}`}
+				onchange={(e) => toggle(key, e.currentTarget.checked)}
+			/>
+		{/if}
+		<span class="min-w-0 flex-1 overflow-hidden" title={tooltip(member)}>
+			<span class="flex min-w-0 items-baseline gap-2">
+				<span class="shrink-0 font-medium">{displayLabel(member)}</span>
+				{#if member.seriesAbbreviation}
+					<span class="min-w-0 truncate text-xs text-muted-foreground">{member.title}</span>
+				{/if}
+				{#if member.volumeCount > 1 && member.seriesAbbreviation}
+					<span class="shrink-0 text-[10px] text-muted-foreground">{member.volumeCount} vols.</span>
+				{/if}
+				{#if !member.bibliographical && list === 'included'}
+					<span class="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">Reference</span>
+				{/if}
+				{#if member.isNew}
+					<span class="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">New</span>
+				{/if}
+			</span>
+			{@render memberMeta(member)}
+		</span>
+		{#if isOwner}
+			<span class="flex shrink-0 items-center gap-1.5">
+				{#if list === 'included'}
+					<form method="POST" action="?/setBibliographical" use:enhance={enhancePending([key])}>
+						{@render memberFields(member)}
+						<input type="hidden" name="bibliographical" value={member.bibliographical ? 'false' : 'true'} />
+						<Button type="submit" variant="outline" size="sm" disabled={busy}>
+							{member.bibliographical ? 'Reference only' : 'For bibliography'}
+						</Button>
+					</form>
+					<form method="POST" action="?/excludeMember" use:enhance={enhancePending([key])}>
+						{@render memberFields(member)}
+						<Button type="submit" variant="outline" size="sm" disabled={busy}>Not included</Button>
+					</form>
+				{:else}
+					<form method="POST" action="?/restoreMember" use:enhance={enhancePending([key])}>
+						{@render memberFields(member)}
+						<Button type="submit" variant="outline" size="sm" disabled={busy}>Include</Button>
+					</form>
+				{/if}
+				<form method="POST" action="?/removeMember" use:enhance={enhancePending([key])}>
+					{@render memberFields(member)}
+					<Button type="submit" variant="outline" size="sm" class="text-destructive" disabled={busy}>Remove</Button>
+				</form>
+			</span>
+		{/if}
+	</li>
 {/snippet}
 
 {#if rules.length > 0}
@@ -91,13 +215,14 @@
 			<ul class="mt-2 divide-y divide-border rounded-lg border border-border">
 				{#each addHits as hit (hit.id)}
 					<li class="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-						<span class="min-w-0">
-							<span class="font-medium">{hit.title}</span>
+						<span class="min-w-0 overflow-hidden" title={hit.title}>
+							<span class="font-medium">{hit.seriesAbbreviation?.trim() || hit.title}</span>
+							{#if hit.seriesAbbreviation}
+								<span class="mt-0.5 block truncate text-xs text-muted-foreground">{hit.title}</span>
+							{/if}
 							{#if hit.authors || hit.volumeCount > 1}
-								<span class="mt-0.5 block text-xs text-muted-foreground">
-									{hit.authors}{#if hit.authors && hit.volumeCount > 1}{' · '}{/if}{#if hit.volumeCount > 1}{hit.seriesAbbreviation
-										? `${hit.seriesAbbreviation} · `
-										: ''}{hit.volumeCount} vols.{/if}
+								<span class="mt-0.5 block truncate text-xs text-muted-foreground">
+									{hit.authors}{#if hit.authors && hit.volumeCount > 1}{' · '}{/if}{#if hit.volumeCount > 1}{hit.volumeCount} vols.{/if}
 								</span>
 							{/if}
 						</span>
@@ -119,53 +244,77 @@
 	{/if}
 {/if}
 
-<div class="mt-4 flex items-center justify-between gap-3">
-	<h2 class="text-sm font-medium">Included ({included.length})</h2>
-	{#if isOwner}
-		<form method="POST" action="?/markReviewed" use:enhance>
+{#if isOwner && selectedCount > 0}
+	<div
+		class="sticky top-0 z-10 mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-background/95 px-3 py-2 shadow-sm backdrop-blur"
+	>
+		<span class="text-sm font-medium">{selectedCount} selected</span>
+		<form
+			method="POST"
+			action="?/moveMembers"
+			class="flex items-center gap-2"
+			use:enhance={enhancePending([...selected])}
+		>
 			<input type="hidden" name="set_id" value={setId} />
-			<Button type="submit" size="sm" hotkey="s" label="Save review" />
+			{#each [...selectedMembers(included), ...selectedMembers(excluded)] as member (memberKey(member))}
+				{@render memberFields(member)}
+			{/each}
+			<select
+				name="target_set_id"
+				class="h-8 rounded-md border border-input bg-background px-2 text-sm"
+				bind:value={moveTargetId}
+				required
+				aria-label="Move to set"
+			>
+				<option value="" disabled>Move to…</option>
+				{#each moveTargets as target (target.id)}
+					<option value={target.id}>
+						{target.sectionName ? `${target.sectionName}: ` : ''}{target.name}
+					</option>
+				{/each}
+			</select>
+			<Button type="submit" size="sm" disabled={busy || !moveTargetId}>Move</Button>
 		</form>
-	{/if}
+		<form method="POST" action="?/restoreMember" use:enhance={enhancePending([...selected])}>
+			<input type="hidden" name="set_id" value={setId} />
+			{#each [...selectedMembers(included), ...selectedMembers(excluded)] as member (memberKey(member))}
+				{@render memberFields(member)}
+			{/each}
+			<Button type="submit" variant="outline" size="sm" disabled={busy}>Include</Button>
+		</form>
+		<form method="POST" action="?/excludeMember" use:enhance={enhancePending([...selected])}>
+			<input type="hidden" name="set_id" value={setId} />
+			{#each [...selectedMembers(included), ...selectedMembers(excluded)] as member (memberKey(member))}
+				{@render memberFields(member)}
+			{/each}
+			<Button type="submit" variant="outline" size="sm" disabled={busy}>Not included</Button>
+		</form>
+		<form method="POST" action="?/removeMember" use:enhance={enhancePending([...selected])}>
+			<input type="hidden" name="set_id" value={setId} />
+			{#each [...selectedMembers(included), ...selectedMembers(excluded)] as member (memberKey(member))}
+				{@render memberFields(member)}
+			{/each}
+			<Button type="submit" variant="outline" size="sm" class="text-destructive" disabled={busy}>Remove</Button>
+		</form>
+		<button type="button" class="text-xs text-muted-foreground underline-offset-2 hover:underline" onclick={clearSelected}>
+			Clear
+		</button>
+	</div>
+{/if}
+
+<div class="mt-4 flex items-center justify-between gap-3">
+	<h2 class="text-sm font-medium">Included ({visibleIncluded.length})</h2>
 </div>
 
-{#if included.length === 0}
+{#if visibleIncluded.length === 0}
 	<p class="mt-2 text-sm text-muted-foreground">Nothing in this set yet.</p>
 {:else}
 	<ul class="mt-2 divide-y divide-border rounded-lg border border-border">
-		{#each included as member (`${member.bookId ?? ''}:${member.essayId ?? ''}`)}
-			<li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
-				<span class="min-w-0">
-					<span>
-						<span class="font-medium">{member.title}</span>
-						{#if !member.bibliographical}
-							<span class="ml-2 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">Reference</span>
-						{/if}
-						{#if member.isNew}
-							<span class="ml-2 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">New</span>
-						{/if}
-					</span>
-					{@render memberMeta(member)}
-				</span>
-				{#if isOwner}
-					<span class="flex shrink-0 items-center gap-2">
-						<form method="POST" action="?/setBibliographical" use:enhance>
-							{@render memberFields(member)}
-							<input type="hidden" name="bibliographical" value={member.bibliographical ? 'false' : 'true'} />
-							<Button type="submit" variant="outline" size="sm">
-								{member.bibliographical ? 'Reference only' : 'For bibliography'}
-							</Button>
-						</form>
-						<form method="POST" action="?/removeMember" use:enhance>
-							{@render memberFields(member)}
-							<Button type="submit" variant="outline" size="sm">Remove</Button>
-						</form>
-					</span>
-				{/if}
-			</li>
+		{#each visibleIncluded as member (memberKey(member))}
+			{@render memberRow(member, 'included')}
 		{/each}
 	</ul>
-	{#if included.some((member) => !member.bibliographical)}
+	{#if visibleIncluded.some((member) => !member.bibliographical)}
 		<p class="mt-2 text-xs text-muted-foreground">
 			Reference items stay in the set and stay out of import and the bibliography.
 		</p>
@@ -176,29 +325,21 @@
 	<button
 		type="button"
 		class="text-sm font-medium underline-offset-2 hover:underline"
-		aria-expanded={showExcluded}
-		onclick={() => (showExcluded = !showExcluded)}
+		aria-expanded={showNotIncluded}
+		onclick={() => (showNotIncluded = !showNotIncluded)}
 	>
-		Excluded ({excluded.length})
+		Not included ({visibleExcluded.length})
 	</button>
-	{#if showExcluded}
-		{#if excluded.length === 0}
-			<p class="mt-2 text-sm text-muted-foreground">Nothing excluded.</p>
+	<p class="mt-1 text-xs text-muted-foreground">
+		Parked here — still listed. Remove hides a book from this set altogether.
+	</p>
+	{#if showNotIncluded}
+		{#if visibleExcluded.length === 0}
+			<p class="mt-2 text-sm text-muted-foreground">Nothing parked.</p>
 		{:else}
 			<ul class="mt-2 divide-y divide-border rounded-lg border border-border">
-				{#each excluded as member (`x-${member.bookId ?? ''}:${member.essayId ?? ''}`)}
-					<li class="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-						<span class="min-w-0">
-							<span class="font-medium">{member.title}</span>
-							{@render memberMeta(member)}
-						</span>
-						{#if isOwner}
-							<form method="POST" action="?/restoreMember" use:enhance>
-								{@render memberFields(member)}
-								<Button type="submit" variant="outline" size="sm">Add back</Button>
-							</form>
-						{/if}
-					</li>
+				{#each visibleExcluded as member (`x-${memberKey(member)}`)}
+					{@render memberRow(member, 'excluded')}
 				{/each}
 			</ul>
 		{/if}

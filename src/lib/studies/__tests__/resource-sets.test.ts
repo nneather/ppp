@@ -144,6 +144,19 @@ describe('resolveSetMembers', () => {
 		expect(included).toEqual([]);
 		expect(excluded.map((m) => m.title)).toEqual(['Gamma']);
 	});
+
+	it('hides dismissed books from both lists', () => {
+		const { included, excluded } = resolveSetMembers({
+			candidates: [
+				cand({ bookId: 'odyssey', title: 'Odyssey' }),
+				cand({ bookId: 'bdag', title: 'BDAG' })
+			],
+			overrides: [{ kind: 'dismiss', bookId: 'odyssey', essayId: null, title: 'Odyssey' }],
+			lastReviewedAt: null
+		});
+		expect(included.map((m) => m.title)).toEqual(['BDAG']);
+		expect(excluded).toEqual([]);
+	});
 });
 
 describe('groupResourceSetList', () => {

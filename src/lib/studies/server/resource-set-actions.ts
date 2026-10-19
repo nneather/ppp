@@ -106,43 +106,153 @@ async function refMatchesRules(
 	return false;
 }
 
-async function liveMember(
+type LiveMemberRow = {
+	id: string;
+	book_id: string | null;
+	essay_id: string | null;
+	kind: string;
+	bibliographical: boolean;
+};
+
+function catalogKey(ref: CatalogRef): string {
+	if (ref.essayId) return `e:${ref.essayId}`;
+	if (ref.bookId) return `b:${ref.bookId}`;
+	return '';
+}
+
+async function liveMembersForRefs(
 	supabase: SupabaseClient,
 	setId: string,
-	ref: CatalogRef
-): Promise<{ id: string; kind: string; bibliographical: boolean } | null> {
-	let q = supabase
-		.from('resource_set_members')
-		.select('id, kind, bibliographical')
-		.eq('set_id', setId)
-		.is('deleted_at', null);
-	q = ref.bookId ? q.eq('book_id', ref.bookId) : q.eq('essay_id', ref.essayId ?? '');
-	const { data, error } = await q.maybeSingle();
-	if (error) {
-		console.error('[studies] live member', error);
-		return null;
+	refs: CatalogRef[]
+): Promise<Map<string, LiveMemberRow>> {
+	const out = new Map<string, LiveMemberRow>();
+	const bookIds = [...new Set(refs.flatMap((r) => (r.bookId ? [r.bookId] : [])))];
+	const essayIds = [...new Set(refs.flatMap((r) => (r.essayId ? [r.essayId] : [])))];
+	const [booksRes, essaysRes] = await Promise.all([
+		bookIds.length
+			? supabase
+					.from('resource_set_members')
+					.select('id, book_id, essay_id, kind, bibliographical')
+					.eq('set_id', setId)
+					.in('book_id', bookIds)
+					.is('deleted_at', null)
+			: Promise.resolve({ data: [] as LiveMemberRow[], error: null }),
+		essayIds.length
+			? supabase
+					.from('resource_set_members')
+					.select('id, book_id, essay_id, kind, bibliographical')
+					.eq('set_id', setId)
+					.in('essay_id', essayIds)
+					.is('deleted_at', null)
+			: Promise.resolve({ data: [] as LiveMemberRow[], error: null })
+	]);
+	if (booksRes.error) console.error('[studies] live members books', booksRes.error);
+	if (essaysRes.error) console.error('[studies] live members essays', essaysRes.error);
+	for (const row of [...(booksRes.data ?? []), ...(essaysRes.data ?? [])] as LiveMemberRow[]) {
+		const key = row.essay_id ? `e:${row.essay_id}` : row.book_id ? `b:${row.book_id}` : '';
+		if (!key) continue;
+		out.set(key, { ...row, bibliographical: row.bibliographical !== false });
 	}
-	const row = data as { id: string; kind: string; bibliographical: boolean } | null;
-	return row ? { ...row, bibliographical: row.bibliographical !== false } : null;
+	return out;
 }
 
-export async function markSetReviewedAction(supabase: SupabaseClient, fd: FormData) {
-	const setId = trimOrNull(fd.get('set_id'));
-	if (!setId || !UUID_RE.test(setId)) {
-		return fail(400, { kind: 'markSetReviewed' as const, message: 'Invalid set.' });
+type MemberKind = 'include' | 'exclude' | 'dismiss';
+
+async function applyMemberKind(
+	supabase: SupabaseClient,
+	userId: string,
+	setId: string,
+	refs: CatalogRef[],
+	kind: MemberKind
+): Promise<{ ok: true } | { ok: false; message: string }> {
+	const existing = await liveMembersForRefs(supabase, setId, refs);
+	let rules: ReturnType<typeof parseResourceSetRules> | null = null;
+	if (kind === 'include') {
+		const setRes = await supabase
+			.from('resource_sets')
+			.select('rules')
+			.eq('id', setId)
+			.is('deleted_at', null)
+			.maybeSingle();
+		if (setRes.error || !setRes.data) {
+			return { ok: false, message: setRes.error?.message ?? 'Set not found.' };
+		}
+		rules = parseResourceSetRules((setRes.data as { rules: unknown }).rules);
 	}
-	const { error } = await supabase
-		.from('resource_sets')
-		.update({ last_reviewed_at: new Date().toISOString() } as never)
-		.eq('id', setId)
-		.is('deleted_at', null);
-	if (error) {
-		console.error('[studies] markSetReviewed', error);
-		return fail(500, { kind: 'markSetReviewed' as const, setId, message: error.message });
+
+	const toUpdate: { id: string; patch: Record<string, unknown> }[] = [];
+	const toInsert: {
+		set_id: string;
+		book_id: string | null;
+		essay_id: string | null;
+		kind: MemberKind;
+		created_by: string;
+	}[] = [];
+
+	for (const ref of refs) {
+		const key = catalogKey(ref);
+		if (!key) continue;
+		const row = existing.get(key) ?? null;
+		if (kind === 'include') {
+			const matches = rules ? await refMatchesRules(supabase, rules, ref) : false;
+			if (!row) {
+				if (!matches) {
+					toInsert.push({
+						set_id: setId,
+						book_id: ref.bookId,
+						essay_id: ref.essayId,
+						kind: 'include',
+						created_by: userId
+					});
+				}
+				continue;
+			}
+			if (row.kind === 'include') continue;
+			if (matches && row.bibliographical) {
+				toUpdate.push({ id: row.id, patch: { deleted_at: new Date().toISOString() } });
+			} else {
+				toUpdate.push({ id: row.id, patch: { kind: 'include' } });
+			}
+			continue;
+		}
+		if (row?.kind === kind) continue;
+		if (row) {
+			toUpdate.push({ id: row.id, patch: { kind } });
+		} else {
+			toInsert.push({
+				set_id: setId,
+				book_id: ref.bookId,
+				essay_id: ref.essayId,
+				kind,
+				created_by: userId
+			});
+		}
 	}
-	return { kind: 'markSetReviewed' as const, setId, success: true as const };
+
+	if (toUpdate.length > 0) {
+		const results = await Promise.all(
+			toUpdate.map((item) =>
+				supabase.from('resource_set_members').update(item.patch as never).eq('id', item.id)
+			)
+		);
+		for (const res of results) {
+			if (res.error) {
+				console.error('[studies] member kind update', res.error);
+				return { ok: false, message: res.error.message };
+			}
+		}
+	}
+	if (toInsert.length > 0) {
+		const { error } = await supabase.from('resource_set_members').insert(toInsert as never);
+		if (error) {
+			console.error('[studies] member kind insert', error);
+			return { ok: false, message: error.message };
+		}
+	}
+	return { ok: true };
 }
 
+/** Remove = dismiss. Gone from Included and Not included. */
 export async function removeSetMemberAction(
 	supabase: SupabaseClient,
 	userId: string,
@@ -156,35 +266,35 @@ export async function removeSetMemberAction(
 	if (!parsed.ok) {
 		return fail(400, { kind: 'removeSetMember' as const, setId, message: parsed.message });
 	}
-	for (const ref of parsed.refs) {
-		const existing = await liveMember(supabase, setId, ref);
-		if (existing?.kind === 'exclude') continue;
-		if (existing) {
-			const { error } = await supabase
-				.from('resource_set_members')
-				.update({ kind: 'exclude' } as never)
-				.eq('id', existing.id);
-			if (error) {
-				console.error('[studies] remove member update', error);
-				return fail(500, { kind: 'removeSetMember' as const, setId, message: error.message });
-			}
-			continue;
-		}
-		const { error } = await supabase.from('resource_set_members').insert({
-			set_id: setId,
-			book_id: ref.bookId,
-			essay_id: ref.essayId,
-			kind: 'exclude',
-			created_by: userId
-		} as never);
-		if (error) {
-			console.error('[studies] remove member insert', error);
-			return fail(500, { kind: 'removeSetMember' as const, setId, message: error.message });
-		}
+	const result = await applyMemberKind(supabase, userId, setId, parsed.refs, 'dismiss');
+	if (!result.ok) {
+		return fail(500, { kind: 'removeSetMember' as const, setId, message: result.message });
 	}
 	return { kind: 'removeSetMember' as const, setId, success: true as const };
 }
 
+/** Park as Not included (visible, not in import). */
+export async function excludeSetMemberAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const setId = trimOrNull(fd.get('set_id'));
+	if (!setId || !UUID_RE.test(setId)) {
+		return fail(400, { kind: 'excludeSetMember' as const, message: 'Invalid set.' });
+	}
+	const parsed = parseRefs(fd);
+	if (!parsed.ok) {
+		return fail(400, { kind: 'excludeSetMember' as const, setId, message: parsed.message });
+	}
+	const result = await applyMemberKind(supabase, userId, setId, parsed.refs, 'exclude');
+	if (!result.ok) {
+		return fail(500, { kind: 'excludeSetMember' as const, setId, message: result.message });
+	}
+	return { kind: 'excludeSetMember' as const, setId, success: true as const };
+}
+
+/** Include / add back / add a book. */
 export async function restoreSetMemberAction(
 	supabase: SupabaseClient,
 	userId: string,
@@ -198,60 +308,56 @@ export async function restoreSetMemberAction(
 	if (!parsed.ok) {
 		return fail(400, { kind: 'restoreSetMember' as const, setId, message: parsed.message });
 	}
-	const setRes = await supabase
-		.from('resource_sets')
-		.select('rules')
-		.eq('id', setId)
-		.is('deleted_at', null)
-		.maybeSingle();
-	if (setRes.error || !setRes.data) {
-		return fail(404, {
-			kind: 'restoreSetMember' as const,
-			setId,
-			message: setRes.error?.message ?? 'Set not found.'
-		});
-	}
-	const rules = parseResourceSetRules((setRes.data as { rules: unknown }).rules);
-	for (const ref of parsed.refs) {
-		const matches = await refMatchesRules(supabase, rules, ref);
-		const existing = await liveMember(supabase, setId, ref);
-		if (!existing) {
-			if (matches) continue;
-			const { error } = await supabase.from('resource_set_members').insert({
-				set_id: setId,
-				book_id: ref.bookId,
-				essay_id: ref.essayId,
-				kind: 'include',
-				created_by: userId
-			} as never);
-			if (error) {
-				console.error('[studies] restore insert', error);
-				return fail(500, { kind: 'restoreSetMember' as const, setId, message: error.message });
-			}
-			continue;
-		}
-		if (existing.kind === 'include') continue;
-		if (matches && existing.bibliographical) {
-			const { error } = await supabase
-				.from('resource_set_members')
-				.update({ deleted_at: new Date().toISOString() } as never)
-				.eq('id', existing.id);
-			if (error) {
-				console.error('[studies] restore soft-delete', error);
-				return fail(500, { kind: 'restoreSetMember' as const, setId, message: error.message });
-			}
-			continue;
-		}
-		const { error } = await supabase
-			.from('resource_set_members')
-			.update({ kind: 'include' } as never)
-			.eq('id', existing.id);
-		if (error) {
-			console.error('[studies] restore to include', error);
-			return fail(500, { kind: 'restoreSetMember' as const, setId, message: error.message });
-		}
+	const result = await applyMemberKind(supabase, userId, setId, parsed.refs, 'include');
+	if (!result.ok) {
+		return fail(500, { kind: 'restoreSetMember' as const, setId, message: result.message });
 	}
 	return { kind: 'restoreSetMember' as const, setId, success: true as const };
+}
+
+/** Move to another set: include on the destination, dismiss on the source. */
+export async function moveSetMembersAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const setId = trimOrNull(fd.get('set_id'));
+	const targetSetId = trimOrNull(fd.get('target_set_id'));
+	if (!setId || !UUID_RE.test(setId)) {
+		return fail(400, { kind: 'moveSetMembers' as const, message: 'Invalid set.' });
+	}
+	if (!targetSetId || !UUID_RE.test(targetSetId)) {
+		return fail(400, { kind: 'moveSetMembers' as const, setId, message: 'Pick a destination set.' });
+	}
+	if (targetSetId === setId) {
+		return fail(400, { kind: 'moveSetMembers' as const, setId, message: 'Pick a different set.' });
+	}
+	const parsed = parseRefs(fd);
+	if (!parsed.ok) {
+		return fail(400, { kind: 'moveSetMembers' as const, setId, message: parsed.message });
+	}
+	const dest = await supabase
+		.from('resource_sets')
+		.select('id')
+		.eq('id', targetSetId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (dest.error || !dest.data) {
+		return fail(404, {
+			kind: 'moveSetMembers' as const,
+			setId,
+			message: dest.error?.message ?? 'Destination set not found.'
+		});
+	}
+	const include = await applyMemberKind(supabase, userId, targetSetId, parsed.refs, 'include');
+	if (!include.ok) {
+		return fail(500, { kind: 'moveSetMembers' as const, setId, message: include.message });
+	}
+	const dismiss = await applyMemberKind(supabase, userId, setId, parsed.refs, 'dismiss');
+	if (!dismiss.ok) {
+		return fail(500, { kind: 'moveSetMembers' as const, setId, message: dismiss.message });
+	}
+	return { kind: 'moveSetMembers' as const, setId, success: true as const };
 }
 
 export async function setMemberBibliographicalAction(supabase: SupabaseClient, userId: string, fd: FormData) {
@@ -264,27 +370,46 @@ export async function setMemberBibliographicalAction(supabase: SupabaseClient, u
 		return fail(400, { kind: 'setBibliographical' as const, setId, message: parsed.message });
 	}
 	const bibliographical = fd.get('bibliographical') === 'true';
+	const existing = await liveMembersForRefs(supabase, setId, parsed.refs);
+	const toUpdate: string[] = [];
+	const toInsert: {
+		set_id: string;
+		book_id: string | null;
+		essay_id: string | null;
+		kind: 'include';
+		bibliographical: boolean;
+		created_by: string;
+	}[] = [];
 	for (const ref of parsed.refs) {
-		const existing = await liveMember(supabase, setId, ref);
-		if (existing) {
-			const { error } = await supabase
-				.from('resource_set_members')
-				.update({ bibliographical } as never)
-				.eq('id', existing.id);
-			if (error) {
-				console.error('[studies] set bibliographical', error);
-				return fail(500, { kind: 'setBibliographical' as const, setId, message: error.message });
-			}
-			continue;
+		const key = catalogKey(ref);
+		if (!key) continue;
+		const row = existing.get(key);
+		if (row) {
+			if (row.bibliographical === bibliographical) continue;
+			toUpdate.push(row.id);
+		} else {
+			toInsert.push({
+				set_id: setId,
+				book_id: ref.bookId,
+				essay_id: ref.essayId,
+				kind: 'include',
+				bibliographical,
+				created_by: userId
+			});
 		}
-		const { error } = await supabase.from('resource_set_members').insert({
-			set_id: setId,
-			book_id: ref.bookId,
-			essay_id: ref.essayId,
-			kind: 'include',
-			bibliographical,
-			created_by: userId
-		} as never);
+	}
+	if (toUpdate.length > 0) {
+		const { error } = await supabase
+			.from('resource_set_members')
+			.update({ bibliographical } as never)
+			.in('id', toUpdate);
+		if (error) {
+			console.error('[studies] set bibliographical', error);
+			return fail(500, { kind: 'setBibliographical' as const, setId, message: error.message });
+		}
+	}
+	if (toInsert.length > 0) {
+		const { error } = await supabase.from('resource_set_members').insert(toInsert as never);
 		if (error) {
 			console.error('[studies] set bibliographical insert', error);
 			return fail(500, { kind: 'setBibliographical' as const, setId, message: error.message });

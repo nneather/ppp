@@ -28,7 +28,8 @@ export type ResourceSetRule = {
 export const RESOURCE_SET_KINDS = ['bible_book', 'language', 'custom'] as const;
 export type ResourceSetKind = (typeof RESOURCE_SET_KINDS)[number];
 
-export const SET_OVERRIDE_KINDS = ['include', 'exclude'] as const;
+/** include = in set; exclude = not included (listed); dismiss = gone from both lists. */
+export const SET_OVERRIDE_KINDS = ['include', 'exclude', 'dismiss'] as const;
 export type SetOverrideKind = (typeof SET_OVERRIDE_KINDS)[number];
 
 export type CatalogRef = {
@@ -191,6 +192,9 @@ export function resolveSetMembers(input: {
 	const excludedKeys = new Set(
 		input.overrides.filter((o) => o.kind === 'exclude' && refKey(o)).map((o) => refKey(o))
 	);
+	const dismissedKeys = new Set(
+		input.overrides.filter((o) => o.kind === 'dismiss' && refKey(o)).map((o) => refKey(o))
+	);
 	const candidateByKey = new Map<string, RuleCandidate>();
 	for (const c of input.candidates) {
 		const key = refKey(c);
@@ -202,7 +206,7 @@ export function resolveSetMembers(input: {
 
 	for (const c of candidateByKey.values()) {
 		const key = refKey(c);
-		if (seen.has(key) || excludedKeys.has(key)) continue;
+		if (seen.has(key) || excludedKeys.has(key) || dismissedKeys.has(key)) continue;
 		seen.add(key);
 		included.push({
 			bookId: c.bookId,
@@ -223,7 +227,7 @@ export function resolveSetMembers(input: {
 	for (const o of input.overrides) {
 		if (o.kind !== 'include') continue;
 		const key = refKey(o);
-		if (!key || seen.has(key) || excludedKeys.has(key)) continue;
+		if (!key || seen.has(key) || excludedKeys.has(key) || dismissedKeys.has(key)) continue;
 		seen.add(key);
 		const cand = candidateByKey.get(key);
 		included.push({

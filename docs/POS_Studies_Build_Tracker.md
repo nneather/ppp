@@ -23,7 +23,7 @@ Core value — **a study (paper or sermon) can pull a maintained resource set an
 |---|---|
 | **Taxonomy singular** | The paper is the bibliography container. No `bibliographies` or `research_projects` table. Sermons stay a separate table. Shared junction is `study_sources` (paper XOR sermon). Resource sets are rule + sticky overrides, resolved at read time — members are not materialized on insert. |
 | **Nav** | One desktop sidebar item **Studies** replaces Sermons (no mobile tab). Tabs: Overview (default) \| Papers \| Sermons \| Sets \| By book. Routes under `/studies/*`. 308 from `/classwork/papers*` and `/sermons*`. Venues stay `/settings/sermons/venues`. Classwork keeps a Papers link. |
-| **Nullable / required** | Papers: `title` + `status` required. Sets: `name`, `slug`, `kind`, `rules` (default `[]`), `default_for` (default `{}`). Set members: `set_id` + book XOR essay + `kind` include\|exclude. Study sources: exactly one parent (paper XOR sermon) + book XOR essay; `usage` default `candidate`. Passages: `bible_book` required; `role` default `primary`. |
+| **Nullable / required** | Papers: `title` + `status` required. Sets: `name`, `slug`, `kind`, `rules` (default `[]`), `default_for` (default `{}`). Set members: `set_id` + book XOR essay + `kind` include\|exclude\|dismiss. Study sources: exactly one parent (paper XOR sermon) + book XOR essay; `usage` default `candidate`. Passages: `bible_book` required; `role` default `primary`. |
 | **Form delivery** | Sets list + detail are pages (`/studies/sets`, `/studies/sets/[id]`). Paper identity stays a Sheet; paper detail stays the research home. Sermon metadata stays a Sheet; sermon sources detail is Session 3. |
 | **RLS + viewer** | New `studies` slug for papers, groups, sources, sets, set members, `paper_passages`. SELECT `app_is_owner() OR app_has_module_read('studies')`; writes owner-only. Viewer write **waived** v1. Sermons tables keep `sermons`. |
 | **Seed** | 66 `Commentaries: {Book}` (`bible_book` rule; Commentary genre applied by the resolver, not stored as a second rule). NT language tools (`Greek Language Tools`). OT language tools (`Hebrew Language Tools`). Systematic Theology static includes, `default_for={sermon}` — auto-attach on sermon create is Session 3. |
@@ -160,4 +160,4 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 ### Follow-on (not a tracker session)
 
 - [x] Overlapping passage sections import as the book; footnote page prefills from the tightest span ([251](decisions/251-studies-passage-section-import.md)). Sections stay off by-book, hit rate, and auto-attach.
-- [x] Sets sections collapse; commentaries load; Septuagint studies leave NT language tools; reference-only members ([257](decisions/257-sets-sections-septuagint.md)).
+- [x] Sets sections collapse; commentaries load; Septuagint under Language tools; reference-only; multi-select move/dismiss ([257](decisions/257-sets-sections-septuagint.md)).

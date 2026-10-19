@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Study attachments (scans, audio, documents) sized and parked ([258](docs/decisions/258-study-attachments-parked.md)); set add-a-book searches title or abbreviation and adds the whole multi-volume work ([257](docs/decisions/257-sets-sections-septuagint.md)).
+**Last updated:** 2026-10-19 — Set member tiers / multi-select ([257](docs/decisions/257-sets-sections-septuagint.md)).
 
 **How to use this file — read this first:**
 
@@ -34,11 +34,11 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books, including Brunnen *Nachfolge* and Eastman ([256](docs/decisions/256-nachfolge-eastman-shelf-contents.md)). **Systematics by passage** gold ≥99.5% then bulk capture ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books, including Brunnen *Nachfolge* and Eastman ([256](docs/decisions/256-nachfolge-eastman-shelf-contents.md)). **Systematics:** Calvin section-index practice is in ([259](docs/decisions/259-calvin-section-index-practice.md)); page-index gold ≥99.5% still gates Turretin / van Mastricht / Bavinck ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Sets: collapsible sections, commentaries load, Septuagint pulled out of NT language tools, reference-only members ([257](docs/decisions/257-sets-sections-septuagint.md)). |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Sets: multi-select move/dismiss, abbreviation-first rows, Septuagint under Language tools ([257](docs/decisions/257-sets-sections-septuagint.md)). |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [259 — Calvin section-index practice](docs/decisions/259-calvin-section-index-practice.md) (2026-10-19) — Section locators join the outline; a short Battles outline and verified refs show on the systematic band. Page-index bulk capture still waits on the gold gate.
 - [258 — Study attachments parked](docs/decisions/258-study-attachments-parked.md) (2026-10-19) — Scans as PDF fit Free for years; audio is the budget breaker (links first). One table + one bucket + one panel when picked up.
-- [257 — Sets sections + Septuagint](docs/decisions/257-sets-sections-septuagint.md) (2026-10-19) — Commentaries load again; sections collapse; LXX studies leave NT language tools; concordances can stay in a set as reference-only.
+- [257 — Sets sections + Septuagint](docs/decisions/257-sets-sections-septuagint.md) (2026-10-19) — Sections, reference-only, volume rollup, multi-select move/dismiss, Septuagint under Language tools.
 - [256 — Nachfolge and Eastman from the shelf](docs/decisions/256-nachfolge-eastman-shelf-contents.md) (2026-10-19) — Brunnen contents: same passages as the English Bonhoeffer. Eastman: Romans 7, Philippians 2, Galatians 2.
 - [255 — Sermon on the Mount as passages](docs/decisions/255-sermon-mount-passages-not-coverage.md) (2026-10-19) — Guelich (from 4:23), Pennington, and Augustine are one sermon each.
-- [254 — Passage sections wave 2](docs/decisions/254-passage-sections-wave-2.md) (2026-10-19) — Bonhoeffer English, Augustine on the Mount, Carson *Praying with Paul*.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Set add-by-abbreviation [257](docs/decisions/257-sets-sections-septuagint.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **665/665** (2026-10-19). Migrations `20261019223000_resource_set_sections.sql` and `20261019234500_resource_set_member_bibliographical.sql` pushed.
+**Repo gate:** Set member tiers [257](docs/decisions/257-sets-sections-septuagint.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **667/667** (2026-10-19). Migration `20261019240000_resource_set_member_dismiss.sql` pushed.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -101,24 +101,6 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ## Session prompts (copy-paste) — LIVE only
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
-
-### Library — Calvin section-index practice — from [252](docs/decisions/252-systematics-by-passage-session-0.md)
-
-```
-Session: library — Calvin section-index practice
-Read: docs/decisions/252-systematics-by-passage-session-0.md,
-  docs/decisions/253-systematics-by-passage-s1-s5.md,
-  docs/systematics-capture-checklist.md, scripts/ocr-index-eval/README.md,
-  src/lib/library/outline.ts
-Goal: Practice on Calvin’s Institutes (Battles). The index cites section locators and ranges (III.2.12–14), not pages. Match those to outline locators, then OCR a few index pages and confirm the Systematic theologies band.
-Acceptance:
- - [ ] Section-locator join (single + range); page-range join unchanged for page indexes
- - [ ] Index-mode OCR keeps the printed section token and range; gold compare on 1–3 Calvin index pages
- - [ ] A short Calvin outline plus Verified refs for the pages photographed
- - [ ] /library/search-passage shows Calvin under Systematic theologies with the section label (and range)
- - [ ] npm run check + npm run test
-End-of-session: docs/decisions/<next-free>-*.md; PLAN.md. Bulk Turretin / van Mastricht / Bavinck still wait on the ≥99.5% page-index gate.
-```
 
 ### Contacts / CRM — remaining MCP smoke (owner, ~5 min)
 
@@ -219,14 +201,14 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Calvin section-index practice** — prompt above ([252](docs/decisions/252-systematics-by-passage-session-0.md)). Page-index gold gate + Turretin capture stays after that.
+1. **Systematics page-index gold gate** — photograph 3 dense page-index leaves, hand-transcribe `scripts/ocr-index-eval/gold/`, hit ≥99.5%, then Turretin. Calvin section practice is done ([259](docs/decisions/259-calvin-section-index-practice.md)).
 2. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
 3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
 5. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
 
 ### Next / parallel
-5b. **Systematics capture** — van Mastricht → Bavinck → Calvin after Turretin ([docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md)).
+5b. **Systematics capture** — after the page-index gate: Turretin, then van Mastricht, then Bavinck ([docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md)). Calvin’s full index still needs shelf photos; the section join is in ([259](docs/decisions/259-calvin-section-index-practice.md)).
 6. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
 7. **Security hardening (051 R2)** — open medium findings; prompt above.
 8. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).

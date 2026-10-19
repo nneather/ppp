@@ -1,8 +1,14 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { authorLabelsForRefs, loadResourceSetDetail, searchBooksToAdd } from '$lib/studies/server/resource-set-loaders';
 import {
-	markSetReviewedAction,
+	authorLabelsForRefs,
+	loadResourceSetDetail,
+	loadResourceSetMoveTargets,
+	searchBooksToAdd
+} from '$lib/studies/server/resource-set-loaders';
+import {
+	excludeSetMemberAction,
+	moveSetMembersAction,
 	removeSetMemberAction,
 	restoreSetMemberAction,
 	setMemberBibliographicalAction
@@ -35,6 +41,9 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 		volumeCount: number;
 		included: boolean;
 	}[] = [];
+	const moveTargets = isOwner
+		? await loadResourceSetMoveTargets(supabase, params.id)
+		: [];
 	if (isOwner && needle && detail.set) {
 		const groups = await searchBooksToAdd(supabase, needle);
 		const labels = await authorLabelsForRefs(
@@ -52,19 +61,26 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 			included: group.bookIds.every((id) => inSet.has(id))
 		}));
 	}
-	return { set: detail.set, isOwner, loadError: detail.error, addQuery: needle, addHits };
+	return {
+		set: detail.set,
+		isOwner,
+		loadError: detail.error,
+		addQuery: needle,
+		addHits,
+		moveTargets
+	};
 };
 
 export const actions: Actions = {
-	markReviewed: async ({ request, locals }) => {
-		const { user } = await locals.safeGetSession();
-		if (!user) return fail(401, { kind: 'markSetReviewed' as const, message: 'Unauthorized' });
-		return markSetReviewedAction(locals.supabase, await request.formData());
-	},
 	removeMember: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'removeSetMember' as const, message: 'Unauthorized' });
 		return removeSetMemberAction(locals.supabase, user.id, await request.formData());
+	},
+	excludeMember: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'excludeSetMember' as const, message: 'Unauthorized' });
+		return excludeSetMemberAction(locals.supabase, user.id, await request.formData());
 	},
 	restoreMember: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
@@ -75,6 +91,11 @@ export const actions: Actions = {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'restoreSetMember' as const, message: 'Unauthorized' });
 		return restoreSetMemberAction(locals.supabase, user.id, await request.formData());
+	},
+	moveMembers: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'moveSetMembers' as const, message: 'Unauthorized' });
+		return moveSetMembersAction(locals.supabase, user.id, await request.formData());
 	},
 	setBibliographical: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

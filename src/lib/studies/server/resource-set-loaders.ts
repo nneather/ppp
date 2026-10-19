@@ -492,7 +492,7 @@ async function loadOverrides(
 	);
 
 	for (const row of rows) {
-		if (row.kind !== 'include' && row.kind !== 'exclude') continue;
+		if (row.kind !== 'include' && row.kind !== 'exclude' && row.kind !== 'dismiss') continue;
 		const book = row.book_id ? bookMeta.get(row.book_id) : undefined;
 		const series = book ? oneEmbed(book.series) : null;
 		const seriesLive = book?.series_id && series && !series.deleted_at ? series : null;
@@ -770,6 +770,35 @@ export async function loadResourceSetDetail(
 		},
 		error: null
 	};
+}
+
+/** Other sets for the Move menu (skip bible-book commentary noise). */
+export async function loadResourceSetMoveTargets(
+	supabase: SupabaseClient,
+	currentSetId: string
+): Promise<{ id: string; name: string; sectionName: string | null }[]> {
+	const { data, error } = await supabase
+		.from('resource_sets')
+		.select(
+			'id, name, kind, resource_set_sections!resource_sets_section_id_fkey ( name )'
+		)
+		.is('deleted_at', null)
+		.neq('id', currentSetId)
+		.neq('kind', 'bible_book')
+		.order('name', { ascending: true });
+	if (error) {
+		console.error('[studies] move targets', error);
+		return [];
+	}
+	return ((data ?? []) as {
+		id: string;
+		name: string;
+		resource_set_sections: { name: string } | { name: string }[] | null;
+	}[]).map((row) => ({
+		id: row.id,
+		name: row.name,
+		sectionName: oneEmbed(row.resource_set_sections)?.name ?? null
+	}));
 }
 
 /** Names + rules only. Import suggestions must not resolve every commentary set. */

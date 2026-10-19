@@ -31,5 +31,6 @@
 		isOwner={data.isOwner}
 		addQuery={data.addQuery}
 		addHits={data.addHits}
+		moveTargets={data.moveTargets}
 	/>
 </div>
