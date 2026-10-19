@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Girdlestone, *Synonyms of the Old Testament* (Eerdmans, 1981 / 1897), shelved like Trench ([264](docs/decisions/264-library-girdlestone-ot-synonyms.md)). Page-index gold gate passed at 99.610% on three Turretin leaves ([263](docs/decisions/263-systematics-page-index-gold-gate.md)).
+**Last updated:** 2026-10-19 — Add-books now asks about study sets. Girdlestone is already on OT language tools by the Hebrew Language Tools rule ([265](docs/decisions/265-library-add-books-ask-sets.md)). Page-index gold gate passed at 99.610% on three Turretin leaves ([263](docs/decisions/263-systematics-page-index-gold-gate.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [265 — Ask about study sets when adding books](docs/decisions/265-library-add-books-ask-sets.md) (2026-10-19) — Confirm a set before insert. Girdlestone is already on OT language tools by genre rule.
 - [264 — Girdlestone OT synonyms](docs/decisions/264-library-girdlestone-ot-synonyms.md) (2026-10-19) — Eerdmans 1981 reprint of 1897. Short title, middle initial, no series, matching Trench.
 - [263 — Systematics page-index gold gate](docs/decisions/263-systematics-page-index-gold-gate.md) (2026-10-19) — Three Turretin index leaves, 1,021/1,025 exact (99.610%). OCR about 3 minutes a leaf. Bulk Turretin not started.
 - [262 — Calvin index capture rules](docs/decisions/262-calvin-index-capture-rules.md) (2026-10-19) — Arabic locators (`1.13.7`) save on the volume that owns that chapter. Version tags stay on the note. `PA` / `VG` / `VL` are flagged.
 - [261 — Essay roman page labels](docs/decisions/261-essay-roman-page-labels.md) (2026-10-19) — Essay pages are text (`835` or `xiii`). Cook’s NETS essay is xiii–xx.
-- [260 — Muraoka’s Septuagint lexicon](docs/decisions/260-library-muraoka-gels.md) (2026-10-19) — 2009 Peeters GELS, keyed by ISBN beside LEH. Included on Septuagint studies; dismissed from NT language tools.
 
 ---
 

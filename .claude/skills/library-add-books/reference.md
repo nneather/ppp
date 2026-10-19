@@ -162,6 +162,9 @@ Exact names: `src/lib/library/bible-book-names.ts` / `bible_books.name`.
 |---|---|---|---|---|---|---|---|
 | 1 | … | … | … | … | … | … | … |
 
+## Sets
+- *Title* — already on OT language tools by the Hebrew Language Tools rule (no member row) / include on Septuagint studies / none
+
 ## Already in library
 - *Title* — action: fill volume / skip
 

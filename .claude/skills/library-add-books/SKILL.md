@@ -58,6 +58,12 @@ WHERE deleted_at IS NULL AND last_name ILIKE ANY(ARRAY[…]);
 -- Publisher text conventions (often null publisher_id)
 SELECT DISTINCT publisher, publisher_location
 FROM books WHERE deleted_at IS NULL AND publisher ILIKE ANY(ARRAY[…]) LIMIT 20;
+
+-- Study sets (skip the 66 bible-book commentary sets; coverage puts a Commentary there)
+SELECT name, slug, kind, rules
+FROM resource_sets
+WHERE deleted_at IS NULL AND kind <> 'bible_book'
+ORDER BY name;
 ```
 
 **If a row already exists:** prefer UPDATE (e.g. fill `volume_number`) over INSERT. Report that in the confirm table.
@@ -91,6 +97,7 @@ For each new book, gather:
   - **US vs UK twin ISBNs** (Apollos UK `085…` vs IVP Academic US `083…`): match sibling imprint in that series; ask when unclear
 - **genre** (usually `Commentary`; mixed pastoral/preaching/secular batches → [library-recommend-genre](../library-recommend-genre/SKILL.md)), **work_type** (`monograph` default), **language**, **reading_status** (`reference` for commentaries; `unread` default otherwise)
 - **bible coverage** — every Protestant book in the title range for **`genre = Commentary`** ([088](../../docs/decisions/088-commentary-bible-coverage-cleanup.md)); names from `BIBLE_BOOK_NAMES` / `bible_books`. Verify coverage arrays in the post-push SELECT — do not stop at “row inserted.”
+- **Study set** — see [Sets](#sets). Propose it in the confirmation message. Do not insert a member until Parker answers.
 
 ### People naming
 
@@ -127,8 +134,24 @@ Send **one** message:
    - `needs_review` clean confirm vs shelf flag
    - Coverage edge cases (e.g. Titus-only despite Pastorals intro)
    - Non-commentary genres (Homiletics / Pastoral Ministry / Old Testament / …)
+   - **Study set** — one line per book: already on a set by rule, `include` on a manual set, `dismiss` from a rule set, or none. Ask when it is a real fork. Do not skip the line.
 
 Defaults to state unless overridden: genre Commentary (only for commentaries), work_type monograph, language english, reading_status reference for commentaries / unread otherwise, `needs_review = false` when clean.
+
+## Sets
+
+Members are rule matches plus explicit overrides ([243](../../docs/decisions/243-studies-session-0.md)). A book whose genre or commentary coverage already matches a rule is **on that set with no member row**.
+
+| Proposed book | Set |
+|---|---|
+| `Hebrew Language Tools` | **OT language tools** (`ot-language-tools`) by genre rule |
+| `Greek Language Tools` | **NT language tools** (`nt-language-tools`) by genre rule |
+| Commentary + `book_bible_coverage` | **Commentaries: {book}** for each covered book. No member row |
+| Septuagint lexicon that is also Greek Language Tools | Ask: `include` on **Septuagint studies** (`septuagint-studies`, empty rules) and `dismiss` from NT language tools ([260](../../docs/decisions/260-library-muraoka-gels.md)) |
+| Systematic theology | Ask: `include` on **Systematic Theology** (`systematic-theology`, empty rules). The genre does not add it |
+| Anything else | Say **no set**, and ask if one should be named |
+
+Write a `resource_set_members` row only when the rules would not already list the book, or when Parker wants it off a rule set (`exclude` stays visible as not-included; `dismiss` removes it). `bibliographical` stays true unless they say the book should stay off import and the bibliography. Do not insert a redundant `include` for a genre or commentary rule match.
 
 ## Phase 3 — write
 
@@ -150,6 +173,7 @@ Standalone (no series) books: separate `INSERT` with `WHERE NOT EXISTS (… titl
 - Soft-delete existing dupes without asking
 - Flag `needs_review` when Parker said clean confirm and fields are complete
 - Ship Commentaries without verifying `book_bible_coverage` in the post-push SELECT
+- Insert a set member before Parker answers, or insert an `include` that only repeats a genre or commentary rule
 
 ## End-of-batch checklist
 
@@ -157,6 +181,7 @@ Standalone (no series) books: separate `INSERT` with `WHERE NOT EXISTS (… titl
 - [ ] Series abbr collisions checked (incl. ApOTC / KCC / Hermeneia / LCL / ConC)
 - [ ] ISBN checksums OK or null (no reprint barcode on true early prints)
 - [ ] Coverage attached **and verified** for every Commentary in the batch
+- [ ] Set membership stated (rule, include, dismiss, or none) and verified when a row was written
 - [ ] Migration applied + verify SELECT (series + standalone)
 - [ ] Decision log + PLAN.md
 - [ ] Copy-paste commit message for Parker
