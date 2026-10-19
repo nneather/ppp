@@ -27,6 +27,14 @@ describe('validateIndexRows', () => {
 		expect(flagged[0]!.review_note).toContain('pass_a_only');
 	});
 
+	it('does not treat a section locator as a page number', () => {
+		const issues = validateIndexRows(
+			[{ bible_book: 'Romans', chapter_start: 5, verse_start: 5, page_start: 'III.2.12' }],
+			{ pageMin: 10, pageMax: 500 }
+		);
+		expect(issues.some((i) => i.reason.startsWith('page_'))).toBe(false);
+	});
+
 	it('flags pages outside outline bounds', () => {
 		const issues = validateIndexRows(
 			[{ bible_book: 'Romans', chapter_start: 1, verse_start: 1, page_start: '5' }],

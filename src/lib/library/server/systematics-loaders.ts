@@ -1,8 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
 	groupSystematicHits,
-	pageNumberFromText,
-	resolveOutlineLabel,
+	resolveOutlineForPointer,
 	type OutlineSectionInput,
 	type SystematicSetBlock
 } from '$lib/library/outline';
@@ -113,9 +112,8 @@ export async function loadSystematicsForPassage(
 
 	const hits = systematicRows.map((r) => {
 		const bookId = r.book_id!;
-		const page = pageNumberFromText(r.page_start);
 		const outlines = outlinesByBook.get(bookId) ?? [];
-		const outline = page != null ? resolveOutlineLabel(outlines, page) : null;
+		const outline = resolveOutlineForPointer(outlines, r.page_start, r.page_end);
 		return {
 			refId: r.ref_id,
 			bookId,

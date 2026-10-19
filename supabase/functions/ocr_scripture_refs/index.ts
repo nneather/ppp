@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import { PDFDocument } from 'pdf-lib';
 import { BIBLE_BOOK_SET, BIBLE_BOOK_NAMES } from './bible-book-allowlist.ts';
+import { normalizeSectionPageFields } from './section-pointer.ts';
 
 const OCR_DAILY_CAP = 50;
 
@@ -197,7 +198,12 @@ const PAGE_RANGE_RE = /^(\d+)\s*[-–—]\s*(\d+)$/;
 function normalizePageRangeInCandidate(c: OcrCandidate): OcrCandidate {
 	const ps = c.page_start?.trim() ?? '';
 	const pe = c.page_end?.trim() ?? '';
-	if (!ps || pe) return c;
+	if (!ps) return c;
+	const section = normalizeSectionPageFields(ps, pe || null);
+	if (section) {
+		return { ...c, page_start: section.pageStart, page_end: section.pageEnd };
+	}
+	if (pe) return c;
 	const m = PAGE_RANGE_RE.exec(ps);
 	if (!m) return c;
 	const first = Number(m[1]);
@@ -238,7 +244,7 @@ function parseExtractPayload(parsed: unknown): { rawText: string; candidates: Oc
 		const c = normalizeCandidate(item);
 		if (!c) continue;
 		for (const split of splitSemicolonPointers(c)) {
-			candidates.push(split);
+			candidates.push(normalizePageRangeInCandidate(split));
 		}
 	}
 	return { rawText, candidates };
@@ -520,6 +526,9 @@ Rules:
 - Omit chapter/verse keys when not visible; use integers only.
 - When the index cites a multi-volume set as "2:620" or "II, 620", set volume="2" (or "II") and page_start="620". Do not put "2:620" in page_start when volume is set.
 - page_start/page_end are where the citation points in the volume — page numbers, note tokens like "106n21", or ranges "14-15" as page_start="14" page_end="15".
+- Institutes-style section locators (Book.chapter.section), printed as "III.2.12" or "I.14.1": put the full token in page_start and leave volume empty. The leading roman numeral is the book of the Institutes, not a set volume. Do not convert the locator into a page number.
+- A printed section range "III.2.12–14" or "III.2.12-14" is ONE candidate: page_start="III.2.12", page_end="III.2.14". Expand a shortened end so page_end is a full locator. Do not split the range into two candidates.
+- A verse range inside one chapter (printed "1:3-4") sets chapter_start, verse_start, chapter_end (same chapter), and verse_end.
 - Multiple page pointers for the SAME verse (e.g. "73, 101, 112"): one Candidate per page.
 - Semicolon-separated section pointers: one Candidate per pointer.
 - confidence_score 0–1; below 0.80 when glyphs are uncertain.

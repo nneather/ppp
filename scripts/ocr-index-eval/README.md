@@ -2,7 +2,11 @@
 
 Accuracy gate for systematics-by-passage bulk capture ([252](../../docs/decisions/252-systematics-by-passage-session-0.md)).
 
-**Do not start bulk Turretin / van Mastricht / Bavinck / Calvin index capture until eval exact-match ≥ 99.5%.**
+**Do not start bulk Turretin / van Mastricht / Bavinck index capture until eval exact-match ≥ 99.5%.** Calvin is a section-locator practice set, not this page-index gate ([252](../../docs/decisions/252-systematics-by-passage-session-0.md)). Its gold lives in `gold/calvin/` and is compared on its own:
+
+```bash
+npx tsx scripts/ocr-index-eval/compare.ts scripts/ocr-index-eval/gold/calvin
+```
 
 ## Layout
 
@@ -46,5 +50,7 @@ Keys compared (exact): `bible_book`, `chapter_start`, `verse_start`, `chapter_en
 ```bash
 npx tsx scripts/ocr-index-eval/compare.ts
 ```
+
+Pass a directory to compare a practice set without mixing it into the page-index gate (`gold/calvin/`).
 
 5. Iterate prompt / consensus / column-split until exact-match ≥ 0.995. Record rate + minutes/page in the decision log, then start S5 capture.

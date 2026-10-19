@@ -11,8 +11,7 @@ import {
 } from '$lib/library/server/systematics-loaders';
 import {
 	groupSystematicHits,
-	pageNumberFromText,
-	resolveOutlineLabel,
+	resolveOutlineForPointer,
 	type SystematicSetBlock
 } from '$lib/library/outline';
 
@@ -206,9 +205,8 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		}
 
 		const systematicRows: PassageResult[] = systematicRpc.map((r) => {
-			const page = pageNumberFromText(r.page_start);
 			const outlines = r.book_id ? (outlinesByBook.get(r.book_id) ?? []) : [];
-			const outline = page != null ? resolveOutlineLabel(outlines, page) : null;
+			const outline = resolveOutlineForPointer(outlines, r.page_start, r.page_end);
 			return asResult({
 				source_kind: 'systematic' as const,
 				ref_id: r.ref_id,

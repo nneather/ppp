@@ -1,7 +1,14 @@
 /**
  * Pure helpers for systematics-by-passage: parse index page tokens, resolve
- * TOC outline labels for a page, and group hits by set ([252]).
+ * TOC outline labels (page range, or section locator for Calvin), and group
+ * hits by set ([252]).
  */
+
+import {
+	formatSectionRange,
+	parseSectionLocator,
+	parseSectionPointer
+} from '$lib/library/section-pointer';
 
 export type OutlineSectionInput = {
 	id: string;
@@ -60,13 +67,64 @@ export function resolveOutlineLabel(
 	});
 
 	const best = enclosing[0]!;
+	return outlineResolveFrom(best);
+}
+
+function outlineResolveFrom(section: OutlineSectionInput): OutlineResolve {
 	return {
-		id: best.id,
-		locator: best.locator,
-		label: best.label,
-		page_start: best.page_start,
-		page_end: best.page_end
+		id: section.id,
+		locator: section.locator,
+		label: section.label,
+		page_start: section.page_start,
+		page_end: section.page_end
 	};
+}
+
+function sectionCovers(
+	node: NonNullable<ReturnType<typeof parseSectionLocator>>,
+	start: NonNullable<ReturnType<typeof parseSectionLocator>>,
+	end: NonNullable<ReturnType<typeof parseSectionLocator>> | null
+): boolean {
+	const stop = end ?? start;
+	if (node.book !== start.book || node.book !== stop.book) return false;
+	if (node.chapter !== start.chapter || node.chapter !== stop.chapter) return false;
+	if (node.section == null) return true;
+	if (start.section == null || stop.section == null) return false;
+	return node.section === start.section && node.section === stop.section;
+}
+
+/**
+ * Join an index pointer to an outline node. Section locators (`III.2.12`,
+ * `III.2.12`–`III.2.14`) match `locator` (exact section, else the chapter).
+ * Anything else still joins on the page range.
+ */
+export function resolveOutlineForPointer(
+	sections: OutlineSectionInput[],
+	pageStart: string | null | undefined,
+	pageEnd?: string | null
+): OutlineResolve | null {
+	const pointer = parseSectionPointer(pageStart, pageEnd);
+	if (pointer) {
+		const covering = sections.flatMap((section) => {
+			const loc = parseSectionLocator(section.locator);
+			if (!loc || !sectionCovers(loc, pointer.start, pointer.end)) return [];
+			return [{ section, loc }];
+		});
+		if (covering.length > 0) {
+			covering.sort((a, b) => {
+				const specA = a.loc.section == null ? 1 : 2;
+				const specB = b.loc.section == null ? 1 : 2;
+				if (specA !== specB) return specB - specA;
+				return (b.section.locator?.length ?? 0) - (a.section.locator?.length ?? 0);
+			});
+			return outlineResolveFrom(covering[0]!.section);
+		}
+		return null;
+	}
+
+	const page = pageNumberFromText(pageStart);
+	if (page == null) return null;
+	return resolveOutlineLabel(sections, page);
 }
 
 export type SystematicHitInput = {
@@ -100,6 +158,15 @@ export type SystematicSetBlock = {
 	pointers: SystematicPointer[];
 };
 
+function pointerOrderKey(pageStart: string | null, pageEnd: string | null): number {
+	const section = parseSectionPointer(pageStart, pageEnd);
+	if (section) {
+		const s = section.start;
+		return 1_000_000_000 + s.book * 1_000_000 + s.chapter * 1_000 + (s.section ?? 0);
+	}
+	return pageNumberFromText(pageStart) ?? 0;
+}
+
 function volumeSortKey(v: string | null): number {
 	if (v == null || v.trim() === '') return 9999;
 	const t = v.trim();
@@ -121,7 +188,7 @@ function volumeSortKey(v: string | null): number {
 	return 5000 + t.charCodeAt(0);
 }
 
-/** Format one pointer line: `2:620 (XV.17 Full Assurance)` or `p. 136 (Repentance)`. */
+/** Format one pointer line: `2:620 (XV.17 Full Assurance)`, `III.2.12–14 (Faith)`, or `p. 136 (Repentance)`. */
 export function formatSystematicPointerDisplay(input: {
 	volume: string | null;
 	pageStart: string;
@@ -130,6 +197,13 @@ export function formatSystematicPointerDisplay(input: {
 	label: string | null;
 }): string {
 	const { volume, pageStart, pageEnd, locator, label } = input;
+	const section = parseSectionPointer(pageStart, pageEnd);
+	if (section) {
+		const locus = formatSectionRange(section.start, section.end);
+		const heading = label?.trim() ?? '';
+		if (!heading) return locus;
+		return `${locus} (${heading})`;
+	}
 	const pagePart =
 		pageEnd && pageEnd !== pageStart ? `${pageStart}–${pageEnd}` : pageStart;
 	const locus =
@@ -160,9 +234,7 @@ export function groupSystematicHits(hits: SystematicHitInput[]): SystematicSetBl
 			const va = volumeSortKey(a.volumeNumber);
 			const vb = volumeSortKey(b.volumeNumber);
 			if (va !== vb) return va - vb;
-			const pa = pageNumberFromText(a.pageStart) ?? 0;
-			const pb = pageNumberFromText(b.pageStart) ?? 0;
-			return pa - pb;
+			return pointerOrderKey(a.pageStart, a.pageEnd) - pointerOrderKey(b.pageStart, b.pageEnd);
 		});
 
 		const first = list[0]!;

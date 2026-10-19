@@ -5,6 +5,7 @@
 
 import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
 import { pageNumberFromText } from '$lib/library/outline';
+import { parseSectionPointer } from '$lib/library/section-pointer';
 
 export type IndexValidateRow = {
 	bible_book: string;
@@ -131,7 +132,9 @@ export function validateIndexRows(
 			issues.push({ index: i, reason: 'verse_end_out_of_range' });
 		}
 
-		const page = pageNumberFromText(r.page_start);
+		const page = parseSectionPointer(r.page_start, null)
+			? null
+			: pageNumberFromText(r.page_start);
 		if (page != null) {
 			if (opts?.pageMin != null && page < opts.pageMin) {
 				issues.push({ index: i, reason: 'page_below_outline' });

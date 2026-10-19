@@ -4,6 +4,7 @@
  */
 
 import { pageNumberFromText } from '$lib/library/outline';
+import { parseSectionPointer } from '$lib/library/section-pointer';
 
 export type SetVolumeBook = {
 	bookId: string;
@@ -15,7 +16,7 @@ export type SetVolumeBook = {
 export type RoutedIndexRow = {
 	bookId: string;
 	volume: string | null;
-	reason: 'explicit_volume' | 'outline_page' | 'default';
+	reason: 'explicit_volume' | 'outline_page' | 'section_locator' | 'default';
 };
 
 function normalizeVolumeToken(raw: string | null | undefined): string | null {
@@ -62,6 +63,11 @@ export function routeIndexRowToVolume(
 	input: { volume?: string | null; pageStart?: string | null },
 	defaultBookId: string
 ): RoutedIndexRow {
+	// III.2.12 is an Institutes section, not page 2 and not volume III.
+	if (parseSectionPointer(input.pageStart, null)) {
+		return { bookId: defaultBookId, volume: null, reason: 'section_locator' };
+	}
+
 	const fromField = normalizeVolumeToken(input.volume);
 	const fromPage = (() => {
 		const ps = (input.pageStart ?? '').trim();

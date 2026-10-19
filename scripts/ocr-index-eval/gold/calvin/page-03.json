@@ -1,0 +1,19 @@
+{
+  "id": "calvin-page-03",
+  "source": "Typeset practice page in Battles locator shape. Matthew citations from the public Institutes scripture index, including a three-section range.",
+  "rows": [
+    {
+      "bible_book": "Matthew",
+      "chapter_start": 8,
+      "verse_start": 10,
+      "page_start": "III.2.13"
+    },
+    {
+      "bible_book": "Matthew",
+      "chapter_start": 25,
+      "verse_start": 34,
+      "page_start": "III.18.1",
+      "page_end": "III.18.3"
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
 	formatSystematicPointerDisplay,
@@ -5,9 +7,14 @@ import {
 	pageNumberFromText,
 	parseOutlineTsv,
 	parseOutlineTsvLine,
+	resolveOutlineForPointer,
 	resolveOutlineLabel,
 	type OutlineSectionInput
 } from '../outline';
+import {
+	expandPrintedSectionRange,
+	normalizeSectionPageFields
+} from '../section-pointer';
 
 describe('pageNumberFromText', () => {
 	it('parses plain pages and ranges', () => {
@@ -59,6 +66,78 @@ describe('resolveOutlineLabel', () => {
 	});
 });
 
+describe('section locator join', () => {
+	const calvin: OutlineSectionInput[] = [
+		{
+			id: 'faith',
+			book_id: 'cal',
+			parent_id: null,
+			sort_order: 1,
+			locator: 'III.2',
+			label: 'Faith',
+			page_start: 543,
+			page_end: 591
+		},
+		{
+			id: 'sec12',
+			book_id: 'cal',
+			parent_id: 'faith',
+			sort_order: 2,
+			locator: 'III.2.12',
+			label: 'Word and Spirit',
+			page_start: 560,
+			page_end: 562
+		}
+	];
+
+	it('expands a printed section range and leaves page ranges alone', () => {
+		expect(expandPrintedSectionRange('III.2.12–14')).toEqual({
+			pageStart: 'III.2.12',
+			pageEnd: 'III.2.14'
+		});
+		expect(expandPrintedSectionRange('III.2.12-14')).toEqual({
+			pageStart: 'III.2.12',
+			pageEnd: 'III.2.14'
+		});
+		expect(expandPrintedSectionRange('620–23')).toBeNull();
+		expect(normalizeSectionPageFields('III.2.41', '42')).toEqual({
+			pageStart: 'III.2.41',
+			pageEnd: 'III.2.42'
+		});
+	});
+
+	it('joins a single section to the exact outline locator', () => {
+		const hit = resolveOutlineForPointer(calvin, 'III.2.12', null);
+		expect(hit?.id).toBe('sec12');
+		expect(hit?.label).toBe('Word and Spirit');
+	});
+
+	it('joins a section range to the chapter that covers it', () => {
+		const hit = resolveOutlineForPointer(calvin, 'III.2.12', 'III.2.14');
+		expect(hit?.id).toBe('faith');
+		expect(hit?.label).toBe('Faith');
+		const packed = resolveOutlineForPointer(calvin, 'III.2.12–14', null);
+		expect(packed?.id).toBe('faith');
+	});
+
+	it('still joins page indexes on the page range', () => {
+		const sections: OutlineSectionInput[] = [
+			{
+				id: 'tight',
+				book_id: 'b1',
+				parent_id: null,
+				sort_order: 1,
+				locator: 'XV.17',
+				label: 'Full Assurance',
+				page_start: 610,
+				page_end: 630
+			}
+		];
+		expect(resolveOutlineForPointer(sections, '620', null)?.label).toBe('Full Assurance');
+		expect(resolveOutlineForPointer(sections, 'III.2.12', null)).toBeNull();
+	});
+});
+
 describe('formatSystematicPointerDisplay', () => {
 	it('formats volume:page with heading', () => {
 		expect(
@@ -70,6 +149,18 @@ describe('formatSystematicPointerDisplay', () => {
 				label: 'Full Assurance'
 			})
 		).toBe('2:620 (XV.17 Full Assurance)');
+	});
+
+	it('formats a section range with the outline label and no volume prefix', () => {
+		expect(
+			formatSystematicPointerDisplay({
+				volume: '2',
+				pageStart: 'III.2.12',
+				pageEnd: 'III.2.14',
+				locator: 'III.2',
+				label: 'Faith'
+			})
+		).toBe('III.2.12–14 (Faith)');
 	});
 
 	it('formats page-only when no volume', () => {
@@ -124,6 +215,17 @@ describe('groupSystematicHits', () => {
 		expect(blocks[0]!.seriesName).toContain('Turretin');
 		expect(blocks[0]!.pointers[0]!.pageStart).toBe('100');
 		expect(blocks[0]!.pointers[1]!.display).toBe('II:620 (XV.17 Full Assurance)');
+	});
+});
+
+describe('section-pointer edge copy', () => {
+	it('matches the app module byte for byte', () => {
+		const app = readFileSync(resolve('src/lib/library/section-pointer.ts'), 'utf8');
+		const edge = readFileSync(
+			resolve('supabase/functions/ocr_scripture_refs/section-pointer.ts'),
+			'utf8'
+		);
+		expect(edge).toBe(app);
 	});
 });
 

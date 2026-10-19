@@ -29,6 +29,13 @@ describe('routeIndexRowToVolume', () => {
 		expect(r.bookId).toBe('v3');
 		expect(r.reason).toBe('default');
 	});
+
+	it('does not treat an Institutes section locator as a page or volume', () => {
+		const r = routeIndexRowToVolume(vols, { volume: 'III', pageStart: 'III.2.12' }, 'v2');
+		expect(r.bookId).toBe('v2');
+		expect(r.reason).toBe('section_locator');
+		expect(stripVolumeFromPageToken('III.2.12–14')).toBe('III.2.12–14');
+	});
 });
 
 describe('stripVolumeFromPageToken', () => {

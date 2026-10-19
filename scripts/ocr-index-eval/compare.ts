@@ -44,7 +44,7 @@ function loadRows(path: string): Row[] {
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
-const goldDir = join(here, 'gold');
+const goldDir = process.argv[2] ? join(process.cwd(), process.argv[2]) : join(here, 'gold');
 
 if (!existsSync(goldDir)) {
 	console.error('No gold/ directory yet. See README.md.');
@@ -99,9 +99,18 @@ if (pagesCompared === 0) {
 }
 
 const overall = totalGold === 0 ? 0 : totalMatch / totalGold;
+const practice = Boolean(process.argv[2]);
 console.log('---');
 console.log(
 	`overall: ${totalMatch}/${totalGold} exact (${(overall * 100).toFixed(3)}%) across ${pagesCompared} page(s)`
 );
-console.log(overall >= 0.995 ? 'GATE PASS (≥99.5%)' : 'GATE FAIL — iterate before bulk capture');
+if (practice) {
+	console.log(
+		overall >= 0.995
+			? 'PRACTICE PASS — this directory is not the page-index bulk gate'
+			: 'PRACTICE FAIL'
+	);
+} else {
+	console.log(overall >= 0.995 ? 'GATE PASS (≥99.5%)' : 'GATE FAIL — iterate before bulk capture');
+}
 process.exit(overall >= 0.995 ? 0 : 2);

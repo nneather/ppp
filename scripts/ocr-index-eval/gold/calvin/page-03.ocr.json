@@ -1,0 +1,17 @@
+{
+  "candidates": [
+    {
+      "bible_book": "Matthew",
+      "chapter_start": 8,
+      "verse_start": 10,
+      "page_start": "III.2.13"
+    },
+    {
+      "bible_book": "Matthew",
+      "chapter_start": 25,
+      "verse_start": 34,
+      "page_start": "III.18.1",
+      "page_end": "III.18.3"
+    }
+  ]
+}

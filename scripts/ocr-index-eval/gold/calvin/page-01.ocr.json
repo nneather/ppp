@@ -1,0 +1,18 @@
+{
+  "candidates": [
+    {
+      "bible_book": "1 Thessalonians",
+      "chapter_start": 1,
+      "verse_start": 3,
+      "chapter_end": 1,
+      "verse_end": 4,
+      "page_start": "III.2.11"
+    },
+    {
+      "bible_book": "1 Thessalonians",
+      "chapter_start": 1,
+      "verse_start": 5,
+      "page_start": "IV.1.6"
+    }
+  ]
+}

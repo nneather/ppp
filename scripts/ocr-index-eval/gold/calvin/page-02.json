@@ -1,0 +1,26 @@
+{
+  "id": "calvin-page-02",
+  "source": "Typeset practice page in Battles locator shape. Romans citations from the public Institutes scripture index, including section ranges.",
+  "rows": [
+    {
+      "bible_book": "Romans",
+      "chapter_start": 5,
+      "verse_start": 5,
+      "page_start": "III.2.12"
+    },
+    {
+      "bible_book": "Romans",
+      "chapter_start": 8,
+      "verse_start": 24,
+      "page_start": "III.2.41",
+      "page_end": "III.2.42"
+    },
+    {
+      "bible_book": "Romans",
+      "chapter_start": 10,
+      "verse_start": 8,
+      "page_start": "III.2.29",
+      "page_end": "III.2.30"
+    }
+  ]
+}
