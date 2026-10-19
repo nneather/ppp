@@ -48,15 +48,21 @@
 		BookSiblingRow,
 		BookTopicRow,
 		EssayRow,
+		PassageSectionRow,
 		PersonRow,
 		ReadingStatus,
 		ScriptureRefRow,
 		TopicCount
 	} from '$lib/types/library';
 	import { siblingBookLabel } from '$lib/library/book-detail-related';
+	import {
+		formatScriptureRefPageSummary,
+		formatScriptureRefRangeDisplay
+	} from '$lib/library/scripture-ref-format';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import BookEssaysEditor from '$lib/components/book-essays-editor.svelte';
 	import BookRatingScale from '$lib/components/book-rating-scale.svelte';
+	import PassageSectionForm from '$lib/components/passage-section-form.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -452,6 +458,106 @@
 			flashCopyToast('Clipboard unavailable.');
 		}
 	}
+
+	// -------------------------------------------------------------------------
+	// Passage sections (curated monograph ranges — above the scripture index)
+	// -------------------------------------------------------------------------
+	let passageSections = $state<PassageSectionRow[]>([]);
+	let passageSectionsLoading = $state(true);
+	let sectionAddOpen = $state(false);
+	let editingSectionId = $state<string | null>(null);
+	let sectionPendingDeleteId = $state<string | null>(null);
+	let sectionConfirmDeleteOpen = $state(false);
+	let sectionDeletePending = $state(false);
+	let sectionDeleteFormEl = $state<HTMLFormElement | null>(null);
+	let sectionDeleteIdField = $state<HTMLInputElement | null>(null);
+	let highlightedSectionId = $state<string | null>(null);
+	let sectionHighlightTimer: number | null = null;
+
+	$effect(() => {
+		const p = data.passageSectionsPromise;
+		passageSectionsLoading = true;
+		void p
+			.then((rows) => {
+				passageSections = rows;
+			})
+			.catch(() => {
+				passageSections = [];
+			})
+			.finally(() => {
+				passageSectionsLoading = false;
+			});
+	});
+
+	const SECTION_HASH_RE =
+		/^#section-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+	$effect(() => {
+		if (!browser) return;
+		const m = page.url.hash.match(SECTION_HASH_RE);
+		if (!m) return;
+		const id = m[1];
+		const tryScroll = () => {
+			const el = document.getElementById(`section-${id}`);
+			if (!el) return;
+			el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			highlightedSectionId = id;
+			if (sectionHighlightTimer != null) clearTimeout(sectionHighlightTimer);
+			sectionHighlightTimer = window.setTimeout(() => {
+				highlightedSectionId = null;
+				sectionHighlightTimer = null;
+			}, 2200);
+		};
+		queueMicrotask(() => {
+			requestAnimationFrame(() => {
+				requestAnimationFrame(tryScroll);
+			});
+		});
+	});
+
+	const sectionFormMessage = $derived.by(() => {
+		const f = form as { kind?: string; message?: string; sectionId?: string } | null;
+		if (!f) return null;
+		if (
+			f.kind === 'createPassageSection' ||
+			f.kind === 'updatePassageSection' ||
+			f.kind === 'softDeletePassageSection'
+		) {
+			return f;
+		}
+		return null;
+	});
+
+	async function onSectionSaved(_sectionId: string) {
+		sectionAddOpen = false;
+		editingSectionId = null;
+		await invalidateBook();
+	}
+
+	function requestDeleteSection(id: string) {
+		sectionPendingDeleteId = id;
+		sectionConfirmDeleteOpen = true;
+	}
+
+	function confirmDeleteSection() {
+		if (!sectionPendingDeleteId || !sectionDeleteFormEl || !sectionDeleteIdField) return;
+		sectionDeleteIdField.value = sectionPendingDeleteId;
+		sectionDeleteFormEl.requestSubmit();
+	}
+
+	const deleteSectionEnhance: SubmitFunction = () => {
+		sectionDeletePending = true;
+		const removingId = sectionPendingDeleteId;
+		if (removingId) passageSections = passageSections.filter((s) => s.id !== removingId);
+		return async ({ result }) => {
+			sectionDeletePending = false;
+			sectionConfirmDeleteOpen = false;
+			sectionPendingDeleteId = null;
+			await invalidateBook();
+			if (result.type !== 'success' && removingId) {
+				/* reload restores */
+			}
+		};
+	};
 
 	// -------------------------------------------------------------------------
 	// Scripture references section
@@ -1641,6 +1747,132 @@
 	{/if}
 
 	<!-- ------------------------------------------------------------------- -->
+	<!-- Passage sections (curated — above the scripture index)                -->
+	<!-- ------------------------------------------------------------------- -->
+	<section class="mt-10 rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+		<div class="flex items-center justify-between gap-2 px-4 py-3">
+			<div>
+				<h2 class="text-lg font-semibold tracking-tight text-foreground">
+					Passage sections
+					{#if passageSections.length > 0}
+						<span class="ml-1 text-sm font-normal text-muted-foreground"
+							>({passageSections.length})</span
+						>
+					{/if}
+				</h2>
+				<p class="mt-0.5 text-xs text-muted-foreground">
+					Hand-curated ranges with pages (e.g. Sermon on the Mount). Surfaces on passage
+					search above the scripture index.
+				</p>
+			</div>
+			{#if !sectionAddOpen && editingSectionId == null}
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onclick={() => {
+						sectionAddOpen = true;
+						editingSectionId = null;
+					}}
+				>
+					<Plus class="size-4" /> Add section
+				</Button>
+			{/if}
+		</div>
+		<div class="border-t border-border px-4 pb-4 pt-3">
+			{#if passageSectionsLoading}
+				<p class="text-sm text-muted-foreground">Loading passage sections…</p>
+			{:else if passageSections.length === 0 && !sectionAddOpen}
+				<p
+					class="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground"
+				>
+					No passage sections yet. Add one when a monograph treats a passage as a named
+					section with its own pages.
+				</p>
+			{:else}
+				<ul class="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60">
+					{#each passageSections as section (section.id)}
+						<li
+							id={`section-${section.id}`}
+							class={cn(
+								'px-3 py-2 transition-colors',
+								highlightedSectionId === section.id &&
+									'bg-amber-500/10 ring-2 ring-amber-500/40 ring-inset'
+							)}
+						>
+							{#if editingSectionId === section.id}
+								<PassageSectionForm
+									bookId={data.book.id}
+									bibleBookNames={data.bibleBookNames}
+									existing={section}
+									formMessage={sectionFormMessage}
+									onSaved={onSectionSaved}
+									onCancel={() => (editingSectionId = null)}
+								/>
+							{:else}
+								<div class="flex flex-wrap items-start justify-between gap-2">
+									<div class="min-w-0">
+										{#if section.label}
+											<p class="text-sm font-medium text-foreground">{section.label}</p>
+										{/if}
+										<p class="text-sm text-muted-foreground">
+											<span class="font-medium text-foreground"
+												>{formatScriptureRefRangeDisplay(section)}</span
+											>
+											{#if formatScriptureRefPageSummary(section.page_start, section.page_end)}
+												<span class="ml-1.5"
+													>{formatScriptureRefPageSummary(
+														section.page_start,
+														section.page_end
+													)}</span
+												>
+											{/if}
+										</p>
+									</div>
+									<div class="flex shrink-0 gap-1">
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											onclick={() => {
+												editingSectionId = section.id;
+												sectionAddOpen = false;
+											}}
+										>
+											Edit
+										</Button>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											class="text-destructive"
+											onclick={() => requestDeleteSection(section.id)}
+										>
+											Delete
+										</Button>
+									</div>
+								</div>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
+
+			{#if sectionAddOpen}
+				<div class="mt-3">
+					<PassageSectionForm
+						bookId={data.book.id}
+						bibleBookNames={data.bibleBookNames}
+						formMessage={sectionFormMessage}
+						onSaved={onSectionSaved}
+						onCancel={() => (sectionAddOpen = false)}
+					/>
+				</div>
+			{/if}
+		</div>
+	</section>
+
+	<!-- ------------------------------------------------------------------- -->
 	<!-- Scripture references                                                  -->
 	<!-- ------------------------------------------------------------------- -->
 	<details
@@ -2158,6 +2390,16 @@
 	<input type="hidden" name="id" value="" bind:this={deleteIdField} />
 </form>
 
+<form
+	method="POST"
+	action="?/softDeletePassageSection"
+	use:enhance={deleteSectionEnhance}
+	bind:this={sectionDeleteFormEl}
+	class="hidden"
+>
+	<input type="hidden" name="section_id" value="" bind:this={sectionDeleteIdField} />
+</form>
+
 <ConfirmDialog
 	bind:open={confirmDeleteOpen}
 	title="Delete scripture reference?"
@@ -2169,6 +2411,20 @@
 	onConfirm={confirmDelete}
 	onCancel={() => {
 		pendingDeleteId = null;
+	}}
+/>
+
+<ConfirmDialog
+	bind:open={sectionConfirmDeleteOpen}
+	title="Delete passage section?"
+	description="This soft-deletes the row. You can restore it from the audit log if needed."
+	confirmLabel="Delete"
+	cancelLabel="Keep"
+	destructive
+	pending={sectionDeletePending}
+	onConfirm={confirmDeleteSection}
+	onCancel={() => {
+		sectionPendingDeleteId = null;
 	}}
 />
 

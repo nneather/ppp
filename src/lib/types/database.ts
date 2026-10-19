@@ -408,6 +408,85 @@ export type Database = {
           },
         ]
       }
+      book_passage_sections: {
+        Row: {
+          bible_book: string
+          book_id: string
+          chapter_end: number | null
+          chapter_start: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          label: string | null
+          page_end: string | null
+          page_start: string
+          updated_at: string
+          verse_end: number | null
+          verse_end_abs: number | null
+          verse_start: number | null
+          verse_start_abs: number | null
+        }
+        Insert: {
+          bible_book: string
+          book_id: string
+          chapter_end?: number | null
+          chapter_start?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          label?: string | null
+          page_end?: string | null
+          page_start: string
+          updated_at?: string
+          verse_end?: number | null
+          verse_end_abs?: number | null
+          verse_start?: number | null
+          verse_start_abs?: number | null
+        }
+        Update: {
+          bible_book?: string
+          book_id?: string
+          chapter_end?: number | null
+          chapter_start?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          label?: string | null
+          page_end?: string | null
+          page_start?: string
+          updated_at?: string
+          verse_end?: number | null
+          verse_end_abs?: number | null
+          verse_start?: number | null
+          verse_start_abs?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_passage_sections_bible_book_fkey"
+            columns: ["bible_book"]
+            isOneToOne: false
+            referencedRelation: "bible_books"
+            referencedColumns: ["name"]
+          },
+          {
+            foreignKeyName: "book_passage_sections_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_passage_sections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_topics: {
         Row: {
           book_id: string | null

@@ -1,6 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { PassageResult } from '$lib/types/library';
+import { assignPassageBands } from '$lib/library/passage-search-bands';
+import { loadPassageSectionsOverlapping } from '$lib/library/server/loaders';
 
 function parseIntOrNull(v: string | null): number | null {
 	if (v == null || v.trim() === '') return null;
@@ -43,10 +45,33 @@ type CoverageRow = {
 	book_id: string;
 	bible_book: string;
 	books:
-		| { id: string; title: string | null; subtitle: string | null; deleted_at: string | null }
-		| { id: string; title: string | null; subtitle: string | null; deleted_at: string | null }[]
+		| {
+				id: string;
+				title: string | null;
+				subtitle: string | null;
+				genre: string | null;
+				deleted_at: string | null;
+		  }
+		| {
+				id: string;
+				title: string | null;
+				subtitle: string | null;
+				genre: string | null;
+				deleted_at: string | null;
+		  }[]
 		| null;
 };
+
+function asResult(
+	partial: Omit<PassageResult, 'section_label' | 'manual_entry'> &
+		Partial<Pick<PassageResult, 'section_label' | 'manual_entry'>>
+): PassageResult {
+	return {
+		...partial,
+		section_label: partial.section_label ?? null,
+		manual_entry: partial.manual_entry ?? true
+	};
+}
 
 export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const { user } = await locals.safeGetSession();
@@ -68,11 +93,10 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	let queryError: string | null = null;
 
 	if (bible_book) {
-		// Parallel: scripture_references overlap via RPC + book_bible_coverage
-		// for the same bible_book. Session 5 Track D — app-layer merge keeps
-		// the schema untouched; promote to a SQL UNION if another module needs
-		// coverage-aware search.
-		const [refsRes, covRes] = await Promise.all([
+		// Parallel: scripture index RPC + bible coverage + passage sections.
+		// App-layer merge ([249]); documented third round trip (same class as
+		// prior coverage merge).
+		const [refsRes, covRes, sections] = await Promise.all([
 			supabase.rpc('search_scripture_refs', {
 				p_bible_book: bible_book,
 				p_chapter: chapter ?? undefined,
@@ -83,9 +107,17 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			supabase
 				.from('book_bible_coverage')
 				.select(
-					'id, book_id, bible_book, books!inner ( id, title, subtitle, deleted_at )'
+					'id, book_id, bible_book, books!inner ( id, title, subtitle, genre, deleted_at )'
 				)
 				.eq('bible_book', bible_book)
+				.not('book_id', 'is', null),
+			loadPassageSectionsOverlapping(supabase, {
+				bibleBook: bible_book,
+				chapter,
+				verse,
+				chapterEnd: chapter_end,
+				verseEnd: verse_end
+			})
 		]);
 
 		if (refsRes.error) {
@@ -94,68 +126,132 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		}
 		if (covRes.error) {
 			console.error('[search-passage] coverage error', covRes.error);
-			// Non-fatal: coverage is additive. Keep refs if they worked.
 			if (!queryError) queryError = covRes.error.message;
 		}
 
-		const refRows: PassageResult[] = ((refsRes.data ?? []) as RefRpcRow[]).map((r) => ({
-			source_kind: 'ref' as const,
-			ref_id: r.ref_id,
-			book_id: r.book_id,
-			essay_id: r.essay_id,
-			book_title: r.book_title,
-			book_subtitle: r.book_subtitle,
-			bible_book: r.bible_book,
-			chapter_start: r.chapter_start,
-			verse_start: r.verse_start,
-			chapter_end: r.chapter_end,
-			verse_end: r.verse_end,
-			page_start: r.page_start,
-			page_end: r.page_end,
-			confidence_score: r.confidence_score,
-			needs_review: r.needs_review,
-			review_note: r.review_note,
-			manual_entry: r.manual_entry
-		}));
+		const indexRows: PassageResult[] = ((refsRes.data ?? []) as RefRpcRow[]).map((r) =>
+			asResult({
+				source_kind: 'index' as const,
+				ref_id: r.ref_id,
+				book_id: r.book_id,
+				essay_id: r.essay_id,
+				book_title: r.book_title,
+				book_subtitle: r.book_subtitle,
+				bible_book: r.bible_book,
+				chapter_start: r.chapter_start,
+				verse_start: r.verse_start,
+				chapter_end: r.chapter_end,
+				verse_end: r.verse_end,
+				page_start: r.page_start,
+				page_end: r.page_end,
+				confidence_score: r.confidence_score,
+				needs_review: r.needs_review,
+				review_note: r.review_note,
+				manual_entry: r.manual_entry
+			})
+		);
 
-		// Dedupe coverage rows against books that already appeared in the ref
-		// hits (the specific entry is more useful than the blanket coverage).
-		const refBookIds = new Set(refRows.map((r) => r.book_id).filter(Boolean) as string[]);
-
-		const covRaw = (covRes.data ?? []) as unknown as CoverageRow[];
-		const covRows: PassageResult[] = [];
-		for (const raw of covRaw) {
+		type CovParsed = {
+			id: string;
+			bookId: string;
+			bibleBook: string;
+			title: string | null;
+			subtitle: string | null;
+			genre: string | null;
+		};
+		const covParsed: CovParsed[] = [];
+		for (const raw of (covRes.data ?? []) as unknown as CoverageRow[]) {
 			const b = Array.isArray(raw.books) ? raw.books[0] : raw.books;
-			if (!b || b.deleted_at) continue;
-			if (refBookIds.has(raw.book_id)) continue;
-			covRows.push({
-				source_kind: 'coverage' as const,
-				ref_id: `cov-${raw.id}`,
-				book_id: raw.book_id,
-				essay_id: null,
-				book_title: b.title ?? null,
-				book_subtitle: b.subtitle ?? null,
-				bible_book: raw.bible_book,
-				chapter_start: null,
-				verse_start: null,
-				chapter_end: null,
-				verse_end: null,
-				page_start: null,
-				page_end: null,
-				confidence_score: null,
-				needs_review: false,
-				review_note: null,
-				manual_entry: true
+			if (!b || b.deleted_at || !raw.book_id) continue;
+			covParsed.push({
+				id: raw.id,
+				bookId: raw.book_id,
+				bibleBook: raw.bible_book,
+				title: b.title,
+				subtitle: b.subtitle,
+				genre: b.genre
 			});
 		}
 
-		// Sort coverage rows alphabetically by title for stability; refs keep
-		// the RPC-side order (manual first, then confidence, then start).
-		covRows.sort((a, b) =>
-			(a.book_title ?? '').localeCompare(b.book_title ?? '')
-		);
+		const bands = assignPassageBands({
+			coverages: covParsed.map((c) => ({ bookId: c.bookId, genre: c.genre })),
+			sections: sections.map((s) => ({ bookId: s.book_id })),
+			indexHits: indexRows.map((r) => ({ bookId: r.book_id }))
+		});
 
-		results = [...refRows, ...covRows];
+		const commentaryRows: PassageResult[] = covParsed
+			.filter((c) => bands.commentaryBookIds.has(c.bookId))
+			.map((c) =>
+				asResult({
+					source_kind: 'commentary' as const,
+					ref_id: `cov-${c.id}`,
+					book_id: c.bookId,
+					essay_id: null,
+					book_title: c.title,
+					book_subtitle: c.subtitle,
+					bible_book: c.bibleBook,
+					chapter_start: null,
+					verse_start: null,
+					chapter_end: null,
+					verse_end: null,
+					page_start: null,
+					page_end: null,
+					confidence_score: null,
+					needs_review: false,
+					review_note: null
+				})
+			)
+			.sort((a, b) => (a.book_title ?? '').localeCompare(b.book_title ?? ''));
+
+		const sectionRows: PassageResult[] = sections
+			.filter((s) => bands.sectionBookIds.has(s.book_id))
+			.map((s) =>
+				asResult({
+					source_kind: 'section' as const,
+					ref_id: s.id,
+					book_id: s.book_id,
+					essay_id: null,
+					book_title: s.book_title,
+					book_subtitle: s.book_subtitle,
+					section_label: s.label,
+					bible_book: s.bible_book,
+					chapter_start: s.chapter_start,
+					verse_start: s.verse_start,
+					chapter_end: s.chapter_end,
+					verse_end: s.verse_end,
+					page_start: s.page_start,
+					page_end: s.page_end,
+					confidence_score: null,
+					needs_review: false,
+					review_note: null
+				})
+			);
+
+		const coverageRows: PassageResult[] = covParsed
+			.filter((c) => bands.coverageBookIds.has(c.bookId))
+			.map((c) =>
+				asResult({
+					source_kind: 'coverage' as const,
+					ref_id: `cov-${c.id}`,
+					book_id: c.bookId,
+					essay_id: null,
+					book_title: c.title,
+					book_subtitle: c.subtitle,
+					bible_book: c.bibleBook,
+					chapter_start: null,
+					verse_start: null,
+					chapter_end: null,
+					verse_end: null,
+					page_start: null,
+					page_end: null,
+					confidence_score: null,
+					needs_review: false,
+					review_note: null
+				})
+			)
+			.sort((a, b) => (a.book_title ?? '').localeCompare(b.book_title ?? ''));
+
+		results = [...commentaryRows, ...sectionRows, ...coverageRows, ...indexRows];
 	}
 
 	return {

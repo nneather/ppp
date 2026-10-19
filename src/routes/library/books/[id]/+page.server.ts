@@ -9,6 +9,7 @@ import {
 	loadPeople,
 	loadPersonBookCounts,
 	loadScriptureRefsForBook,
+	loadPassageSectionsForBook,
 	loadSeriesSiblingBooks,
 	loadAlsoByAuthorBooks
 } from '$lib/library/server/loaders';
@@ -27,6 +28,11 @@ import {
 	softDeleteScriptureRefAction,
 	updateScriptureRefAction
 } from '$lib/library/server/scripture-actions';
+import {
+	createPassageSectionAction,
+	softDeletePassageSectionAction,
+	updatePassageSectionAction
+} from '$lib/library/server/passage-section-actions';
 import { invokeOcrScriptureRefs } from '$lib/library/ocr-invoke-client';
 import {
 	createBookTopicsBatchAction,
@@ -100,6 +106,7 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		series,
 		bibleBookNames,
 		scriptureRefsPromise: loadScriptureRefsForBook(supabase, id),
+		passageSectionsPromise: loadPassageSectionsForBook(supabase, id),
 		seriesSiblingsPromise: loadSeriesSiblingBooks(supabase, book.series_id, id),
 		alsoByAuthorPromise: loadAlsoByAuthorBooks(supabase, alsoByPersonIds, id),
 		isOwner,
@@ -181,6 +188,30 @@ export const actions: Actions = {
 			return fail(401, { kind: 'softDeleteScriptureRef' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return softDeleteScriptureRefAction(locals.supabase, fd);
+	},
+	createPassageSection: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'createPassageSection' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return createPassageSectionAction(locals.supabase, user.id, fd);
+	},
+	updatePassageSection: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'updatePassageSection' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return updatePassageSectionAction(locals.supabase, fd);
+	},
+	softDeletePassageSection: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, {
+				kind: 'softDeletePassageSection' as const,
+				message: 'Unauthorized'
+			});
+		const fd = await request.formData();
+		return softDeletePassageSectionAction(locals.supabase, fd);
 	},
 	extractScriptureRefs: async ({ request, locals, params }) => {
 		const { user } = await locals.safeGetSession();

@@ -22,6 +22,7 @@ import type {
 	AuthorRole,
 	ScriptureRefRow,
 	ScriptureRefNeedingReviewListItem,
+	PassageSectionRow,
 	ReviewQueueFilters,
 	ReviewCard,
 	ReviewProposal,
@@ -35,6 +36,10 @@ import type {
 	EssaySearchHit
 } from '$lib/types/library';
 import { compareSiblingBooks } from '$lib/library/book-detail-related';
+import {
+	rangesOverlap,
+	searchPassageAbsBounds
+} from '$lib/library/passage-search-bands';
 import {
 	SCRIPTURE_IMAGES_BUCKET,
 	SCRIPTURE_IMAGES_SIGNED_URL_TTL
@@ -1891,6 +1896,162 @@ export async function loadScriptureRefsForBook(
 		source_image_signed_url: signed[i],
 		created_at: r.created_at
 	}));
+}
+
+type RawPassageSectionRow = {
+	id: string;
+	book_id: string;
+	label: string | null;
+	bible_book: string;
+	chapter_start: number | null;
+	verse_start: number | null;
+	chapter_end: number | null;
+	verse_end: number | null;
+	page_start: string;
+	page_end: string | null;
+	created_at: string;
+};
+
+/** Live passage sections for a book, scripture order. */
+export async function loadPassageSectionsForBook(
+	supabase: SupabaseClient,
+	bookId: string
+): Promise<PassageSectionRow[]> {
+	const { data, error } = await supabase
+		.from('book_passage_sections')
+		.select(
+			`
+			id,
+			book_id,
+			label,
+			bible_book,
+			chapter_start,
+			verse_start,
+			chapter_end,
+			verse_end,
+			page_start,
+			page_end,
+			created_at
+		`
+		)
+		.eq('book_id', bookId)
+		.is('deleted_at', null)
+		.order('verse_start_abs', { ascending: true })
+		.order('created_at', { ascending: true });
+
+	if (error) {
+		console.error('[loaders] passage sections', error);
+		return [];
+	}
+
+	return ((data ?? []) as RawPassageSectionRow[]).map((r) => ({
+		id: r.id,
+		book_id: r.book_id,
+		label: r.label,
+		bible_book: r.bible_book,
+		chapter_start: r.chapter_start,
+		verse_start: r.verse_start,
+		chapter_end: r.chapter_end,
+		verse_end: r.verse_end,
+		page_start: r.page_start,
+		page_end: r.page_end,
+		created_at: r.created_at
+	}));
+}
+
+/**
+ * Overlapping passage sections for a bible-book query (same abs overlap as
+ * `search_scripture_refs`). Joins live books for title/subtitle.
+ */
+export async function loadPassageSectionsOverlapping(
+	supabase: SupabaseClient,
+	opts: {
+		bibleBook: string;
+		chapter: number | null;
+		verse: number | null;
+		chapterEnd: number | null;
+		verseEnd: number | null;
+	}
+): Promise<
+	(PassageSectionRow & {
+		book_title: string | null;
+		book_subtitle: string | null;
+	})[]
+> {
+	const bounds = searchPassageAbsBounds({
+		chapter: opts.chapter,
+		verse: opts.verse,
+		chapterEnd: opts.chapterEnd,
+		verseEnd: opts.verseEnd
+	});
+
+	const { data, error } = await supabase
+		.from('book_passage_sections')
+		.select(
+			`
+			id,
+			book_id,
+			label,
+			bible_book,
+			chapter_start,
+			verse_start,
+			chapter_end,
+			verse_end,
+			verse_start_abs,
+			verse_end_abs,
+			page_start,
+			page_end,
+			created_at,
+			books!inner ( id, title, subtitle, deleted_at )
+		`
+		)
+		.eq('bible_book', opts.bibleBook)
+		.is('deleted_at', null);
+
+	if (error) {
+		console.error('[loaders] passage sections overlap', error);
+		return [];
+	}
+
+	type Raw = RawPassageSectionRow & {
+		verse_start_abs: number | null;
+		verse_end_abs: number | null;
+		books:
+			| { id: string; title: string | null; subtitle: string | null; deleted_at: string | null }
+			| { id: string; title: string | null; subtitle: string | null; deleted_at: string | null }[]
+			| null;
+	};
+
+	const out: (PassageSectionRow & {
+		book_title: string | null;
+		book_subtitle: string | null;
+	})[] = [];
+
+	for (const raw of (data ?? []) as unknown as Raw[]) {
+		const b = Array.isArray(raw.books) ? raw.books[0] : raw.books;
+		if (!b || b.deleted_at) continue;
+		const aStart = raw.verse_start_abs ?? 0;
+		const aEnd = raw.verse_end_abs ?? 999999;
+		if (!rangesOverlap(aStart, aEnd, bounds.start, bounds.end)) continue;
+		out.push({
+			id: raw.id,
+			book_id: raw.book_id,
+			label: raw.label,
+			bible_book: raw.bible_book,
+			chapter_start: raw.chapter_start,
+			verse_start: raw.verse_start,
+			chapter_end: raw.chapter_end,
+			verse_end: raw.verse_end,
+			page_start: raw.page_start,
+			page_end: raw.page_end,
+			created_at: raw.created_at,
+			book_title: b.title,
+			book_subtitle: b.subtitle
+		});
+	}
+
+	out.sort((a, b) => (a.book_title ?? '').localeCompare(b.book_title ?? ''));
+	return out;
 }
 
 const SCRIPTURE_REFS_REVIEW_DEFAULT_LIMIT = 50;

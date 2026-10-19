@@ -419,27 +419,26 @@ export type ReviewCard = BookListRow & {
 };
 
 /**
- * Result row for `/library/search-passage`. Merges two sources:
+ * Result row for `/library/search-passage`. Four bands ([249]):
  *
- *   - `source_kind: 'ref'`: a row from `search_scripture_refs` — a precise
- *     verse / chapter / range hit on `scripture_references`.
- *   - `source_kind: 'coverage'`: a row from `book_bible_coverage` — the book
- *     covers the queried bible_book as a whole. Surfaces commentaries that
- *     haven't had individual scripture refs entered yet.
+ *   - `commentary`: `book_bible_coverage` where genre is Commentary
+ *   - `section`: curated `book_passage_sections` overlapping the query
+ *   - `coverage`: other whole-book bible coverage
+ *   - `index`: `search_scripture_refs` scripture-index hits
  *
- * The UI treats the two differently (coverage hits have no page / verse
- * specificity) but both point at the same book for the deep-link.
- *
- * `manual_entry` is computed in the SQL for 'ref' rows (true when
- * `confidence_score IS NULL`). Coverage rows are always `manual_entry: true`.
+ * `manual_entry` is computed in the SQL for 'index' rows (true when
+ * `confidence_score IS NULL`). Coverage / commentary / section rows are
+ * always `manual_entry: true`.
  */
 export type PassageResult = {
-	source_kind: 'ref' | 'coverage';
+	source_kind: 'commentary' | 'section' | 'coverage' | 'index';
 	ref_id: string;
 	book_id: string | null;
 	essay_id: string | null;
 	book_title: string | null;
 	book_subtitle: string | null;
+	/** Optional label on a passage section (e.g. "Sermon on the Mount"). */
+	section_label: string | null;
 	bible_book: string;
 	chapter_start: number | null;
 	verse_start: number | null;
@@ -451,6 +450,21 @@ export type PassageResult = {
 	needs_review: boolean;
 	review_note: string | null;
 	manual_entry: boolean;
+};
+
+/** Curated passage section on a book (book detail + search-passage). */
+export type PassageSectionRow = {
+	id: string;
+	book_id: string;
+	label: string | null;
+	bible_book: string;
+	chapter_start: number | null;
+	verse_start: number | null;
+	chapter_end: number | null;
+	verse_end: number | null;
+	page_start: string;
+	page_end: string | null;
+	created_at: string;
 };
 
 /**

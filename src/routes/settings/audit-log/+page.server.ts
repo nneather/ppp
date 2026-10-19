@@ -62,6 +62,7 @@ export const _LIBRARY_TABLES = [
 	'essays',
 	'essay_authors',
 	'scripture_references',
+	'book_passage_sections',
 	'book_topics',
 	'user_permissions'
 ] as const;
@@ -94,6 +95,7 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'ancient_texts',
 	'essays',
 	'scripture_references',
+	'book_passage_sections',
 	'book_topics',
 	// projects
 	'projects',
@@ -357,21 +359,25 @@ function entityLabelFor(
 			return null;
 		case 'essays':
 			return get('essay_title');
-		case 'scripture_references': {
+		case 'scripture_references':
+		case 'book_passage_sections': {
 			const bibleBook = get('bible_book');
+			const label = get('label');
 			const cs = data.chapter_start;
 			const vs = data.verse_start;
 			const ce = data.chapter_end;
 			const ve = data.verse_end;
 			if (!bibleBook) return null;
-			if (cs == null) return bibleBook;
-			let ref = `${bibleBook} ${cs}`;
-			if (vs != null) ref += `:${vs}`;
-			if (ce != null && (ce !== cs || ve !== vs)) {
-				ref += `–${ce}`;
-				if (ve != null) ref += `:${ve}`;
+			let ref = bibleBook;
+			if (cs != null) {
+				ref = `${bibleBook} ${cs}`;
+				if (vs != null) ref += `:${vs}`;
+				if (ce != null && (ce !== cs || ve !== vs)) {
+					ref += `–${ce}`;
+					if (ve != null) ref += `:${ve}`;
+				}
 			}
-			return ref;
+			return label ? `${label} · ${ref}` : ref;
 		}
 		case 'book_topics': {
 			const topic = get('topic');
