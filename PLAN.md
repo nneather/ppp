@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Sermon-on-the-Mount books are passage sections, not whole-Matthew coverage ([255](docs/decisions/255-sermon-mount-passages-not-coverage.md)).
+**Last updated:** 2026-10-19 — Brunnen *Nachfolge* and Eastman passage sections from the shelf contents ([256](docs/decisions/256-nachfolge-eastman-shelf-contents.md)).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 80 live rows on 10 books; Guelich, Pennington, and Augustine are the Sermon, not whole-Matthew coverage ([255](docs/decisions/255-sermon-mount-passages-not-coverage.md)). **Systematics by passage** gold ≥99.5% then bulk capture ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books, including Brunnen *Nachfolge* and Eastman ([256](docs/decisions/256-nachfolge-eastman-shelf-contents.md)). **Systematics by passage** gold ≥99.5% then bulk capture ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
-- [255 — Sermon on the Mount as passages](docs/decisions/255-sermon-mount-passages-not-coverage.md) (2026-10-19) — Guelich (from 4:23), Pennington, and Augustine are one sermon each. Brunnen *Nachfolge* and Eastman still need shelf pages.
+- [256 — Nachfolge and Eastman from the shelf](docs/decisions/256-nachfolge-eastman-shelf-contents.md) (2026-10-19) — Brunnen contents: same passages as the English Bonhoeffer. Eastman: Romans 7, Philippians 2, Galatians 2.
+- [255 — Sermon on the Mount as passages](docs/decisions/255-sermon-mount-passages-not-coverage.md) (2026-10-19) — Guelich (from 4:23), Pennington, and Augustine are one sermon each.
 - [254 — Passage sections wave 2](docs/decisions/254-passage-sections-wave-2.md) (2026-10-19) — Bonhoeffer English, Augustine on the Mount, Carson *Praying with Paul*.
 - [253 — Systematics by passage S1–S5](docs/decisions/253-systematics-by-passage-s1-s5.md) (2026-10-19) — Outline table, systematic band, MCP, OCR index mode, gold eval harness.
 - [252 — Systematics by passage Session 0](docs/decisions/252-systematics-by-passage-session-0.md) (2026-10-19) — Outline + scripture-index join; OCR ≥99.5% gate; surfaces locked.
-- [251 — Passage sections on import](docs/decisions/251-studies-passage-section-import.md) (2026-10-19) — Overlapping sections attach the book; footnote page is the tightest span.
 
 ---
 

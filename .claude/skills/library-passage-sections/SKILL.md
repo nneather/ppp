@@ -49,5 +49,4 @@ Idempotent insert: skip a live row with the same `book_id`, `label`, `bible_book
 
 ## Held on purpose (do not backfill from another edition)
 
-- *Nachfolge*, Brunnen ISBN 9783765509483 (Zimmerling, 320 pp.). Kaiser 1952, Kaiser 1985, and DBW 4 paginate differently.
-- Eastman, *Paul and the Person*. Chapters are Romans 7, Philippians 2, Galatians 2; chapter-start pages were not published in a contents list. Catalog `year` / `isbn` are null.
+- None. Brunnen *Nachfolge* (9783765509483) and Eastman are in from the shelf contents ([256](../../docs/decisions/256-nachfolge-eastman-shelf-contents.md)). Kaiser, DBW, and other *Nachfolge* paginations still must not be copied onto a different printing.
