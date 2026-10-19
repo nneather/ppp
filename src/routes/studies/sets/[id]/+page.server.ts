@@ -36,10 +36,12 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 		id: string;
 		title: string;
 		authors: string | null;
+		authorLinks: { personId: string; label: string }[];
 		bookIds: string[];
 		seriesAbbreviation: string | null;
 		volumeCount: number;
 		included: boolean;
+		href: string;
 	}[] = [];
 	const moveTargets = isOwner
 		? await loadResourceSetMoveTargets(supabase, params.id)
@@ -55,11 +57,16 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 				member.volumeBookIds.length > 0 ? member.volumeBookIds : member.bookId ? [member.bookId] : []
 			)
 		);
-		addHits = groups.map((group) => ({
-			...group,
-			authors: labels.get(`b:${group.id}`) ?? null,
-			included: group.bookIds.every((id) => inSet.has(id))
-		}));
+		addHits = groups.map((group) => {
+			const info = labels.get(`b:${group.id}`);
+			return {
+				...group,
+				authors: info?.label ?? null,
+				authorLinks: info?.authors ?? [],
+				included: group.bookIds.every((id) => inSet.has(id)),
+				href: `/library/books/${group.id}`
+			};
+		});
 	}
 	return {
 		set: detail.set,

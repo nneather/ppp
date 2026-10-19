@@ -5,10 +5,14 @@
 	import {
 		ruleChipLabel,
 		type ResolvedMember,
-		type ResourceSetRule
+		type ResourceSetRule,
+		type SetMemberAuthor
 	} from '$lib/studies/resource-sets';
 
 	type MoveTarget = { id: string; name: string; sectionName: string | null };
+
+	const linkClass =
+		'underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 	let {
 		setId,
@@ -30,10 +34,12 @@
 			id: string;
 			title: string;
 			authors: string | null;
+			authorLinks: SetMemberAuthor[];
 			bookIds: string[];
 			seriesAbbreviation: string | null;
 			volumeCount: number;
 			included: boolean;
+			href: string;
 		}[];
 		moveTargets?: MoveTarget[];
 	} = $props();
@@ -109,13 +115,36 @@
 	{/each}
 {/snippet}
 
-{#snippet memberMeta(member: ResolvedMember)}
-	{#if member.authors || (member.volumeCount > 1 && !member.seriesAbbreviation)}
+{#snippet authorLine(authors: SetMemberAuthor[], trailing: string | null)}
+	{#if authors.length > 0 || trailing}
 		<span class="mt-0.5 block truncate text-xs text-muted-foreground">
-			{member.authors}{#if member.authors && member.volumeCount > 1 && !member.seriesAbbreviation}{' · '}{/if}{#if member.volumeCount > 1 && !member.seriesAbbreviation}{member.volumeCount} vols.{/if}
+			{#each authors as author, i (author.personId)}
+				{#if i > 0}, {/if}<a
+					href={`/library?author_id=${encodeURIComponent(author.personId)}`}
+					class="{linkClass} hover:text-foreground"
+				>{author.label}</a>
+			{/each}{#if authors.length > 0 && trailing}{' · '}{/if}{#if trailing}{trailing}{/if}
 		</span>
-	{:else if member.authors}
-		<span class="mt-0.5 block truncate text-xs text-muted-foreground">{member.authors}</span>
+	{/if}
+{/snippet}
+
+{#snippet memberMeta(member: ResolvedMember)}
+	{@const vol =
+		member.volumeCount > 1 && !member.seriesAbbreviation ? `${member.volumeCount} vols.` : null}
+	{#if member.authorLinks.length > 0}
+		{@render authorLine(member.authorLinks, vol)}
+	{:else if member.authors || vol}
+		<span class="mt-0.5 block truncate text-xs text-muted-foreground">
+			{member.authors}{#if member.authors && vol}{' · '}{/if}{#if vol}{vol}{/if}
+		</span>
+	{/if}
+{/snippet}
+
+{#snippet titleLabel(href: string | null, label: string, className: string)}
+	{#if href}
+		<a {href} class="{className} {linkClass} hover:text-foreground">{label}</a>
+	{:else}
+		<span class={className}>{label}</span>
 	{/if}
 {/snippet}
 
@@ -134,9 +163,9 @@
 		{/if}
 		<span class="min-w-0 flex-1 overflow-hidden" title={tooltip(member)}>
 			<span class="flex min-w-0 items-baseline gap-2">
-				<span class="shrink-0 font-medium">{displayLabel(member)}</span>
+				{@render titleLabel(member.href, displayLabel(member), 'shrink-0 font-medium')}
 				{#if member.seriesAbbreviation}
-					<span class="min-w-0 truncate text-xs text-muted-foreground">{member.title}</span>
+					{@render titleLabel(member.href, member.title, 'min-w-0 truncate text-xs text-muted-foreground')}
 				{/if}
 				{#if member.volumeCount > 1 && member.seriesAbbreviation}
 					<span class="shrink-0 text-[10px] text-muted-foreground">{member.volumeCount} vols.</span>
@@ -216,11 +245,20 @@
 				{#each addHits as hit (hit.id)}
 					<li class="flex items-center justify-between gap-3 px-3 py-2 text-sm">
 						<span class="min-w-0 overflow-hidden" title={hit.title}>
-							<span class="font-medium">{hit.seriesAbbreviation?.trim() || hit.title}</span>
+							{@render titleLabel(
+								hit.href,
+								hit.seriesAbbreviation?.trim() || hit.title,
+								'font-medium'
+							)}
 							{#if hit.seriesAbbreviation}
-								<span class="mt-0.5 block truncate text-xs text-muted-foreground">{hit.title}</span>
+								{@render titleLabel(hit.href, hit.title, 'mt-0.5 block truncate text-xs text-muted-foreground')}
 							{/if}
-							{#if hit.authors || hit.volumeCount > 1}
+							{#if hit.authorLinks.length > 0}
+								{@render authorLine(
+									hit.authorLinks,
+									hit.volumeCount > 1 ? `${hit.volumeCount} vols.` : null
+								)}
+							{:else if hit.authors || hit.volumeCount > 1}
 								<span class="mt-0.5 block truncate text-xs text-muted-foreground">
 									{hit.authors}{#if hit.authors && hit.volumeCount > 1}{' · '}{/if}{#if hit.volumeCount > 1}{hit.volumeCount} vols.{/if}
 								</span>

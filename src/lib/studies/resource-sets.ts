@@ -58,10 +58,19 @@ export type SetOverride = CatalogRef & {
 	seriesAbbreviation?: string | null;
 };
 
+export type SetMemberAuthor = {
+	personId: string;
+	label: string;
+};
+
 export type ResolvedMember = CatalogRef & {
 	title: string;
 	/** Short author line ("First Last"). Null when the catalog row has no people. */
 	authors: string | null;
+	/** Linked people for the author line (library author filter). */
+	authorLinks: SetMemberAuthor[];
+	/** Catalog page for the title (book detail, or essay hash on the parent). */
+	href: string | null;
 	origin: 'rule' | 'include';
 	isNew: boolean;
 	/** False: still listed on the set, omitted from study import and auto-attach. */
@@ -214,6 +223,8 @@ export function resolveSetMembers(input: {
 			essayId: c.essayId,
 			title: c.title.trim() || 'Untitled',
 			authors: null,
+			authorLinks: [],
+			href: null,
 			origin: 'rule',
 			isNew: isNewSince(c.createdAt, input.lastReviewedAt),
 			bibliographical: bibliographicalFor(input.overrides, key),
@@ -236,6 +247,8 @@ export function resolveSetMembers(input: {
 			essayId: o.essayId,
 			title: (cand?.title ?? o.title ?? '').trim() || 'Untitled',
 			authors: null,
+			authorLinks: [],
+			href: null,
 			origin: 'include',
 			isNew: false,
 			bibliographical: o.bibliographical !== false,
@@ -258,6 +271,8 @@ export function resolveSetMembers(input: {
 			essayId: o.essayId,
 			title: (cand?.title ?? o.title ?? '').trim() || 'Untitled',
 			authors: null,
+			authorLinks: [],
+			href: null,
 			origin: cand ? 'rule' : 'include',
 			isNew: false,
 			bibliographical: o.bibliographical !== false,

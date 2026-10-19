@@ -604,12 +604,19 @@ export async function loadResourceSetList(supabase: SupabaseClient): Promise<{
 
 type AuthorJunction = { person_id: string; role: string; sort_order: number };
 
-/** Short author line per catalog ref. Essay authors win; otherwise the parent book. */
+export type RefAuthorInfo = {
+	label: string;
+	authors: { personId: string; label: string }[];
+	/** Parent book for an essay ref (for catalog links). */
+	parentBookId: string | null;
+};
+
+/** Short author line + people per catalog ref. Essay authors win; otherwise the parent book. */
 export async function authorLabelsForRefs(
 	supabase: SupabaseClient,
 	refs: CatalogRef[]
-): Promise<Map<string, string>> {
-	const out = new Map<string, string>();
+): Promise<Map<string, RefAuthorInfo>> {
+	const out = new Map<string, RefAuthorInfo>();
 	const bookIds = [...new Set(refs.flatMap((r) => (r.bookId && !r.essayId ? [r.bookId] : [])))];
 	const essayIds = [...new Set(refs.flatMap((r) => (r.essayId ? [r.essayId] : [])))];
 	if (bookIds.length === 0 && essayIds.length === 0) return out;
@@ -709,29 +716,79 @@ export async function authorLabelsForRefs(
 		people.set(row.id, { ...row, aliases: [] });
 	}
 
-	const labelFor = (rows: AuthorJunction[] | undefined): string | null =>
-		rows && rows.length > 0 ? authorsLabelForBook(rows, people) : null;
+	const personLabel = (personId: string): string | null => {
+		const p = people.get(personId);
+		if (!p) return null;
+		const first = (p.first_name ?? '').trim();
+		const middle = (p.middle_name ?? '').trim();
+		const middleInitial = middle ? `${middle.charAt(0)}.` : '';
+		const parts = [first, middleInitial, p.last_name].filter((s) => s.length > 0);
+		return parts.join(' ') || null;
+	};
+
+	const infoFor = (
+		rows: AuthorJunction[] | undefined,
+		parentBookId: string | null
+	): RefAuthorInfo | null => {
+		if (!rows || rows.length === 0) return null;
+		const label = authorsLabelForBook(rows, people);
+		if (!label) return null;
+		const sorted = rows.slice().sort((a, b) => a.sort_order - b.sort_order);
+		const preferred = sorted.filter((r) => r.role === 'author');
+		const use = preferred.length > 0 ? preferred : sorted.filter((r) => r.role === 'editor');
+		const authors = use
+			.map((r) => {
+				const name = personLabel(r.person_id);
+				return name ? { personId: r.person_id, label: name } : null;
+			})
+			.filter((a): a is { personId: string; label: string } => a != null);
+		return { label, authors, parentBookId };
+	};
 
 	for (const ref of refs) {
 		const key = refKey(ref);
 		if (!key || out.has(key)) continue;
 		if (ref.essayId) {
-			const essayLabel = labelFor(junctionsByEssay.get(ref.essayId));
-			const parentId = parentByEssay.get(ref.essayId);
-			const label = essayLabel ?? (parentId ? labelFor(junctionsByBook.get(parentId)) : null);
-			if (label) out.set(key, label);
+			const parentId = parentByEssay.get(ref.essayId) ?? null;
+			const essayInfo = infoFor(junctionsByEssay.get(ref.essayId), parentId);
+			const info =
+				essayInfo ?? (parentId ? infoFor(junctionsByBook.get(parentId), parentId) : null);
+			if (info) out.set(key, info);
 			continue;
 		}
 		if (ref.bookId) {
-			const label = labelFor(junctionsByBook.get(ref.bookId));
-			if (label) out.set(key, label);
+			const info = infoFor(junctionsByBook.get(ref.bookId), null);
+			if (info) out.set(key, info);
 		}
 	}
 	return out;
 }
 
-function withAuthorLabels(members: ResolvedMember[], labels: Map<string, string>): ResolvedMember[] {
-	return members.map((member) => ({ ...member, authors: labels.get(refKey(member)) ?? null }));
+function catalogHref(
+	member: CatalogRef,
+	parentBookId: string | null
+): string | null {
+	if (member.essayId) {
+		const bookId = member.bookId ?? parentBookId;
+		return bookId ? `/library/books/${bookId}#essay-${member.essayId}` : null;
+	}
+	if (member.bookId) return `/library/books/${member.bookId}`;
+	return null;
+}
+
+function withAuthorLabels(
+	members: ResolvedMember[],
+	labels: Map<string, RefAuthorInfo>
+): ResolvedMember[] {
+	return members.map((member) => {
+		const info = labels.get(refKey(member));
+		return {
+			...member,
+			authors: info?.label ?? null,
+			authorLinks: info?.authors ?? [],
+			href: catalogHref(member, info?.parentBookId ?? null)
+		};
+	});
 }
 
 export async function loadResourceSetDetail(
