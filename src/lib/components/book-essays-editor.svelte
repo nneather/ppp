@@ -699,11 +699,8 @@
 								<Input
 									id="essay-page-start"
 									name="page_start"
-									type="number"
-									min="0"
-									step="1"
 									bind:value={pageStart}
-									placeholder="Optional"
+									placeholder="835 or xiii"
 									class="min-h-11"
 								/>
 							</div>
@@ -712,11 +709,8 @@
 								<Input
 									id="essay-page-end"
 									name="page_end"
-									type="number"
-									min="0"
-									step="1"
 									bind:value={pageEnd}
-									placeholder="Optional"
+									placeholder="840 or xx"
 									class="min-h-11"
 								/>
 							</div>
@@ -837,11 +831,8 @@
 											<Label for={`essay-ps-${row.key}`}>Page start</Label>
 											<Input
 												id={`essay-ps-${row.key}`}
-												type="number"
-												min="0"
-												step="1"
 												bind:value={row.page_start}
-												placeholder="Optional"
+												placeholder="835 or xiii"
 												class="min-h-11"
 											/>
 										</div>
@@ -849,11 +840,8 @@
 											<Label for={`essay-pe-${row.key}`}>Page end</Label>
 											<Input
 												id={`essay-pe-${row.key}`}
-												type="number"
-												min="0"
-												step="1"
 												bind:value={row.page_end}
-												placeholder="Optional"
+												placeholder="840 or xx"
 												class="min-h-11"
 											/>
 										</div>

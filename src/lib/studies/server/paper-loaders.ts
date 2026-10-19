@@ -49,8 +49,8 @@ type EssayAuthorDb = { person_id: string; role: string; sort_order: number };
 type EssayDb = {
 	id: string;
 	essay_title: string;
-	page_start: number | null;
-	page_end: number | null;
+	page_start: string | null;
+	page_end: string | null;
 	parent_book_id: string;
 	essay_authors: EssayAuthorDb[] | null;
 };

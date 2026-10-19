@@ -36,6 +36,7 @@ import type {
 	EssaySearchHit
 } from '$lib/types/library';
 import { compareSiblingBooks } from '$lib/library/book-detail-related';
+import { comparePageLabels } from '$lib/library/page-label';
 import {
 	rangesOverlap,
 	searchPassageAbsBounds
@@ -822,8 +823,8 @@ export async function loadBookListFiltered(
 type RawEssayRow = {
 	id: string;
 	essay_title: string;
-	page_start: number | null;
-	page_end: number | null;
+	page_start: string | null;
+	page_end: string | null;
 	created_at: string;
 	essay_authors:
 		| { person_id: string; role: string; sort_order: number }[]
@@ -859,21 +860,27 @@ export async function loadEssaysForBook(
 	}
 
 	const peopleMap = new Map(people.map((p) => [p.id, p]));
-	return (data ?? []).map((raw) => {
-		const r = raw as unknown as RawEssayRow;
-		const authors: BookAuthorAssignment[] = (r.essay_authors ?? [])
-			.slice()
-			.sort((a, b) => a.sort_order - b.sort_order)
-			.map((a) => bookAuthorAssignmentFromJunction(a, peopleMap));
-		return {
-			id: r.id,
-			essay_title: r.essay_title,
-			page_start: r.page_start,
-			page_end: r.page_end,
-			authors,
-			created_at: r.created_at
-		} satisfies EssayRow;
-	});
+	return (data ?? [])
+		.map((raw) => {
+			const r = raw as unknown as RawEssayRow;
+			const authors: BookAuthorAssignment[] = (r.essay_authors ?? [])
+				.slice()
+				.sort((a, b) => a.sort_order - b.sort_order)
+				.map((a) => bookAuthorAssignmentFromJunction(a, peopleMap));
+			return {
+				id: r.id,
+				essay_title: r.essay_title,
+				page_start: r.page_start,
+				page_end: r.page_end,
+				authors,
+				created_at: r.created_at
+			} satisfies EssayRow;
+		})
+		.sort((a, b) => {
+			const pages = comparePageLabels(a.page_start, b.page_start);
+			if (pages !== 0) return pages;
+			return a.created_at.localeCompare(b.created_at);
+		});
 }
 
 /** Cap parallel essay hits so keyword search stays cheap beside book FTS. */
@@ -883,8 +890,8 @@ type RawEssaySearchRow = {
 	id: string;
 	essay_title: string;
 	parent_book_id: string;
-	page_start: number | null;
-	page_end: number | null;
+	page_start: string | null;
+	page_end: string | null;
 	books: { title: string | null } | { title: string | null }[] | null;
 	essay_authors:
 		| {

@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizePageLabel, pageLabelBefore, pageLabelKind } from '$lib/library/page-label';
 import { normalizeCitationText } from '$lib/library/turabian/text-normalize';
 
 /**
@@ -25,16 +26,16 @@ export type EssayAuthorInput = {
 export type EssayFormPayload = {
 	parent_book_id: string;
 	essay_title: string;
-	page_start: number | null;
-	page_end: number | null;
+	page_start: string | null;
+	page_end: string | null;
 	authors: EssayAuthorInput[];
 };
 
 /** Per-row payload inside a batch (parent book is shared at the form level). */
 export type EssayBatchRowPayload = {
 	essay_title: string;
-	page_start: number | null;
-	page_end: number | null;
+	page_start: string | null;
+	page_end: string | null;
 	authors: EssayAuthorInput[];
 };
 
@@ -53,13 +54,7 @@ type RawBatchRow = {
 	authors?: unknown;
 };
 
-function parseOptionalPage(raw: unknown): number | null {
-	const t = String(raw ?? '').trim();
-	if (t.length === 0) return null;
-	const n = Number(t);
-	if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) return null;
-	return n;
-}
+const PAGE_LABEL_MESSAGE = 'Use an arabic page (835) or a roman numeral (xiii).';
 
 function parseAuthorsArray(raw: unknown): EssayAuthorInput[] | { error: string } {
 	if (raw == null) return [];
@@ -111,21 +106,24 @@ export function parseEssayRowFields(input: {
 	if (essay_title.length > 500) return { ok: false, message: 'Essay title is too long.' };
 
 	const pageStartRaw = input.page_start;
-	const page_start = parseOptionalPage(pageStartRaw);
-	if (
-		pageStartRaw != null &&
-		String(pageStartRaw).trim() !== '' &&
-		page_start == null
-	) {
-		return { ok: false, message: 'page_start must be a non-negative integer.' };
+	const pageStartText = String(pageStartRaw ?? '').trim();
+	const page_start = normalizePageLabel(pageStartRaw);
+	if (pageStartText !== '' && page_start == null) {
+		return { ok: false, message: PAGE_LABEL_MESSAGE };
 	}
 	const pageEndRaw = input.page_end;
-	const page_end = parseOptionalPage(pageEndRaw);
-	if (pageEndRaw != null && String(pageEndRaw).trim() !== '' && page_end == null) {
-		return { ok: false, message: 'page_end must be a non-negative integer.' };
+	const pageEndText = String(pageEndRaw ?? '').trim();
+	const page_end = normalizePageLabel(pageEndRaw);
+	if (pageEndText !== '' && page_end == null) {
+		return { ok: false, message: PAGE_LABEL_MESSAGE };
 	}
-	if (page_start != null && page_end != null && page_end < page_start) {
-		return { ok: false, message: 'page_end must be greater than or equal to page_start.' };
+	if (page_start != null && page_end != null) {
+		if (pageLabelKind(page_start) !== pageLabelKind(page_end)) {
+			return { ok: false, message: 'A page range has to be all arabic or all roman.' };
+		}
+		if (pageLabelBefore(page_start, page_end)) {
+			return { ok: false, message: 'page_end must be greater than or equal to page_start.' };
+		}
 	}
 
 	const authorsParsed = parseAuthorsArray(input.authors);

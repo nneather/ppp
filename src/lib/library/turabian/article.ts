@@ -17,8 +17,8 @@ export { isUnsignedLexiconVolume, UNSIGNED_LEXICON_ABBREVS } from './lexicon';
 /** Essay / dictionary article row (parent volume is the reference work). */
 export type EssayCitationInput = {
 	essay_title: string;
-	page_start?: number | null;
-	page_end?: number | null;
+	page_start?: number | string | null;
+	page_end?: number | string | null;
 	/** Article-level authors — Session 1 formatters; optional in Phase 0 fixtures. */
 	authors?: BookAuthorAssignment[];
 };
@@ -67,12 +67,18 @@ function notePageSegment(opts?: { page?: string }): string {
 }
 
 /** Bibliography chapter/article span from stored `page_start`/`page_end`. */
+function pageLabelText(page: number | string | null | undefined): string | null {
+	if (page == null) return null;
+	const t = String(page).trim();
+	return t.length > 0 ? t : null;
+}
+
 function bibPageSegment(essay: EssayCitationInput): string {
-	const start = essay.page_start;
+	const start = pageLabelText(essay.page_start);
 	if (start == null) return '[page]';
-	const end = essay.page_end;
+	const end = pageLabelText(essay.page_end);
 	if (end != null && end !== start) return `${start}–${end}`;
-	return String(start);
+	return start;
 }
 
 function hasEssayAuthors(essay: EssayCitationInput): boolean {

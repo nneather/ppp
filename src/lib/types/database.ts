@@ -1293,8 +1293,8 @@ export type Database = {
           deleted_at: string | null
           essay_title: string
           id: string
-          page_end: number | null
-          page_start: number | null
+          page_end: string | null
+          page_start: string | null
           parent_book_id: string
           updated_at: string
         }
@@ -1304,8 +1304,8 @@ export type Database = {
           deleted_at?: string | null
           essay_title: string
           id?: string
-          page_end?: number | null
-          page_start?: number | null
+          page_end?: string | null
+          page_start?: string | null
           parent_book_id: string
           updated_at?: string
         }
@@ -1315,8 +1315,8 @@ export type Database = {
           deleted_at?: string | null
           essay_title?: string
           id?: string
-          page_end?: number | null
-          page_start?: number | null
+          page_end?: string | null
+          page_start?: string | null
           parent_book_id?: string
           updated_at?: string
         }

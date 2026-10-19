@@ -41,9 +41,25 @@ describe('parseEssayForm', () => {
 		);
 		expect(parsed.ok).toBe(true);
 		if (parsed.ok) {
-			expect(parsed.payload.page_start).toBe(835);
-			expect(parsed.payload.page_end).toBe(840);
+			expect(parsed.payload.page_start).toBe('835');
+			expect(parsed.payload.page_end).toBe('840');
 			expect(parsed.payload.authors).toEqual([{ person_id: PERSON_ID, sort_order: 0 }]);
+		}
+	});
+
+	it('accepts a roman front-matter range', () => {
+		const parsed = parseEssayForm(
+			fd({
+				parent_book_id: PARENT_ID,
+				essay_title: 'To the Reader of Proverbs',
+				page_start: 'XIII',
+				page_end: 'xx'
+			})
+		);
+		expect(parsed.ok).toBe(true);
+		if (parsed.ok) {
+			expect(parsed.payload.page_start).toBe('xiii');
+			expect(parsed.payload.page_end).toBe('xx');
 		}
 	});
 
@@ -126,8 +142,8 @@ describe('parseEssaysBatchForm', () => {
 		if (parsed.ok) {
 			expect(parsed.rows).toHaveLength(1);
 			expect(parsed.rows[0].essay_title).toBe('Women in the Church');
-			expect(parsed.rows[0].page_start).toBe(25);
-			expect(parsed.rows[0].page_end).toBe(40);
+			expect(parsed.rows[0].page_start).toBe('25');
+			expect(parsed.rows[0].page_end).toBe('40');
 			expect(parsed.rows[0].authors).toEqual([{ person_id: PERSON_ID, sort_order: 0 }]);
 		}
 	});
@@ -188,7 +204,7 @@ describe('essayRowToCitationInput', () => {
 		const row: EssayRow = {
 			id: ESSAY_ID,
 			essay_title: 'Canon',
-			page_start: 835,
+			page_start: '835',
 			page_end: null,
 			created_at: '2026-01-01T00:00:00Z',
 			authors: [
@@ -206,7 +222,7 @@ describe('essayRowToCitationInput', () => {
 		};
 		const input = essayRowToCitationInput(row);
 		expect(input.essay_title).toBe('Canon');
-		expect(input.page_start).toBe(835);
+		expect(input.page_start).toBe('835');
 		expect(input.authors).toHaveLength(1);
 		expect(input.authors?.[0].person_label).toBe('James A. Sanders');
 	});
@@ -215,7 +231,7 @@ describe('essayRowToCitationInput', () => {
 		const row: EssayRow = {
 			id: ESSAY_ID,
 			essay_title: 'ἀγάπη',
-			page_start: 12,
+			page_start: '12',
 			page_end: null,
 			created_at: '2026-01-01T00:00:00Z',
 			authors: []

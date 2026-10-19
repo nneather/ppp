@@ -540,8 +540,8 @@ export type TopicCount = {
 export type EssayRow = {
 	id: string;
 	essay_title: string;
-	page_start: number | null;
-	page_end: number | null;
+	page_start: string | null;
+	page_end: string | null;
 	authors: BookAuthorAssignment[];
 	created_at: string;
 };
@@ -556,8 +556,8 @@ export type EssaySearchHit = {
 	parent_book_id: string;
 	parent_book_title: string | null;
 	authors_label: string | null;
-	page_start: number | null;
-	page_end: number | null;
+	page_start: string | null;
+	page_end: string | null;
 };
 
 /**
