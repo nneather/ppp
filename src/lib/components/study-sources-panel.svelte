@@ -50,6 +50,8 @@
 		importSets,
 		importPapers,
 		importChecklist,
+		sectionCandidateCount = 0,
+		footnotePages = {},
 		importError = null,
 		invalidateKey,
 		form
@@ -78,6 +80,8 @@
 			copyNotes: boolean;
 			rows: ImportChecklistRow[];
 		} | null;
+		sectionCandidateCount?: number;
+		footnotePages?: Record<string, string>;
 		importError?: string | null;
 		invalidateKey: string;
 		form: FormShape | null;
@@ -583,6 +587,7 @@
 			onRemove={removeFromStudy}
 			onRemoveFromSet={removeFromSet}
 			originSetId={originSetId(source)}
+			footnotePage={source.kind === 'book' ? (footnotePages[source.citation.id] ?? '') : ''}
 			onSaved={refresh}
 		/>
 	{/snippet}
@@ -748,6 +753,7 @@
 		{importSets}
 		{importPapers}
 		checklist={importChecklist}
+		{sectionCandidateCount}
 		{importError}
 		onImported={onImported}
 	/>

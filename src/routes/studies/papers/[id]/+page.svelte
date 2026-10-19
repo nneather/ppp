@@ -207,6 +207,8 @@
 		importSets={data.importSets}
 		importPapers={data.importPapers}
 		importChecklist={data.importChecklist}
+		sectionCandidateCount={data.sectionCandidateCount}
+		footnotePages={data.footnotePages}
 		importError={data.importError}
 		invalidateKey={paperKey}
 		form={f}

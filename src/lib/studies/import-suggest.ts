@@ -48,6 +48,8 @@ export type ImportCandidate = {
 	essayId: string | null;
 	title: string;
 	notes: string | null;
+	/** Checklist subtitle. Not stored on the study source. */
+	hint?: string | null;
 };
 
 export type ImportChecklistRow = ImportCandidate & {
@@ -225,8 +227,9 @@ export function parsePaperListShow(raw: string | null | undefined): 'active' | '
 
 export function parseImportTarget(
 	raw: string | null | undefined
-): { kind: 'set' | 'paper'; id: string } | null {
+): { kind: 'set' | 'paper' | 'sections'; id: string } | null {
 	if (!raw) return null;
+	if (raw === 'sections') return { kind: 'sections', id: 'sections' };
 	const idx = raw.indexOf(':');
 	if (idx < 0) return null;
 	const kind = raw.slice(0, idx);

@@ -1,6 +1,6 @@
 # Personal Operations System — Studies Module Build Tracker
 
-_Last updated: 2026-10-19 | Module: Studies | Session 4 shipped ([248](decisions/248-studies-session-4.md))_
+_Last updated: 2026-10-19 | Module: Studies | Session 4 shipped ([248](decisions/248-studies-session-4.md)); passage-section import follow-on ([251](decisions/251-studies-passage-section-import.md))_
 
 **Read before any session:** [docs/MODULE_KICKOFF_PLAYBOOK.md](MODULE_KICKOFF_PLAYBOOK.md), [243](decisions/243-studies-session-0.md), papers retro [188](decisions/188-classwork-research-papers-session-0.md) / [189](decisions/189-classwork-papers-session-1.md) / [190](decisions/190-classwork-papers-session-2.md), sermons [090](decisions/090-sermons-session-0.md) / [095](decisions/095-sermons-by-book-stats.md). Brainstorm: [brainstorms/2026-10-19-papers-research-tool.md](../brainstorms/2026-10-19-papers-research-tool.md).
 
@@ -156,3 +156,7 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 - [x] Clipboard + `.docx`, optional sectioned-by-group
 - [x] Read-only MCP tools wrapping loaders
 - [x] Overview: active papers + upcoming sermons (stub may land in Session 1)
+
+### Follow-on (not a tracker session)
+
+- [x] Overlapping passage sections import as the book; footnote page prefills from the tightest span ([251](decisions/251-studies-passage-section-import.md)). Sections stay off by-book, hit rate, and auto-attach.

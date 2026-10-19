@@ -20,6 +20,7 @@
 		importSets,
 		importPapers = [],
 		checklist = null,
+		sectionCandidateCount = 0,
 		importError = null,
 		onImported
 	}: {
@@ -36,6 +37,8 @@
 			copyNotes: boolean;
 			rows: ImportChecklistRow[];
 		} | null;
+		/** Books whose curated sections overlap this study's passage. */
+		sectionCandidateCount?: number;
 		importError?: string | null;
 		onImported?: () => void | Promise<void>;
 	} = $props();
@@ -132,7 +135,7 @@
 					Selected rows land in “{checklist.groupName}” as candidates.
 					{#if checklist.copyNotes}Notes come along from the prior paper.{/if}
 				{:else}
-					Start from a resource set or a prior paper. Already-attached rows stay greyed.
+					Start from a suggested set, books on this passage, or a prior paper. Already-attached rows stay greyed.
 				{/if}
 			</Sheet.Description>
 		</Sheet.Header>
@@ -162,6 +165,9 @@
 										{#if row.attached}
 											<span class="ml-1 text-xs text-muted-foreground">Attached</span>
 										{/if}
+										{#if row.hint}
+											<span class="mt-0.5 block text-xs text-muted-foreground">{row.hint}</span>
+										{/if}
 										{#if row.notes}
 											<span class="mt-0.5 block text-xs whitespace-pre-wrap text-muted-foreground">{row.notes}</span>
 										{/if}
@@ -172,9 +178,23 @@
 					</ul>
 				{/if}
 			{:else}
-				{#if suggestions.length > 0}
+				{#if sectionCandidateCount > 0 || suggestions.length > 0}
 					<h3 class="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Suggested</h3>
 					<ul class="mt-1">
+						{#if sectionCandidateCount > 0}
+							<li>
+								<button
+									type="button"
+									class="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted/70"
+									onclick={() => goImport('sections')}
+								>
+									<span class="min-w-0 truncate">On this passage</span>
+									<span class="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+										{sectionCandidateCount === 1 ? '1 book' : `${sectionCandidateCount} books`}
+									</span>
+								</button>
+							</li>
+						{/if}
 						{#each suggestions as s (s.id)}
 							<li>
 								{@render setButton(s, SUGGESTION_REASON_LABELS[s.reason])}

@@ -283,7 +283,7 @@ server.registerTool(
 	'suggest_sources',
 	{
 		description:
-			'Suggest resource sets for a paper or sermon (commentary set for the passage, NT/OT language tools, Systematic Theology when expository; topic matches when topical). Read-only; does not attach sources.',
+			'Suggest resource sets for a paper or sermon (commentary set for the passage, NT/OT language tools, Systematic Theology when expository; topic matches when topical). Also lists books whose curated passage sections overlap the study (commentary coverage omitted; already-attached books are flagged). Read-only; does not attach sources.',
 		inputSchema: {
 			study: z.string().describe('Paper or sermon id, title, or passage')
 		}

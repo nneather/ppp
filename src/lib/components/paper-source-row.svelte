@@ -18,6 +18,7 @@
 		type PaperSourceView
 	} from '$lib/classwork/paper-sources';
 	import { nextStudyUsage, STUDY_USAGE_LABELS } from '$lib/studies/source-usage';
+	import { untrack } from 'svelte';
 	import NotebookPen from '@lucide/svelte/icons/notebook-pen';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
@@ -29,6 +30,7 @@
 		onRemove,
 		onRemoveFromSet,
 		originSetId = null,
+		footnotePage = '',
 		onSaved
 	}: {
 		source: PaperSourceView;
@@ -37,13 +39,24 @@
 		isOwner?: boolean;
 		/** Set whose name matches this source's research group. */
 		originSetId?: string | null;
+		/** Tightest overlapping passage-section pages. The user can type over it. */
+		footnotePage?: string;
 		onCopied?: (message: string) => void;
 		onRemove?: (source: PaperSourceView) => void;
 		onRemoveFromSet?: (source: PaperSourceView, setId: string) => void;
 		onSaved?: () => void | Promise<void>;
 	} = $props();
 
-	let page = $state('');
+	let page = $state(untrack(() => footnotePage));
+	let pageTouched = $state(false);
+
+	$effect(() => {
+		const seed = footnotePage;
+		if (pageTouched) return;
+		untrack(() => {
+			page = seed;
+		});
+	});
 	let editingNotes = $state(false);
 	let notesDraft = $state('');
 	let notesPending = $state(false);
@@ -205,11 +218,12 @@
 	<div class="mt-2 flex flex-wrap items-center gap-1.5">
 		<Input
 			type="text"
-			inputmode="numeric"
+			inputmode="text"
 			bind:value={page}
 			placeholder="page"
 			aria-label="Page for footnote"
-			class="h-8 w-20 text-xs"
+			class="h-8 w-28 text-xs"
+			oninput={() => (pageTouched = true)}
 		/>
 		<div class="inline-flex overflow-hidden rounded-md border border-border">
 			<button

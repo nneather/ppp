@@ -9,6 +9,16 @@ import {
 	type ImportChecklistRow,
 	type SetSuggestion
 } from '$lib/studies/import-suggest';
+import { studyPassageRanges } from '$lib/studies/passage-ranges';
+import {
+	PASSAGE_SECTION_GROUP_NAME,
+	footnotePagesByBook,
+	passageSectionImportCandidates
+} from '$lib/studies/passage-section-suggest';
+import {
+	loadOverlappingPassageSections,
+	loadPrimaryStudyPassages
+} from '$lib/studies/server/passage-section-suggest';
 import type { PaperGroupView, PaperSourceView, OrphanPaperSource } from '$lib/studies/paper-sources';
 import { loadResourceSetDetail, loadResourceSetSummaries } from '$lib/studies/server/resource-set-loaders';
 import type { StudyParent } from '$lib/studies/study-parent';
@@ -43,6 +53,10 @@ export type StudyWorkspace = {
 		copyNotes: boolean;
 		rows: ImportChecklistRow[];
 	} | null;
+	/** Overlapping passage-section books offered on import (commentary coverage omitted). */
+	sectionCandidateCount: number;
+	/** Book id → tightest overlapping section pages, for the footnote box. */
+	footnotePages: Record<string, string>;
 	importError: string | null;
 	loadError: string | null;
 };
@@ -54,7 +68,7 @@ export async function loadStudyWorkspace(
 	importParam: string | null,
 	srcQ: string
 ): Promise<StudyWorkspace> {
-	const [sourcesRes, groupsRes, setRes, otherPapersRes] = await Promise.all([
+	const [sourcesRes, groupsRes, setRes, otherPapersRes, passageRows] = await Promise.all([
 		loadStudySourceViews(supabase, parent),
 		loadStudyGroups(supabase, parent),
 		loadResourceSetSummaries(supabase),
@@ -63,7 +77,8 @@ export async function loadStudyWorkspace(
 			.select('id, title, passage_display')
 			.is('deleted_at', null)
 			.neq('status', 'archived')
-			.order('created_at', { ascending: false })
+			.order('created_at', { ascending: false }),
+		loadPrimaryStudyPassages(supabase, parent)
 	]);
 
 	if (otherPapersRes.error) console.error('[studies] import papers', otherPapersRes.error);
@@ -115,6 +130,14 @@ export async function loadStudyWorkspace(
 	const attachedEssayIds = sourcesRes.sources
 		.filter((source) => source.kind === 'essay')
 		.map((source) => source.essayId);
+
+	const ranges = studyPassageRanges(study.passageDisplay, passageRows);
+	const sectionOverlap = await loadOverlappingPassageSections(supabase, ranges);
+	const sectionCandidates = passageSectionImportCandidates(
+		sectionOverlap.sections,
+		sectionOverlap.coverages
+	);
+	const footnotePages = footnotePagesByBook(sectionOverlap.sections);
 
 	let importChecklist: StudyWorkspace['importChecklist'] = null;
 	let importError: string | null = null;
@@ -174,6 +197,15 @@ export async function loadStudyWorkspace(
 				importError = priorSources.error;
 			}
 		}
+	} else if (importTarget?.kind === 'sections') {
+		importChecklist = {
+			key: 'sections',
+			groupName: PASSAGE_SECTION_GROUP_NAME,
+			sourceLabel: study.passageDisplay?.trim() || 'this passage',
+			copyNotes: false,
+			rows: buildImportChecklist(sectionCandidates, attachedBookIds, attachedEssayIds)
+		};
+		importError = sectionOverlap.error;
 	}
 
 	return {
@@ -192,6 +224,8 @@ export async function loadStudyWorkspace(
 		setNames: setSummaries.map((set) => ({ id: set.id, name: set.name })),
 		importPapers,
 		importChecklist,
+		sectionCandidateCount: sectionCandidates.length,
+		footnotePages,
 		importError,
 		loadError: sourcesRes.error ?? groupsRes.error ?? setRes.error
 	};

@@ -15,6 +15,12 @@ import {
 	SUGGESTION_REASON_LABELS,
 	suggestResourceSets
 } from '../../src/lib/studies/import-suggest.ts';
+import { studyPassageRanges } from '../../src/lib/studies/passage-ranges.ts';
+import { passageSectionImportCandidates } from '../../src/lib/studies/passage-section-suggest.ts';
+import {
+	loadOverlappingPassageSections,
+	loadPrimaryStudyPassages
+} from '../../src/lib/studies/server/passage-section-suggest.ts';
 import {
 	compilePaperBibliography,
 	compileSectionedBibliography,
@@ -276,7 +282,21 @@ export async function suggestSources(supabase: Sb, args: { study: string }) {
 	const resolved = await resolveArg(supabase, args.study ?? '');
 	if (!('study' in resolved)) return jsonText(resolved);
 
-	const setRes = await loadResourceSetSummaries(supabase);
+	const parent: StudyParent =
+		resolved.study.kind === 'paper'
+			? { kind: 'paper', id: resolved.study.id }
+			: { kind: 'sermon', id: resolved.study.id };
+	const [setRes, passageRows, sourcesRes] = await Promise.all([
+		loadResourceSetSummaries(supabase),
+		loadPrimaryStudyPassages(supabase, parent),
+		loadStudySourceViews(supabase, parent)
+	]);
+	const ranges = studyPassageRanges(resolved.study.passage, passageRows);
+	const overlap = await loadOverlappingPassageSections(supabase, ranges);
+	const sectionCandidates = passageSectionImportCandidates(overlap.sections, overlap.coverages);
+	const attachedBooks = new Set(
+		sourcesRes.sources.filter((source) => source.kind === 'book').map((source) => source.citation.id)
+	);
 	const suggestions = suggestResourceSets(
 		{
 			topical: resolved.study.topical,
@@ -287,12 +307,18 @@ export async function suggestSources(supabase: Sb, args: { study: string }) {
 	);
 	return jsonText({
 		study: summarize(resolved.study),
-		error: setRes.error,
+		error: setRes.error ?? overlap.error ?? sourcesRes.error,
 		suggestions: suggestions.map((suggestion) => ({
 			id: suggestion.id,
 			name: suggestion.name,
 			reason: suggestion.reason,
 			reason_label: SUGGESTION_REASON_LABELS[suggestion.reason]
+		})),
+		passage_sections: sectionCandidates.map((candidate) => ({
+			book_id: candidate.bookId,
+			title: candidate.title,
+			hint: candidate.hint ?? null,
+			attached: candidate.bookId != null && attachedBooks.has(candidate.bookId)
 		}))
 	});
 }
