@@ -1,13 +1,16 @@
 # Systematics capture checklist (S5+)
 
-After the OCR gold gate passes (≥99.5% — [scripts/ocr-index-eval/README.md](../scripts/ocr-index-eval/README.md)), capture one set per session.
+After the OCR gold gate passes (≥99.5% — [scripts/ocr-index-eval/README.md](../scripts/ocr-index-eval/README.md)), capture one page-index set per session.
 
-Order by payoff:
+**Practice first:** Calvin *Institutes* (Battles). The scripture index cites section locators and ranges (`III.2.12–14`), not pages. Those tokens are the pointer — same role as a page number — and should match outline locators ([252](decisions/252-systematics-by-passage-session-0.md)).
+
+Page-index sets, after the gold gate:
 
 1. **Turretin** — *Institutes of Elenctic Theology* (P&R, 3 vols)
 2. **van Mastricht** — *Theoretical-Practical Theology* (RHB, 5 vols) + chapter-opening texts as `book_passage_sections`
 3. **Bavinck** — *Reformed Dogmatics* (Baker, 4 vols)
-4. **Calvin** — *Institutes* (Battles, 2 vols)
+
+Calvin is the practice set above, not a second page-index pass.
 
 ## Per set
 

@@ -19,6 +19,7 @@
 - **Accuracy gate:** OCR index mode (column split, 3000px, two-pass consensus, structural validators, side-by-side verify) must hit **≥99.5%** exact-match on a hand-transcribed gold set before bulk capture.
 - Van Mastricht chapter-opening exegetical texts → existing `book_passage_sections` (bonus "On this passage"), not outline rows.
 - Out of scope for now: ebook/Logos parse; publisher data except as import source; hit-rate / auto-attach / `/studies/by-book`.
+- **2026-10-19 (Parker):** A section locator is the same kind of pointer as a page number. Calvin’s Battles index cites Institutes sections, including ranges (`III.2.12–14`). Keep those tokens on `scripture_references.page_start` / `page_end` (no schema change). When the token is a section, join it to `book_outline_sections.locator`; page indexes still join on page range. Show the section or the section range where a page number would have been. First practice capture is Calvin. Bulk page-index sets (Turretin, van Mastricht, Bavinck) still wait on the ≥99.5% gold gate.
 
 ## Schema changes
 
@@ -32,7 +33,7 @@
 
 - Turretin: index in vol. 3 only? Does it cite `vol:page`?
 - Bavinck RD: per-volume indexes or cumulative in vol. 4?
-- Calvin (Battles): continuous pagination across vols. 1–2?
+- Calvin (Battles): index cites section locators and ranges, not pages (locked above). Continuous pagination no longer decides the join.
 - Van Mastricht: index per volume; named exegetical text at chapter openings?
 
 ## Surprises (read these before the next session)

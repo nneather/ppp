@@ -102,18 +102,22 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
 
-### Library — Systematics gold gate + capture (owner) — from [253](docs/decisions/253-systematics-by-passage-s1-s5.md)
+### Library — Calvin section-index practice — from [252](docs/decisions/252-systematics-by-passage-session-0.md)
 
 ```
-Session: library — systematics gold gate + Turretin capture
-Read: docs/decisions/253-systematics-by-passage-s1-s5.md,
-  docs/systematics-capture-checklist.md, scripts/ocr-index-eval/README.md
-Goal: Transcribe 3 index pages → OCR index mode → compare ≥99.5%; then capture Turretin TOC + index.
+Session: library — Calvin section-index practice
+Read: docs/decisions/252-systematics-by-passage-session-0.md,
+  docs/decisions/253-systematics-by-passage-s1-s5.md,
+  docs/systematics-capture-checklist.md, scripts/ocr-index-eval/README.md,
+  src/lib/library/outline.ts
+Goal: Practice on Calvin’s Institutes (Battles). The index cites section locators and ranges (III.2.12–14), not pages. Match those to outline locators, then OCR a few index pages and confirm the Systematic theologies band.
 Acceptance:
- - [ ] gold/page-01..03.json + .ocr.json; compare.ts GATE PASS
- - [ ] Turretin outline TSV + index OCR + Verified pass
- - [ ] /library/search-passage 1 Thess shows Systematic theologies band
-End-of-session: docs/decisions/<next-free>-*.md; PLAN.md
+ - [ ] Section-locator join (single + range); page-range join unchanged for page indexes
+ - [ ] Index-mode OCR keeps the printed section token and range; gold compare on 1–3 Calvin index pages
+ - [ ] A short Calvin outline plus Verified refs for the pages photographed
+ - [ ] /library/search-passage shows Calvin under Systematic theologies with the section label (and range)
+ - [ ] npm run check + npm run test
+End-of-session: docs/decisions/<next-free>-*.md; PLAN.md. Bulk Turretin / van Mastricht / Bavinck still wait on the ≥99.5% page-index gate.
 ```
 
 ### Contacts / CRM — remaining MCP smoke (owner, ~5 min)
@@ -215,7 +219,7 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Owner — Systematics gold gate + Turretin capture** — prompt above ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)).
+1. **Calvin section-index practice** — prompt above ([252](docs/decisions/252-systematics-by-passage-session-0.md)). Page-index gold gate + Turretin capture stays after that.
 2. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
 3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
