@@ -14,10 +14,13 @@ npx tsx scripts/ocr-index-eval/compare.ts scripts/ocr-index-eval/gold/calvin
 scripts/ocr-index-eval/
   README.md
   gold/
-    page-01.json   # hand-transcribed rows for one index page image
-    page-02.json
-    page-03.json
-  compare.ts       # pure row-level exact-match report
+    page-01.lines.txt   # hand transcription (one printed entry per line)
+    page-01.json        # built rows
+    page-01.ocr.json    # index-mode OCR
+  images/               # gitignored page rasters (page-0N-full.png)
+  build-gold.ts
+  page-ocr.ts           # column split + two passes → page-0N.ocr.json
+  compare.ts            # row-level exact-match report
 ```
 
 ## Gold file shape
@@ -42,9 +45,21 @@ Keys compared (exact): `bible_book`, `chapter_start`, `verse_start`, `chapter_en
 
 ## Workflow
 
-1. Photograph 3 dense index pages; keep the images aside.
-2. Hand-transcribe into `gold/page-0N.json` (200–300 rows total).
-3. Run OCR index mode on the same images (UI or script); save candidates JSON beside each gold file as `gold/page-0N.ocr.json`.
+1. Photograph 3 dense index pages; keep the images in `images/` (gitignored). Turretin vol. 3 is three columns.
+2. Hand-transcribe into `gold/page-0N.lines.txt` (one printed entry per line; `# book` / `# running_book` / `# source`). Build rows:
+
+```bash
+npx tsx scripts/ocr-index-eval/build-gold.ts
+```
+
+3. Run index-mode OCR (column split, two passes, consensus) and write `gold/page-0N.ocr.json`:
+
+```bash
+npx tsx scripts/ocr-index-eval/page-ocr.ts
+```
+
+Needs `ANTHROPIC_API_KEY`. A blank `bible_book` is filled from the file's `running_book` before compare, the same carry the batch merge uses when a leaf does not reprint the heading.
+
 4. Compare:
 
 ```bash

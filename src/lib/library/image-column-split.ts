@@ -1,25 +1,41 @@
 /**
- * Split a two-column index page image into left/right crops for denser OCR ([252]).
- * Browser-only (uses createImageBitmap + canvas).
+ * Split an index-page image into column crops for denser OCR ([252]).
+ * Two or three columns, from the ink histogram ([column-spans.ts]). Browser-only.
  */
 
-export type ColumnCropBlobs = { left: Blob; right: Blob };
+import { columnSpansFromInk } from '$lib/library/column-spans';
 
 /**
- * Split an image blob into left and right halves (slight overlap in the middle
- * so mid-column wrap-around tokens are less likely to be lost).
+ * Reading-order column JPEGs. Overlap sits in the gutter so a wrapped token
+ * on the column edge is less likely to be clipped.
  */
 export async function splitImageIntoColumns(
 	blob: Blob,
 	overlapRatio = 0.04,
 	quality = 0.9
-): Promise<ColumnCropBlobs> {
+): Promise<Blob[]> {
 	const bitmap = await createImageBitmap(blob);
 	try {
 		const w = bitmap.width;
 		const h = bitmap.height;
-		const overlap = Math.floor(w * overlapRatio);
-		const mid = Math.floor(w / 2);
+		const sample = document.createElement('canvas');
+		sample.width = w;
+		sample.height = h;
+		const sctx = sample.getContext('2d', { willReadFrequently: true });
+		if (!sctx) throw new Error('Canvas unavailable for column split.');
+		sctx.drawImage(bitmap, 0, 0);
+		const y0 = Math.floor(h * 0.08);
+		const y1 = Math.floor(h * 0.92);
+		const data = sctx.getImageData(0, y0, w, Math.max(1, y1 - y0)).data;
+		const ink = new Array<number>(w).fill(0);
+		const rowStride = w * 4;
+		for (let y = 0; y < y1 - y0; y += 2) {
+			const off = y * rowStride;
+			for (let x = 0; x < w; x++) {
+				if ((data[off + x * 4] ?? 255) < 180) ink[x] = (ink[x] ?? 0) + 1;
+			}
+		}
+		const spans = columnSpansFromInk(ink, w, overlapRatio);
 
 		async function crop(sx: number, sw: number): Promise<Blob> {
 			const canvas = document.createElement('canvas');
@@ -35,11 +51,7 @@ export async function splitImageIntoColumns(
 			return out;
 		}
 
-		const leftW = mid + overlap;
-		const rightX = Math.max(0, mid - overlap);
-		const rightW = w - rightX;
-		const [left, right] = await Promise.all([crop(0, leftW), crop(rightX, rightW)]);
-		return { left, right };
+		return Promise.all(spans.map((span) => crop(span.x0, span.x1 - span.x0)));
 	} finally {
 		bitmap.close();
 	}

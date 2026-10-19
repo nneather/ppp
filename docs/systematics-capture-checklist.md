@@ -2,11 +2,11 @@
 
 After the OCR gold gate passes (≥99.5% — [scripts/ocr-index-eval/README.md](../scripts/ocr-index-eval/README.md)), capture one page-index set per session.
 
-**Practice first:** Calvin *Institutes* (Battles) — section locators, not pages ([252](decisions/252-systematics-by-passage-session-0.md), [259](decisions/259-calvin-section-index-practice.md)). A short outline and verified refs are on volume 2. Bulk capture of this index still waits on shelf photos; the page-index sets below still wait on the ≥99.5% gold gate.
+**Practice first:** Calvin *Institutes* (Battles) — section locators, not pages ([252](decisions/252-systematics-by-passage-session-0.md), [259](decisions/259-calvin-section-index-practice.md), [262](decisions/262-calvin-index-capture-rules.md)). A short outline and verified refs are on volume 2. Bulk capture of this index still waits on shelf photos. The page-index gold gate has passed ([263](decisions/263-systematics-page-index-gold-gate.md)).
 
-Page-index sets, after the gold gate:
+Page-index sets:
 
-1. **Turretin** — *Institutes of Elenctic Theology* (P&R, 3 vols)
+1. **Turretin** — *Institutes of Elenctic Theology* (P&R, 3 vols). Scripture index is in vol. 3 only, three columns, Arabic `vol:page` (not continuous pagination). It opens at Genesis on the leaf before printed p. 740 and runs through printed p. 780. The book name is printed only when it changes.
 2. **van Mastricht** — *Theoretical-Practical Theology* (RHB, 5 vols) + chapter-opening texts as `book_passage_sections`
 3. **Bavinck** — *Reformed Dogmatics* (Baker, 4 vols)
 

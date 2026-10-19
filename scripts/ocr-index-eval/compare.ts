@@ -20,8 +20,22 @@ type Row = {
 	volume?: string | null;
 };
 
-type GoldFile = { id: string; source?: string; rows: Row[] };
+type GoldFile = { id: string; source?: string; running_book?: string; rows: Row[] };
 type OcrFile = { candidates?: Row[]; rows?: Row[] };
+
+/** Fill a blank book from the running heading, the way the batch merge carries a book across a page that does not reprint it. */
+function fillRunningBook(rows: Row[], runningBook: string): Row[] {
+	let book = runningBook.trim();
+	return rows.map((r) => {
+		const named = r.bible_book?.trim() ?? '';
+		if (named) {
+			book = named;
+			return r;
+		}
+		if (!book) return r;
+		return { ...r, bible_book: book };
+	});
+}
 
 function key(r: Row): string {
 	return [
@@ -71,9 +85,12 @@ for (const gf of goldFiles) {
 		console.warn(`skip ${gf}: missing ${base}.ocr.json`);
 		continue;
 	}
-	const gold = loadRows(join(goldDir, gf));
-	const ocr = loadRows(ocrPath);
+	const goldRaw = JSON.parse(readFileSync(join(goldDir, gf), 'utf8')) as GoldFile;
+	const running = goldRaw.running_book ?? '';
+	const gold = fillRunningBook(loadRows(join(goldDir, gf)), running);
+	const ocr = fillRunningBook(loadRows(ocrPath), running);
 	const ocrKeys = new Set(ocr.map(key));
+	const goldKeys = new Set(gold.map(key));
 	let match = 0;
 	const misses: string[] = [];
 	for (const g of gold) {
@@ -81,13 +98,15 @@ for (const gf of goldFiles) {
 		if (ocrKeys.has(k)) match += 1;
 		else misses.push(k);
 	}
+	const extras = [...ocrKeys].filter((k) => !goldKeys.has(k));
 	const rate = gold.length === 0 ? 0 : match / gold.length;
 	console.log(
-		`${base}: ${match}/${gold.length} exact (${(rate * 100).toFixed(2)}%)${misses.length ? ` — ${misses.length} miss` : ''}`
+		`${base}: ${match}/${gold.length} exact (${(rate * 100).toFixed(2)}%)${misses.length ? ` — ${misses.length} miss` : ''}${extras.length ? `, ${extras.length} extra` : ''}`
 	);
-	if (misses.length > 0 && misses.length <= 15) {
-		for (const m of misses) console.log(`  miss: ${m}`);
-	}
+	for (const m of misses.slice(0, 40)) console.log(`  miss: ${m}`);
+	if (misses.length > 40) console.log(`  … ${misses.length - 40} more misses`);
+	for (const m of extras.slice(0, 20)) console.log(`  extra: ${m}`);
+	if (extras.length > 20) console.log(`  … ${extras.length - 20} more extras`);
 	totalGold += gold.length;
 	totalMatch += match;
 	pagesCompared += 1;

@@ -199,8 +199,8 @@
 		const { splitImageIntoColumns } = await import('$lib/library/image-column-split');
 		let crops: Blob[];
 		try {
-			const split = await splitImageIntoColumns(jpegBlob);
-			crops = [split.left, split.right];
+			crops = await splitImageIntoColumns(jpegBlob);
+			if (crops.length === 0) crops = [jpegBlob];
 		} catch {
 			crops = [jpegBlob];
 		}
