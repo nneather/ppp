@@ -30,6 +30,7 @@
 	} from '$lib/library/scripture-ocr-merge';
 	import { mergeOcrConsensus } from '$lib/library/scripture-ocr-consensus';
 	import { flagIndexCandidates } from '$lib/library/scripture-index-validate';
+	import { applyIndexQualifierFields } from '$lib/library/scripture-index-qualifiers';
 
 	let {
 		userId,
@@ -220,13 +221,23 @@
 			return result.ok ? result.data.candidates : null;
 		}
 
+		const prepare = (rows: OcrScriptureCandidate[]): OcrScriptureCandidate[] =>
+			rows.map((c) => {
+				const q = applyIndexQualifierFields(c.page_start, c.review_note);
+				return {
+					...c,
+					page_start: q.pageStart || null,
+					review_note: q.reviewNote || null
+				};
+			});
+
 		const merged: OcrScriptureCandidate[] = [];
 		for (const crop of crops) {
 			const [passA, passB] = await Promise.all([onePass(crop, 1), onePass(crop, 2)]);
 			if (passA == null && passB == null) continue;
-			if (passA == null) merged.push(...(passB ?? []));
-			else if (passB == null) merged.push(...passA);
-			else merged.push(...mergeOcrConsensus(passA, passB));
+			if (passA == null) merged.push(...prepare(passB ?? []));
+			else if (passB == null) merged.push(...prepare(passA));
+			else merged.push(...mergeOcrConsensus(prepare(passA), prepare(passB)));
 		}
 		return flagIndexCandidates(merged);
 	}
@@ -638,7 +649,7 @@
 	>
 	<label class="flex items-center gap-2 text-sm text-muted-foreground">
 		<input type="checkbox" bind:checked={indexMode} class="size-4 rounded border-input" />
-		Scripture index mode (set indexes — volume:page tokens, denser prompt)
+		Scripture index mode (dense index — volume:page or section locators)
 	</label>
 	<div class="flex flex-wrap items-center gap-2">
 		<label class="inline-flex">

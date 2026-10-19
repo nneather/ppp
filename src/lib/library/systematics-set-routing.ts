@@ -3,20 +3,23 @@
  * Explicit volume token wins; else page falls inside outline bounds; else default.
  */
 
-import { pageNumberFromText } from '$lib/library/outline';
+import { locatorCoversSectionPointer, pageNumberFromText } from '$lib/library/outline';
 import { parseSectionPointer } from '$lib/library/section-pointer';
+import { editionMarkerIn } from '$lib/library/scripture-index-qualifiers';
 
 export type SetVolumeBook = {
 	bookId: string;
 	volumeNumber: string | null;
 	pageMin: number | null;
 	pageMax: number | null;
+	/** Chapter locators printed on this volume (`I.13`, `III.20`). */
+	locators?: string[];
 };
 
 export type RoutedIndexRow = {
 	bookId: string;
 	volume: string | null;
-	reason: 'explicit_volume' | 'outline_page' | 'section_locator' | 'default';
+	reason: 'explicit_volume' | 'outline_page' | 'section_locator' | 'edition_pointer' | 'default';
 };
 
 function normalizeVolumeToken(raw: string | null | undefined): string | null {
@@ -60,11 +63,36 @@ function volumesMatch(a: string | null, b: string | null): boolean {
  */
 export function routeIndexRowToVolume(
 	volumes: SetVolumeBook[],
-	input: { volume?: string | null; pageStart?: string | null },
+	input: { volume?: string | null; pageStart?: string | null; reviewNote?: string | null },
 	defaultBookId: string
 ): RoutedIndexRow {
-	// III.2.12 is an Institutes section, not page 2 and not volume III.
+	// PA / VG / VL cite another edition. The leftover digits are not a Battles page.
+	if (editionMarkerIn(input.pageStart) || editionMarkerIn(input.reviewNote)) {
+		return { bookId: defaultBookId, volume: null, reason: 'edition_pointer' };
+	}
+
+	// 1.13.7 and III.2.12 are Institutes sections. The leading number is the
+	// book of the Institutes. Place the row on the volume whose outline
+	// contains that chapter; otherwise keep the book being indexed.
 	if (parseSectionPointer(input.pageStart, null)) {
+		let best: { book: SetVolumeBook; spec: number; locatorLength: number } | null = null;
+		for (const volume of volumes) {
+			for (const locator of volume.locators ?? []) {
+				if (!locatorCoversSectionPointer(locator, input.pageStart, null)) continue;
+				const spec = locator.includes('.') && locator.split('.').length > 2 ? 2 : 1;
+				const locatorLength = locator.length;
+				if (
+					!best ||
+					spec > best.spec ||
+					(spec === best.spec && locatorLength > best.locatorLength)
+				) {
+					best = { book: volume, spec, locatorLength };
+				}
+			}
+		}
+		if (best) {
+			return { bookId: best.book.bookId, volume: null, reason: 'section_locator' };
+		}
 		return { bookId: defaultBookId, volume: null, reason: 'section_locator' };
 	}
 

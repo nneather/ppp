@@ -1,10 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
 	groupSystematicHits,
+	outlineSpansAcrossVolumes,
 	resolveOutlineForPointer,
+	type OutlineBookSpan,
 	type OutlineSectionInput,
 	type SystematicSetBlock
 } from '$lib/library/outline';
+import { parseSectionLocator } from '$lib/library/section-pointer';
+import type { SetVolumeBook } from '$lib/library/systematics-set-routing';
 
 export type SystematicsPassageQuery = {
 	bibleBook: string;
@@ -199,4 +203,106 @@ export async function loadOutlineSectionsForBook(
 		page_start: raw.page_start,
 		page_end: raw.page_end
 	}));
+}
+
+/**
+ * Book headings that continue onto another volume of the same series.
+ * Chapter rows stay on their own page ranges.
+ */
+export async function loadOutlineBookSpans(
+	supabase: SupabaseClient,
+	bookId: string,
+	seriesId: string | null | undefined
+): Promise<OutlineBookSpan[]> {
+	if (!seriesId) return [];
+	const { data: books, error } = await supabase
+		.from('books')
+		.select('id, volume_number')
+		.eq('series_id', seriesId)
+		.is('deleted_at', null);
+	if (error || !books || books.length < 2) return [];
+
+	const volumeById = new Map(
+		books.map((b) => [b.id as string, (b.volume_number as string | null) ?? null])
+	);
+	if (!volumeById.has(bookId)) return [];
+
+	const { data: rows, error: outlineError } = await supabase
+		.from('book_outline_sections')
+		.select('book_id, locator, page_start, page_end')
+		.in('book_id', [...volumeById.keys()])
+		.is('deleted_at', null)
+		.not('locator', 'is', null)
+		.not('locator', 'like', '%.%');
+	if (outlineError || !rows) return [];
+
+	return outlineSpansAcrossVolumes(
+		rows.map((row) => ({
+			locator: row.locator as string,
+			volume: volumeById.get(row.book_id as string) ?? null,
+			pageStart: row.page_start as number,
+			pageEnd: row.page_end as number
+		}))
+	);
+}
+
+/**
+ * One row per volume in a set, with the chapter locators and page bounds
+ * that index routing uses. Book-level headings (`III`) are omitted.
+ */
+export async function loadSetVolumeBooks(
+	supabase: SupabaseClient,
+	seriesId: string | null | undefined
+): Promise<SetVolumeBook[]> {
+	if (!seriesId) return [];
+	const { data: books, error } = await supabase
+		.from('books')
+		.select('id, volume_number')
+		.eq('series_id', seriesId)
+		.is('deleted_at', null);
+	if (error || !books || books.length === 0) return [];
+
+	const ids = books.map((b) => b.id as string);
+	const { data: rows, error: outlineError } = await supabase
+		.from('book_outline_sections')
+		.select('book_id, locator, page_start, page_end')
+		.in('book_id', ids)
+		.is('deleted_at', null);
+	if (outlineError) {
+		console.error('[systematics] loadSetVolumeBooks', outlineError);
+	}
+
+	const byBook = new Map<
+		string,
+		{ locators: string[]; pageMin: number | null; pageMax: number | null }
+	>();
+	for (const row of rows ?? []) {
+		const bookId = row.book_id as string;
+		const slot = byBook.get(bookId) ?? { locators: [], pageMin: null, pageMax: null };
+		const pageStart = row.page_start as number;
+		const pageEnd = row.page_end as number;
+		slot.pageMin = slot.pageMin == null ? pageStart : Math.min(slot.pageMin, pageStart);
+		slot.pageMax = slot.pageMax == null ? pageEnd : Math.max(slot.pageMax, pageEnd);
+		const locator = (row.locator as string | null)?.trim() ?? '';
+		if (locator && parseSectionLocator(locator)) slot.locators.push(locator);
+		byBook.set(bookId, slot);
+	}
+
+	return books
+		.map((b) => {
+			const slot = byBook.get(b.id as string);
+			return {
+				bookId: b.id as string,
+				volumeNumber: (b.volume_number as string | null) ?? null,
+				pageMin: slot?.pageMin ?? null,
+				pageMax: slot?.pageMax ?? null,
+				locators: slot?.locators ?? []
+			};
+		})
+		.sort((a, b) => {
+			const na = Number(a.volumeNumber);
+			const nb = Number(b.volumeNumber);
+			if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+			return (a.volumeNumber ?? '').localeCompare(b.volumeNumber ?? '');
+		});
 }

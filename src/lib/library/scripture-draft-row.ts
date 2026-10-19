@@ -3,6 +3,7 @@ import {
 	formatScriptureRefRangeDisplay
 } from '$lib/library/scripture-ref-format';
 import type { OcrScriptureCandidate } from '$lib/library/ocr-scripture-refs';
+import { indexNoteNeedsReview } from '$lib/library/scripture-index-qualifiers';
 import type { ScriptureRefRow } from '$lib/types/library';
 import { continuationNeedsBookRow } from '$lib/library/scripture-batch-upload';
 
@@ -132,7 +133,7 @@ export function mapCandidateToRow(c: OcrScriptureCandidate): ScriptureDraftRow {
 		page_start: pageStartRaw,
 		page_end: c.page_end != null ? String(c.page_end) : '',
 		volume: c.volume != null ? String(c.volume).trim() : '',
-		needs_review: needs || Boolean(c.review_note && String(c.review_note).trim()),
+		needs_review: needs || indexNoteNeedsReview(c.review_note),
 		review_note: c.review_note != null ? String(c.review_note).trim() : '',
 		confidence_score: conf,
 		source_image_url: '',

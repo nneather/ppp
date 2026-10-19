@@ -41,4 +41,17 @@ describe('mergeOcrConsensus', () => {
 		expect(merged.filter((r) => r.consensus_flag === 'pass_b_only')).toHaveLength(1);
 		expect(consensusAllOk(merged)).toBe(false);
 	});
+
+	it('keeps two identical printed lines when both passes saw both', () => {
+		const row = {
+			bible_book: 'Genesis',
+			chapter_start: 1,
+			verse_start: 27,
+			page_start: '2.1.1',
+			confidence_score: 0.9
+		};
+		const merged = mergeOcrConsensus([row, row], [row, row]);
+		expect(merged).toHaveLength(2);
+		expect(merged.every((r) => r.consensus_flag === 'ok')).toBe(true);
+	});
 });

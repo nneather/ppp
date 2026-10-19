@@ -56,6 +56,8 @@
 		TopicCount
 	} from '$lib/types/library';
 	import { siblingBookLabel } from '$lib/library/book-detail-related';
+	import type { OutlineBookSpan } from '$lib/library/outline';
+	import type { SetVolumeBook } from '$lib/library/systematics-set-routing';
 	import {
 		formatScriptureRefPageSummary,
 		formatScriptureRefRangeDisplay
@@ -465,6 +467,8 @@
 	// Outline sections (TOC — systematics-by-passage)
 	// -------------------------------------------------------------------------
 	let outlineSections = $state<OutlineSectionRow[]>([]);
+	let outlineBookSpans = $state<OutlineBookSpan[]>([]);
+	let setVolumeBooks = $state<SetVolumeBook[]>([]);
 	let outlineSectionsLoading = $state(true);
 	let outlineAddOpen = $state(false);
 	let outlinePasteOpen = $state(false);
@@ -478,6 +482,12 @@
 	const showOutlinePanel = $derived(
 		data.book.genre === 'Systematic Theology' || outlineSections.length > 0
 	);
+
+	$effect(() => {
+		void data.setVolumeBooksPromise.then((rows) => {
+			setVolumeBooks = rows;
+		});
+	});
 
 	$effect(() => {
 		const p = data.outlineSectionsPromise;
@@ -502,6 +512,22 @@
 				outlineSectionsLoading = false;
 			});
 	});
+
+	$effect(() => {
+		void data.outlineBookSpansPromise
+			.then((rows) => {
+				outlineBookSpans = rows;
+			})
+			.catch(() => {
+				outlineBookSpans = [];
+			});
+	});
+
+	function outlineSpanFor(locator: string | null): OutlineBookSpan | null {
+		if (!locator) return null;
+		const key = locator.trim().toUpperCase();
+		return outlineBookSpans.find((span) => span.locator === key) ?? null;
+	}
 
 	const outlineFormMessage = $derived.by(() => {
 		const f = form as { kind?: string; message?: string; sectionId?: string } | null;
@@ -1897,6 +1923,7 @@
 				{:else}
 					<ul class="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60">
 						{#each outlineSections as row (row.id)}
+							{@const span = outlineSpanFor(row.locator)}
 							<li class="px-3 py-2">
 								{#if editingOutlineId === row.id}
 									<OutlineSectionForm
@@ -1919,7 +1946,11 @@
 												{row.label}
 											</p>
 											<p class="text-xs text-muted-foreground">
-												pp. {row.page_start}{#if row.page_end !== row.page_start}–{row.page_end}{/if}
+												{#if span}
+													pp. {span.pageStart}–{span.pageEnd} · {span.volumesLabel}
+												{:else}
+													pp. {row.page_start}{#if row.page_end !== row.page_start}–{row.page_end}{/if}
+												{/if}
 											</p>
 										</div>
 										<div class="flex shrink-0 gap-1">
@@ -2311,26 +2342,7 @@
 							lockedBookId={data.book.id}
 							userId={data.userId}
 							{formMessage}
-							setVolumes={data.book.genre === 'Systematic Theology' && data.book.series_id
-								? [
-										{
-											bookId: data.book.id,
-											volumeNumber: data.book.volume_number,
-											pageMin: outlineSections.length
-												? Math.min(...outlineSections.map((o) => o.page_start))
-												: null,
-											pageMax: outlineSections.length
-												? Math.max(...outlineSections.map((o) => o.page_end))
-												: null
-										},
-										...seriesSiblings.map((sib) => ({
-											bookId: sib.id,
-											volumeNumber: sib.volume_number,
-											pageMin: null as number | null,
-											pageMax: null as number | null
-										}))
-									]
-								: []}
+							setVolumes={setVolumeBooks}
 							onSavedBatch={onCreatedBatch}
 							onBatchDirtyChange={(d) => (batchFormDirty = d)}
 							onCancel={() => (addOpen = false)}

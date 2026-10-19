@@ -152,6 +152,8 @@ type OcrCandidate = {
 	page_end?: string | null;
 	/** Volume token from set indexes (e.g. "2" when printed as 2:620). */
 	volume?: string | null;
+	/** Version tag (`cf Vg`) or edition marker (`PA`, `VG`, `VL`). Not part of the locator. */
+	review_note?: string | null;
 	confidence_score: number;
 	continuation_from_previous_page?: boolean;
 	/** 0-based page index within a multi-page PDF input; omit for single images. */
@@ -186,6 +188,8 @@ function normalizeCandidate(raw: unknown): OcrCandidate | null {
 	};
 	const volRaw = typeof o.volume === 'string' ? o.volume.trim() : '';
 	if (volRaw && volRaw.length <= 10) out.volume = volRaw;
+	const noteRaw = typeof o.review_note === 'string' ? o.review_note.trim() : '';
+	if (noteRaw) out.review_note = noteRaw.slice(0, 300);
 	if (cont) out.continuation_from_previous_page = true;
 	const spi = asOptionalInt(o.source_page_index, 999);
 	if (spi != null) out.source_page_index = spi;
@@ -515,22 +519,25 @@ Deno.serve(async (req) => {
 	const allowlistBlock = BIBLE_BOOK_NAMES.join(', ');
 
 	const systemPrompt = indexMode
-		? `You extract Protestant Bible scripture citations from a SCRIPTURE INDEX page (dense two-column list).
+		? `You extract Protestant Bible scripture citations from a SCRIPTURE INDEX page (a dense two- or three-column list, or one column cropped from that page).
 Return ONLY valid JSON (no markdown fences, no commentary). Shape must be:
 {"rawText": string, "candidates": Candidate[]}
-Candidate: {"bible_book": string, "chapter_start"?: number, "verse_start"?: number, "chapter_end"?: number, "verse_end"?: number, "page_start"?: string, "page_end"?: string, "volume"?: string, "confidence_score": number, "continuation_from_previous_page"?: boolean, "source_page_index"?: number}
+Candidate: {"bible_book": string, "chapter_start"?: number, "verse_start"?: number, "chapter_end"?: number, "verse_end"?: number, "page_start"?: string, "page_end"?: string, "volume"?: string, "review_note"?: string, "confidence_score": number, "continuation_from_previous_page"?: boolean, "source_page_index"?: number}
 Rules:
-- Emit candidates in PRINTED ORDER (top-to-bottom, left column then right). NEVER merge adjacent printed entries.
+- Emit candidates in PRINTED ORDER (top-to-bottom within a column, columns left to right). A one-column crop is only that column. NEVER merge adjacent printed entries. A repeated identical printed line is two candidates; do not drop the second.
 - bible_book MUST be exactly one of these names (case-sensitive): ${allowlistBlock}
   Exception: continuation lines without a book name → bible_book "" and continuation_from_previous_page true.
-- Omit chapter/verse keys when not visible; use integers only.
-- When the index cites a multi-volume set as "2:620" or "II, 620", set volume="2" (or "II") and page_start="620". Do not put "2:620" in page_start when volume is set.
+- Omit chapter/verse keys when not visible; use integers only. A whole-chapter line ("8—2:424") omits verse keys.
+- When the index cites a multi-volume set as "2:620" or "II, 620", set volume="2" (or "II") and page_start="620". Do not put "2:620" in page_start when volume is set. The printed form "6:4—2:365, 546, 3:382" is verse 6:4, then volume 2 pages 365 and 546, then volume 3 page 382.
 - page_start/page_end are where the citation points in the volume — page numbers, note tokens like "106n21", or ranges "14-15" as page_start="14" page_end="15".
-- Institutes-style section locators (Book.chapter.section), printed as "III.2.12" or "I.14.1": put the full token in page_start and leave volume empty. The leading roman numeral is the book of the Institutes, not a set volume. Do not convert the locator into a page number.
-- A printed section range "III.2.12–14" or "III.2.12-14" is ONE candidate: page_start="III.2.12", page_end="III.2.14". Expand a shortened end so page_end is a full locator. Do not split the range into two candidates.
-- A verse range inside one chapter (printed "1:3-4") sets chapter_start, verse_start, chapter_end (same chapter), and verse_end.
-- Multiple page pointers for the SAME verse (e.g. "73, 101, 112"): one Candidate per page.
-- Semicolon-separated section pointers: one Candidate per pointer.
+- Institutes-style section locators (Book.chapter.section) are printed as Arabic "1.13.7" (Book 1, chapter 13, section 7) or Roman "III.2.12". Put the full token in page_start and leave volume empty. The leading number is the Institutes book, not a set volume. Do not turn "1.13.7" into volume 1 and a page.
+- A printed section range "1.13.7–9" or "III.2.12–14" is ONE candidate: page_start="1.13.7", page_end="1.13.9" (expand a shortened end). Do not split the range into two candidates.
+- A whole-chapter citation in a section index ("ch. 1", "chs. 1; 2") is ONE candidate. Set chapter_start (and chapter_end when a second chapter is printed) and omit verse_start. That semicolon is not two Institutes pointers.
+- A verse range inside one chapter (printed "1:3-4" or "8:31-33" or a comma pair "6:3, 4" / "8:29, 30") sets chapter_start, verse_start, chapter_end (same chapter), and verse_end. One candidate range, not two candidates. The verse numbers are the English numbers printed in the index.
+- Version tags on the biblical citation (p., EV, Vg., LXX, Gr., Comm., "cf Vg") go in review_note only. Do not append them to page_start or change the verse number.
+- PA (Prefatory Address), VG (French 1560), and VL (Latin 1559) are not locators in this edition. Put the abbreviation in review_note. Leave any printed section token in page_start.
+- Multiple page pointers for the SAME verse (e.g. "73, 101, 112"): one Candidate per page. In a volume:page index, a semicolon between page numbers ("3:21; 35, 122") is another page in the current volume, same as a comma.
+- Semicolon-separated Institutes or patristic pointers in the locator column: one Candidate per pointer. Do not apply this to a biblical chapter list ("chs. 1; 2").
 - confidence_score 0–1; below 0.80 when glyphs are uncertain.
 - rawText: ONE short sentence (<= 200 chars), e.g. "Scripture index page". Do NOT echo citations there.
 - One candidate per distinct printed citation; do not invent rows.`
@@ -559,7 +566,7 @@ Rules:
 			: '';
 	const userText = indexMode
 		? indexPass === 2
-			? `Second read of this scripture index. Prefer fewer rows over guessed digits (3/8, 1/7). Emit printed order only. Book context UUID (reasoning only): ${book_id}.${pageHint}`
+			? `Second read of this scripture index. Prefer a careful digit (3/8, 1/7) over an invented verse. Keep every printed line, including a repeated identical line. Emit printed order only. Book context UUID (reasoning only): ${book_id}.${pageHint}`
 			: `Extract every scripture-index entry from this page in printed order. Book context UUID (reasoning only): ${book_id}.${pageHint}`
 		: `Extract all scripture references from this document (image or PDF). Book context UUID (for your reasoning only): ${book_id}.${pageHint}`;
 

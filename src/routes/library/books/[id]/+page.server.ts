@@ -39,7 +39,11 @@ import {
 	softDeleteOutlineSectionAction,
 	updateOutlineSectionAction
 } from '$lib/library/server/outline-actions';
-import { loadOutlineSectionsForBook } from '$lib/library/server/systematics-loaders';
+import {
+	loadOutlineBookSpans,
+	loadOutlineSectionsForBook,
+	loadSetVolumeBooks
+} from '$lib/library/server/systematics-loaders';
 import { invokeOcrScriptureRefs } from '$lib/library/ocr-invoke-client';
 import {
 	createBookTopicsBatchAction,
@@ -115,6 +119,11 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		scriptureRefsPromise: loadScriptureRefsForBook(supabase, id),
 		passageSectionsPromise: loadPassageSectionsForBook(supabase, id),
 		outlineSectionsPromise: loadOutlineSectionsForBook(supabase, id),
+		outlineBookSpansPromise: loadOutlineBookSpans(supabase, id, book.series_id),
+		setVolumeBooksPromise:
+			book.genre === 'Systematic Theology'
+				? loadSetVolumeBooks(supabase, book.series_id)
+				: Promise.resolve([]),
 		seriesSiblingsPromise: loadSeriesSiblingBooks(supabase, book.series_id, id),
 		alsoByAuthorPromise: loadAlsoByAuthorBooks(supabase, alsoByPersonIds, id),
 		isOwner,

@@ -93,6 +93,19 @@ function sectionCovers(
 	return node.section === start.section && node.section === stop.section;
 }
 
+/** True when an outline locator (`I.13` or `1.13`) covers a printed section pointer. */
+export function locatorCoversSectionPointer(
+	locator: string | null | undefined,
+	pageStart: string | null | undefined,
+	pageEnd?: string | null
+): boolean {
+	const pointer = parseSectionPointer(pageStart, pageEnd);
+	if (!pointer) return false;
+	const loc = parseSectionLocator(locator);
+	if (!loc) return false;
+	return sectionCovers(loc, pointer.start, pointer.end);
+}
+
 /**
  * Join an index pointer to an outline node. Section locators (`III.2.12`,
  * `III.2.12`–`III.2.14`) match `locator` (exact section, else the chapter).
@@ -274,6 +287,68 @@ export function groupSystematicHits(hits: SystematicHitInput[]): SystematicSetBl
 
 	blocks.sort((a, b) => a.seriesName.localeCompare(b.seriesName));
 	return blocks;
+}
+
+const BOOK_LEVEL_LOCATOR = /^(?:X|IX|VIII|VII|VI|V|IV|III|II|I)$/i;
+
+/** `III` is a book heading. `III.2` is a chapter. */
+export function bookLevelLocator(locator: string | null | undefined): string | null {
+	if (locator == null) return null;
+	const t = locator.trim();
+	if (!BOOK_LEVEL_LOCATOR.test(t)) return null;
+	return t.toUpperCase();
+}
+
+export type OutlineBookSpanPart = {
+	locator: string;
+	volume: string | null;
+	pageStart: number;
+	pageEnd: number;
+};
+
+export type OutlineBookSpan = {
+	locator: string;
+	pageStart: number;
+	pageEnd: number;
+	/** `vols. 1–2` when the same book heading is stored on more than one volume. */
+	volumesLabel: string;
+};
+
+function compareVolumeLabels(a: string, b: string): number {
+	const na = Number(a);
+	const nb = Number(b);
+	if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+	return a.localeCompare(b);
+}
+
+/**
+ * Book headings split across set volumes (Calvin Book III: 535–849 and
+ * 850–1008) display as one span. Chapter rows are ignored.
+ */
+export function outlineSpansAcrossVolumes(parts: OutlineBookSpanPart[]): OutlineBookSpan[] {
+	const byLocator = new Map<string, OutlineBookSpanPart[]>();
+	for (const part of parts) {
+		const locator = bookLevelLocator(part.locator);
+		if (!locator || !part.volume) continue;
+		const list = byLocator.get(locator) ?? [];
+		list.push(part);
+		byLocator.set(locator, list);
+	}
+
+	const spans: OutlineBookSpan[] = [];
+	for (const [locator, list] of byLocator) {
+		const volumes = [...new Set(list.map((p) => p.volume).filter((v): v is string => Boolean(v)))];
+		if (volumes.length < 2) continue;
+		volumes.sort(compareVolumeLabels);
+		spans.push({
+			locator,
+			pageStart: Math.min(...list.map((p) => p.pageStart)),
+			pageEnd: Math.max(...list.map((p) => p.pageEnd)),
+			volumesLabel: volumes.length === 2 ? `vols. ${volumes[0]}–${volumes[1]}` : `vols. ${volumes.join(', ')}`
+		});
+	}
+	spans.sort((a, b) => a.pageStart - b.pageStart);
+	return spans;
 }
 
 /** Parse a TSV paste line: locator\\tlabel\\tpages (pages = `620` or `620-650`). */

@@ -35,6 +35,30 @@ describe('validateIndexRows', () => {
 		expect(issues.some((i) => i.reason.startsWith('page_'))).toBe(false);
 	});
 
+	it('keeps a version tag and flags an edition marker', () => {
+		const flagged = flagIndexCandidates([
+			{
+				bible_book: 'Genesis',
+				chapter_start: 1,
+				verse_start: 2,
+				page_start: '1.13.14',
+				review_note: 'cf Vg',
+				confidence_score: 0.95
+			},
+			{
+				bible_book: 'Genesis',
+				chapter_start: 1,
+				verse_start: 1,
+				page_start: 'PA 3',
+				confidence_score: 0.95
+			}
+		]);
+		expect(flagged[0]!.confidence_score).toBe(0.95);
+		expect(flagged[0]!.review_note).toBe('cf Vg');
+		expect(flagged[1]!.confidence_score).toBeLessThan(0.8);
+		expect(flagged[1]!.review_note).toContain('edition_PA');
+	});
+
 	it('flags pages outside outline bounds', () => {
 		const issues = validateIndexRows(
 			[{ bible_book: 'Romans', chapter_start: 1, verse_start: 1, page_start: '5' }],

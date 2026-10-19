@@ -43,6 +43,7 @@
 		type ScriptureDraftRow,
 		type ScripturePageJob
 	} from '$lib/library/scripture-draft-row';
+	import { applyIndexQualifierFields } from '$lib/library/scripture-index-qualifiers';
 	import {
 		routeIndexRowToVolume,
 		stripVolumeFromPageToken,
@@ -524,18 +525,20 @@
 
 		for (const row of included) {
 			let bookId = defaultBook;
-			let pageStart = row.page_start;
+			const qualified = applyIndexQualifierFields(row.page_start, row.review_note);
+			let pageStart = qualified.pageStart || row.page_start;
+			let reviewNote = qualified.reviewNote || row.review_note;
 			if (setMode && setVolumes.length > 0) {
 				const routed = routeIndexRowToVolume(
 					setVolumes,
-					{ volume: row.volume || null, pageStart: row.page_start },
+					{ volume: row.volume || null, pageStart, reviewNote },
 					defaultBook
 				);
 				bookId = routed.bookId;
-				pageStart = stripVolumeFromPageToken(row.page_start) ?? row.page_start;
+				pageStart = stripVolumeFromPageToken(pageStart) ?? pageStart;
 			}
 			const list = byBook.get(bookId) ?? [];
-			list.push({ ...row, page_start: pageStart });
+			list.push({ ...row, page_start: pageStart, review_note: reviewNote });
 			byBook.set(bookId, list);
 		}
 
@@ -705,7 +708,7 @@
 		{#if setVolumes.length > 1}
 			<label class="flex items-center gap-2 text-sm text-muted-foreground">
 				<input type="checkbox" bind:checked={setMode} class="size-4 rounded border-input" />
-				Set mode — route vol:page index rows to sibling volumes ({setVolumes.length} vols)
+				Set mode — route each index row to the volume that owns its page or section ({setVolumes.length} vols)
 			</label>
 		{/if}
 		{#key seedKey}

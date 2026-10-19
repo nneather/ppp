@@ -9,6 +9,7 @@ import {
 	parseOutlineTsvLine,
 	resolveOutlineForPointer,
 	resolveOutlineLabel,
+	outlineSpansAcrossVolumes,
 	type OutlineSectionInput
 } from '../outline';
 import {
@@ -226,6 +227,27 @@ describe('section-pointer edge copy', () => {
 			'utf8'
 		);
 		expect(edge).toBe(app);
+	});
+});
+
+describe('outlineSpansAcrossVolumes', () => {
+	it('merges a book heading that continues on the next volume', () => {
+		expect(
+			outlineSpansAcrossVolumes([
+				{ locator: 'III', volume: '1', pageStart: 535, pageEnd: 849 },
+				{ locator: 'III', volume: '2', pageStart: 850, pageEnd: 1008 },
+				{ locator: 'III.20', volume: '2', pageStart: 850, pageEnd: 919 },
+				{ locator: 'IV', volume: '2', pageStart: 1009, pageEnd: 1524 },
+				{ locator: 'I', volume: '1', pageStart: 33, pageEnd: 238 }
+			])
+		).toEqual([
+			{
+				locator: 'III',
+				pageStart: 535,
+				pageEnd: 1008,
+				volumesLabel: 'vols. 1–2'
+			}
+		]);
 	});
 });
 

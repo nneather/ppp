@@ -19,7 +19,8 @@ function canonicalKey(c: OcrScriptureCandidate): string {
 		c.verse_end ?? '',
 		(c.page_start ?? '').trim(),
 		(c.page_end ?? '').trim(),
-		(c.volume ?? '').trim()
+		(c.volume ?? '').trim(),
+		(c.review_note ?? '').trim()
 	].join('|');
 }
 
@@ -31,17 +32,21 @@ export function mergeOcrConsensus(
 	passA: OcrScriptureCandidate[],
 	passB: OcrScriptureCandidate[]
 ): ConsensusRow[] {
-	const mapB = new Map<string, OcrScriptureCandidate>();
-	for (const c of passB) mapB.set(canonicalKey(c), c);
+	const buckets = new Map<string, OcrScriptureCandidate[]>();
+	for (const c of passB) {
+		const key = canonicalKey(c);
+		const list = buckets.get(key) ?? [];
+		list.push(c);
+		buckets.set(key, list);
+	}
 
-	const usedB = new Set<string>();
 	const out: ConsensusRow[] = [];
 
 	for (const a of passA) {
 		const key = canonicalKey(a);
-		const b = mapB.get(key);
+		const list = buckets.get(key);
+		const b = list?.shift();
 		if (b) {
-			usedB.add(key);
 			out.push({
 				...a,
 				confidence_score: Math.min(a.confidence_score, b.confidence_score),
@@ -56,14 +61,14 @@ export function mergeOcrConsensus(
 		}
 	}
 
-	for (const b of passB) {
-		const key = canonicalKey(b);
-		if (usedB.has(key)) continue;
-		out.push({
-			...b,
-			confidence_score: Math.min(b.confidence_score, 0.75),
-			consensus_flag: 'pass_b_only'
-		});
+	for (const list of buckets.values()) {
+		for (const b of list) {
+			out.push({
+				...b,
+				confidence_score: Math.min(b.confidence_score, 0.75),
+				consensus_flag: 'pass_b_only'
+			});
+		}
 	}
 
 	return out;

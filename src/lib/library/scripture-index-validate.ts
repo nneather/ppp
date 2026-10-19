@@ -6,6 +6,7 @@
 import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
 import { pageNumberFromText } from '$lib/library/outline';
 import { parseSectionPointer } from '$lib/library/section-pointer';
+import { editionMarkerIn } from '$lib/library/scripture-index-qualifiers';
 
 export type IndexValidateRow = {
 	bible_book: string;
@@ -158,9 +159,27 @@ export function validateIndexRows(
  * Lower confidence and attach a review_note when a row fails structural
  * checks or two-pass consensus.
  */
+function joinReviewNote(existing: string | null | undefined, reasons: string[]): string {
+	const parts: string[] = [];
+	const seen = new Set<string>();
+	const add = (raw: string) => {
+		const t = raw.trim();
+		if (!t || seen.has(t)) return;
+		seen.add(t);
+		parts.push(t);
+	};
+	if (existing) add(existing);
+	if (reasons.length > 0) add(reasons.join(', '));
+	return parts.join('; ');
+}
+
 export function flagIndexCandidates<
-	T extends IndexValidateRow & { confidence_score: number; consensus_flag?: string }
->(rows: T[]): (T & { review_note?: string })[] {
+	T extends IndexValidateRow & {
+		confidence_score: number;
+		consensus_flag?: string;
+		review_note?: string | null;
+	}
+>(rows: T[]): (T & { review_note?: string | null })[] {
 	const issues = validateIndexRows(rows);
 	const byIndex = new Map<number, string[]>();
 	for (const issue of issues) {
@@ -171,11 +190,13 @@ export function flagIndexCandidates<
 	return rows.map((row, i) => {
 		const reasons = [...(byIndex.get(i) ?? [])];
 		if (row.consensus_flag && row.consensus_flag !== 'ok') reasons.push(row.consensus_flag);
+		const edition = editionMarkerIn(row.page_start) ?? editionMarkerIn(row.review_note);
+		if (edition) reasons.push(`edition_${edition}`);
 		if (reasons.length === 0) return row;
 		return {
 			...row,
 			confidence_score: Math.min(row.confidence_score, 0.7),
-			review_note: reasons.join(', ')
+			review_note: joinReviewNote(row.review_note, reasons)
 		};
 	});
 }
