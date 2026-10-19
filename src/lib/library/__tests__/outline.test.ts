@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	formatSystematicPointerDisplay,
 	groupSystematicHits,
+	buildOutlineTree,
 	pageNumberFromText,
 	parseOutlineTsv,
 	parseOutlineTsvLine,
@@ -248,6 +249,111 @@ describe('outlineSpansAcrossVolumes', () => {
 				volumesLabel: 'vols. 1–2'
 			}
 		]);
+	});
+});
+
+describe('buildOutlineTree', () => {
+	const topic: OutlineSectionInput = {
+		id: 'topic',
+		book_id: 'b1',
+		parent_id: null,
+		sort_order: 1,
+		locator: 'I',
+		label: 'Theology',
+		page_start: 1,
+		page_end: 54
+	};
+	const heading: OutlineSectionInput = {
+		id: 'heading',
+		book_id: 'b1',
+		parent_id: 'topic',
+		sort_order: 2,
+		locator: null,
+		label: 'The Object of Theology',
+		page_start: 1,
+		page_end: 16
+	};
+	const question: OutlineSectionInput = {
+		id: 'question',
+		book_id: 'b1',
+		parent_id: 'heading',
+		sort_order: 3,
+		locator: 'I.1',
+		label: 'Whether theology is a science',
+		page_start: 1,
+		page_end: 3
+	};
+
+	it('nests a topic, heading, and question', () => {
+		const [root] = buildOutlineTree([question, topic, heading]);
+		expect(root?.locator).toBe('I');
+		expect(root?.children.map((child) => child.id)).toEqual(['heading']);
+		expect(root?.children[0]?.children.map((child) => child.locator)).toEqual(['I.1']);
+	});
+
+	it('keeps a flat outline as roots', () => {
+		const flat = buildOutlineTree([
+			{ ...topic, id: 'a', sort_order: 2 },
+			{ ...topic, id: 'b', sort_order: 1, locator: 'II', label: 'Scripture' }
+		]);
+		expect(flat.map((node) => node.id)).toEqual(['b', 'a']);
+		expect(flat.every((node) => node.children.length === 0)).toBe(true);
+	});
+
+	it('promotes a row whose parent is missing', () => {
+		const [root] = buildOutlineTree([{ ...question, parent_id: 'gone' }]);
+		expect(root?.id).toBe('question');
+		expect(root?.children).toEqual([]);
+	});
+
+	it('nests a Calvin chapter under its book heading', () => {
+		const book: OutlineSectionInput = {
+			...topic,
+			id: 'book-i',
+			locator: 'I',
+			label: 'The Knowledge of God the Creator',
+			page_start: 33,
+			page_end: 238
+		};
+		const chapter: OutlineSectionInput = {
+			...question,
+			id: 'ch',
+			parent_id: null,
+			locator: 'I.1',
+			label: 'The Knowledge of God and That of Ourselves Are Connected',
+			page_start: 35,
+			page_end: 38
+		};
+		const preface: OutlineSectionInput = {
+			...topic,
+			id: 'preface',
+			sort_order: 0,
+			locator: null,
+			label: 'Prefatory Address',
+			page_start: 9,
+			page_end: 32
+		};
+		const tree = buildOutlineTree([chapter, book, preface]);
+		expect(tree.map((node) => node.id)).toEqual(['preface', 'book-i']);
+		expect(tree[1]?.children.map((child) => child.locator)).toEqual(['I.1']);
+	});
+
+	it('does not pull a parented question up to the book heading', () => {
+		const [root] = buildOutlineTree([question, heading, topic]);
+		expect(root?.children.map((child) => child.id)).toEqual(['heading']);
+	});
+
+	it('keeps II.1 out of book I', () => {
+		const book: OutlineSectionInput = { ...topic, id: 'book-i' };
+		const other: OutlineSectionInput = {
+			...question,
+			id: 'two',
+			parent_id: null,
+			locator: 'II.1',
+			label: 'The Fall'
+		};
+		const tree = buildOutlineTree([book, other]);
+		expect(tree.map((node) => node.locator)).toEqual(['I', 'II.1']);
 	});
 });
 

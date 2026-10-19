@@ -70,6 +70,84 @@ export function resolveOutlineLabel(
 	return outlineResolveFrom(best);
 }
 
+export type OutlineTreeNode = OutlineSectionInput & {
+	children: OutlineTreeNode[];
+};
+
+const CHAPTER_LOCATOR = /^(X|IX|VIII|VII|VI|V|IV|III|II|I)\.(\d+)$/i;
+
+/** `I.13` belongs under the book heading `I`. `I` and `I.13.7` do not. */
+export function chapterBookLocator(locator: string | null | undefined): string | null {
+	if (locator == null) return null;
+	const match = locator.trim().match(CHAPTER_LOCATOR);
+	return match ? match[1]!.toUpperCase() : null;
+}
+
+/**
+ * Nest outline rows for the book-detail list. An explicit `parent_id` wins.
+ * A chapter such as `I.1` with no parent nests under the book heading `I`
+ * on the same book (Calvin). A missing parent becomes a root so the row
+ * still shows. A cycle is broken by treating the first unseen row as a root.
+ */
+export function buildOutlineTree(sections: readonly OutlineSectionInput[]): OutlineTreeNode[] {
+	const ids = new Set(sections.map((section) => section.id));
+	const bookHeadingId = new Map<string, string>();
+	for (const section of sections) {
+		const book = bookLevelLocator(section.locator);
+		if (!book) continue;
+		const key = `${section.book_id}:${book}`;
+		if (!bookHeadingId.has(key)) bookHeadingId.set(key, section.id);
+	}
+
+	function parentIdFor(section: OutlineSectionInput): string | null {
+		if (
+			section.parent_id &&
+			ids.has(section.parent_id) &&
+			section.parent_id !== section.id
+		) {
+			return section.parent_id;
+		}
+		const book = chapterBookLocator(section.locator);
+		if (!book) return null;
+		const headingId = bookHeadingId.get(`${section.book_id}:${book}`);
+		if (!headingId || headingId === section.id) return null;
+		return headingId;
+	}
+
+	const byParent = new Map<string | null, OutlineSectionInput[]>();
+	for (const section of sections) {
+		const parent = parentIdFor(section);
+		const list = byParent.get(parent) ?? [];
+		list.push(section);
+		byParent.set(parent, list);
+	}
+	for (const list of byParent.values()) {
+		list.sort((a, b) => a.sort_order - b.sort_order || a.page_start - b.page_start);
+	}
+
+	const seen = new Set<string>();
+	function build(parentId: string | null, stack: Set<string>): OutlineTreeNode[] {
+		const nodes: OutlineTreeNode[] = [];
+		for (const section of byParent.get(parentId) ?? []) {
+			if (stack.has(section.id)) continue;
+			stack.add(section.id);
+			seen.add(section.id);
+			nodes.push({ ...section, children: build(section.id, stack) });
+			stack.delete(section.id);
+		}
+		return nodes;
+	}
+
+	const roots = build(null, new Set());
+	for (const section of sections) {
+		if (seen.has(section.id)) continue;
+		const stack = new Set<string>([section.id]);
+		seen.add(section.id);
+		roots.push({ ...section, children: build(section.id, stack) });
+	}
+	return roots;
+}
+
 function outlineResolveFrom(section: OutlineSectionInput): OutlineResolve {
 	return {
 		id: section.id,

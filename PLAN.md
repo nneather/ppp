@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Index OCR pass 2 is a Sonnet 5.5 pointer check; Sonnet 4.6 still writes the row ([271](docs/decisions/271-ocr-index-checker-pass.md)). Text-layer parser: [270](docs/decisions/270-turretin-text-layer-parser.md).
+**Last updated:** 2026-10-19 — Book-detail outline topics start collapsed ([273](docs/decisions/273-outline-topic-dropdowns.md)). Index OCR pass 2 is a Sonnet 5.5 pointer check ([271](docs/decisions/271-ocr-index-checker-pass.md)).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books, including Brunnen *Nachfolge* and Eastman ([256](docs/decisions/256-nachfolge-eastman-shelf-contents.md)). **Systematics:** Calvin from Battles shelf photos; Turretin from Parker’s English PDF of the P&R set, tracked outside the repo ([267](docs/decisions/267-systematics-index-sources.md)). van Mastricht and Bavinck sources are written down there and not chosen. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books, including Brunnen *Nachfolge* and Eastman ([256](docs/decisions/256-nachfolge-eastman-shelf-contents.md)). **Systematics:** Calvin from Battles shelf photos; Turretin from Parker’s English PDF of the P&R set, tracked outside the repo ([267](docs/decisions/267-systematics-index-sources.md)). Turretin contents are in; book-detail topics start collapsed ([272](docs/decisions/272-turretin-outlines.md)/[273](docs/decisions/273-outline-topic-dropdowns.md)). van Mastricht and Bavinck sources are written down there and not chosen. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [273 — Outline topic dropdowns](docs/decisions/273-outline-topic-dropdowns.md) (2026-10-19) — Topics, headings, and Calvin book titles start collapsed. A chapter `I.1` nests under book `I`.
+- [272 — Turretin outlines](docs/decisions/272-turretin-outlines.md) (2026-10-19) — P&R vols. 1–3 contents, with the shared boundary page on both questions.
 - [271 — Index OCR checker pass](docs/decisions/271-ocr-index-checker-pass.md) (2026-10-19) — Pass 2 is Sonnet 5.5 on page pointers. Disagreements stay one row. A short page among longer siblings is flagged.
 - [270 — Turretin text-layer index parser](docs/decisions/270-turretin-text-layer-parser.md) (2026-10-19) — `parse-turretin-text.ts` on FineReader PDF; gold leaves 1023/1025; review for apocrypha + damaged tokens; no DB insert yet.
 - [269 — Sonnet bake-off on the Turretin gold gate](docs/decisions/269-ocr-sonnet-gold-bakeoff.md) (2026-10-19) — Gold page numbers held. Stay on Sonnet 4.6. Sonnet 5.5 matched every pointer and mislabeled one John column as Matthew.
-- [268 — OCR daily cap for the Turretin index](docs/decisions/268-ocr-daily-cap-turretin-index.md) (2026-10-19) — 50 calls stopped index mode around leaf 8. Cap is 300 for this capture.
-- [267 — Systematics index sources](docs/decisions/267-systematics-index-sources.md) (2026-10-19) — Turretin from Parker’s English PDF. Calvin from shelf photos. van Mastricht and Bavinck theories stored, not chosen.
 
 ---
 

@@ -67,6 +67,7 @@
 	import BookRatingScale from '$lib/components/book-rating-scale.svelte';
 	import PassageSectionForm from '$lib/components/passage-section-form.svelte';
 	import OutlineSectionForm from '$lib/components/outline-section-form.svelte';
+	import OutlineSectionList from '$lib/components/outline-section-list.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -1962,66 +1963,21 @@
 						time.
 					</p>
 				{:else}
-					<ul class="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60">
-						{#each outlineSections as row (row.id)}
-							{@const span = outlineSpanFor(row.locator)}
-							<li class="px-3 py-2">
-								{#if editingOutlineId === row.id}
-									<OutlineSectionForm
-										bookId={data.book.id}
-										existing={row}
-										formMessage={outlineFormMessage}
-										onSaved={onOutlineSaved}
-										onCancel={() => (editingOutlineId = null)}
-									/>
-								{:else}
-									<div class="flex flex-wrap items-start justify-between gap-2">
-										<div class="min-w-0">
-											<p class="text-sm font-medium text-foreground">
-												{#if row.locator}
-													<span class="tabular-nums text-muted-foreground"
-														>{row.locator}</span
-													>
-													{' '}
-												{/if}
-												{row.label}
-											</p>
-											<p class="text-xs text-muted-foreground">
-												{#if span}
-													pp. {span.pageStart}–{span.pageEnd} · {span.volumesLabel}
-												{:else}
-													pp. {row.page_start}{#if row.page_end !== row.page_start}–{row.page_end}{/if}
-												{/if}
-											</p>
-										</div>
-										<div class="flex shrink-0 gap-1">
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												onclick={() => {
-													editingOutlineId = row.id;
-													outlineAddOpen = false;
-													outlinePasteOpen = false;
-												}}
-											>
-												Edit
-											</Button>
-											<Button
-												type="button"
-												variant="outline"
-												size="sm"
-												class="text-destructive"
-												onclick={() => requestDeleteOutline(row.id)}
-											>
-												Delete
-											</Button>
-										</div>
-									</div>
-								{/if}
-							</li>
-						{/each}
-					</ul>
+					<OutlineSectionList
+						sections={outlineSections}
+						bookId={data.book.id}
+						editingId={editingOutlineId}
+						formMessage={outlineFormMessage}
+						spanFor={outlineSpanFor}
+						onEdit={(id) => {
+							editingOutlineId = id;
+							outlineAddOpen = false;
+							outlinePasteOpen = false;
+						}}
+						onDelete={requestDeleteOutline}
+						onSaved={onOutlineSaved}
+						onCancel={() => (editingOutlineId = null)}
+					/>
 				{/if}
 
 				{#if outlinePasteOpen}
