@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Add-books now asks about study sets. Girdlestone is already on OT language tools by the Hebrew Language Tools rule ([265](docs/decisions/265-library-add-books-ask-sets.md)). Page-index gold gate passed at 99.610% on three Turretin leaves ([263](docs/decisions/263-systematics-page-index-gold-gate.md)).
+**Last updated:** 2026-10-19 — Book detail Outline and Passage sections start collapsed ([266](docs/decisions/266-book-detail-outline-passage-collapsed.md)). Add-books asks about study sets ([265](docs/decisions/265-library-add-books-ask-sets.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [266 — Outline and passage sections start collapsed](docs/decisions/266-book-detail-outline-passage-collapsed.md) (2026-10-19) — Book detail headers keep the count. A `#section-` link still opens Passage sections.
 - [265 — Ask about study sets when adding books](docs/decisions/265-library-add-books-ask-sets.md) (2026-10-19) — Confirm a set before insert. Girdlestone is already on OT language tools by genre rule.
 - [264 — Girdlestone OT synonyms](docs/decisions/264-library-girdlestone-ot-synonyms.md) (2026-10-19) — Eerdmans 1981 reprint of 1897. Short title, middle initial, no series, matching Trench.
 - [263 — Systematics page-index gold gate](docs/decisions/263-systematics-page-index-gold-gate.md) (2026-10-19) — Three Turretin index leaves, 1,021/1,025 exact (99.610%). OCR about 3 minutes a leaf. Bulk Turretin not started.
 - [262 — Calvin index capture rules](docs/decisions/262-calvin-index-capture-rules.md) (2026-10-19) — Arabic locators (`1.13.7`) save on the volume that owns that chapter. Version tags stay on the note. `PA` / `VG` / `VL` are flagged.
-- [261 — Essay roman page labels](docs/decisions/261-essay-roman-page-labels.md) (2026-10-19) — Essay pages are text (`835` or `xiii`). Cook’s NETS essay is xiii–xx.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Page-index gold [263](docs/decisions/263-systematics-page-index-gold-gate.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **687/687** (2026-10-19).
+**Repo gate:** Book-detail collapse [266](docs/decisions/266-book-detail-outline-passage-collapsed.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **687/687** (2026-10-19).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

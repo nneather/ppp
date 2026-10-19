@@ -478,6 +478,20 @@
 	let outlineDeletePending = $state(false);
 	let outlineDeleteFormEl = $state<HTMLFormElement | null>(null);
 	let outlineDeleteIdField = $state<HTMLInputElement | null>(null);
+	/** Closed until the reader expands it, or starts add / paste / edit. */
+	let outlineOpen = $state(false);
+	let outlinePanelBookId: string | null = null;
+
+	$effect(() => {
+		const id = data.book.id;
+		if (outlinePanelBookId === id) return;
+		outlinePanelBookId = id;
+		outlineOpen = false;
+	});
+
+	$effect(() => {
+		if (outlineAddOpen || outlinePasteOpen || editingOutlineId != null) outlineOpen = true;
+	});
 
 	const showOutlinePanel = $derived(
 		data.book.genre === 'Systematic Theology' || outlineSections.length > 0
@@ -588,6 +602,20 @@
 	let sectionDeleteIdField = $state<HTMLInputElement | null>(null);
 	let highlightedSectionId = $state<string | null>(null);
 	let sectionHighlightTimer: number | null = null;
+	/** Closed until the reader expands it, adds/edits, or follows a #section- link. */
+	let passageOpen = $state(false);
+	let passagePanelBookId: string | null = null;
+
+	$effect(() => {
+		const id = data.book.id;
+		if (passagePanelBookId === id) return;
+		passagePanelBookId = id;
+		passageOpen = false;
+	});
+
+	$effect(() => {
+		if (sectionAddOpen || editingSectionId != null) passageOpen = true;
+	});
 
 	$effect(() => {
 		const p = data.passageSectionsPromise;
@@ -610,6 +638,8 @@
 		if (!browser) return;
 		const m = page.url.hash.match(SECTION_HASH_RE);
 		if (!m) return;
+		if (passageSectionsLoading) return;
+		passageOpen = true;
 		const id = m[1];
 		const tryScroll = () => {
 			const el = document.getElementById(`section-${id}`);
@@ -1865,24 +1895,36 @@
 	<!-- Outline (TOC — systematics-by-passage)                                -->
 	<!-- ------------------------------------------------------------------- -->
 	{#if showOutlinePanel}
-		<section class="mt-10 rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-			<div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-				<div>
-					<h2 class="text-lg font-semibold tracking-tight text-foreground">
-						Outline
-						{#if outlineSections.length > 0}
-							<span class="ml-1 text-sm font-normal text-muted-foreground"
-								>({outlineSections.length})</span
-							>
-						{/if}
-					</h2>
-					<p class="mt-0.5 text-xs text-muted-foreground">
-						Table of contents page ranges. Joined to scripture-index hits for
-						volume:page (section) on passage search.
-					</p>
-				</div>
+		<details
+			class="mt-10 rounded-lg border border-border bg-card text-card-foreground shadow-sm"
+			bind:open={outlineOpen}
+		>
+			<summary
+				class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden"
+			>
+				<span class="text-lg font-semibold tracking-tight text-foreground">
+					Outline
+					{#if outlineSections.length > 0}
+						<span class="ml-1 text-sm font-normal text-muted-foreground"
+							>({outlineSections.length})</span
+						>
+					{/if}
+				</span>
+				<ChevronDown
+					class={cn(
+						'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+						outlineOpen && 'rotate-180'
+					)}
+					aria-hidden="true"
+				/>
+			</summary>
+			<div class="border-t border-border px-4 pb-4 pt-3">
+				<p class="text-xs text-muted-foreground">
+					Table of contents page ranges. Joined to scripture-index hits for volume:page
+					(section) on passage search.
+				</p>
 				{#if !outlineAddOpen && !outlinePasteOpen && editingOutlineId == null}
-					<div class="flex flex-wrap gap-2">
+					<div class="mt-3 flex flex-wrap gap-2">
 						<Button
 							type="button"
 							variant="outline"
@@ -1909,8 +1951,7 @@
 						</Button>
 					</div>
 				{/if}
-			</div>
-			<div class="border-t border-border px-4 pb-4 pt-3">
+				<div class="mt-3">
 				{#if outlineSectionsLoading}
 					<p class="text-sm text-muted-foreground">Loading outline…</p>
 				{:else if outlineSections.length === 0 && !outlineAddOpen && !outlinePasteOpen}
@@ -2003,44 +2044,58 @@
 						/>
 					</div>
 				{/if}
+				</div>
 			</div>
-		</section>
+		</details>
 	{/if}
 
 	<!-- ------------------------------------------------------------------- -->
 	<!-- Passage sections (curated — above the scripture index)                -->
 	<!-- ------------------------------------------------------------------- -->
-	<section class="mt-10 rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-		<div class="flex items-center justify-between gap-2 px-4 py-3">
-			<div>
-				<h2 class="text-lg font-semibold tracking-tight text-foreground">
-					Passage sections
-					{#if passageSections.length > 0}
-						<span class="ml-1 text-sm font-normal text-muted-foreground"
-							>({passageSections.length})</span
-						>
-					{/if}
-				</h2>
-				<p class="mt-0.5 text-xs text-muted-foreground">
-					Hand-curated ranges with pages (e.g. Sermon on the Mount). Surfaces on passage
-					search above the scripture index.
-				</p>
-			</div>
-			{#if !sectionAddOpen && editingSectionId == null}
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					onclick={() => {
-						sectionAddOpen = true;
-						editingSectionId = null;
-					}}
-				>
-					<Plus class="size-4" /> Add section
-				</Button>
-			{/if}
-		</div>
+	<details
+		class="mt-10 rounded-lg border border-border bg-card text-card-foreground shadow-sm"
+		bind:open={passageOpen}
+	>
+		<summary
+			class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden"
+		>
+			<span class="text-lg font-semibold tracking-tight text-foreground">
+				Passage sections
+				{#if passageSections.length > 0}
+					<span class="ml-1 text-sm font-normal text-muted-foreground"
+						>({passageSections.length})</span
+					>
+				{/if}
+			</span>
+			<ChevronDown
+				class={cn(
+					'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+					passageOpen && 'rotate-180'
+				)}
+				aria-hidden="true"
+			/>
+		</summary>
 		<div class="border-t border-border px-4 pb-4 pt-3">
+			<p class="text-xs text-muted-foreground">
+				Hand-curated ranges with pages (e.g. Sermon on the Mount). Surfaces on passage
+				search above the scripture index.
+			</p>
+			{#if !sectionAddOpen && editingSectionId == null}
+				<div class="mt-3 flex justify-end">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onclick={() => {
+							sectionAddOpen = true;
+							editingSectionId = null;
+						}}
+					>
+						<Plus class="size-4" /> Add section
+					</Button>
+				</div>
+			{/if}
+			<div class="mt-3">
 			{#if passageSectionsLoading}
 				<p class="text-sm text-muted-foreground">Loading passage sections…</p>
 			{:else if passageSections.length === 0 && !sectionAddOpen}
@@ -2130,8 +2185,9 @@
 					/>
 				</div>
 			{/if}
+			</div>
 		</div>
-	</section>
+	</details>
 
 	<!-- ------------------------------------------------------------------- -->
 	<!-- Scripture references                                                  -->
