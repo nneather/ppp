@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Turretin scripture index **text-layer parser** on Parker’s PDF ([270](docs/decisions/270-turretin-text-layer-parser.md)); gold leaves 99.805% before review clear.
+**Last updated:** 2026-10-19 — Index OCR pass 2 is a Sonnet 5.5 pointer check; Sonnet 4.6 still writes the row ([271](docs/decisions/271-ocr-index-checker-pass.md)). Text-layer parser: [270](docs/decisions/270-turretin-text-layer-parser.md).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [271 — Index OCR checker pass](docs/decisions/271-ocr-index-checker-pass.md) (2026-10-19) — Pass 2 is Sonnet 5.5 on page pointers. Disagreements stay one row. A short page among longer siblings is flagged.
 - [270 — Turretin text-layer index parser](docs/decisions/270-turretin-text-layer-parser.md) (2026-10-19) — `parse-turretin-text.ts` on FineReader PDF; gold leaves 1023/1025; review for apocrypha + damaged tokens; no DB insert yet.
 - [269 — Sonnet bake-off on the Turretin gold gate](docs/decisions/269-ocr-sonnet-gold-bakeoff.md) (2026-10-19) — Gold page numbers held. Stay on Sonnet 4.6. Sonnet 5.5 matched every pointer and mislabeled one John column as Matthew.
 - [268 — OCR daily cap for the Turretin index](docs/decisions/268-ocr-daily-cap-turretin-index.md) (2026-10-19) — 50 calls stopped index mode around leaf 8. Cap is 300 for this capture.
 - [267 — Systematics index sources](docs/decisions/267-systematics-index-sources.md) (2026-10-19) — Turretin from Parker’s English PDF. Calvin from shelf photos. van Mastricht and Bavinck theories stored, not chosen.
-- [266 — Outline and passage sections start collapsed](docs/decisions/266-book-detail-outline-passage-collapsed.md) (2026-10-19) — Book detail headers keep the count. A `#section-` link still opens Passage sections.
 
 ---
 
