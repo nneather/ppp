@@ -5,6 +5,7 @@
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import Search from '@lucide/svelte/icons/search';
 	import PageHeader from '$lib/components/page-header.svelte';
+	import SystematicsOnPassage from '$lib/components/systematics-on-passage.svelte';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import type { PassageResult } from '$lib/types/library';
@@ -137,7 +138,8 @@
 {#snippet searchPassageMeta()}
 	<p class="text-sm text-muted-foreground">
 		Find every book in your library that engages a passage. Commentaries and curated
-		sections lead; the scripture index stays below for the eventual backload.
+		sections lead; systematic theologies show volume:page with TOC labels; the
+		scripture index stays below for the eventual backload.
 	</p>
 {/snippet}
 
@@ -259,106 +261,116 @@
 				<div class="mt-5">
 					<h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 						{band.label}
-						<span class="ml-1 font-normal tabular-nums">({band.rows.length})</span>
+						<span class="ml-1 font-normal tabular-nums">
+							({band.band === 'systematic'
+								? data.systematicsBlocks.reduce((n, b) => n + b.pointers.length, 0)
+								: band.rows.length})
+						</span>
 					</h3>
-					<ul class="mt-2 flex flex-col gap-3 sm:gap-2">
-						{#each band.rows as r (r.ref_id)}
-							<li>
-								<a
-									href={hrefFor(r)}
-									class="block min-h-[4.5rem] rounded-lg border border-border bg-card px-4 py-4 text-card-foreground transition-colors active:bg-muted/30 hover:border-ring/60 hover:bg-muted/20 sm:min-h-0 sm:p-3"
-								>
-									<div class="flex flex-wrap items-start justify-between gap-3">
-										<div class="min-w-0 flex-1">
-											<p
-												class="break-words text-base font-medium leading-snug text-foreground sm:truncate sm:text-sm sm:leading-normal"
-											>
-												{#if r.book_title}
-													{r.book_title}
-												{:else if r.essay_id}
-													<span class="italic text-muted-foreground">(essay)</span>
-												{:else}
-													<span class="italic text-muted-foreground">(untitled)</span>
-												{/if}
-											</p>
-											{#if r.book_subtitle}
+					{#if band.band === 'systematic'}
+						<div class="mt-2">
+							<SystematicsOnPassage blocks={data.systematicsBlocks} />
+						</div>
+					{:else}
+						<ul class="mt-2 flex flex-col gap-3 sm:gap-2">
+							{#each band.rows as r (r.ref_id)}
+								<li>
+									<a
+										href={hrefFor(r)}
+										class="block min-h-[4.5rem] rounded-lg border border-border bg-card px-4 py-4 text-card-foreground transition-colors active:bg-muted/30 hover:border-ring/60 hover:bg-muted/20 sm:min-h-0 sm:p-3"
+									>
+										<div class="flex flex-wrap items-start justify-between gap-3">
+											<div class="min-w-0 flex-1">
 												<p
-													class="mt-0.5 break-words text-sm leading-snug text-muted-foreground sm:truncate sm:text-xs sm:leading-normal"
+													class="break-words text-base font-medium leading-snug text-foreground sm:truncate sm:text-sm sm:leading-normal"
 												>
-													{r.book_subtitle}
-												</p>
-											{/if}
-											{#if r.section_label}
-												<p class="mt-1 text-sm text-muted-foreground sm:text-xs">
-													{r.section_label}
-												</p>
-											{/if}
-											{#if r.source_kind === 'section' || r.source_kind === 'index'}
-												<p class="mt-2 text-sm text-muted-foreground sm:mt-1 sm:text-xs">
-													<span class="font-medium text-foreground">{fmtRef(r)}</span>
-													{#if fmtPages(r)}
-														<span class="ml-1.5">{fmtPages(r)}</span>
+													{#if r.book_title}
+														{r.book_title}
+													{:else if r.essay_id}
+														<span class="italic text-muted-foreground">(essay)</span>
+													{:else}
+														<span class="italic text-muted-foreground">(untitled)</span>
 													{/if}
 												</p>
-											{:else if r.source_kind === 'commentary' || r.source_kind === 'coverage'}
-												<p class="mt-2 text-sm text-muted-foreground sm:mt-1 sm:text-xs">
-													{r.bible_book}
-												</p>
-											{/if}
-											{#if r.review_note}
-												<p class="mt-1.5 text-sm italic text-muted-foreground sm:text-xs">
-													{r.review_note}
-												</p>
-											{/if}
+												{#if r.book_subtitle}
+													<p
+														class="mt-0.5 break-words text-sm leading-snug text-muted-foreground sm:truncate sm:text-xs sm:leading-normal"
+													>
+														{r.book_subtitle}
+													</p>
+												{/if}
+												{#if r.section_label}
+													<p class="mt-1 text-sm text-muted-foreground sm:text-xs">
+														{r.section_label}
+													</p>
+												{/if}
+												{#if r.source_kind === 'section' || r.source_kind === 'index'}
+													<p class="mt-2 text-sm text-muted-foreground sm:mt-1 sm:text-xs">
+														<span class="font-medium text-foreground">{fmtRef(r)}</span>
+														{#if fmtPages(r)}
+															<span class="ml-1.5">{fmtPages(r)}</span>
+														{/if}
+													</p>
+												{:else if r.source_kind === 'commentary' || r.source_kind === 'coverage'}
+													<p class="mt-2 text-sm text-muted-foreground sm:mt-1 sm:text-xs">
+														{r.bible_book}
+													</p>
+												{/if}
+												{#if r.review_note}
+													<p class="mt-1.5 text-sm italic text-muted-foreground sm:text-xs">
+														{r.review_note}
+													</p>
+												{/if}
+											</div>
+											<div class="flex w-full shrink-0 flex-wrap gap-1.5 sm:w-auto sm:gap-1">
+												{#if r.source_kind === 'commentary'}
+													<span
+														class="inline-flex min-h-8 items-center rounded-full border border-violet-500/40 bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-violet-800 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-violet-200"
+													>
+														Commentary
+													</span>
+												{:else if r.source_kind === 'section'}
+													<span
+														class="inline-flex min-h-8 items-center rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-indigo-800 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-indigo-200"
+														title="Curated section with page range for this passage."
+													>
+														Section
+													</span>
+												{:else if r.source_kind === 'coverage'}
+													<span
+														class="inline-flex min-h-8 items-center rounded-full border border-sky-500/40 bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-sky-700 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-sky-200"
+														title="Book tagged as covering this bible book; no specific page entry yet."
+													>
+														Coverage
+													</span>
+												{:else if r.manual_entry}
+													<span
+														class="inline-flex min-h-8 items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-emerald-700 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-emerald-200"
+													>
+														Manual
+													</span>
+												{:else if r.confidence_score != null}
+													<span
+														class="inline-flex min-h-8 items-center rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px]"
+														title="OCR confidence"
+													>
+														{Math.round(r.confidence_score * 100)}%
+													</span>
+												{/if}
+												{#if r.needs_review}
+													<span
+														class="inline-flex min-h-8 items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-amber-800 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-amber-200"
+													>
+														<AlertCircle class="size-3.5 shrink-0 sm:size-3" /> Review
+													</span>
+												{/if}
+											</div>
 										</div>
-										<div class="flex w-full shrink-0 flex-wrap gap-1.5 sm:w-auto sm:gap-1">
-											{#if r.source_kind === 'commentary'}
-												<span
-													class="inline-flex min-h-8 items-center rounded-full border border-violet-500/40 bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-violet-800 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-violet-200"
-												>
-													Commentary
-												</span>
-											{:else if r.source_kind === 'section'}
-												<span
-													class="inline-flex min-h-8 items-center rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-indigo-800 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-indigo-200"
-													title="Curated section with page range for this passage."
-												>
-													Section
-												</span>
-											{:else if r.source_kind === 'coverage'}
-												<span
-													class="inline-flex min-h-8 items-center rounded-full border border-sky-500/40 bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-sky-700 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-sky-200"
-													title="Book tagged as covering this bible book; no specific page entry yet."
-												>
-													Coverage
-												</span>
-											{:else if r.manual_entry}
-												<span
-													class="inline-flex min-h-8 items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-emerald-700 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-emerald-200"
-												>
-													Manual
-												</span>
-											{:else if r.confidence_score != null}
-												<span
-													class="inline-flex min-h-8 items-center rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px]"
-													title="OCR confidence"
-												>
-													{Math.round(r.confidence_score * 100)}%
-												</span>
-											{/if}
-											{#if r.needs_review}
-												<span
-													class="inline-flex min-h-8 items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-amber-800 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] dark:text-amber-200"
-												>
-													<AlertCircle class="size-3.5 shrink-0 sm:size-3" /> Review
-												</span>
-											{/if}
-										</div>
-									</div>
-								</a>
-							</li>
-						{/each}
-					</ul>
+									</a>
+								</li>
+							{/each}
+						</ul>
+					{/if}
 				</div>
 			{/each}
 		{/if}

@@ -31,6 +31,7 @@ The server loads `.env` then `.env.local` from the repo root. Prefer **not** put
 | `list_upcoming_sermons` | `preached_on >= today` |
 | `list_project_health` | Non-done/archived + latest health; `deferred_until` / `is_deferred`; optional `root` + `changed_only` |
 | `list_commentaries_for_bible_book` | `/sermons/by-book` commentaries |
+| `list_systematics_for_passage` | Systematic theology index hits + TOC labels for a passage |
 | `list_sermons_for_bible_book` | Sermons touching a Bible book |
 | `list_studies` | Papers in progress + upcoming sermons. `include_published` / `include_archived` widen papers. |
 | `get_study_sources` | Sources on a paper or sermon (id, title, or passage), with flat and sectioned bibliography text |

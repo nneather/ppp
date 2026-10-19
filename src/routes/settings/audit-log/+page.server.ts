@@ -63,6 +63,7 @@ export const _LIBRARY_TABLES = [
 	'essay_authors',
 	'scripture_references',
 	'book_passage_sections',
+	'book_outline_sections',
 	'book_topics',
 	'user_permissions'
 ] as const;
@@ -96,6 +97,7 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'essays',
 	'scripture_references',
 	'book_passage_sections',
+	'book_outline_sections',
 	'book_topics',
 	// projects
 	'projects',
@@ -378,6 +380,21 @@ function entityLabelFor(
 				}
 			}
 			return label ? `${label} · ${ref}` : ref;
+		}
+		case 'book_outline_sections': {
+			const label = get('label');
+			const locator = get('locator');
+			const ps = data.page_start;
+			const pe = data.page_end;
+			if (!label) return null;
+			const pages =
+				ps != null
+					? pe != null && pe !== ps
+						? `pp. ${ps}–${pe}`
+						: `p. ${ps}`
+					: null;
+			const head = locator ? `${locator} ${label}` : label;
+			return pages ? `${head} · ${pages}` : head;
 		}
 		case 'book_topics': {
 			const topic = get('topic');

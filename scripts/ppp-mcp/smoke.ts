@@ -17,6 +17,7 @@ import {
 	listNowTasks,
 	listProjectHealth,
 	listSermonsForBibleBook,
+	listSystematicsForPassage,
 	listStudies,
 	listUpcomingSermonsTool,
 	listWeekTasks,
@@ -74,6 +75,12 @@ async function runTool(name: ToolName): Promise<unknown> {
 		}
 		case 'list_commentaries_for_bible_book':
 			return listCommentariesForBibleBook(supabase, { bible_book: 'Matthew' });
+		case 'list_systematics_for_passage':
+			return listSystematicsForPassage(supabase, {
+				bible_book: '1 Thessalonians',
+				chapter: 1,
+				verse: 5
+			});
 		case 'list_sermons_for_bible_book':
 			return listSermonsForBibleBook(supabase, { bible_book: 'Mark' });
 		case 'list_studies':

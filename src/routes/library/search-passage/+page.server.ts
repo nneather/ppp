@@ -1,8 +1,20 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { PassageResult } from '$lib/types/library';
-import { assignPassageBands } from '$lib/library/passage-search-bands';
+import {
+	assignPassageBands,
+	SYSTEMATIC_THEOLOGY_GENRE
+} from '$lib/library/passage-search-bands';
 import { loadPassageSectionsOverlapping } from '$lib/library/server/loaders';
+import {
+	loadOutlinesForBooks
+} from '$lib/library/server/systematics-loaders';
+import {
+	groupSystematicHits,
+	pageNumberFromText,
+	resolveOutlineLabel,
+	type SystematicSetBlock
+} from '$lib/library/outline';
 
 function parseIntOrNull(v: string | null): number | null {
 	if (v == null || v.trim() === '') return null;
@@ -27,6 +39,10 @@ type RefRpcRow = {
 	essay_id: string | null;
 	book_title: string | null;
 	book_subtitle: string | null;
+	book_genre: string | null;
+	book_volume_number: string | null;
+	series_id: string | null;
+	series_name: string | null;
 	bible_book: string;
 	chapter_start: number | null;
 	verse_start: number | null;
@@ -63,12 +79,40 @@ type CoverageRow = {
 };
 
 function asResult(
-	partial: Omit<PassageResult, 'section_label' | 'manual_entry'> &
-		Partial<Pick<PassageResult, 'section_label' | 'manual_entry'>>
+	partial: Omit<
+		PassageResult,
+		| 'section_label'
+		| 'manual_entry'
+		| 'outline_locator'
+		| 'outline_label'
+		| 'book_genre'
+		| 'book_volume_number'
+		| 'series_id'
+		| 'series_name'
+	> &
+		Partial<
+			Pick<
+				PassageResult,
+				| 'section_label'
+				| 'manual_entry'
+				| 'outline_locator'
+				| 'outline_label'
+				| 'book_genre'
+				| 'book_volume_number'
+				| 'series_id'
+				| 'series_name'
+			>
+		>
 ): PassageResult {
 	return {
 		...partial,
 		section_label: partial.section_label ?? null,
+		outline_locator: partial.outline_locator ?? null,
+		outline_label: partial.outline_label ?? null,
+		book_genre: partial.book_genre ?? null,
+		book_volume_number: partial.book_volume_number ?? null,
+		series_id: partial.series_id ?? null,
+		series_name: partial.series_name ?? null,
 		manual_entry: partial.manual_entry ?? true
 	};
 }
@@ -90,12 +134,12 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const returnTo = parseReturnTo(url.searchParams.get('returnTo'));
 
 	let results: PassageResult[] = [];
+	let systematicsBlocks: SystematicSetBlock[] = [];
 	let queryError: string | null = null;
 
 	if (bible_book) {
 		// Parallel: scripture index RPC + bible coverage + passage sections.
-		// App-layer merge ([249]); documented third round trip (same class as
-		// prior coverage merge).
+		// Outlines fetched after we know which systematic books hit (≤4 RTs).
 		const [refsRes, covRes, sections] = await Promise.all([
 			supabase.rpc('search_scripture_refs', {
 				p_bible_book: bible_book,
@@ -129,7 +173,96 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			if (!queryError) queryError = covRes.error.message;
 		}
 
-		const indexRows: PassageResult[] = ((refsRes.data ?? []) as RefRpcRow[]).map((r) =>
+		const rpcRows = (refsRes.data ?? []) as RefRpcRow[];
+		const systematicRpc = rpcRows.filter(
+			(r) => r.book_id && r.book_genre === SYSTEMATIC_THEOLOGY_GENRE
+		);
+		const indexRpc = rpcRows.filter(
+			(r) => !(r.book_id && r.book_genre === SYSTEMATIC_THEOLOGY_GENRE)
+		);
+
+		const systematicBookIds = [
+			...new Set(systematicRpc.map((r) => r.book_id!).filter(Boolean))
+		];
+		const outlinesByBook = await loadOutlinesForBooks(supabase, systematicBookIds);
+
+		const authorRes =
+			systematicBookIds.length > 0
+				? await supabase
+						.from('books')
+						.select('id, author_display')
+						.in('id', systematicBookIds)
+						.is('deleted_at', null)
+				: { data: [] as { id: string; author_display: string | null }[], error: null };
+		if (authorRes.error) {
+			console.error('[search-passage] systematic authors', authorRes.error);
+		}
+		const authorByBook = new Map<string, string | null>();
+		for (const b of (authorRes.data ?? []) as {
+			id: string;
+			author_display: string | null;
+		}[]) {
+			authorByBook.set(b.id, b.author_display);
+		}
+
+		const systematicRows: PassageResult[] = systematicRpc.map((r) => {
+			const page = pageNumberFromText(r.page_start);
+			const outlines = r.book_id ? (outlinesByBook.get(r.book_id) ?? []) : [];
+			const outline = page != null ? resolveOutlineLabel(outlines, page) : null;
+			return asResult({
+				source_kind: 'systematic' as const,
+				ref_id: r.ref_id,
+				book_id: r.book_id,
+				essay_id: r.essay_id,
+				book_title: r.book_title,
+				book_subtitle: r.book_subtitle,
+				outline_locator: outline?.locator ?? null,
+				outline_label: outline?.label ?? null,
+				book_genre: r.book_genre,
+				book_volume_number: r.book_volume_number,
+				series_id: r.series_id,
+				series_name: r.series_name,
+				bible_book: r.bible_book,
+				chapter_start: r.chapter_start,
+				verse_start: r.verse_start,
+				chapter_end: r.chapter_end,
+				verse_end: r.verse_end,
+				page_start: r.page_start,
+				page_end: r.page_end,
+				confidence_score: r.confidence_score,
+				needs_review: r.needs_review,
+				review_note: r.review_note,
+				manual_entry: r.manual_entry
+			});
+		});
+
+		systematicsBlocks = groupSystematicHits(
+			systematicRows
+				.filter((r) => r.book_id)
+				.map((r) => ({
+					refId: r.ref_id,
+					bookId: r.book_id!,
+					bookTitle: r.book_title,
+					volumeNumber: r.book_volume_number,
+					seriesId: r.series_id,
+					seriesName: r.series_name,
+					authorLabel: authorByBook.get(r.book_id!) ?? null,
+					pageStart: r.page_start,
+					pageEnd: r.page_end,
+					outline:
+						r.outline_label || r.outline_locator
+							? {
+									id: '',
+									locator: r.outline_locator,
+									label: r.outline_label ?? '',
+									page_start: 0,
+									page_end: 0
+								}
+							: null
+				}))
+		);
+
+		const indexRows: PassageResult[] = indexRpc.map((r) =>
 			asResult({
 				source_kind: 'index' as const,
 				ref_id: r.ref_id,
@@ -137,6 +270,10 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				essay_id: r.essay_id,
 				book_title: r.book_title,
 				book_subtitle: r.book_subtitle,
+				book_genre: r.book_genre,
+				book_volume_number: r.book_volume_number,
+				series_id: r.series_id,
+				series_name: r.series_name,
 				bible_book: r.bible_book,
 				chapter_start: r.chapter_start,
 				verse_start: r.verse_start,
@@ -251,12 +388,19 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			)
 			.sort((a, b) => (a.book_title ?? '').localeCompare(b.book_title ?? ''));
 
-		results = [...commentaryRows, ...sectionRows, ...coverageRows, ...indexRows];
+		results = [
+			...commentaryRows,
+			...sectionRows,
+			...systematicRows,
+			...coverageRows,
+			...indexRows
+		];
 	}
 
 	return {
 		bibleBookNames,
 		results,
+		systematicsBlocks,
 		query: { bible_book, chapter, verse, chapter_end, verse_end },
 		returnTo,
 		queryError

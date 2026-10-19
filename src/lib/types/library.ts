@@ -423,15 +423,16 @@ export type ReviewCard = BookListRow & {
  *
  *   - `commentary`: `book_bible_coverage` where genre is Commentary
  *   - `section`: curated `book_passage_sections` overlapping the query
+ *   - `systematic`: Systematic Theology index hits (+ outline label)
  *   - `coverage`: other whole-book bible coverage
- *   - `index`: `search_scripture_refs` scripture-index hits
+ *   - `index`: `search_scripture_refs` scripture-index hits (non-systematic)
  *
- * `manual_entry` is computed in the SQL for 'index' rows (true when
+ * `manual_entry` is computed in the SQL for 'index'/'systematic' rows (true when
  * `confidence_score IS NULL`). Coverage / commentary / section rows are
  * always `manual_entry: true`.
  */
 export type PassageResult = {
-	source_kind: 'commentary' | 'section' | 'coverage' | 'index';
+	source_kind: 'commentary' | 'section' | 'systematic' | 'coverage' | 'index';
 	ref_id: string;
 	book_id: string | null;
 	essay_id: string | null;
@@ -439,6 +440,14 @@ export type PassageResult = {
 	book_subtitle: string | null;
 	/** Optional label on a passage section (e.g. "Sermon on the Mount"). */
 	section_label: string | null;
+	/** Outline locator (e.g. XV.17) when source_kind is systematic. */
+	outline_locator: string | null;
+	/** Outline label (e.g. Full Assurance) when source_kind is systematic. */
+	outline_label: string | null;
+	book_genre: string | null;
+	book_volume_number: string | null;
+	series_id: string | null;
+	series_name: string | null;
 	bible_book: string;
 	chapter_start: number | null;
 	verse_start: number | null;
@@ -450,6 +459,18 @@ export type PassageResult = {
 	needs_review: boolean;
 	review_note: string | null;
 	manual_entry: boolean;
+};
+
+/** Curated TOC outline node on a book (systematics-by-passage). */
+export type OutlineSectionRow = {
+	id: string;
+	book_id: string;
+	parent_id: string | null;
+	sort_order: number;
+	locator: string | null;
+	label: string;
+	page_start: number;
+	page_end: number;
 };
 
 /** Curated passage section on a book (book detail + search-passage). */

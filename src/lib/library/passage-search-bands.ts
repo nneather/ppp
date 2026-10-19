@@ -1,16 +1,22 @@
 /**
  * Pure helpers for `/library/search-passage` band placement.
  *
- * Bands (high → low): commentary coverage → passage sections → other
- * coverage → scripture index. Search abs bounds mirror
- * `search_scripture_refs` (20260722184251).
+ * Bands (high → low): commentary → sections → systematic theologies →
+ * other coverage → scripture index. Search abs bounds mirror
+ * `search_scripture_refs` (20260722184251 / v3).
  */
 
-export type PassageBand = 'commentary' | 'section' | 'coverage' | 'index';
+export type PassageBand =
+	| 'commentary'
+	| 'section'
+	| 'systematic'
+	| 'coverage'
+	| 'index';
 
 export const PASSAGE_BAND_ORDER: PassageBand[] = [
 	'commentary',
 	'section',
+	'systematic',
 	'coverage',
 	'index'
 ];
@@ -18,9 +24,13 @@ export const PASSAGE_BAND_ORDER: PassageBand[] = [
 export const PASSAGE_BAND_LABELS: Record<PassageBand, string> = {
 	commentary: 'Commentaries',
 	section: 'On this passage',
+	systematic: 'Systematic theologies',
 	coverage: 'Also covers this book',
 	index: 'Scripture index'
 };
+
+/** Genre that moves index hits into the systematic band. */
+export const SYSTEMATIC_THEOLOGY_GENRE = 'Systematic Theology';
 
 /** Inclusive abs bounds for a passage query (matches the SQL RPC). */
 export function searchPassageAbsBounds(input: {

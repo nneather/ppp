@@ -48,6 +48,7 @@
 		BookSiblingRow,
 		BookTopicRow,
 		EssayRow,
+		OutlineSectionRow,
 		PassageSectionRow,
 		PersonRow,
 		ReadingStatus,
@@ -63,6 +64,7 @@
 	import BookEssaysEditor from '$lib/components/book-essays-editor.svelte';
 	import BookRatingScale from '$lib/components/book-rating-scale.svelte';
 	import PassageSectionForm from '$lib/components/passage-section-form.svelte';
+	import OutlineSectionForm from '$lib/components/outline-section-form.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -457,6 +459,93 @@
 		} catch {
 			flashCopyToast('Clipboard unavailable.');
 		}
+	}
+
+	// -------------------------------------------------------------------------
+	// Outline sections (TOC — systematics-by-passage)
+	// -------------------------------------------------------------------------
+	let outlineSections = $state<OutlineSectionRow[]>([]);
+	let outlineSectionsLoading = $state(true);
+	let outlineAddOpen = $state(false);
+	let outlinePasteOpen = $state(false);
+	let editingOutlineId = $state<string | null>(null);
+	let outlinePendingDeleteId = $state<string | null>(null);
+	let outlineConfirmDeleteOpen = $state(false);
+	let outlineDeletePending = $state(false);
+	let outlineDeleteFormEl = $state<HTMLFormElement | null>(null);
+	let outlineDeleteIdField = $state<HTMLInputElement | null>(null);
+
+	const showOutlinePanel = $derived(
+		data.book.genre === 'Systematic Theology' || outlineSections.length > 0
+	);
+
+	$effect(() => {
+		const p = data.outlineSectionsPromise;
+		outlineSectionsLoading = true;
+		void p
+			.then((rows) => {
+				outlineSections = rows.map((r) => ({
+					id: r.id,
+					book_id: r.book_id,
+					parent_id: r.parent_id,
+					sort_order: r.sort_order,
+					locator: r.locator,
+					label: r.label,
+					page_start: r.page_start,
+					page_end: r.page_end
+				}));
+			})
+			.catch(() => {
+				outlineSections = [];
+			})
+			.finally(() => {
+				outlineSectionsLoading = false;
+			});
+	});
+
+	const outlineFormMessage = $derived.by(() => {
+		const f = form as { kind?: string; message?: string; sectionId?: string } | null;
+		if (!f) return null;
+		if (
+			f.kind === 'createOutlineSection' ||
+			f.kind === 'updateOutlineSection' ||
+			f.kind === 'softDeleteOutlineSection' ||
+			f.kind === 'pasteOutlineSections'
+		) {
+			return f;
+		}
+		return null;
+	});
+
+	async function onOutlineSaved() {
+		outlineAddOpen = false;
+		outlinePasteOpen = false;
+		editingOutlineId = null;
+		await invalidateBook();
+	}
+
+	function requestDeleteOutline(id: string) {
+		outlinePendingDeleteId = id;
+		outlineConfirmDeleteOpen = true;
+	}
+
+	const deleteOutlineEnhance: SubmitFunction = () => {
+		outlineDeletePending = true;
+		return async ({ result, update }) => {
+			outlineDeletePending = false;
+			await update({ reset: false });
+			if (result.type === 'success') {
+				outlineConfirmDeleteOpen = false;
+				outlinePendingDeleteId = null;
+				await invalidateBook();
+			}
+		};
+	};
+
+	function confirmDeleteOutline() {
+		if (!outlinePendingDeleteId || !outlineDeleteFormEl || !outlineDeleteIdField) return;
+		outlineDeleteIdField.value = outlinePendingDeleteId;
+		outlineDeleteFormEl.requestSubmit();
 	}
 
 	// -------------------------------------------------------------------------
@@ -1747,6 +1836,147 @@
 	{/if}
 
 	<!-- ------------------------------------------------------------------- -->
+	<!-- Outline (TOC — systematics-by-passage)                                -->
+	<!-- ------------------------------------------------------------------- -->
+	{#if showOutlinePanel}
+		<section class="mt-10 rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+			<div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+				<div>
+					<h2 class="text-lg font-semibold tracking-tight text-foreground">
+						Outline
+						{#if outlineSections.length > 0}
+							<span class="ml-1 text-sm font-normal text-muted-foreground"
+								>({outlineSections.length})</span
+							>
+						{/if}
+					</h2>
+					<p class="mt-0.5 text-xs text-muted-foreground">
+						Table of contents page ranges. Joined to scripture-index hits for
+						volume:page (section) on passage search.
+					</p>
+				</div>
+				{#if !outlineAddOpen && !outlinePasteOpen && editingOutlineId == null}
+					<div class="flex flex-wrap gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onclick={() => {
+								outlinePasteOpen = true;
+								outlineAddOpen = false;
+								editingOutlineId = null;
+							}}
+						>
+							Paste TSV
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onclick={() => {
+								outlineAddOpen = true;
+								outlinePasteOpen = false;
+								editingOutlineId = null;
+							}}
+						>
+							<Plus class="size-4" /> Add section
+						</Button>
+					</div>
+				{/if}
+			</div>
+			<div class="border-t border-border px-4 pb-4 pt-3">
+				{#if outlineSectionsLoading}
+					<p class="text-sm text-muted-foreground">Loading outline…</p>
+				{:else if outlineSections.length === 0 && !outlineAddOpen && !outlinePasteOpen}
+					<p
+						class="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground"
+					>
+						No outline yet. Paste a TOC (locator, label, pages) or add sections one at a
+						time.
+					</p>
+				{:else}
+					<ul class="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60">
+						{#each outlineSections as row (row.id)}
+							<li class="px-3 py-2">
+								{#if editingOutlineId === row.id}
+									<OutlineSectionForm
+										bookId={data.book.id}
+										existing={row}
+										formMessage={outlineFormMessage}
+										onSaved={onOutlineSaved}
+										onCancel={() => (editingOutlineId = null)}
+									/>
+								{:else}
+									<div class="flex flex-wrap items-start justify-between gap-2">
+										<div class="min-w-0">
+											<p class="text-sm font-medium text-foreground">
+												{#if row.locator}
+													<span class="tabular-nums text-muted-foreground"
+														>{row.locator}</span
+													>
+													{' '}
+												{/if}
+												{row.label}
+											</p>
+											<p class="text-xs text-muted-foreground">
+												pp. {row.page_start}{#if row.page_end !== row.page_start}–{row.page_end}{/if}
+											</p>
+										</div>
+										<div class="flex shrink-0 gap-1">
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												onclick={() => {
+													editingOutlineId = row.id;
+													outlineAddOpen = false;
+													outlinePasteOpen = false;
+												}}
+											>
+												Edit
+											</Button>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												class="text-destructive"
+												onclick={() => requestDeleteOutline(row.id)}
+											>
+												Delete
+											</Button>
+										</div>
+									</div>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+
+				{#if outlinePasteOpen}
+					<div class="mt-3">
+						<OutlineSectionForm
+							bookId={data.book.id}
+							mode="paste"
+							formMessage={outlineFormMessage}
+							onSaved={onOutlineSaved}
+							onCancel={() => (outlinePasteOpen = false)}
+						/>
+					</div>
+				{:else if outlineAddOpen}
+					<div class="mt-3">
+						<OutlineSectionForm
+							bookId={data.book.id}
+							formMessage={outlineFormMessage}
+							onSaved={onOutlineSaved}
+							onCancel={() => (outlineAddOpen = false)}
+						/>
+					</div>
+				{/if}
+			</div>
+		</section>
+	{/if}
+
+	<!-- ------------------------------------------------------------------- -->
 	<!-- Passage sections (curated — above the scripture index)                -->
 	<!-- ------------------------------------------------------------------- -->
 	<section class="mt-10 rounded-lg border border-border bg-card text-card-foreground shadow-sm">
@@ -2081,6 +2311,26 @@
 							lockedBookId={data.book.id}
 							userId={data.userId}
 							{formMessage}
+							setVolumes={data.book.genre === 'Systematic Theology' && data.book.series_id
+								? [
+										{
+											bookId: data.book.id,
+											volumeNumber: data.book.volume_number,
+											pageMin: outlineSections.length
+												? Math.min(...outlineSections.map((o) => o.page_start))
+												: null,
+											pageMax: outlineSections.length
+												? Math.max(...outlineSections.map((o) => o.page_end))
+												: null
+										},
+										...seriesSiblings.map((sib) => ({
+											bookId: sib.id,
+											volumeNumber: sib.volume_number,
+											pageMin: null as number | null,
+											pageMax: null as number | null
+										}))
+									]
+								: []}
 							onSavedBatch={onCreatedBatch}
 							onBatchDirtyChange={(d) => (batchFormDirty = d)}
 							onCancel={() => (addOpen = false)}
@@ -2400,6 +2650,16 @@
 	<input type="hidden" name="section_id" value="" bind:this={sectionDeleteIdField} />
 </form>
 
+<form
+	method="POST"
+	action="?/softDeleteOutlineSection"
+	use:enhance={deleteOutlineEnhance}
+	bind:this={outlineDeleteFormEl}
+	class="hidden"
+>
+	<input type="hidden" name="section_id" value="" bind:this={outlineDeleteIdField} />
+</form>
+
 <ConfirmDialog
 	bind:open={confirmDeleteOpen}
 	title="Delete scripture reference?"
@@ -2425,6 +2685,20 @@
 	onConfirm={confirmDeleteSection}
 	onCancel={() => {
 		sectionPendingDeleteId = null;
+	}}
+/>
+
+<ConfirmDialog
+	bind:open={outlineConfirmDeleteOpen}
+	title="Delete outline section?"
+	description="This soft-deletes the TOC row. You can restore it from the audit log if needed."
+	confirmLabel="Delete"
+	cancelLabel="Keep"
+	destructive
+	pending={outlineDeletePending}
+	onConfirm={confirmDeleteOutline}
+	onCancel={() => {
+		outlinePendingDeleteId = null;
 	}}
 />
 

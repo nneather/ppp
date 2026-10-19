@@ -32,6 +32,7 @@ import {
 	loadWeekTasks
 } from '../../src/lib/projects/server/task-loaders.ts';
 import { loadByBookStats, loadSermons, loadUpcomingSermons } from '../../src/lib/sermons/server/loaders.ts';
+import { loadSystematicsForPassage } from '../../src/lib/library/server/systematics-loaders.ts';
 import { bibleBookSuggestions, resolveBibleBookName } from '../../src/lib/mcp/bible-book.ts';
 import { courseSuggestions, resolveCourse } from '../../src/lib/mcp/course.ts';
 import {
@@ -457,6 +458,55 @@ export async function listCommentariesForBibleBook(
 	});
 }
 
+export async function listSystematicsForPassage(
+	supabase: Sb,
+	args: {
+		bible_book: string;
+		chapter?: number;
+		verse?: number;
+		chapter_end?: number;
+		verse_end?: number;
+	}
+) {
+	const resolved = resolveBibleBookName(args.bible_book);
+	if (!resolved) {
+		return jsonText({
+			error: `Unknown bible_book: ${args.bible_book}`,
+			suggestions: bibleBookSuggestions(args.bible_book)
+		});
+	}
+	const blocks = await loadSystematicsForPassage(supabase, {
+		bibleBook: resolved,
+		chapter: args.chapter ?? null,
+		verse: args.verse ?? null,
+		chapterEnd: args.chapter_end ?? null,
+		verseEnd: args.verse_end ?? null
+	});
+	return jsonText({
+		bible_book: resolved,
+		chapter: args.chapter ?? null,
+		verse: args.verse ?? null,
+		chapter_end: args.chapter_end ?? null,
+		verse_end: args.verse_end ?? null,
+		set_count: blocks.length,
+		pointer_count: blocks.reduce((n, b) => n + b.pointers.length, 0),
+		sets: blocks.map((b) => ({
+			series_id: b.seriesId,
+			series_name: b.seriesName,
+			author: b.authorLabel,
+			pointers: b.pointers.map((p) => ({
+				book_id: p.bookId,
+				volume: p.volume,
+				page_start: p.pageStart,
+				page_end: p.pageEnd,
+				locator: p.locator,
+				label: p.label,
+				display: p.display
+			}))
+		}))
+	});
+}
+
 export async function listSermonsForBibleBook(
 	supabase: Sb,
 	args: { bible_book: string }
@@ -514,6 +564,7 @@ export const TOOL_NAMES = [
 	'list_upcoming_sermons',
 	'list_project_health',
 	'list_commentaries_for_bible_book',
+	'list_systematics_for_passage',
 	'list_sermons_for_bible_book',
 	'list_studies',
 	'get_study_sources',

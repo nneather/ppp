@@ -48,6 +48,10 @@ export type OcrInvokeBaseArgs = {
 
 export type InvokeOcrScriptureRefsArgs = OcrInvokeBaseArgs & {
 	pdf_page_index?: number;
+	/** Scripture-index prompt + volume token ([252]). */
+	index_mode?: boolean;
+	/** Second index-mode read (stricter prompt) for consensus. */
+	index_pass?: 1 | 2;
 };
 
 export type InvokeOcrScriptureRefsResult =
@@ -141,6 +145,12 @@ export async function invokeOcrScriptureRefs(
 	};
 	if (args.pdf_page_index != null) {
 		body.pdf_page_index = args.pdf_page_index;
+	}
+	if (args.index_mode) {
+		body.index_mode = true;
+	}
+	if (args.index_pass === 2) {
+		body.index_pass = 2;
 	}
 
 	const { data: ocrData, error: ocrErr } = await invokeOcrFunction(supabase, body);

@@ -43,6 +43,11 @@
 		type ScriptureDraftRow,
 		type ScripturePageJob
 	} from '$lib/library/scripture-draft-row';
+	import {
+		routeIndexRowToVolume,
+		stripVolumeFromPageToken,
+		type SetVolumeBook
+	} from '$lib/library/systematics-set-routing';
 
 	/**
 	 * <ScriptureReferenceForm>
@@ -77,7 +82,8 @@
 		onSaved,
 		onSavedBatch,
 		onCancel,
-		onBatchDirtyChange
+		onBatchDirtyChange,
+		setVolumes = []
 	}: {
 		books: BookListRow[];
 		bibleBookNames: string[];
@@ -93,7 +99,16 @@
 		onCancel?: () => void;
 		/** Batch mode: parent can gate in-app navigation while OCR/review draft is active. */
 		onBatchDirtyChange?: (dirty: boolean) => void;
+		/** Sibling volumes for set-index routing ([252]). */
+		setVolumes?: SetVolumeBook[];
 	} = $props();
+
+	let setMode = $state(false);
+	let indexMode = $state(false);
+
+	$effect(() => {
+		if (setVolumes.length > 1) setMode = true;
+	});
 
 	const isEdit = $derived(!!existingRef);
 
@@ -471,36 +486,70 @@
 		extractInfo = null;
 	}
 
+	async function postBatchChunk(
+		bookId: string,
+		chunk: ReturnType<typeof buildRowsJsonPayload>
+	): Promise<string[]> {
+		const fd = new FormData();
+		fd.set('source_kind', 'book');
+		fd.set('book_id', bookId);
+		fd.set('essay_id', '');
+		if (source_image_url.trim() !== '') fd.set('source_image_url', source_image_url);
+		fd.set('rows_json', JSON.stringify(chunk));
+		const res = await fetch(action, { method: 'POST', body: fd });
+		const result = deserialize(await res.text());
+		if (result.type === 'failure') {
+			const msg = (result.data as { message?: string } | undefined)?.message;
+			throw new Error(msg ?? 'Save failed.');
+		}
+		if (result.type === 'error') {
+			throw new Error(result.error?.message ?? 'Save failed.');
+		}
+		if (result.type === 'success') {
+			const r = result.data as { refIds?: string[] };
+			return Array.isArray(r.refIds) ? r.refIds : [];
+		}
+		return [];
+	}
+
 	async function saveBatchChunked(): Promise<string[]> {
-		const payload = buildRowsJsonPayload(rows);
-		if (payload.length === 0) {
+		const included = rows.filter((r) => r.included && isDraftRowSaveable(r));
+		if (included.length === 0) {
 			throw new Error('No included references to save.');
 		}
-		const chunks = chunkArray(payload, BATCH_SAVE_CHUNK_SIZE);
+
+		const byBook = new Map<string, ScriptureDraftRow[]>();
+		const defaultBook = sourceBookId || lockedBookId || '';
+		if (!defaultBook) throw new Error('Book is required.');
+
+		for (const row of included) {
+			let bookId = defaultBook;
+			let pageStart = row.page_start;
+			if (setMode && setVolumes.length > 0) {
+				const routed = routeIndexRowToVolume(
+					setVolumes,
+					{ volume: row.volume || null, pageStart: row.page_start },
+					defaultBook
+				);
+				bookId = routed.bookId;
+				pageStart = stripVolumeFromPageToken(row.page_start) ?? row.page_start;
+			}
+			const list = byBook.get(bookId) ?? [];
+			list.push({ ...row, page_start: pageStart });
+			byBook.set(bookId, list);
+		}
+
 		const allRefIds: string[] = [];
-		const total = payload.length;
+		const total = included.length;
 		let saved = 0;
-		for (const chunk of chunks) {
-			saved += chunk.length;
-			saveProgress = `Saving ${saved}/${total}…`;
-			const fd = new FormData();
-			fd.set('source_kind', sourceKind);
-			fd.set('book_id', sourceBookId);
-			fd.set('essay_id', sourceEssayId);
-			if (source_image_url.trim() !== '') fd.set('source_image_url', source_image_url);
-			fd.set('rows_json', JSON.stringify(chunk));
-			const res = await fetch(action, { method: 'POST', body: fd });
-			const result = deserialize(await res.text());
-			if (result.type === 'failure') {
-				const msg = (result.data as { message?: string } | undefined)?.message;
-				throw new Error(msg ?? 'Save failed.');
-			}
-			if (result.type === 'error') {
-				throw new Error(result.error?.message ?? 'Save failed.');
-			}
-			if (result.type === 'success') {
-				const r = result.data as { refIds?: string[] };
-				if (Array.isArray(r.refIds)) allRefIds.push(...r.refIds);
+		for (const [bookId, bookRows] of byBook) {
+			const payload = buildRowsJsonPayload(bookRows);
+			const chunks = chunkArray(payload, BATCH_SAVE_CHUNK_SIZE);
+			for (const chunk of chunks) {
+				saved += chunk.length;
+				saveProgress = `Saving ${saved}/${total}…`;
+				const ids = await postBatchChunk(bookId, chunk);
+				allRefIds.push(...ids);
 			}
 		}
 		return allRefIds;
@@ -653,6 +702,12 @@
 	<SourcePicker bind:value={parent} {books} {lockedBookId} />
 
 	{#if !isEdit}
+		{#if setVolumes.length > 1}
+			<label class="flex items-center gap-2 text-sm text-muted-foreground">
+				<input type="checkbox" bind:checked={setMode} class="size-4 rounded border-input" />
+				Set mode — route vol:page index rows to sibling volumes ({setVolumes.length} vols)
+			</label>
+		{/if}
 		{#key seedKey}
 			<ScriptureOcrQueue
 				{userId}
@@ -665,6 +720,7 @@
 				bind:extractMessage
 				bind:extractInfo
 				bind:ocrPipelineBusy
+				bind:indexMode
 				onDraftClear={() => lockedBookId && clearScriptureBatchDraft(lockedBookId)}
 			/>
 		{/key}

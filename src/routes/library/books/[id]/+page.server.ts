@@ -33,6 +33,13 @@ import {
 	softDeletePassageSectionAction,
 	updatePassageSectionAction
 } from '$lib/library/server/passage-section-actions';
+import {
+	createOutlineSectionAction,
+	pasteOutlineSectionsAction,
+	softDeleteOutlineSectionAction,
+	updateOutlineSectionAction
+} from '$lib/library/server/outline-actions';
+import { loadOutlineSectionsForBook } from '$lib/library/server/systematics-loaders';
 import { invokeOcrScriptureRefs } from '$lib/library/ocr-invoke-client';
 import {
 	createBookTopicsBatchAction,
@@ -107,6 +114,7 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		bibleBookNames,
 		scriptureRefsPromise: loadScriptureRefsForBook(supabase, id),
 		passageSectionsPromise: loadPassageSectionsForBook(supabase, id),
+		outlineSectionsPromise: loadOutlineSectionsForBook(supabase, id),
 		seriesSiblingsPromise: loadSeriesSiblingBooks(supabase, book.series_id, id),
 		alsoByAuthorPromise: loadAlsoByAuthorBooks(supabase, alsoByPersonIds, id),
 		isOwner,
@@ -212,6 +220,37 @@ export const actions: Actions = {
 			});
 		const fd = await request.formData();
 		return softDeletePassageSectionAction(locals.supabase, fd);
+	},
+	createOutlineSection: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'createOutlineSection' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return createOutlineSectionAction(locals.supabase, user.id, fd);
+	},
+	updateOutlineSection: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'updateOutlineSection' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return updateOutlineSectionAction(locals.supabase, fd);
+	},
+	softDeleteOutlineSection: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, {
+				kind: 'softDeleteOutlineSection' as const,
+				message: 'Unauthorized'
+			});
+		const fd = await request.formData();
+		return softDeleteOutlineSectionAction(locals.supabase, fd);
+	},
+	pasteOutlineSections: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'pasteOutlineSections' as const, message: 'Unauthorized' });
+		const fd = await request.formData();
+		return pasteOutlineSectionsAction(locals.supabase, user.id, fd);
 	},
 	extractScriptureRefs: async ({ request, locals, params }) => {
 		const { user } = await locals.safeGetSession();

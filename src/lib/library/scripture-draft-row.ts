@@ -17,6 +17,8 @@ export type ScriptureDraftRow = {
 	verse_end: string;
 	page_start: string;
 	page_end: string;
+	/** Optional volume token from set-index OCR (e.g. "2"). */
+	volume: string;
 	needs_review: boolean;
 	review_note: string;
 	confidence_score: number | null;
@@ -129,8 +131,9 @@ export function mapCandidateToRow(c: OcrScriptureCandidate): ScriptureDraftRow {
 		verse_end: numStr(c.verse_end ?? undefined),
 		page_start: pageStartRaw,
 		page_end: c.page_end != null ? String(c.page_end) : '',
-		needs_review: needs,
-		review_note: '',
+		volume: c.volume != null ? String(c.volume).trim() : '',
+		needs_review: needs || Boolean(c.review_note && String(c.review_note).trim()),
+		review_note: c.review_note != null ? String(c.review_note).trim() : '',
 		confidence_score: conf,
 		source_image_url: '',
 		continuation_from_previous_page: cont,
@@ -162,6 +165,7 @@ export function blankDraftRow(): ScriptureDraftRow {
 		verse_end: '',
 		page_start: '',
 		page_end: '',
+		volume: '',
 		needs_review: false,
 		review_note: '',
 		confidence_score: null,
@@ -189,6 +193,7 @@ export function draftRowFromExisting(r: ScriptureRefRow): ScriptureDraftRow {
 		verse_end: r.verse_end?.toString() ?? '',
 		page_start: r.page_start ?? '',
 		page_end: r.page_end ?? '',
+		volume: '',
 		needs_review: r.needs_review,
 		review_note: r.review_note ?? '',
 		confidence_score: r.confidence_score,

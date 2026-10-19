@@ -209,6 +209,7 @@
 		importChecklist={data.importChecklist}
 		sectionCandidateCount={data.sectionCandidateCount}
 		footnotePages={data.footnotePages}
+		systematics={data.systematics}
 		importError={data.importError}
 		invalidateKey={paperKey}
 		form={f}

@@ -10,6 +10,10 @@ export type OcrScriptureCandidate = {
 	verse_end?: number | null;
 	page_start?: string | null;
 	page_end?: string | null;
+	/** Optional volume token from set indexes (e.g. "2" when printed as 2:620). */
+	volume?: string | null;
+	/** Client-side review reason (consensus / structural validators). */
+	review_note?: string | null;
 	/** 0–1; UI sets needs_review when < 0.80 */
 	confidence_score: number;
 	/** Model marks run-on from previous printed page; empty bible_book until carry or user pick. */

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Passage sections import as books and prefill the footnote page ([251](docs/decisions/251-studies-passage-section-import.md)).
+**Last updated:** 2026-10-19 — Passage-section wave 2 ([254](docs/decisions/254-passage-sections-wave-2.md)); systematics gold gate still next ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)).
 
 **How to use this file — read this first:**
 
@@ -34,14 +34,14 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** schema + bands ([249](docs/decisions/249-library-passage-sections.md)); first research fill (~56 rows / 6 books) ([250](docs/decisions/250-passage-sections-research-pass.md)). List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Latest shelf add: NIDOTTE (5 vols), Beale and Weima BECNT, Kim/Bruce WBC 45 2nd ed. ([246](docs/decisions/246-library-oct19-nidotte-shelf.md)). |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 78 live rows on 8 books ([254](docs/decisions/254-passage-sections-wave-2.md)). **Systematics by passage** outline + band + MCP + OCR index mode ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)); gold ≥99.5% then bulk capture. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
 | Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Overlapping passage sections import as books and prefill the footnote page ([251](docs/decisions/251-studies-passage-section-import.md)). |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
-| MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). Reload the MCP client to pick that up. |
+| MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [254 — Passage sections wave 2](docs/decisions/254-passage-sections-wave-2.md) (2026-10-19) — Bonhoeffer English, Augustine on the Mount, Carson *Praying with Paul*. Nachfolge and Eastman held for edition pages.
+- [253 — Systematics by passage S1–S5](docs/decisions/253-systematics-by-passage-s1-s5.md) (2026-10-19) — Outline table, systematic band, MCP, OCR index mode, gold eval harness.
+- [252 — Systematics by passage Session 0](docs/decisions/252-systematics-by-passage-session-0.md) (2026-10-19) — Outline + scripture-index join; OCR ≥99.5% gate; surfaces locked.
 - [251 — Passage sections on import](docs/decisions/251-studies-passage-section-import.md) (2026-10-19) — Overlapping sections attach the book; footnote page is the tightest span.
 - [250 — Passage sections research pass](docs/decisions/250-passage-sections-research-pass.md) (2026-10-19) — Edition-matched sections for Carson, Keener, Women in the Church, Doriani, Snodgrass (~56 live rows).
-- [249 — Passage sections](docs/decisions/249-library-passage-sections.md) (2026-10-19) — Curated monograph ranges (not a second scripture-ref tier); search-passage bands.
-- [248 — Studies Session 4](docs/decisions/248-studies-session-4.md) (2026-10-19) — Sectioned clipboard and `.docx`; `list_studies` / `get_study_sources` / `suggest_sources`; Overview links.
-- [247 — Studies Session 3](docs/decisions/247-studies-session-3.md) (2026-10-19) — Sermon detail shares the sources panel; Systematic Theology auto-attaches; hit rate since `acquired_on`.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Passage-section import [251](docs/decisions/251-studies-passage-section-import.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **631/631** (2026-10-19). No new migration. Research fill [250](docs/decisions/250-passage-sections-research-pass.md) was data-only.
+**Repo gate:** Systematics-by-passage [253](docs/decisions/253-systematics-by-passage-s1-s5.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **649/649** (2026-10-19). Migration `20261019210000_book_outline_sections.sql` pushed; OCR Edge deployed with `index_mode` + `index_pass`.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -101,6 +101,20 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ## Session prompts (copy-paste) — LIVE only
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
+
+### Library — Systematics gold gate + capture (owner) — from [253](docs/decisions/253-systematics-by-passage-s1-s5.md)
+
+```
+Session: library — systematics gold gate + Turretin capture
+Read: docs/decisions/253-systematics-by-passage-s1-s5.md,
+  docs/systematics-capture-checklist.md, scripts/ocr-index-eval/README.md
+Goal: Transcribe 3 index pages → OCR index mode → compare ≥99.5%; then capture Turretin TOC + index.
+Acceptance:
+ - [ ] gold/page-01..03.json + .ocr.json; compare.ts GATE PASS
+ - [ ] Turretin outline TSV + index OCR + Verified pass
+ - [ ] /library/search-passage 1 Thess shows Systematic theologies band
+End-of-session: docs/decisions/<next-free>-*.md; PLAN.md
+```
 
 ### Contacts / CRM — remaining MCP smoke (owner, ~5 min)
 
@@ -201,12 +215,14 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
-2. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
-3. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
-4. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
+1. **Owner — Systematics gold gate + Turretin capture** — prompt above ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)).
+2. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
+3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
+4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
+5. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
 
 ### Next / parallel
+5b. **Systematics capture** — van Mastricht → Bavinck → Calvin after Turretin ([docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md)).
 6. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
 7. **Security hardening (051 R2)** — open medium findings; prompt above.
 8. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).

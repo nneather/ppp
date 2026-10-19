@@ -28,6 +28,8 @@
 		removeCandidatesForPdfPages,
 		stampSourcePageIndex
 	} from '$lib/library/scripture-ocr-merge';
+	import { mergeOcrConsensus } from '$lib/library/scripture-ocr-consensus';
+	import { flagIndexCandidates } from '$lib/library/scripture-index-validate';
 
 	let {
 		userId,
@@ -40,6 +42,7 @@
 		extractMessage = $bindable(null as string | null),
 		extractInfo = $bindable(null as string | null),
 		ocrPipelineBusy = $bindable(false),
+		indexMode = $bindable(false),
 		onDraftClear
 	}: {
 		userId: string;
@@ -52,11 +55,15 @@
 		extractMessage?: string | null;
 		extractInfo?: string | null;
 		ocrPipelineBusy?: boolean;
+		/** Scripture-index prompt + volume tokens ([252]). */
+		indexMode?: boolean;
 		onDraftClear?: () => void;
 	} = $props();
 
 	let ocrQueue = $state<QueuedOcrFile[]>([]);
 	let wakeLock: WakeLockSentinel | null = null;
+	/** Page job ids the owner has side-by-side verified (clears needs_review on merge). */
+	let verifiedPageIds = $state<Set<string>>(new Set());
 
 	const pipelineBusy = $derived(
 		pages.some((p) => p.status === 'uploading' || p.status === 'extracting')
@@ -71,6 +78,7 @@
 	// ---------------------------------------------------------------------------
 
 	const MAX_LONG_EDGE = 2048;
+	const INDEX_LONG_EDGE = 3000;
 	const TARGET_QUALITY = 0.85;
 
 	function revokeAllPagePreviewBlobs(jobs: ScripturePageJob[]) {
@@ -159,9 +167,10 @@
 	}
 
 	async function downscaleImage(file: File): Promise<Blob> {
+		const longEdge = indexMode ? INDEX_LONG_EDGE : MAX_LONG_EDGE;
 		try {
 			const bitmap = await createImageBitmap(file);
-			const ratio = Math.min(MAX_LONG_EDGE / bitmap.width, MAX_LONG_EDGE / bitmap.height, 1);
+			const ratio = Math.min(longEdge / bitmap.width, longEdge / bitmap.height, 1);
 			const w = Math.max(1, Math.round(bitmap.width * ratio));
 			const h = Math.max(1, Math.round(bitmap.height * ratio));
 			const canvas = document.createElement('canvas');
@@ -173,10 +182,53 @@
 			const blob: Blob | null = await new Promise((res) =>
 				canvas.toBlob(res, 'image/jpeg', TARGET_QUALITY)
 			);
+			bitmap.close();
 			return blob ?? file;
 		} catch {
 			return file;
 		}
+	}
+
+	/** Index mode: column crops, two prompt passes, consensus + structural flags. */
+	async function ocrIndexJpeg(
+		supa: ReturnType<typeof createClient>,
+		jpegBlob: Blob,
+		bookIdForPath: string
+	): Promise<OcrScriptureCandidate[]> {
+		const { splitImageIntoColumns } = await import('$lib/library/image-column-split');
+		let crops: Blob[];
+		try {
+			const split = await splitImageIntoColumns(jpegBlob);
+			crops = [split.left, split.right];
+		} catch {
+			crops = [jpegBlob];
+		}
+
+		async function onePass(blob: Blob, pass: 1 | 2): Promise<OcrScriptureCandidate[] | null> {
+			const path = scriptureImagePath({ userId, bookId: bookIdForPath, ext: 'jpg' });
+			const { error } = await supa.storage
+				.from(SCRIPTURE_IMAGES_BUCKET)
+				.upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+			if (error) return null;
+			const result = await invokeOcrScriptureRefs(supa, {
+				object_path: path,
+				mime_type: 'image/jpeg',
+				book_id: bookIdForPath,
+				index_mode: true,
+				index_pass: pass
+			});
+			return result.ok ? result.data.candidates : null;
+		}
+
+		const merged: OcrScriptureCandidate[] = [];
+		for (const crop of crops) {
+			const [passA, passB] = await Promise.all([onePass(crop, 1), onePass(crop, 2)]);
+			if (passA == null && passB == null) continue;
+			if (passA == null) merged.push(...(passB ?? []));
+			else if (passB == null) merged.push(...passA);
+			else merged.push(...mergeOcrConsensus(passA, passB));
+		}
+		return flagIndexCandidates(merged);
 	}
 
 	function tryFinalizeBatchMerge() {
@@ -214,7 +266,20 @@
 				extractLabel: pageTotal > 1 ? `Page ${i + 1}/${pageTotal}` : undefined
 			});
 			try {
-				const jpegBlob = await renderPdfPageToJpegBlob(file, i);
+				const jpegBlob = await renderPdfPageToJpegBlob(
+					file,
+					i,
+					indexMode ? INDEX_LONG_EDGE : MAX_LONG_EDGE
+				);
+				if (indexMode) {
+					const candidates = await ocrIndexJpeg(supa, jpegBlob, bookIdForPath);
+					if (candidates.length === 0) {
+						failedPages.push(i);
+						continue;
+					}
+					merged.push(...stampSourcePageIndex(candidates, i));
+					continue;
+				}
 				const jpgPath = scriptureImagePath({ userId, bookId: bookIdForPath, ext: 'jpg' });
 				const { error: jpgErr } = await supa.storage
 					.from(SCRIPTURE_IMAGES_BUCKET)
@@ -226,7 +291,8 @@
 				const pageResult = await invokeOcrScriptureRefs(supa, {
 					object_path: jpgPath,
 					mime_type: 'image/jpeg',
-					book_id: bookIdForPath
+					book_id: bookIdForPath,
+					index_mode: indexMode || undefined
 				});
 				if (!pageResult.ok) {
 					failedPages.push(i);
@@ -366,7 +432,8 @@
 			const invokeBase = {
 				object_path: objectPath,
 				mime_type: mime,
-				book_id: bookIdForPath
+				book_id: bookIdForPath,
+				index_mode: indexMode || undefined
 			};
 
 			if (isPdf) {
@@ -418,6 +485,24 @@
 						extractLabel: undefined
 					});
 				}
+			} else if (indexMode) {
+				const candidates = await ocrIndexJpeg(supa, await downscaleImage(file), bookIdForPath);
+				if (candidates.length === 0) {
+					patchPage(jobId, {
+						status: 'error',
+						error: 'No references detected (index mode).',
+						sourcePath: objectPath,
+						previewUrl
+					});
+					tryFinalizeBatchMerge();
+					return;
+				}
+				patchPage(jobId, {
+					status: 'done',
+					candidates,
+					sourcePath: objectPath,
+					previewUrl
+				});
 			} else {
 				const ocrResult = await invokeOcrScriptureRefs(supa, invokeBase);
 				if (!ocrResult.ok) {
@@ -551,6 +636,10 @@
 	<Label for="sr-img-multi"
 		>Source images / PDF <span class="text-xs text-muted-foreground">(optional, OCR — up to 10)</span></Label
 	>
+	<label class="flex items-center gap-2 text-sm text-muted-foreground">
+		<input type="checkbox" bind:checked={indexMode} class="size-4 rounded border-input" />
+		Scripture index mode (set indexes — volume:page tokens, denser prompt)
+	</label>
 	<div class="flex flex-wrap items-center gap-2">
 		<label class="inline-flex">
 			<span
@@ -694,6 +783,30 @@
 							{job.status}
 						{/if}
 					</span>
+					{#if job.status === 'done'}
+						<label class="flex items-center gap-1 text-[10px] text-muted-foreground">
+							<input
+								type="checkbox"
+								checked={verifiedPageIds.has(job.id)}
+								onchange={() => {
+									const marking = !verifiedPageIds.has(job.id);
+									const next = new Set(verifiedPageIds);
+									if (marking) next.add(job.id);
+									else next.delete(job.id);
+									verifiedPageIds = next;
+									if (marking) {
+										rows = rows.map((r) =>
+											r.pageJobId === job.id
+												? { ...r, needs_review: false, review_note: '' }
+												: r
+										);
+									}
+								}}
+								class="size-3 rounded border-input"
+							/>
+							Verified
+						</label>
+					{/if}
 					{#if job.pdfOcrWarning}
 						<p
 							class="max-w-full whitespace-pre-wrap break-words rounded border border-amber-500/30 bg-amber-500/10 p-2 text-[10px] leading-snug text-amber-900 dark:text-amber-200"

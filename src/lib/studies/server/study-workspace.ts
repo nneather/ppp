@@ -28,6 +28,8 @@ import {
 	loadStudyGroups,
 	loadStudySourceViews
 } from '$lib/studies/server/paper-loaders';
+import { loadSystematicsForPassage } from '$lib/library/server/systematics-loaders';
+import type { SystematicSetBlock } from '$lib/library/outline';
 
 const SOURCE_SEARCH_LIMIT = 8;
 
@@ -57,6 +59,8 @@ export type StudyWorkspace = {
 	sectionCandidateCount: number;
 	/** Book id → tightest overlapping section pages, for the footnote box. */
 	footnotePages: Record<string, string>;
+	/** Systematic theology index hits for the study's primary passage ([252]). */
+	systematics: SystematicSetBlock[];
 	importError: string | null;
 	loadError: string | null;
 };
@@ -132,7 +136,19 @@ export async function loadStudyWorkspace(
 		.map((source) => source.essayId);
 
 	const ranges = studyPassageRanges(study.passageDisplay, passageRows);
-	const sectionOverlap = await loadOverlappingPassageSections(supabase, ranges);
+	const primaryRange = ranges[0] ?? null;
+	const [sectionOverlap, systematics] = await Promise.all([
+		loadOverlappingPassageSections(supabase, ranges),
+		primaryRange
+			? loadSystematicsForPassage(supabase, {
+					bibleBook: primaryRange.bibleBook,
+					chapter: primaryRange.chapter,
+					verse: primaryRange.verse,
+					chapterEnd: primaryRange.chapterEnd,
+					verseEnd: primaryRange.verseEnd
+				})
+			: Promise.resolve([] as SystematicSetBlock[])
+	]);
 	const sectionCandidates = passageSectionImportCandidates(
 		sectionOverlap.sections,
 		sectionOverlap.coverages
@@ -226,6 +242,7 @@ export async function loadStudyWorkspace(
 		importChecklist,
 		sectionCandidateCount: sectionCandidates.length,
 		footnotePages,
+		systematics,
 		importError,
 		loadError: sourcesRes.error ?? groupsRes.error ?? setRes.error
 	};

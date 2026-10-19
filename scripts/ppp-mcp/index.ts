@@ -22,6 +22,7 @@ import {
 	listNowTasks,
 	listProjectHealth,
 	listSermonsForBibleBook,
+	listSystematicsForPassage,
 	listStudies,
 	listUpcomingSermonsTool,
 	listWeekTasks,
@@ -239,6 +240,25 @@ server.registerTool(
 	async (args) => {
 		const { supabase } = await getPppMcpClient();
 		return listCommentariesForBibleBook(supabase, args);
+	}
+);
+
+server.registerTool(
+	'list_systematics_for_passage',
+	{
+		description:
+			'Systematic theology scripture-index hits for a passage, grouped by set with TOC labels (e.g. Turretin 2:620 Full Assurance). Same data as the Systematic theologies band on /library/search-passage.',
+		inputSchema: {
+			bible_book: z.string().describe('Bible book name, e.g. 1 Thessalonians, Romans'),
+			chapter: z.number().int().min(1).max(199).optional(),
+			verse: z.number().int().min(1).max(999).optional(),
+			chapter_end: z.number().int().min(1).max(199).optional(),
+			verse_end: z.number().int().min(1).max(999).optional()
+		}
+	},
+	async (args) => {
+		const { supabase } = await getPppMcpClient();
+		return listSystematicsForPassage(supabase, args);
 	}
 );
 

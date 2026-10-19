@@ -8,7 +8,9 @@
 	import PaperSourceRow from '$lib/components/paper-source-row.svelte';
 	import PaperAddSourcePanel from '$lib/components/paper-add-source-panel.svelte';
 	import PaperGroupHeader from '$lib/components/paper-group-header.svelte';
+	import SystematicsOnPassage from '$lib/components/systematics-on-passage.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
+	import type { SystematicSetBlock } from '$lib/library/outline';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -52,6 +54,7 @@
 		importChecklist,
 		sectionCandidateCount = 0,
 		footnotePages = {},
+		systematics = [],
 		importError = null,
 		invalidateKey,
 		form
@@ -82,6 +85,7 @@
 		} | null;
 		sectionCandidateCount?: number;
 		footnotePages?: Record<string, string>;
+		systematics?: SystematicSetBlock[];
 		importError?: string | null;
 		invalidateKey: string;
 		form: FormShape | null;
@@ -468,6 +472,25 @@
 
 {#if actionError}
 	<p class="mt-4 text-sm text-destructive" role="alert">{actionError}</p>
+{/if}
+
+{#if systematics.length > 0}
+	<section class="mt-8">
+		<h2 class="text-sm font-semibold">Systematic theologies</h2>
+		<p class="mt-0.5 text-xs text-muted-foreground">
+			Index hits for this passage with TOC labels. Attach a volume to add it as a source.
+		</p>
+		<div class="mt-3">
+			<SystematicsOnPassage
+				blocks={systematics}
+				{parentField}
+				{parentId}
+				attachedBookIds={sourceRows
+					.filter((s) => s.kind === 'book')
+					.map((s) => s.citation.id)}
+			/>
+		</div>
+	</section>
 {/if}
 
 <section class="mt-8">

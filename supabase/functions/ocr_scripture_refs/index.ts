@@ -149,6 +149,8 @@ type OcrCandidate = {
 	verse_end?: number | null;
 	page_start?: string | null;
 	page_end?: string | null;
+	/** Volume token from set indexes (e.g. "2" when printed as 2:620). */
+	volume?: string | null;
 	confidence_score: number;
 	continuation_from_previous_page?: boolean;
 	/** 0-based page index within a multi-page PDF input; omit for single images. */
@@ -181,6 +183,8 @@ function normalizeCandidate(raw: unknown): OcrCandidate | null {
 		page_end: asOptionalPageText(o.page_end),
 		confidence_score
 	};
+	const volRaw = typeof o.volume === 'string' ? o.volume.trim() : '';
+	if (volRaw && volRaw.length <= 10) out.volume = volRaw;
 	if (cont) out.continuation_from_previous_page = true;
 	const spi = asOptionalInt(o.source_page_index, 999);
 	if (spi != null) out.source_page_index = spi;
@@ -359,6 +363,8 @@ Deno.serve(async (req) => {
 		book_id?: string;
 		op?: string;
 		pdf_page_index?: unknown;
+		index_mode?: unknown;
+		index_pass?: unknown;
 	};
 	try {
 		body = await req.json();
@@ -372,6 +378,8 @@ Deno.serve(async (req) => {
 	const opRaw = typeof body.op === 'string' ? body.op.trim() : 'extract';
 	const op = opRaw === 'pdf_page_count' ? 'pdf_page_count' : 'extract';
 	const pdf_page_index = asOptionalInt(body.pdf_page_index, 999);
+	const indexMode = body.index_mode === true;
+	const indexPass = body.index_pass === 2 ? 2 : 1;
 
 	if (!object_path || !mime_type || !book_id) {
 		return jsonResponse(req,
@@ -500,7 +508,24 @@ Deno.serve(async (req) => {
 
 	const allowlistBlock = BIBLE_BOOK_NAMES.join(', ');
 
-	const systemPrompt = `You extract Protestant Bible scripture citations from photos or PDF pages of printed commentary / index material.
+	const systemPrompt = indexMode
+		? `You extract Protestant Bible scripture citations from a SCRIPTURE INDEX page (dense two-column list).
+Return ONLY valid JSON (no markdown fences, no commentary). Shape must be:
+{"rawText": string, "candidates": Candidate[]}
+Candidate: {"bible_book": string, "chapter_start"?: number, "verse_start"?: number, "chapter_end"?: number, "verse_end"?: number, "page_start"?: string, "page_end"?: string, "volume"?: string, "confidence_score": number, "continuation_from_previous_page"?: boolean, "source_page_index"?: number}
+Rules:
+- Emit candidates in PRINTED ORDER (top-to-bottom, left column then right). NEVER merge adjacent printed entries.
+- bible_book MUST be exactly one of these names (case-sensitive): ${allowlistBlock}
+  Exception: continuation lines without a book name → bible_book "" and continuation_from_previous_page true.
+- Omit chapter/verse keys when not visible; use integers only.
+- When the index cites a multi-volume set as "2:620" or "II, 620", set volume="2" (or "II") and page_start="620". Do not put "2:620" in page_start when volume is set.
+- page_start/page_end are where the citation points in the volume — page numbers, note tokens like "106n21", or ranges "14-15" as page_start="14" page_end="15".
+- Multiple page pointers for the SAME verse (e.g. "73, 101, 112"): one Candidate per page.
+- Semicolon-separated section pointers: one Candidate per pointer.
+- confidence_score 0–1; below 0.80 when glyphs are uncertain.
+- rawText: ONE short sentence (<= 200 chars), e.g. "Scripture index page". Do NOT echo citations there.
+- One candidate per distinct printed citation; do not invent rows.`
+		: `You extract Protestant Bible scripture citations from photos or PDF pages of printed commentary / index material.
 Return ONLY valid JSON (no markdown fences, no commentary). Shape must be:
 {"rawText": string, "candidates": Candidate[]}
 Candidate: {"bible_book": string, "chapter_start"?: number, "verse_start"?: number, "chapter_end"?: number, "verse_end"?: number, "page_start"?: string, "page_end"?: string, "confidence_score": number, "continuation_from_previous_page"?: boolean, "source_page_index"?: number}
@@ -523,7 +548,11 @@ Rules:
 		effectivePdfPageIndex != null
 			? ` This is PDF page ${effectivePdfPageIndex + 1} (0-based index ${effectivePdfPageIndex}). Set source_page_index=${effectivePdfPageIndex} on every Candidate.`
 			: '';
-	const userText = `Extract all scripture references from this document (image or PDF). Book context UUID (for your reasoning only): ${book_id}.${pageHint}`;
+	const userText = indexMode
+		? indexPass === 2
+			? `Second read of this scripture index. Prefer fewer rows over guessed digits (3/8, 1/7). Emit printed order only. Book context UUID (reasoning only): ${book_id}.${pageHint}`
+			: `Extract every scripture-index entry from this page in printed order. Book context UUID (reasoning only): ${book_id}.${pageHint}`
+		: `Extract all scripture references from this document (image or PDF). Book context UUID (for your reasoning only): ${book_id}.${pageHint}`;
 
 	const visionBlock =
 		visionInput.kind === 'image'

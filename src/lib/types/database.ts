@@ -408,6 +408,73 @@ export type Database = {
           },
         ]
       }
+      book_outline_sections: {
+        Row: {
+          book_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          label: string
+          locator: string | null
+          page_end: number
+          page_start: number
+          parent_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          label: string
+          locator?: string | null
+          page_end: number
+          page_start: number
+          parent_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          label?: string
+          locator?: string | null
+          page_end?: number
+          page_start?: number
+          parent_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_outline_sections_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_outline_sections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_outline_sections_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "book_outline_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_passage_sections: {
         Row: {
           bible_book: string
@@ -3215,9 +3282,11 @@ export type Database = {
         }
         Returns: {
           bible_book: string
+          book_genre: string
           book_id: string
           book_subtitle: string
           book_title: string
+          book_volume_number: string
           chapter_end: number
           chapter_start: number
           confidence_score: number
@@ -3228,6 +3297,8 @@ export type Database = {
           page_start: string
           ref_id: string
           review_note: string
+          series_id: string
+          series_name: string
           verse_end: number
           verse_start: number
         }[]
