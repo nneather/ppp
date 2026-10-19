@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { BookAuthorAssignment } from '$lib/types/library';
 import type { BookCitationInput } from '$lib/library/turabian';
 import {
+	bibliographyDownloadName,
 	compilePaperBibliography,
-	formatPaperBibliographyEntries
+	compileSectionedBibliography,
+	formatPaperBibliographyEntries,
+	sectionPaperBibliography
 } from '../paper-bibliography';
 import type {
 	PaperBookSourceView,
@@ -200,5 +203,77 @@ describe('compilePaperBibliography', () => {
 			{ includeCandidates: true }
 		);
 		expect(all.plain).toContain('Zimmerman');
+	});
+});
+
+describe('sectionPaperBibliography', () => {
+	const groups = [
+		{ id: 'g-sys', name: 'Systematic Theology', sort_order: 0 },
+		{ id: 'g-lang', name: 'NT language tools', sort_order: 1 }
+	];
+
+	it('keeps group order and sorts inside each section', () => {
+		const sources: PaperSourceView[] = [
+			{ ...bookSource('b-z', 'Zeta Studies', 'Zimmerman'), groupId: 'g-sys' },
+			{ ...bookSource('b-a', 'Alpha Themes', 'Adams'), groupId: 'g-sys' },
+			{ ...bookSource('b-m', 'Middle Work', 'Miller'), groupId: 'g-lang' }
+		];
+		const sections = sectionPaperBibliography(sources, groups);
+		expect(sections.map((s) => s.heading)).toEqual(['Systematic Theology', 'NT language tools']);
+		expect(sections[0]!.entries.map((e) => e.plain)).toEqual([
+			expect.stringMatching(/^Adams/),
+			expect.stringMatching(/^Zimmerman/)
+		]);
+	});
+
+	it('puts ungrouped entries first with no heading and skips empty groups', () => {
+		const sources: PaperSourceView[] = [
+			bookSource('b-a', 'Alpha Themes', 'Adams'),
+			{ ...bookSource('b-m', 'Middle Work', 'Miller'), groupId: 'g-lang' }
+		];
+		const sections = sectionPaperBibliography(sources, groups);
+		expect(sections).toHaveLength(2);
+		expect(sections[0]!.heading).toBeNull();
+		expect(sections[0]!.entries[0]!.plain).toMatch(/^Adams/);
+		expect(sections[1]!.heading).toBe('NT language tools');
+	});
+
+	it('lists a volume in each group that cites it, and includes essays', () => {
+		const shared = bookSource('b-a', 'Alpha Themes', 'Adams');
+		const essay = {
+			...essaySource('A Reading of Ruth', [author('Miller', 'Mary')]),
+			groupId: 'g-lang'
+		};
+		const sections = sectionPaperBibliography(
+			[{ ...shared, groupId: 'g-sys' }, { ...shared, groupId: 'g-lang' }, essay],
+			groups
+		);
+		expect(sections[0]!.entries).toHaveLength(1);
+		expect(sections[1]!.entries.map((e) => e.plain).join('\n')).toMatch(/Adams/);
+		expect(sections[1]!.entries.map((e) => e.plain).join('\n')).toMatch(/Miller/);
+	});
+
+	it('escapes group names in the clipboard html and omits candidates by default', () => {
+		const compiled = compileSectionedBibliography(
+			[
+				{ ...bookSource('b-a', 'Alpha Themes', 'Adams', 2001, 'cited'), groupId: 'g-sys' },
+				{
+					...bookSource('b-z', 'Zeta Studies', 'Zimmerman', 2001, 'candidate'),
+					groupId: 'g-lang'
+				}
+			],
+			[{ id: 'g-sys', name: 'A & B <set>', sort_order: 0 }]
+		);
+		expect(compiled.plain).toContain('A & B <set>');
+		expect(compiled.plain).not.toContain('Zimmerman');
+		expect(compiled.html).toContain('<strong>A &amp; B &lt;set&gt;</strong>');
+		expect(compiled.html).toContain('<p>');
+	});
+});
+
+describe('bibliographyDownloadName', () => {
+	it('slugs the lead and falls back when nothing is ascii', () => {
+		expect(bibliographyDownloadName('Romans 8:1–11')).toBe('romans-8-1-11-bibliography.docx');
+		expect(bibliographyDownloadName('—')).toBe('study-bibliography.docx');
 	});
 });

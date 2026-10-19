@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Passage sections on search-passage ([249](docs/decisions/249-library-passage-sections.md)).
+**Last updated:** 2026-10-19 — Studies Session 4 shipped ([248](docs/decisions/248-studies-session-4.md)): sectioned bibliography export, read-only study MCP, Overview.
 
 **How to use this file — read this first:**
 
@@ -38,10 +38,10 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Session 3 shipped ([247](docs/decisions/247-studies-session-3.md)): sermon sources panel, Systematic Theology auto-attach, hit rate. **Next:** Session 4 docx + MCP + Overview. |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped ([248](docs/decisions/248-studies-session-4.md)): sectioned bibliography, study MCP, Overview. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
-| MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)): week split, deferred_until, assignment link, contacts_with_cadence. |
+| MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). Reload the MCP client to pick up `list_studies`. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [248 — Studies Session 4](docs/decisions/248-studies-session-4.md) (2026-10-19) — Sectioned clipboard and `.docx`; `list_studies` / `get_study_sources` / `suggest_sources`; Overview links.
 - [249 — Passage sections](docs/decisions/249-library-passage-sections.md) (2026-10-19) — Curated monograph ranges (not a second scripture-ref tier); search-passage bands; study-import/footnote prefill deferred.
 - [247 — Studies Session 3](docs/decisions/247-studies-session-3.md) (2026-10-19) — Sermon detail shares the sources panel; Systematic Theology auto-attaches; hit rate since `acquired_on`.
 - [246 — Oct 19 shelf: NIDOTTE and commentaries](docs/decisions/246-library-oct19-nidotte-shelf.md) (2026-10-19) — NIDOTTE 1997 hardcovers, Beale and Weima BECNT, Kim/Bruce WBC 45 2nd ed., Noonan, Connelly, Celebration Hymnal. Bruce ebook ISBN corrected.
 - [245 — Studies Session 2](docs/decisions/245-studies-session-2.md) (2026-10-19) — Import a set or prior paper, usage cycle, compiled bib scope, archived list.
-- [244 — Studies Session 1](docs/decisions/244-studies-session-1.md) (2026-10-19) — `/studies` shell, resource sets (66 commentaries + language tools + Systematic Theology), `study_sources`.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Passage sections [249](docs/decisions/249-library-passage-sections.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **622/622** (2026-10-19). Migration `20261019200000_book_passage_sections.sql` pushed + types regenerated.
+**Repo gate:** Studies Session 4 [248](docs/decisions/248-studies-session-4.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **622/622** (2026-10-19). No new migration in this commit.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -99,23 +99,6 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ---
 
 ## Session prompts (copy-paste) — LIVE only
-
-### Studies — Session 4 ([247](docs/decisions/247-studies-session-3.md))
-
-```
-Session: studies #4 — docx + MCP + Overview
-Tracker: docs/POS_Studies_Build_Tracker.md, Session 4
-Read: AGENTS.md, docs/decisions/243-studies-session-0.md, src/lib/library/server/bibliography-docx.ts,
-  scripts/ppp-mcp/README.md
-Goal: Sectioned bibliography export and read-only study MCP tools.
-Acceptance:
- - [ ] Clipboard + .docx; optional sectioned-by-group; essays included
- - [ ] MCP list_studies, get_study_sources, suggest_sources (read-only)
- - [ ] Overview polish if the Session 1 stub is still thin
- - [ ] npm run check + npm run test
-```
-
-
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
 

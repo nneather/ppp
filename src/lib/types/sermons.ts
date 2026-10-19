@@ -92,6 +92,7 @@ export type DashboardSermonRow = {
 	context_type: ContextType | null;
 	topic: string | null;
 	passage_display: string | null;
+	topical: boolean;
 };
 
 export type SermonListFilters = {

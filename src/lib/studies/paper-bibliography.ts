@@ -1,8 +1,9 @@
 /**
- * Paper-scoped compiled bibliography ([188]): flat Turabian alpha, books and
- * essays merged, research groups ignored. Library's
- * `formatCompiledBibliography` is books-only, so the merge + shared sort key
- * live here rather than widening the library helper.
+ * Study-scoped compiled bibliography ([188], sectioned export [248]): flat
+ * Turabian alpha by default, books and essays merged. Research groups are
+ * ignored until `sectionPaperBibliography` / `compileSectionedBibliography`.
+ * Library's `formatCompiledBibliography` is books-only, so the merge + shared
+ * sort key live here rather than widening the library helper.
  */
 import {
 	bibliographySortKey,
@@ -12,8 +13,25 @@ import {
 	type BibliographySortKey,
 	type CitationFormatted
 } from '$lib/library/turabian';
-import type { PaperSourceView } from './paper-sources';
+import { groupPaperSources, type PaperGroupView, type PaperSourceView } from './paper-sources';
 import { includeInCompiledBibliography } from './source-usage';
+
+export type BibliographySection = {
+	/** Null for sources that are not in a research group. */
+	heading: string | null;
+	entries: CitationFormatted[];
+};
+
+function escapeHtml(text: string): string {
+	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function scopedSources(
+	sources: PaperSourceView[],
+	includeCandidates: boolean
+): PaperSourceView[] {
+	return sources.filter((s) => includeInCompiledBibliography(s.usage, includeCandidates));
+}
 
 function essaySortKey(source: Extract<PaperSourceView, { kind: 'essay' }>): BibliographySortKey {
 	return {
@@ -60,13 +78,72 @@ export function compilePaperBibliography(
 	sources: PaperSourceView[],
 	opts?: { includeCandidates?: boolean }
 ): CitationFormatted {
-	const scoped = sources.filter((s) =>
-		includeInCompiledBibliography(s.usage, opts?.includeCandidates === true)
+	const entries = formatPaperBibliographyEntries(
+		scopedSources(sources, opts?.includeCandidates === true)
 	);
-	const entries = formatPaperBibliographyEntries(scoped);
 	return {
 		plain: entries.map((e) => e.plain).join('\n\n'),
 		html: entries.map((e) => `<p>${e.html}</p>`).join('\n'),
 		sourceType: entries[0]?.sourceType ?? 'single-author-book'
 	};
+}
+
+/**
+ * One section per non-empty research group, in group order. Ungrouped sources
+ * lead, with no heading. Entries sort within the section. The same volume in
+ * two groups is listed twice; duplicates inside one section collapse.
+ */
+export function sectionPaperBibliography(
+	sources: PaperSourceView[],
+	groups: PaperGroupView[],
+	opts?: { includeCandidates?: boolean }
+): BibliographySection[] {
+	const buckets = groupPaperSources(
+		scopedSources(sources, opts?.includeCandidates === true),
+		groups
+	);
+	const sections: BibliographySection[] = [];
+	for (const bucket of buckets) {
+		const entries = formatPaperBibliographyEntries(bucket.sources);
+		if (entries.length === 0) continue;
+		sections.push({ heading: bucket.group?.name ?? null, entries });
+	}
+	return sections;
+}
+
+export function compileSectionedBibliography(
+	sources: PaperSourceView[],
+	groups: PaperGroupView[],
+	opts?: { includeCandidates?: boolean }
+): CitationFormatted {
+	const sections = sectionPaperBibliography(sources, groups, opts);
+	const plain: string[] = [];
+	const html: string[] = [];
+	for (const section of sections) {
+		if (section.heading) {
+			plain.push(section.heading);
+			html.push(`<p><strong>${escapeHtml(section.heading)}</strong></p>`);
+		}
+		for (const entry of section.entries) {
+			plain.push(entry.plain);
+			html.push(`<p>${entry.html}</p>`);
+		}
+	}
+	return {
+		plain: plain.join('\n\n'),
+		html: html.join('\n'),
+		sourceType: sections[0]?.entries[0]?.sourceType ?? 'single-author-book'
+	};
+}
+
+/** ASCII slug for `Content-Disposition`. Falls back when the lead has no letters. */
+export function bibliographyDownloadName(lead: string): string {
+	const slug = lead
+		.normalize('NFKD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.slice(0, 48);
+	return `${slug || 'study'}-bibliography.docx`;
 }

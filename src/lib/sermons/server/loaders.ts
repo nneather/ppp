@@ -135,7 +135,7 @@ export async function loadUpcomingSermons(
 	const limit = opts.limit ?? UPCOMING_SERMONS_DEFAULT_LIMIT;
 	const sermonsRes = await supabase
 		.from('sermons')
-		.select('id, preached_on, venue_id, context_type, topic, passage_display')
+		.select('id, preached_on, venue_id, context_type, topic, passage_display, topical')
 		.is('deleted_at', null)
 		.gte('preached_on', opts.todayYmd)
 		.order('preached_on', { ascending: true })
@@ -153,6 +153,7 @@ export async function loadUpcomingSermons(
 		context_type: string | null;
 		topic: string | null;
 		passage_display: string | null;
+		topical: boolean | null;
 	}>;
 
 	const venueIds = [
@@ -210,7 +211,8 @@ export async function loadUpcomingSermons(
 			venue_logistics: venue?.logistics ?? null,
 			context_type: parseContextType(s.context_type),
 			topic: s.topic,
-			passage_display: s.passage_display
+			passage_display: s.passage_display,
+			topical: s.topical === true
 		};
 	});
 

@@ -10,16 +10,19 @@ import { getPppMcpClient } from './client.ts';
 import {
 	getAssignmentsForCourse,
 	getBookCitation,
+	getStudySources,
 	listCommentariesForBibleBook,
 	listContactsDue,
 	listDueSoon,
 	listNowTasks,
 	listProjectHealth,
 	listSermonsForBibleBook,
+	listStudies,
 	listUpcomingSermonsTool,
 	listWeekTasks,
 	searchContactsTool,
 	searchLibrary,
+	suggestSources,
 	TOOL_NAMES,
 	type ToolName
 } from './tools.ts';
@@ -73,6 +76,21 @@ async function runTool(name: ToolName): Promise<unknown> {
 			return listCommentariesForBibleBook(supabase, { bible_book: 'Matthew' });
 		case 'list_sermons_for_bible_book':
 			return listSermonsForBibleBook(supabase, { bible_book: 'Mark' });
+		case 'list_studies':
+			return listStudies(supabase, { limit: 5 });
+		case 'get_study_sources':
+		case 'suggest_sources': {
+			const listed = await listStudies(supabase, { limit: 5, include_published: true });
+			const parsed = JSON.parse(listed.content[0]!.text) as {
+				papers?: { id: string; label: string }[];
+				sermons?: { id: string; label: string }[];
+			};
+			const study = parsed.papers?.[0]?.label || parsed.sermons?.[0]?.label;
+			if (!study) return { skipped: true, reason: 'no study to resolve' };
+			return name === 'get_study_sources'
+				? getStudySources(supabase, { study })
+				: suggestSources(supabase, { study });
+		}
 		default: {
 			const _exhaustive: never = name;
 			return _exhaustive;

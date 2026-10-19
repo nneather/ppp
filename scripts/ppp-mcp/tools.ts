@@ -496,6 +496,12 @@ export async function listSermonsForBibleBook(
 	});
 }
 
+export {
+	getStudySources,
+	listStudies,
+	suggestSources
+} from './studies.ts';
+
 export const TOOL_NAMES = [
 	'list_now_tasks',
 	'list_week_tasks',
@@ -508,7 +514,10 @@ export const TOOL_NAMES = [
 	'list_upcoming_sermons',
 	'list_project_health',
 	'list_commentaries_for_bible_book',
-	'list_sermons_for_bible_book'
+	'list_sermons_for_bible_book',
+	'list_studies',
+	'get_study_sources',
+	'suggest_sources'
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];

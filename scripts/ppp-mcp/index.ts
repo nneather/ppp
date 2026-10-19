@@ -15,16 +15,19 @@ import { getPppMcpClient } from './client.ts';
 import {
 	getBookCitation,
 	getAssignmentsForCourse,
+	getStudySources,
 	listCommentariesForBibleBook,
 	listContactsDue,
 	listDueSoon,
 	listNowTasks,
 	listProjectHealth,
 	listSermonsForBibleBook,
+	listStudies,
 	listUpcomingSermonsTool,
 	listWeekTasks,
 	searchContactsTool,
-	searchLibrary
+	searchLibrary,
+	suggestSources
 } from './tools.ts';
 
 const server = new McpServer({
@@ -236,6 +239,58 @@ server.registerTool(
 	async (args) => {
 		const { supabase } = await getPppMcpClient();
 		return listCommentariesForBibleBook(supabase, args);
+	}
+);
+
+server.registerTool(
+	'list_studies',
+	{
+		description:
+			'Studies overview: papers in progress (researching, drafting, submitted) and upcoming sermons (preached_on >= today, Chicago). include_published adds published papers. include_archived adds completed papers. kind limits to paper or sermon.',
+		inputSchema: {
+			limit: z.number().int().min(1).max(50).optional().describe('Max papers and max sermons (default 20).'),
+			include_published: z.boolean().optional().describe('Include published papers. Default false.'),
+			include_archived: z.boolean().optional().describe('Include completed (archived) papers. Default false.'),
+			kind: z.enum(['paper', 'sermon']).optional().describe('Limit to papers or sermons.')
+		}
+	},
+	async (args) => {
+		const { supabase } = await getPppMcpClient();
+		return listStudies(supabase, args);
+	}
+);
+
+server.registerTool(
+	'get_study_sources',
+	{
+		description:
+			'Sources on a paper or sermon (resolve by id, title, or passage). Includes usage, research group, and Turabian bibliography lines. bibliography is flat consulted+cited; bibliography_by_group adds research-group headings. include_candidates widens both.',
+		inputSchema: {
+			study: z.string().describe('Paper or sermon id, title, or passage (e.g. "Romans 8")'),
+			include_candidates: z
+				.boolean()
+				.optional()
+				.describe('Include candidate rows in the compiled bibliography. Default false.')
+		}
+	},
+	async (args) => {
+		const { supabase } = await getPppMcpClient();
+		return getStudySources(supabase, args);
+	}
+);
+
+server.registerTool(
+	'suggest_sources',
+	{
+		description:
+			'Suggest resource sets for a paper or sermon (commentary set for the passage, NT/OT language tools, Systematic Theology when expository; topic matches when topical). Read-only; does not attach sources.',
+		inputSchema: {
+			study: z.string().describe('Paper or sermon id, title, or passage')
+		}
+	},
+	async (args) => {
+		const { supabase } = await getPppMcpClient();
+		return suggestSources(supabase, args);
 	}
 );
 

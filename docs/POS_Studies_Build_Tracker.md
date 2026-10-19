@@ -1,6 +1,6 @@
 # Personal Operations System — Studies Module Build Tracker
 
-_Last updated: 2026-10-19 | Module: Studies | Session 3 shipped ([247](decisions/247-studies-session-3.md)); Session 4 next_
+_Last updated: 2026-10-19 | Module: Studies | Session 4 shipped ([248](decisions/248-studies-session-4.md))_
 
 **Read before any session:** [docs/MODULE_KICKOFF_PLAYBOOK.md](MODULE_KICKOFF_PLAYBOOK.md), [243](decisions/243-studies-session-0.md), papers retro [188](decisions/188-classwork-research-papers-session-0.md) / [189](decisions/189-classwork-papers-session-1.md) / [190](decisions/190-classwork-papers-session-2.md), sermons [090](decisions/090-sermons-session-0.md) / [095](decisions/095-sermons-by-book-stats.md). Brainstorm: [brainstorms/2026-10-19-papers-research-tool.md](../brainstorms/2026-10-19-papers-research-tool.md).
 
@@ -123,8 +123,8 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 | 0 | ✅ 2026-10-19 | Phase 0 + this tracker + [243](decisions/243-studies-session-0.md) |
 | 1 | ✅ 2026-10-19 | `ppp_studies_v1` applied. `/studies` shell + moved papers/sermons/by-book + 308s. Sets list/detail. Seeds: 66 commentary sets, NT/OT language tools, Systematic Theology (18 volume includes). [244](decisions/244-studies-session-1.md). |
 | 2 | ✅ 2026-10-19 | Import (set or prior paper) → auto-named group; remove-from-study vs remove-from-set with undo; usage cycle; bib scope; Complete/archived view; title-vs-passage display. [245](decisions/245-studies-session-2.md). |
-| 3 | | `/studies/sermons/[id]` + shared sources panel; Systematic Theology auto-attach on sermon create; By book papers column; book-detail "Used in"; hit rate (expository + primary passage + since `acquired_on`) |
-| 4 | | Sectioned `.docx`; MCP `list_studies` / `get_study_sources` / `suggest_sources`; Overview polish |
+| 3 | ✅ 2026-10-19 | `/studies/sermons/[id]` + shared sources panel; Systematic Theology auto-attach on sermon create; By book papers column; book-detail "Used in"; hit rate (expository + primary passage + since `acquired_on`). [247](decisions/247-studies-session-3.md). |
+| 4 | ✅ 2026-10-19 | Sectioned `.docx` + clipboard; MCP `list_studies` / `get_study_sources` / `suggest_sources`; Overview (in-progress papers + upcoming sermons). [248](decisions/248-studies-session-4.md). |
 
 ### Session 1 acceptance
 
@@ -153,6 +153,6 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 
 ### Session 4 acceptance
 
-- [ ] Clipboard + `.docx`, optional sectioned-by-group
-- [ ] Read-only MCP tools wrapping loaders
-- [ ] Overview: active papers + upcoming sermons (stub may land in Session 1)
+- [x] Clipboard + `.docx`, optional sectioned-by-group
+- [x] Read-only MCP tools wrapping loaders
+- [x] Overview: active papers + upcoming sermons (stub may land in Session 1)

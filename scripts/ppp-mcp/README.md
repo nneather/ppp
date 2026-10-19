@@ -32,6 +32,9 @@ The server loads `.env` then `.env.local` from the repo root. Prefer **not** put
 | `list_project_health` | Non-done/archived + latest health; `deferred_until` / `is_deferred`; optional `root` + `changed_only` |
 | `list_commentaries_for_bible_book` | `/sermons/by-book` commentaries |
 | `list_sermons_for_bible_book` | Sermons touching a Bible book |
+| `list_studies` | Papers in progress + upcoming sermons. `include_published` / `include_archived` widen papers. |
+| `get_study_sources` | Sources on a paper or sermon (id, title, or passage), with flat and sectioned bibliography text |
+| `suggest_sources` | Resource-set suggestions for a study (read-only; does not attach) |
 
 No write/mutate tools in v1.
 

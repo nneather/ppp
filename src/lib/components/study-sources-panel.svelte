@@ -12,7 +12,10 @@
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { compilePaperBibliography } from '$lib/studies/paper-bibliography';
+	import {
+		compilePaperBibliography,
+		compileSectionedBibliography
+	} from '$lib/studies/paper-bibliography';
 	import { setIdForGroupName, type ImportChecklistRow, type SetSuggestion } from '$lib/studies/import-suggest';
 	import {
 		groupPaperSources,
@@ -26,6 +29,7 @@
 	import { copyCitationToClipboard } from '$lib/library/turabian';
 	import type { BookListRow, EssaySearchHit } from '$lib/types/library';
 	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
+	import Download from '@lucide/svelte/icons/download';
 	import FolderInput from '@lucide/svelte/icons/folder-input';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
@@ -88,6 +92,7 @@
 	let importOpen = $state(false);
 	let openedImportKey = $state<string | null>(null);
 	let includeCandidates = $state(false);
+	let sectionByGroup = $state(false);
 	let removedSourceIds = $state<string[]>([]);
 
 	let removeStudyFormEl = $state<HTMLFormElement | null>(null);
@@ -265,8 +270,21 @@
 		sources.filter((source) => source.kind === 'essay').map((source) => source.essayId)
 	);
 
+	const compiledBibliography = $derived(
+		sectionByGroup
+			? compileSectionedBibliography(sources, groups, { includeCandidates })
+			: compilePaperBibliography(sources, { includeCandidates })
+	);
+	const docxHref = $derived(
+		`/studies/bibliography/download?${parentField}=${parentId}${sectionByGroup ? '&sectioned=1' : ''}${includeCandidates ? '&candidates=1' : ''}`
+	);
+	const bibliographyEmpty = $derived(
+		sources.filter((source) => includeInCompiledBibliography(source.usage, includeCandidates))
+			.length === 0
+	);
+
 	async function copyCompiledBibliography() {
-		const compiled = compilePaperBibliography(sources, { includeCandidates });
+		const compiled = compiledBibliography;
 		if (!compiled.plain) {
 			flashCopyToast('No bibliography entries yet');
 			return;
@@ -465,22 +483,36 @@
 				<input type="checkbox" class="size-3.5" bind:checked={includeCandidates} />
 				Include candidates
 			</label>
+			<label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+				<input type="checkbox" class="size-3.5" bind:checked={sectionByGroup} />
+				Section by group
+			</label>
 			<Button
 				type="button"
 				variant="outline"
 				class="gap-2"
 				hotkey="b"
-				disabled={sources.filter((source) => includeInCompiledBibliography(source.usage, includeCandidates))
-					.length === 0}
+				disabled={bibliographyEmpty}
 				onclick={copyCompiledBibliography}
 			>
 				<ClipboardList class="size-4" />
 				<HotkeyLabel label="Copy bibliography" mnemonic="b" />
 			</Button>
+			<Button
+				variant="outline"
+				class="gap-2"
+				href={docxHref}
+				disabled={bibliographyEmpty}
+				data-sveltekit-reload
+			>
+				<Download class="size-4" />
+				Download .docx
+			</Button>
 		</div>
 	</div>
 	<p class="mt-1 text-xs text-muted-foreground">
-		Bibliography defaults to consulted and cited. Unsigned reference articles stay out.
+		Bibliography defaults to consulted and cited. Section by group turns each research group into a
+		heading. Unsigned reference articles stay out.
 	</p>
 
 	{#if isOwner}
