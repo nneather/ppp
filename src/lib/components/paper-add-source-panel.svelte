@@ -10,6 +10,7 @@
 
 	let {
 		paperId,
+		parentField = 'paper_id',
 		query = '',
 		bookHits = [],
 		essayHits = [],
@@ -18,6 +19,7 @@
 		onAdded
 	}: {
 		paperId: string;
+		parentField?: 'paper_id' | 'sermon_id';
 		query?: string;
 		bookHits?: BookListRow[];
 		essayHits?: EssaySearchHit[];
@@ -112,7 +114,7 @@
 							<span class="shrink-0 text-xs text-muted-foreground">Attached</span>
 						{:else}
 							<form method="POST" action="?/addPaperSource" use:enhance={attachEnhance}>
-								<input type="hidden" name="paper_id" value={paperId} />
+								<input type="hidden" name={parentField} value={paperId} />
 								<input type="hidden" name="book_id" value={b.id} />
 								<Button
 									type="submit"
@@ -143,7 +145,7 @@
 							<span class="shrink-0 text-xs text-muted-foreground">Attached</span>
 						{:else}
 							<form method="POST" action="?/addPaperSource" use:enhance={attachEnhance}>
-								<input type="hidden" name="paper_id" value={paperId} />
+								<input type="hidden" name={parentField} value={paperId} />
 								<input type="hidden" name="essay_id" value={e.id} />
 								<Button
 									type="submit"
@@ -182,7 +184,7 @@
 				use:enhance={stubEnhance}
 				class="space-y-2"
 			>
-				<input type="hidden" name="paper_id" value={paperId} />
+				<input type="hidden" name={parentField} value={paperId} />
 				<p class="text-xs font-medium text-muted-foreground">
 					Creates a library stub (owned = no) and attaches it here.
 				</p>

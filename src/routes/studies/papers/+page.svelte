@@ -95,7 +95,11 @@
 	</PageHeader>
 
 	<p class="mt-4 text-sm">
-		{#if data.show === 'archived'}
+		{#if data.bibleBook}
+			<span class="text-muted-foreground">Papers on {data.bibleBook}</span>
+			<span aria-hidden="true"> · </span>
+			<a href="/studies/papers" class="text-muted-foreground underline-offset-2 hover:underline">All papers</a>
+		{:else if data.show === 'archived'}
 			<a href="/studies/papers" class="text-muted-foreground underline-offset-2 hover:underline">Active papers</a>
 		{:else}
 			<a href="/studies/papers?show=archived" class="text-muted-foreground underline-offset-2 hover:underline">Complete</a>
@@ -114,7 +118,11 @@
 		<div class="mt-8 rounded-lg border border-dashed border-border px-4 py-10 text-center">
 			<FileText class="mx-auto size-8 text-muted-foreground" />
 			<p class="mt-3 text-sm font-medium">
-				{data.show === 'archived' ? 'No completed papers' : 'No research papers yet'}
+				{data.bibleBook
+					? `No papers on ${data.bibleBook}`
+					: data.show === 'archived'
+						? 'No completed papers'
+						: 'No research papers yet'}
 			</p>
 			{#if data.show !== 'archived'}
 			<p class="mt-1 text-sm text-muted-foreground">

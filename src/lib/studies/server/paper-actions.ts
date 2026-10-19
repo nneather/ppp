@@ -3,7 +3,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { normalizeTitleKey } from '$lib/library/not-owned-queue';
 import { findOrCreatePerson, parseTypedName } from '$lib/library/server/people-actions';
 import { PAPER_STATUSES, type PaperStatus } from '$lib/types/classwork';
+import { sourcesForDefaultAttach } from '$lib/studies/default-attach';
 import { parseStudyUsage, type StudyUsage } from '$lib/studies/source-usage';
+import type { StudyParent } from '$lib/studies/study-parent';
+import { loadResourceSetDetail } from '$lib/studies/server/resource-set-loaders';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -19,6 +22,18 @@ function parseTopical(fd: FormData): boolean {
 	if (raw === null) return true;
 	const v = String(raw).trim().toLowerCase();
 	return v !== 'false' && v !== '0' && v !== 'off';
+}
+
+function readStudyParent(fd: FormData): StudyParent | null {
+	const paperId = trimOrNull(fd.get('paper_id'));
+	const sermonId = trimOrNull(fd.get('sermon_id'));
+	if (paperId && UUID_RE.test(paperId)) return { kind: 'paper', id: paperId };
+	if (sermonId && UUID_RE.test(sermonId)) return { kind: 'sermon', id: sermonId };
+	return null;
+}
+
+function parentIds(parent: StudyParent): { paperId?: string; sermonId?: string } {
+	return parent.kind === 'paper' ? { paperId: parent.id } : { sermonId: parent.id };
 }
 
 function parsePaperStatus(raw: string | null): PaperStatus | null {
@@ -335,19 +350,20 @@ type AttachOpts = {
 async function attachSource(
 	supabase: SupabaseClient,
 	userId: string,
-	paperId: string,
+	parent: StudyParent,
 	target: { book_id: string | null; essay_id: string | null },
 	opts: AttachOpts = {}
 ): Promise<{ ok: true; sourceId: string; revived: boolean } | { ok: false; message: string }> {
 	const col = target.book_id ? 'book_id' : 'essay_id';
 	const val = target.book_id ?? target.essay_id!;
 
-	const { data: existingRows, error: existErr } = await supabase
+	let lookup = supabase
 		.from('study_sources')
 		.select('id, deleted_at')
-		.eq('paper_id', paperId)
 		.eq(col, val)
 		.order('created_at', { ascending: false });
+	lookup = parent.kind === 'paper' ? lookup.eq('paper_id', parent.id) : lookup.eq('sermon_id', parent.id);
+	const { data: existingRows, error: existErr } = await lookup;
 
 	if (existErr) {
 		console.error('[papers] attachSource lookup', existErr);
@@ -357,7 +373,7 @@ async function attachSource(
 	const rows = (existingRows ?? []) as { id: string; deleted_at: string | null }[];
 	const live = rows.find((r) => r.deleted_at === null);
 	if (live) {
-		return { ok: false, message: 'Already attached to this paper.' };
+		return { ok: false, message: 'Already attached to this study.' };
 	}
 
 	const dead = rows[0];
@@ -387,7 +403,8 @@ async function attachSource(
 	const { data: inserted, error: insErr } = await supabase
 		.from('study_sources')
 		.insert({
-			paper_id: paperId,
+			paper_id: parent.kind === 'paper' ? parent.id : null,
+			sermon_id: parent.kind === 'sermon' ? parent.id : null,
 			book_id: target.book_id,
 			essay_id: target.essay_id,
 			group_id: opts.groupId ?? null,
@@ -405,21 +422,24 @@ async function attachSource(
 	return { ok: true, sourceId: (inserted as { id: string }).id, revived: false };
 }
 
-async function assertPaperLive(
+async function assertStudyLive(
 	supabase: SupabaseClient,
-	paperId: string
+	parent: StudyParent
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+	const table = parent.kind === 'paper' ? 'papers' : 'sermons';
 	const { data, error } = await supabase
-		.from('papers')
+		.from(table)
 		.select('id')
-		.eq('id', paperId)
+		.eq('id', parent.id)
 		.is('deleted_at', null)
 		.maybeSingle();
 	if (error) {
-		console.error('[papers] assertPaperLive', error);
+		console.error('[studies] assertStudyLive', error);
 		return { ok: false, message: error.message };
 	}
-	if (!data) return { ok: false, message: 'Paper not found.' };
+	if (!data) {
+		return { ok: false, message: parent.kind === 'paper' ? 'Paper not found.' : 'Sermon not found.' };
+	}
 	return { ok: true };
 }
 
@@ -428,10 +448,11 @@ export async function addPaperSourceAction(
 	userId: string,
 	fd: FormData
 ) {
-	const paperId = trimOrNull(fd.get('paper_id'));
-	if (!paperId || !UUID_RE.test(paperId)) {
-		return fail(400, { kind: 'addPaperSource' as const, message: 'Invalid paper.' });
+	const parent = readStudyParent(fd);
+	if (!parent) {
+		return fail(400, { kind: 'addPaperSource' as const, message: 'Invalid study.' });
 	}
+	const ids = parentIds(parent);
 
 	const book_id = trimOrNull(fd.get('book_id'));
 	const essay_id = trimOrNull(fd.get('essay_id'));
@@ -439,14 +460,14 @@ export async function addPaperSourceAction(
 	if (provided.length !== 1 || !UUID_RE.test(provided[0]!)) {
 		return fail(400, {
 			kind: 'addPaperSource' as const,
-			paperId,
+			...ids,
 			message: 'Pick exactly one book or essay.'
 		});
 	}
 
-	const paperOk = await assertPaperLive(supabase, paperId);
-	if (!paperOk.ok) {
-		return fail(400, { kind: 'addPaperSource' as const, paperId, message: paperOk.message });
+	const parentOk = await assertStudyLive(supabase, parent);
+	if (!parentOk.ok) {
+		return fail(400, { kind: 'addPaperSource' as const, ...ids, message: parentOk.message });
 	}
 
 	const table = book_id ? 'books' : 'essays';
@@ -459,28 +480,28 @@ export async function addPaperSourceAction(
 		.maybeSingle();
 	if (targetErr) {
 		console.error('[papers] addPaperSource target', targetErr);
-		return fail(500, { kind: 'addPaperSource' as const, paperId, message: targetErr.message });
+		return fail(500, { kind: 'addPaperSource' as const, ...ids, message: targetErr.message });
 	}
 	if (!target) {
 		return fail(404, {
 			kind: 'addPaperSource' as const,
-			paperId,
+			...ids,
 			message: book_id ? 'Book not found.' : 'Essay not found.'
 		});
 	}
 
-	const attached = await attachSource(supabase, userId, paperId, {
+	const attached = await attachSource(supabase, userId, parent, {
 		book_id,
 		essay_id
 	});
 	if (!attached.ok) {
-		return fail(400, { kind: 'addPaperSource' as const, paperId, message: attached.message });
+		return fail(400, { kind: 'addPaperSource' as const, ...ids, message: attached.message });
 	}
 
 	return {
 		kind: 'addPaperSource' as const,
 		success: true as const,
-		paperId,
+		...ids,
 		sourceId: attached.sourceId
 	};
 }
@@ -536,36 +557,42 @@ export async function createPaperGroupAction(
 	userId: string,
 	fd: FormData
 ) {
-	const paperId = trimOrNull(fd.get('paper_id'));
-	if (!paperId || !UUID_RE.test(paperId)) {
-		return fail(400, { kind: 'createPaperGroup' as const, message: 'Invalid paper.' });
+	const parent = readStudyParent(fd);
+	if (!parent) {
+		return fail(400, { kind: 'createPaperGroup' as const, message: 'Invalid study.' });
 	}
+	const ids = parentIds(parent);
 
 	const name = trimOrNull(fd.get('name'));
 	if (!name) {
 		return fail(400, {
 			kind: 'createPaperGroup' as const,
-			paperId,
+			...ids,
 			message: 'Group name is required.'
 		});
 	}
 
-	const paperOk = await assertPaperLive(supabase, paperId);
-	if (!paperOk.ok) {
-		return fail(400, { kind: 'createPaperGroup' as const, paperId, message: paperOk.message });
+	const parentOk = await assertStudyLive(supabase, parent);
+	if (!parentOk.ok) {
+		return fail(400, { kind: 'createPaperGroup' as const, ...ids, message: parentOk.message });
 	}
 
-	const { count, error: countErr } = await supabase
+	let countQuery = supabase
 		.from('study_research_groups')
 		.select('id', { count: 'exact', head: true })
-		.eq('paper_id', paperId)
 		.is('deleted_at', null);
+	countQuery =
+		parent.kind === 'paper'
+			? countQuery.eq('paper_id', parent.id)
+			: countQuery.eq('sermon_id', parent.id);
+	const { count, error: countErr } = await countQuery;
 	if (countErr) console.error('[papers] createPaperGroup count', countErr);
 
 	const { data: inserted, error: insErr } = await supabase
 		.from('study_research_groups')
 		.insert({
-			paper_id: paperId,
+			paper_id: parent.kind === 'paper' ? parent.id : null,
+			sermon_id: parent.kind === 'sermon' ? parent.id : null,
 			name,
 			sort_order: count ?? 0,
 			created_by: userId
@@ -577,7 +604,7 @@ export async function createPaperGroupAction(
 		console.error('[papers] createPaperGroup', insErr);
 		return fail(500, {
 			kind: 'createPaperGroup' as const,
-			paperId,
+			...ids,
 			message: insErr?.message ?? 'Could not create group.'
 		});
 	}
@@ -585,7 +612,7 @@ export async function createPaperGroupAction(
 	return {
 		kind: 'createPaperGroup' as const,
 		success: true as const,
-		paperId,
+		...ids,
 		groupId: (inserted as { id: string }).id
 	};
 }
@@ -621,42 +648,44 @@ export async function renamePaperGroupAction(supabase: SupabaseClient, fd: FormD
 
 /** Rewrite sort_order from an ordered id array (project_links precedent). */
 export async function reorderPaperGroupsAction(supabase: SupabaseClient, fd: FormData) {
-	const paperId = trimOrNull(fd.get('paper_id'));
-	if (!paperId || !UUID_RE.test(paperId)) {
-		return fail(400, { kind: 'reorderPaperGroups' as const, message: 'Invalid paper.' });
+	const parent = readStudyParent(fd);
+	if (!parent) {
+		return fail(400, { kind: 'reorderPaperGroups' as const, message: 'Invalid study.' });
 	}
+	const ids = parentIds(parent);
 
-	let ids: string[] = [];
+	let orderIds: string[] = [];
 	try {
 		const parsed = JSON.parse(String(fd.get('order') ?? '[]')) as unknown;
 		if (!Array.isArray(parsed)) throw new Error('not array');
-		ids = parsed.filter((x): x is string => typeof x === 'string' && UUID_RE.test(x));
+		orderIds = parsed.filter((x): x is string => typeof x === 'string' && UUID_RE.test(x));
 	} catch {
 		return fail(400, {
 			kind: 'reorderPaperGroups' as const,
-			paperId,
+			...ids,
 			message: 'Invalid order payload.'
 		});
 	}
 
-	for (let i = 0; i < ids.length; i++) {
-		const { error } = await supabase
+	for (let i = 0; i < orderIds.length; i++) {
+		let update = supabase
 			.from('study_research_groups')
 			.update({ sort_order: i } as never)
-			.eq('id', ids[i])
-			.eq('paper_id', paperId)
+			.eq('id', orderIds[i])
 			.is('deleted_at', null);
+		update = parent.kind === 'paper' ? update.eq('paper_id', parent.id) : update.eq('sermon_id', parent.id);
+		const { error } = await update;
 		if (error) {
 			console.error('[papers] reorderPaperGroups', error);
 			return fail(500, {
 				kind: 'reorderPaperGroups' as const,
-				paperId,
+				...ids,
 				message: error.message
 			});
 		}
 	}
 
-	return { kind: 'reorderPaperGroups' as const, success: true as const, paperId };
+	return { kind: 'reorderPaperGroups' as const, success: true as const, ...ids };
 }
 
 /**
@@ -722,13 +751,13 @@ export async function setPaperSourceGroupAction(supabase: SupabaseClient, fd: Fo
 		const [sourceRes, groupRes] = await Promise.all([
 			supabase
 				.from('study_sources')
-				.select('paper_id')
+				.select('paper_id, sermon_id')
 				.eq('id', sourceId)
 				.is('deleted_at', null)
 				.maybeSingle(),
 			supabase
 				.from('study_research_groups')
-				.select('paper_id')
+				.select('paper_id, sermon_id')
 				.eq('id', groupId)
 				.is('deleted_at', null)
 				.maybeSingle()
@@ -750,15 +779,17 @@ export async function setPaperSourceGroupAction(supabase: SupabaseClient, fd: Fo
 				message: 'Source not found.'
 			});
 		}
-		if (
-			!groupRes.data ||
-			(groupRes.data as { paper_id: string }).paper_id !==
-				(sourceRes.data as { paper_id: string }).paper_id
-		) {
+		const sourceParent = sourceRes.data as { paper_id: string | null; sermon_id: string | null };
+		const groupParent = groupRes.data as { paper_id: string | null; sermon_id: string | null } | null;
+		const sameParent =
+			!!groupParent &&
+			((sourceParent.paper_id != null && sourceParent.paper_id === groupParent.paper_id) ||
+				(sourceParent.sermon_id != null && sourceParent.sermon_id === groupParent.sermon_id));
+		if (!sameParent) {
 			return fail(400, {
 				kind: 'setPaperSourceGroup' as const,
 				sourceId,
-				message: 'Group not found on this paper.'
+				message: 'Group not found on this study.'
 			});
 		}
 	}
@@ -788,16 +819,17 @@ export async function createNotOwnedSourceAction(
 	userId: string,
 	fd: FormData
 ) {
-	const paperId = trimOrNull(fd.get('paper_id'));
-	if (!paperId || !UUID_RE.test(paperId)) {
-		return fail(400, { kind: 'createNotOwnedSource' as const, message: 'Invalid paper.' });
+	const parent = readStudyParent(fd);
+	if (!parent) {
+		return fail(400, { kind: 'createNotOwnedSource' as const, message: 'Invalid study.' });
 	}
+	const ids = parentIds(parent);
 
 	const title = trimOrNull(fd.get('title'));
 	if (!title) {
 		return fail(400, {
 			kind: 'createNotOwnedSource' as const,
-			paperId,
+			...ids,
 			message: 'Title is required.'
 		});
 	}
@@ -809,19 +841,19 @@ export async function createNotOwnedSourceAction(
 		if (!Number.isFinite(parsed) || parsed < 1000 || parsed > 2100) {
 			return fail(400, {
 				kind: 'createNotOwnedSource' as const,
-				paperId,
+				...ids,
 				message: 'Invalid year.'
 			});
 		}
 		year = parsed;
 	}
 
-	const paperOk = await assertPaperLive(supabase, paperId);
-	if (!paperOk.ok) {
+	const parentOk = await assertStudyLive(supabase, parent);
+	if (!parentOk.ok) {
 		return fail(400, {
 			kind: 'createNotOwnedSource' as const,
-			paperId,
-			message: paperOk.message
+			...ids,
+			message: parentOk.message
 		});
 	}
 
@@ -836,7 +868,7 @@ export async function createNotOwnedSourceAction(
 		console.error('[papers] createNotOwnedSource existing', existErr);
 		return fail(500, {
 			kind: 'createNotOwnedSource' as const,
-			paperId,
+			...ids,
 			message: existErr.message
 		});
 	}
@@ -872,7 +904,7 @@ export async function createNotOwnedSourceAction(
 			console.error('[papers] createNotOwnedSource insert', insErr);
 			return fail(500, {
 				kind: 'createNotOwnedSource' as const,
-				paperId,
+				...ids,
 				message: insErr?.message ?? 'Could not create stub.'
 			});
 		}
@@ -898,14 +930,14 @@ export async function createNotOwnedSourceAction(
 		}
 	}
 
-	const attached = await attachSource(supabase, userId, paperId, {
+	const attached = await attachSource(supabase, userId, parent, {
 		book_id: bookId,
 		essay_id: null
 	});
 	if (!attached.ok) {
 		return fail(400, {
 			kind: 'createNotOwnedSource' as const,
-			paperId,
+			...ids,
 			message: alreadyExisted
 				? `“${title}” is already in the catalog and ${attached.message.toLowerCase()}`
 				: attached.message
@@ -915,7 +947,7 @@ export async function createNotOwnedSourceAction(
 	return {
 		kind: 'createNotOwnedSource' as const,
 		success: true as const,
-		paperId,
+		...ids,
 		bookId,
 		sourceId: attached.sourceId,
 		alreadyExisted
@@ -975,17 +1007,21 @@ function parseImportItems(raw: FormDataEntryValue | null): { ok: true; items: Im
 async function findOrCreateImportGroup(
 	supabase: SupabaseClient,
 	userId: string,
-	paperId: string,
+	parent: StudyParent,
 	name: string
 ): Promise<{ ok: true; groupId: string } | { ok: false; message: string }> {
-	const { data: existing, error: existErr } = await supabase
+	let existingQuery = supabase
 		.from('study_research_groups')
 		.select('id')
-		.eq('paper_id', paperId)
 		.eq('name', name)
 		.is('deleted_at', null)
 		.order('sort_order', { ascending: true })
 		.limit(1);
+	existingQuery =
+		parent.kind === 'paper'
+			? existingQuery.eq('paper_id', parent.id)
+			: existingQuery.eq('sermon_id', parent.id);
+	const { data: existing, error: existErr } = await existingQuery;
 	if (existErr) {
 		console.error('[papers] import group lookup', existErr);
 		return { ok: false, message: existErr.message };
@@ -993,17 +1029,20 @@ async function findOrCreateImportGroup(
 	const found = (existing ?? [])[0] as { id: string } | undefined;
 	if (found) return { ok: true, groupId: found.id };
 
-	const { count, error: countErr } = await supabase
+	let countQuery = supabase
 		.from('study_research_groups')
 		.select('id', { count: 'exact', head: true })
-		.eq('paper_id', paperId)
 		.is('deleted_at', null);
+	countQuery =
+		parent.kind === 'paper' ? countQuery.eq('paper_id', parent.id) : countQuery.eq('sermon_id', parent.id);
+	const { count, error: countErr } = await countQuery;
 	if (countErr) console.error('[papers] import group count', countErr);
 
 	const { data: inserted, error: insErr } = await supabase
 		.from('study_research_groups')
 		.insert({
-			paper_id: paperId,
+			paper_id: parent.kind === 'paper' ? parent.id : null,
+			sermon_id: parent.kind === 'sermon' ? parent.id : null,
 			name,
 			sort_order: count ?? 0,
 			created_by: userId
@@ -1022,29 +1061,30 @@ export async function importPaperSourcesAction(
 	userId: string,
 	fd: FormData
 ) {
-	const paperId = trimOrNull(fd.get('paper_id'));
-	if (!paperId || !UUID_RE.test(paperId)) {
-		return fail(400, { kind: 'importPaperSources' as const, message: 'Invalid paper.' });
+	const parent = readStudyParent(fd);
+	if (!parent) {
+		return fail(400, { kind: 'importPaperSources' as const, message: 'Invalid study.' });
 	}
+	const ids = parentIds(parent);
 	const groupName = trimOrNull(fd.get('group_name'));
 	if (!groupName) {
 		return fail(400, {
 			kind: 'importPaperSources' as const,
-			paperId,
+			...ids,
 			message: 'Group name is required.'
 		});
 	}
 	const parsed = parseImportItems(fd.get('items'));
 	if (!parsed.ok) {
-		return fail(400, { kind: 'importPaperSources' as const, paperId, message: parsed.message });
+		return fail(400, { kind: 'importPaperSources' as const, ...ids, message: parsed.message });
 	}
-	const paperOk = await assertPaperLive(supabase, paperId);
-	if (!paperOk.ok) {
-		return fail(400, { kind: 'importPaperSources' as const, paperId, message: paperOk.message });
+	const parentOk = await assertStudyLive(supabase, parent);
+	if (!parentOk.ok) {
+		return fail(400, { kind: 'importPaperSources' as const, ...ids, message: parentOk.message });
 	}
-	const group = await findOrCreateImportGroup(supabase, userId, paperId, groupName);
+	const group = await findOrCreateImportGroup(supabase, userId, parent, groupName);
 	if (!group.ok) {
-		return fail(500, { kind: 'importPaperSources' as const, paperId, message: group.message });
+		return fail(500, { kind: 'importPaperSources' as const, ...ids, message: group.message });
 	}
 
 	let imported = 0;
@@ -1052,7 +1092,7 @@ export async function importPaperSourcesAction(
 		const attached = await attachSource(
 			supabase,
 			userId,
-			paperId,
+			parent,
 			{ book_id: item.book_id, essay_id: item.essay_id },
 			{
 				groupId: group.groupId,
@@ -1065,7 +1105,7 @@ export async function importPaperSourcesAction(
 			if (attached.message.includes('Already attached')) continue;
 			return fail(400, {
 				kind: 'importPaperSources' as const,
-				paperId,
+				...ids,
 				message: attached.message
 			});
 		}
@@ -1075,7 +1115,7 @@ export async function importPaperSourcesAction(
 	return {
 		kind: 'importPaperSources' as const,
 		success: true as const,
-		paperId,
+		...ids,
 		imported,
 		groupName
 	};
@@ -1110,7 +1150,7 @@ export async function restorePaperSourceAction(supabase: SupabaseClient, fd: For
 	}
 	const { data, error } = await supabase
 		.from('study_sources')
-		.select('id, paper_id, book_id, essay_id, deleted_at')
+		.select('id, paper_id, sermon_id, book_id, essay_id, deleted_at')
 		.eq('id', sourceId)
 		.maybeSingle();
 	if (error) {
@@ -1120,11 +1160,13 @@ export async function restorePaperSourceAction(supabase: SupabaseClient, fd: For
 	const row = data as {
 		id: string;
 		paper_id: string | null;
+		sermon_id: string | null;
 		book_id: string | null;
 		essay_id: string | null;
 		deleted_at: string | null;
 	} | null;
-	if (!row?.paper_id) {
+	const parentId = row?.paper_id ?? row?.sermon_id ?? null;
+	if (!row || !parentId) {
 		return fail(404, { kind: 'restorePaperSource' as const, sourceId, message: 'Source not found.' });
 	}
 	if (row.deleted_at === null) {
@@ -1135,13 +1177,9 @@ export async function restorePaperSourceAction(supabase: SupabaseClient, fd: For
 	if (!val) {
 		return fail(400, { kind: 'restorePaperSource' as const, sourceId, message: 'Source has no catalog row.' });
 	}
-	const { data: live, error: liveErr } = await supabase
-		.from('study_sources')
-		.select('id')
-		.eq('paper_id', row.paper_id)
-		.eq(col, val)
-		.is('deleted_at', null)
-		.limit(1);
+	let liveQuery = supabase.from('study_sources').select('id').eq(col, val).is('deleted_at', null).limit(1);
+	liveQuery = row.paper_id ? liveQuery.eq('paper_id', row.paper_id) : liveQuery.eq('sermon_id', parentId);
+	const { data: live, error: liveErr } = await liveQuery;
 	if (liveErr) {
 		console.error('[papers] restorePaperSource live', liveErr);
 		return fail(500, { kind: 'restorePaperSource' as const, sourceId, message: liveErr.message });
@@ -1150,7 +1188,7 @@ export async function restorePaperSourceAction(supabase: SupabaseClient, fd: For
 		return fail(400, {
 			kind: 'restorePaperSource' as const,
 			sourceId,
-			message: 'That source is already on the paper.'
+			message: 'That source is already on this study.'
 		});
 	}
 	const { error: updErr } = await supabase
@@ -1203,4 +1241,50 @@ export async function setPaperStatusAction(supabase: SupabaseClient, fd: FormDat
 		status,
 		previousStatus
 	};
+}
+
+/**
+ * Sets with `default_for` containing `sermon` land as candidate rows.
+ * Systematic Theology is the seeded case. Excludes are already absent from
+ * `included`. An empty include list attaches nothing.
+ */
+export async function attachDefaultSetsForSermon(
+	supabase: SupabaseClient,
+	userId: string,
+	sermonId: string
+): Promise<{ ok: true; attached: number } | { ok: false; message: string }> {
+	const { data, error } = await supabase
+		.from('resource_sets')
+		.select('id')
+		.contains('default_for', ['sermon'])
+		.is('deleted_at', null);
+	if (error) {
+		console.error('[sermons] default sets', error);
+		return { ok: false, message: error.message };
+	}
+	const parent: StudyParent = { kind: 'sermon', id: sermonId };
+	let attached = 0;
+	for (const row of (data ?? []) as { id: string }[]) {
+		const detail = await loadResourceSetDetail(supabase, row.id);
+		if (!detail.set) return { ok: false, message: detail.error ?? 'Set not found.' };
+		const members = sourcesForDefaultAttach(detail.set.included);
+		if (members.length === 0) continue;
+		const group = await findOrCreateImportGroup(supabase, userId, parent, detail.set.name);
+		if (!group.ok) return group;
+		for (const member of members) {
+			const result = await attachSource(
+				supabase,
+				userId,
+				parent,
+				{ book_id: member.bookId, essay_id: member.essayId },
+				{ groupId: group.groupId, usage: 'candidate' }
+			);
+			if (!result.ok) {
+				if (result.message.includes('Already attached')) continue;
+				return result;
+			}
+			attached += 1;
+		}
+	}
+	return { ok: true, attached };
 }

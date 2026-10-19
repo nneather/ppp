@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Oct 19 shelf: NIDOTTE, BECNT Colossians and Thessalonians, WBC Thessalonians 2nd ed. ([246](docs/decisions/246-library-oct19-nidotte-shelf.md)).
+**Last updated:** 2026-10-19 — Studies Session 3 shipped ([247](docs/decisions/247-studies-session-3.md)): sermon sources panel, Systematic Theology auto-attach, hit rate.
 
 **How to use this file — read this first:**
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Session 2 shipped ([245](docs/decisions/245-studies-session-2.md)): import a set or prior paper, usage cycle, archived list. **Next:** Session 3 sermon sources + hit rate. |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Session 3 shipped ([247](docs/decisions/247-studies-session-3.md)): sermon sources panel, Systematic Theology auto-attach, hit rate. **Next:** Session 4 docx + MCP + Overview. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)): week split, deferred_until, assignment link, contacts_with_cadence. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [247 — Studies Session 3](docs/decisions/247-studies-session-3.md) (2026-10-19) — Sermon detail shares the sources panel; Systematic Theology auto-attaches; hit rate since `acquired_on`.
 - [246 — Oct 19 shelf: NIDOTTE and commentaries](docs/decisions/246-library-oct19-nidotte-shelf.md) (2026-10-19) — NIDOTTE 1997 hardcovers, Beale and Weima BECNT, Kim/Bruce WBC 45 2nd ed., Noonan, Connelly, Celebration Hymnal. Bruce ebook ISBN corrected.
 - [245 — Studies Session 2](docs/decisions/245-studies-session-2.md) (2026-10-19) — Import a set or prior paper, usage cycle, compiled bib scope, archived list.
 - [244 — Studies Session 1](docs/decisions/244-studies-session-1.md) (2026-10-19) — `/studies` shell, resource sets (66 commentaries + language tools + Systematic Theology), `study_sources`.
 - [243 — Studies Session 0](docs/decisions/243-studies-session-0.md) (2026-10-19) — `/studies` umbrella; resource sets are rule + sticky overrides; shared sources for papers and sermons.
-- [242 — Ritual check-in + flexible assignments](docs/decisions/242-ritual-checkin-flexible-assignments.md) (2026-10-19) — Weekly Status completes when check-in is done; assignment checkbox / status / due move on list + dashboard.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Studies Session 2 [245](docs/decisions/245-studies-session-2.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **594/594** (2026-10-19). Shelf add [246](docs/decisions/246-library-oct19-nidotte-shelf.md) is DML-only (no `gen-types`, check/test unchanged).
+**Repo gate:** Studies Session 3 [247](docs/decisions/247-studies-session-3.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **602/602** (2026-10-19). No new migration. Shelf add [246](docs/decisions/246-library-oct19-nidotte-shelf.md) is DML-only.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -100,20 +100,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Session prompts (copy-paste) — LIVE only
 
-### Studies — Sessions 3–4 ([245](docs/decisions/245-studies-session-2.md))
-
-```
-Session: studies #3 — sermon sources + hit rate
-Tracker: docs/POS_Studies_Build_Tracker.md, Session 3
-Read: AGENTS.md, docs/decisions/243-studies-session-0.md, latest studies decisions
-Goal: Sermons use the same sources panel; hit rate per commentary per Bible book.
-Acceptance:
- - [ ] /studies/sermons/[id] shares the sources panel
- - [ ] Systematic Theology auto-attaches on sermon create (respects set excludes)
- - [ ] By book papers column; book-detail Used in
- - [ ] Hit rate: expository, primary passage, since books.acquired_on
- - [ ] npm run check + npm run test
-```
+### Studies — Session 4 ([247](docs/decisions/247-studies-session-3.md))
 
 ```
 Session: studies #4 — docx + MCP + Overview
@@ -231,7 +218,7 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Studies Session 3** — sermon sources panel, Systematic Theology auto-attach, hit rate ([245](docs/decisions/245-studies-session-2.md)). Prompt above.
+1. **Studies Session 4** — sectioned `.docx`, read-only study MCP, Overview polish ([247](docs/decisions/247-studies-session-3.md)). Prompt above.
 2. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
 3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).

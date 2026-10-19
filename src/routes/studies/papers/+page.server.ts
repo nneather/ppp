@@ -10,6 +10,7 @@ import {
 import { loadPapers } from '$lib/studies/server/paper-loaders';
 import { loadAssignments, loadCourses } from '$lib/classwork/server/loaders';
 import { parsePaperListShow } from '$lib/studies/import-suggest';
+import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
 
 export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const { user } = await locals.safeGetSession();
@@ -20,9 +21,13 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const todayYmd = ymdInChicago();
 	const supabase = locals.supabase;
 	const show = parsePaperListShow(url.searchParams.get('show'));
+	const bibleBookRaw = url.searchParams.get('bible_book')?.trim() ?? '';
+	const bibleBook = (BIBLE_BOOK_NAMES as readonly string[]).includes(bibleBookRaw)
+		? bibleBookRaw
+		: null;
 
 	const [papersRes, coursesRes, assignmentsRes, profileRes] = await Promise.all([
-		loadPapers(supabase, show),
+		loadPapers(supabase, show, bibleBook),
 		loadCourses(supabase),
 		loadAssignments(supabase, { todayYmd }),
 		supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
@@ -42,6 +47,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		linkedAssignmentIds,
 		isOwner,
 		show,
+		bibleBook,
 		loadError: papersRes.error ?? coursesRes.error ?? assignmentsRes.error
 	};
 };

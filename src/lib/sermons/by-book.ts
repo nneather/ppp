@@ -33,7 +33,8 @@ export function emptyByBookRows(): ByBookRow[] {
 		commentaryCount: 0,
 		fourStarCount: 0,
 		commentaries: [],
-		alsoOnShelf: []
+		alsoOnShelf: [],
+		paperCount: 0
 	}));
 }
 

@@ -28,6 +28,8 @@
 		incompleteCitationCaption
 	} from '$lib/library/missing-important';
 	import { copyPublisherYearLine } from '$lib/library/book-copy-text';
+	import { formatHitRate } from '$lib/studies/hit-rate';
+	import { STUDY_USAGE_LABELS } from '$lib/studies/source-usage';
 	import {
 		LIBRARY_ANCIENT_TEXTS_JSON,
 		LIBRARY_TOPIC_COUNTS_JSON
@@ -1385,6 +1387,38 @@
 	>
 		{@render copyDraftButtons(true)}
 	</section>
+
+	{#await data.studyUsePromise then studyUse}
+		{#if studyUse.links.length > 0 || studyUse.hitRates.length > 0}
+			<section class="mt-4" aria-labelledby="used-in-heading">
+				<h2 id="used-in-heading" class="text-sm font-semibold">Used in</h2>
+				{#if studyUse.hitRates.length > 0}
+					<p class="mt-1 text-xs text-muted-foreground">
+						Hit rate
+						{#each studyUse.hitRates as rate (rate.bibleBook)}
+							<span class="ml-2 font-medium text-foreground" title="Consulted or cited since this book was acquired">
+								{rate.bibleBook} {formatHitRate(rate)}
+							</span>
+						{/each}
+					</p>
+				{/if}
+				{#if studyUse.links.length > 0}
+					<ul class="mt-2 space-y-1">
+						{#each studyUse.links as link (`${link.kind}-${link.id}`)}
+							<li class="flex items-baseline justify-between gap-3 text-sm">
+								<a href={link.href} class="min-w-0 truncate underline-offset-2 hover:underline">
+									{link.label}
+								</a>
+								<span class="shrink-0 text-xs text-muted-foreground">
+									{link.kind === 'sermon' ? 'Sermon' : 'Paper'} · {STUDY_USAGE_LABELS[link.usage]}
+								</span>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</section>
+		{/if}
+	{/await}
 
 	{#if data.book.needs_review_note}
 		<p class="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">

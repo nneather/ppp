@@ -60,6 +60,7 @@
 	let topic = $state('');
 	let passageDisplay = $state('');
 	let notes = $state('');
+	let topical = $state(false);
 	let passages = $state<PassageDraft[]>([]);
 
 	let newVenueName = $state('');
@@ -103,6 +104,7 @@
 			topic = sermon.topic ?? '';
 			passageDisplay = sermon.passage_display ?? '';
 			notes = sermon.notes ?? '';
+			topical = sermon.topical;
 			passages = sermon.passages.length
 				? sermon.passages.map(passageToDraft)
 				: [];
@@ -113,6 +115,7 @@
 			topic = '';
 			passageDisplay = '';
 			notes = '';
+			topical = false;
 			passages = [];
 		}
 		newVenueName = '';
@@ -378,6 +381,24 @@
 						Parse
 					</Button>
 				</div>
+			</div>
+
+			<div class="space-y-2">
+				<input type="hidden" name="topical" value={topical ? 'true' : 'false'} />
+				<label class="flex items-start gap-2 text-sm">
+					<input
+						type="checkbox"
+						class="mt-0.5 size-4"
+						checked={topical}
+						onchange={(e) => (topical = e.currentTarget.checked)}
+					/>
+					<span>
+						Topical
+						<span class="mt-0.5 block text-xs text-muted-foreground">
+							On keeps this sermon out of commentary hit rate. Off is expository.
+						</span>
+					</span>
+				</label>
 			</div>
 
 			<div class="space-y-2">

@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { goto, invalidate } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { untrack } from 'svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import SermonFormSheet from '$lib/components/sermon-form-sheet.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
@@ -34,6 +35,16 @@
 		sermonId?: string;
 	};
 	const f = $derived((form ?? null) as FormShape | null);
+
+	let openedCreateId = $state<string | null>(null);
+	$effect(() => {
+		const id = f?.kind === 'createSermon' && f.success && f.sermonId ? f.sermonId : null;
+		if (!id || id === openedCreateId) return;
+		untrack(() => {
+			openedCreateId = id;
+			void goto(`/studies/sermons/${id}`);
+		});
+	});
 
 	let venues = $state<SermonVenueRow[]>([]);
 	$effect(() => {
@@ -283,9 +294,9 @@
 								<span class="truncate">{s.venue_name}</span>
 							{/if}
 						</div>
-						<p class="mt-1 text-sm font-medium tracking-tight">
+						<a href={`/studies/sermons/${s.id}`} class="mt-1 block text-sm font-medium tracking-tight hover:underline">
 							{s.passage_display?.trim() || 'Passage TBD'}
-						</p>
+						</a>
 						{#if s.topic?.trim()}
 							<p class="mt-0.5 text-sm text-muted-foreground">{s.topic.trim()}</p>
 						{/if}

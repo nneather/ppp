@@ -1,6 +1,6 @@
 # Personal Operations System — Studies Module Build Tracker
 
-_Last updated: 2026-10-19 | Module: Studies | Session 2 shipped ([245](decisions/245-studies-session-2.md)); Session 3 next_
+_Last updated: 2026-10-19 | Module: Studies | Session 3 shipped ([247](decisions/247-studies-session-3.md)); Session 4 next_
 
 **Read before any session:** [docs/MODULE_KICKOFF_PLAYBOOK.md](MODULE_KICKOFF_PLAYBOOK.md), [243](decisions/243-studies-session-0.md), papers retro [188](decisions/188-classwork-research-papers-session-0.md) / [189](decisions/189-classwork-papers-session-1.md) / [190](decisions/190-classwork-papers-session-2.md), sermons [090](decisions/090-sermons-session-0.md) / [095](decisions/095-sermons-by-book-stats.md). Brainstorm: [brainstorms/2026-10-19-papers-research-tool.md](../brainstorms/2026-10-19-papers-research-tool.md).
 
@@ -146,10 +146,10 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 
 ### Session 3 acceptance
 
-- [ ] Sermon detail shares the sources panel
-- [ ] New sermon auto-attaches Systematic Theology as `candidate` rows, respecting set excludes
-- [ ] By book papers column + book-detail "Used in"
-- [ ] Hit rate per resource per Bible book
+- [x] Sermon detail shares the sources panel
+- [x] New sermon auto-attaches Systematic Theology as `candidate` rows, respecting set excludes
+- [x] By book papers column + book-detail "Used in"
+- [x] Hit rate per resource per Bible book
 
 ### Session 4 acceptance
 

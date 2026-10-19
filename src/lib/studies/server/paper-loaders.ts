@@ -11,8 +11,9 @@ import {
 	type PaperRow,
 	type PaperStatus
 } from '$lib/types/classwork';
-import type { PaperGroupView, PaperSourceView } from '$lib/studies/paper-sources';
+import type { PaperGroupView, PaperSourceView, OrphanPaperSource } from '$lib/studies/paper-sources';
 import { parseStudyUsage } from '$lib/studies/source-usage';
+import type { StudyParent } from '$lib/studies/study-parent';
 
 const PAPER_COLUMNS =
 	'id, title, status, course_id, assignment_id, due_date, topic, passage_display, topical, notes, sort_order, created_at';
@@ -154,7 +155,8 @@ async function hydratePapers(supabase: SupabaseClient, rows: PaperDb[]): Promise
 
 export async function loadPapers(
 	supabase: SupabaseClient,
-	show: 'active' | 'archived' = 'active'
+	show: 'active' | 'archived' = 'active',
+	bibleBook: string | null = null
 ): Promise<{
 	papers: PaperListRow[];
 	error: string | null;
@@ -168,6 +170,22 @@ export async function loadPapers(
 		show === 'archived'
 			? papersQuery.eq('status', 'archived')
 			: papersQuery.neq('status', 'archived');
+	if (bibleBook) {
+		const passRes = await supabase
+			.from('paper_passages')
+			.select('paper_id')
+			.eq('bible_book', bibleBook)
+			.is('deleted_at', null);
+		if (passRes.error) {
+			console.error('[papers] bible book filter', passRes.error);
+			return { papers: [], error: passRes.error.message };
+		}
+		const ids = [
+			...new Set(((passRes.data ?? []) as { paper_id: string }[]).map((row) => row.paper_id))
+		];
+		if (ids.length === 0) return { papers: [], error: null };
+		papersQuery = papersQuery.in('id', ids);
+	}
 
 	const [papersRes, countsRes] = await Promise.all([
 		papersQuery,
@@ -215,32 +233,36 @@ export async function loadPaperDetail(
 	return { paper: paper ?? null, error: null };
 }
 
-/** Live research groups for a paper, in display order. */
-export async function loadPaperGroups(
+/** Live research groups for a paper or sermon, in display order. */
+export async function loadStudyGroups(
 	supabase: SupabaseClient,
-	paperId: string
+	parent: StudyParent
 ): Promise<{ groups: PaperGroupView[]; error: string | null }> {
-	const { data, error } = await supabase
+	let query = supabase
 		.from('study_research_groups')
 		.select('id, name, sort_order')
-		.eq('paper_id', paperId)
 		.is('deleted_at', null)
 		.order('sort_order', { ascending: true })
 		.order('created_at', { ascending: true });
+	query = parent.kind === 'paper' ? query.eq('paper_id', parent.id) : query.eq('sermon_id', parent.id);
+	const { data, error } = await query;
 
 	if (error) {
-		console.error('[papers] loadPaperGroups', error);
+		console.error('[studies] loadStudyGroups', error);
 		return { groups: [], error: error.message };
 	}
 	return { groups: (data ?? []) as PaperGroupView[], error: null };
 }
 
+export async function loadPaperGroups(
+	supabase: SupabaseClient,
+	paperId: string
+): Promise<{ groups: PaperGroupView[]; error: string | null }> {
+	return loadStudyGroups(supabase, { kind: 'paper', id: paperId });
+}
+
 /** Live junction row whose catalog book/essay is gone (soft-deleted). */
-export type OrphanPaperSource = {
-	sourceId: string;
-	kind: 'book' | 'essay';
-	notes: string | null;
-};
+export type { OrphanPaperSource };
 
 /**
  * Sources with citation-ready inputs, in attach order. Book citation data
@@ -249,24 +271,25 @@ export type OrphanPaperSource = {
  * row was soft-deleted come back as `orphans` so the UI can show and remove
  * them (they still hold the live partial unique / list counts).
  */
-export async function loadPaperSourceViews(
+export async function loadStudySourceViews(
 	supabase: SupabaseClient,
-	paperId: string
+	parent: StudyParent
 ): Promise<{
 	sources: PaperSourceView[];
 	orphans: OrphanPaperSource[];
 	people: PersonRow[];
 	error: string | null;
 }> {
-	const [sourcesRes, people] = await Promise.all([
-		supabase
-			.from('study_sources')
-			.select('id, group_id, book_id, essay_id, notes, usage, sort_order, created_at')
-			.eq('paper_id', paperId)
-			.is('deleted_at', null)
-			.order('created_at', { ascending: true }),
-		loadPeople(supabase)
-	]);
+	let sourcesQuery = supabase
+		.from('study_sources')
+		.select('id, group_id, book_id, essay_id, notes, usage, sort_order, created_at')
+		.is('deleted_at', null)
+		.order('created_at', { ascending: true });
+	sourcesQuery =
+		parent.kind === 'paper'
+			? sourcesQuery.eq('paper_id', parent.id)
+			: sourcesQuery.eq('sermon_id', parent.id);
+	const [sourcesRes, people] = await Promise.all([sourcesQuery, loadPeople(supabase)]);
 
 	if (sourcesRes.error) {
 		console.error('[papers] loadPaperSourceViews', sourcesRes.error);
@@ -370,4 +393,16 @@ export async function loadPaperSourceViews(
 	}
 
 	return { sources, orphans, people, error: null };
+}
+
+export async function loadPaperSourceViews(
+	supabase: SupabaseClient,
+	paperId: string
+): Promise<{
+	sources: PaperSourceView[];
+	orphans: OrphanPaperSource[];
+	people: PersonRow[];
+	error: string | null;
+}> {
+	return loadStudySourceViews(supabase, { kind: 'paper', id: paperId });
 }

@@ -17,9 +17,11 @@
 		sermonsListByBookHref
 	} from '$lib/sermons/by-book';
 	import { formatYmdMediumChicago } from '$lib/invoicing/chicago-date';
+	import { formatHitRate } from '$lib/studies/hit-rate';
 	import { cn } from '$lib/utils';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import Mic from '@lucide/svelte/icons/mic';
 	import Star from '@lucide/svelte/icons/star';
 	import type { PageProps } from './$types';
@@ -74,7 +76,7 @@
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 pb-tabbar">
 	<PageHeader
 		title="Sermons"
-		subtitle="Bible-book spine — sermons preached and commentaries on the shelf."
+		subtitle="Bible-book spine — sermons, papers, and commentaries on the shelf."
 	>
 	</PageHeader>
 
@@ -199,7 +201,7 @@
 						</span>
 						<span
 							class="flex shrink-0 items-center gap-2.5 text-xs tabular-nums text-muted-foreground"
-							aria-label={`${row.latestSermonOn ? `Latest sermon ${formatYmdMediumChicago(row.latestSermonOn)}, ` : ''}${row.commentaryCount} commentaries${row.fourStarCount > 0 ? `, ${row.fourStarCount} at 4 stars or higher` : ''}`}
+							aria-label={`${row.latestSermonOn ? `Latest sermon ${formatYmdMediumChicago(row.latestSermonOn)}, ` : ''}${row.paperCount} papers, ${row.commentaryCount} commentaries${row.fourStarCount > 0 ? `, ${row.fourStarCount} at 4 stars or higher` : ''}`}
 						>
 							{#if row.latestSermonOn}
 								<time
@@ -229,6 +231,17 @@
 						</span>
 					</button>
 					<div class="flex shrink-0 items-center gap-0.5 border-l border-border px-1">
+						<Button
+							variant="ghost"
+							size="sm"
+							href={`/studies/papers?bible_book=${encodeURIComponent(row.bibleBook)}`}
+							aria-label={`${row.paperCount} papers on ${row.bibleBook}`}
+							title="Papers"
+							class="h-8 gap-1 px-2 text-muted-foreground"
+						>
+							<FileText class="size-3.5 shrink-0" aria-hidden="true" />
+							<span class="text-xs font-semibold tabular-nums">{row.paperCount}</span>
+						</Button>
 						{#if row.sermonCount > 0}
 							<Button
 								variant="ghost"
@@ -301,6 +314,14 @@
 													{/if}
 													{ratingLabel(hit.rating)}
 												</span>
+												{#if hit.hitRate}
+													<span
+														class="font-medium text-foreground"
+														title="Consulted or cited in expository studies on this book since the commentary was acquired"
+													>
+														{formatHitRate(hit.hitRate)}
+													</span>
+												{/if}
 											</span>
 										</a>
 									</li>

@@ -79,6 +79,7 @@ export type SermonListRow = {
 	notes: string | null;
 	passages: SermonPassageRow[];
 	library_search_href: string | null;
+	topical: boolean;
 };
 
 /** Lightweight upcoming row for `/dashboard` (no passages). */
@@ -147,6 +148,8 @@ export type ByBookShelfHit = {
 	rating: number | null;
 	genre: string | null;
 	href: string;
+	/** Consulted or cited over expository primary-passage opportunities since acquired_on. */
+	hitRate?: { used: number; opportunities: number } | null;
 };
 
 export type ByBookRow = {
@@ -160,6 +163,8 @@ export type ByBookRow = {
 	fourStarCount: number;
 	commentaries: ByBookShelfHit[];
 	alsoOnShelf: ByBookShelfHit[];
+	/** Live papers with any passage on this Bible book. */
+	paperCount: number;
 };
 
 export type ByBookSummary = {

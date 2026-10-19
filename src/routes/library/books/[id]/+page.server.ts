@@ -13,6 +13,7 @@ import {
 	loadAlsoByAuthorBooks
 } from '$lib/library/server/loaders';
 import { primaryAuthorPersonIds } from '$lib/library/book-detail-related';
+import { loadBookStudyUse } from '$lib/studies/server/hit-rate-loaders';
 import {
 	createPersonAction,
 	softDeleteBookAction,
@@ -108,7 +109,8 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		ancientCoveragePromise: loadAncientCoverageForBook(supabase, id),
 		essaysPromise: essaysEligible
 			? loadEssaysForBook(supabase, id, people)
-			: Promise.resolve([])
+			: Promise.resolve([]),
+		studyUsePromise: loadBookStudyUse(supabase, id)
 	};
 };
 

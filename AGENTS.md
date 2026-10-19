@@ -191,15 +191,19 @@ End-of-session deliverables:
   - Routes: `/studies/sermons` (list + Sheet; 308 from `/sermons`), `/studies/by-book` (commentary × sermon spine; 308 from `/sermons/by-book`), `/settings/sermons/venues`. Library hook: deep-link to `/library/search-passage`.
   - Audit: `_SERMONS_TABLES`; soft-delete revert for venues/sermons/passages.
 
-- **Studies helpers** at `src/lib/studies/` (migration `20261019180000_ppp_studies_v1.sql`; Session 0 [243](docs/decisions/243-studies-session-0.md), Session 1 [244](docs/decisions/244-studies-session-1.md), Session 2 [245](docs/decisions/245-studies-session-2.md)):
+- **Studies helpers** at `src/lib/studies/` (migration `20261019180000_ppp_studies_v1.sql`; Session 0 [243](docs/decisions/243-studies-session-0.md), Session 1 [244](docs/decisions/244-studies-session-1.md), Session 2 [245](docs/decisions/245-studies-session-2.md), Session 3 [247](docs/decisions/247-studies-session-3.md)):
  - `src/lib/studies/resource-sets.ts` — rule types, `resolveSetMembers`, canon grouping, new-since-`last_reviewed_at` (null review = no badge); commentary collapse via `candidatesFromCommentaryHits`; unit tests `__tests__/resource-sets.test.ts`.
  - `src/lib/studies/import-suggest.ts` — passage/testament/topical set suggestions, import checklist, group name (`From: …`), `?show=` / `?import=` parse; unit tests `__tests__/import-suggest.test.ts`.
  - `src/lib/studies/source-usage.ts` — `candidate → consulted → cited` cycle; compiled bib defaults to consulted+cited.
  - `src/lib/studies/paper-display.ts` — passage leads the title when `passage_display` is set.
+ - `src/lib/studies/study-parent.ts` — paper XOR sermon parent for shared source actions.
+ - `src/lib/studies/hit-rate.ts` — expository, primary passage, on or after `books.acquired_on`; essay use counts as the parent book; unit tests `__tests__/hit-rate.test.ts`.
+ - `src/lib/studies/default-attach.ts` — include-only members for sermon auto-attach (excludes already absent); unit tests `__tests__/default-attach.test.ts`.
   - `src/lib/studies/server/resource-set-loaders.ts` — list + detail. Bible-book rules resolve Commentary coverage (collapse). Genre/topic rules match books. Documented extra round trips (same class as by-book). `loadResourceSetSummaries` (id, name, kind, rules; no member resolution) feeds the import picker.
   - `src/lib/studies/server/resource-set-actions.ts` — mark reviewed, remove (sticky exclude), restore (drop exclude or flip back to include).
- - Paper helpers: `paper-sources.ts`, `paper-bibliography.ts` (`includeCandidates`), `server/paper-loaders.ts` (`loadPapers(show)`), `server/paper-actions.ts` (`importPaperSourcesAction`, `setPaperSourceUsageAction`, `restorePaperSourceAction`, `setPaperStatusAction`). Classwork keeps thin re-exports.
- - Routes: `/studies` (Overview | Papers | Sermons | Sets | By book). Papers list `?show=archived`. Paper detail import via `<PaperImportSheet>` (`?import=`). Sets at `/studies/sets` and `/studies/sets/[id]` (`<ResourceSetReview>`). Desktop sidebar only. Permissions slug `studies`. Audit: `_STUDIES_TABLES`.
+ - Paper helpers: `paper-sources.ts`, `paper-bibliography.ts` (`includeCandidates`), `server/paper-loaders.ts` (`loadPapers(show, bibleBook)`), `server/paper-actions.ts` (paper XOR sermon parent; `attachDefaultSetsForSermon`; `importPaperSourcesAction`, `setPaperSourceUsageAction`, `restorePaperSourceAction`, `setPaperStatusAction`). Classwork keeps thin re-exports.
+ - `server/study-workspace.ts` — shared sources/import load for paper and sermon detail. `server/hit-rate-loaders.ts` — by-book rates and book-detail Used in (extra round trips, same class as commentary coverage).
+ - Routes: `/studies` (Overview | Papers | Sermons | Sets | By book). Papers list `?show=archived` and `?bible_book=`. Paper and sermon detail share `<StudySourcesPanel>` (`/studies/sermons/[id]`). Sets at `/studies/sets` and `/studies/sets/[id]` (`<ResourceSetReview>`). Desktop sidebar only. Permissions slug `studies`. Audit: `_STUDIES_TABLES`.
 
 - **Sports helpers** at `src/lib/sports/` (schema migration `20260902221000_ppp_sports_v1.sql`; Session 1 [218](docs/decisions/218-sports-session-1.md)):
   - `src/lib/types/sports.ts` — leagues (`nfl`/`mlb`/`college-football`), game/team/standing/glance view-models.

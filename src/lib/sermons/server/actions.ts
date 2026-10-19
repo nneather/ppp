@@ -5,6 +5,7 @@ import type { ContextType } from '$lib/types/sermons';
 import { parsePassageDisplay } from '$lib/sermons/passage-parse';
 import { parseContextType } from '$lib/sermons/venue-context';
 import { parseVenueLogisticsFields } from '$lib/sermons/venue-logistics';
+import { attachDefaultSetsForSermon } from '$lib/studies/server/paper-actions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -13,6 +14,13 @@ function trimOrNull(v: FormDataEntryValue | null): string | null {
 	if (v === null || v === undefined) return null;
 	const t = String(v).trim();
 	return t.length > 0 ? t : null;
+}
+
+function parseSermonTopical(fd: FormData): boolean {
+	const raw = fd.get('topical');
+	if (raw === null) return false;
+	const value = String(raw).trim().toLowerCase();
+	return value === 'true' || value === '1' || value === 'on';
 }
 
 function parseOptionalInt(raw: string | null): number | null {
@@ -197,6 +205,7 @@ export async function createSermonAction(
 			topic,
 			passage_display,
 			notes,
+			topical: parseSermonTopical(fd),
 			created_by: userId
 		} as never)
 		.select('id')
@@ -214,6 +223,15 @@ export async function createSermonAction(
 	const syncErr = await syncPassages(supabase, userId, sermonId, passagesRes.passages);
 	if (syncErr) {
 		return fail(500, { kind: 'createSermon' as const, sermonId, message: syncErr });
+	}
+
+	const attached = await attachDefaultSetsForSermon(supabase, userId, sermonId);
+	if (!attached.ok) {
+		return fail(500, {
+			kind: 'createSermon' as const,
+			sermonId,
+			message: attached.message
+		});
 	}
 
 	return { kind: 'createSermon' as const, success: true as const, sermonId };
@@ -280,7 +298,8 @@ export async function updateSermonAction(
 			context_type,
 			topic,
 			passage_display,
-			notes
+			notes,
+			topical: parseSermonTopical(fd)
 		} as never)
 		.eq('id', sermonId)
 		.is('deleted_at', null);

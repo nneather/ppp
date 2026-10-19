@@ -15,6 +15,7 @@
 	let {
 		open = $bindable(false),
 		paperId,
+		parentField = 'paper_id',
 		suggestions = [],
 		importSets,
 		importPapers = [],
@@ -24,6 +25,7 @@
 	}: {
 		open?: boolean;
 		paperId: string;
+		parentField?: 'paper_id' | 'sermon_id';
 		suggestions?: SetSuggestion[];
 		importSets: { bibleBooks: SetOption[]; language: SetOption[]; custom: SetOption[] };
 		importPapers?: PaperOption[];
@@ -232,7 +234,7 @@
 					onsubmit={prepareItems}
 					class="flex flex-1"
 				>
-					<input type="hidden" name="paper_id" value={paperId} />
+					<input type="hidden" name={parentField} value={paperId} />
 					<input type="hidden" name="group_name" value={checklist.groupName} />
 					<input type="hidden" name="items" value="[]" />
 					<Button

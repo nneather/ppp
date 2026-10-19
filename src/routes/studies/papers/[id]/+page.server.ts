@@ -17,33 +17,16 @@ import {
 	updatePaperAction,
 	updatePaperSourceNotesAction
 } from '$lib/studies/server/paper-actions';
-import {
-	loadPaperDetail,
-	loadPaperGroups,
-	loadPaperSourceViews
-} from '$lib/studies/server/paper-loaders';
-import { loadResourceSetDetail, loadResourceSetSummaries } from '$lib/studies/server/resource-set-loaders';
+import { loadPaperDetail } from '$lib/studies/server/paper-loaders';
+import { loadStudyWorkspace } from '$lib/studies/server/study-workspace';
 import {
 	removeSetMemberAction,
 	restoreSetMemberAction
 } from '$lib/studies/server/resource-set-actions';
-import {
-	buildImportChecklist,
-	groupImportSets,
-	importGroupName,
-	parseImportTarget,
-	suggestResourceSets,
-	type ImportChecklistRow,
-	type SetSuggestion
-} from '$lib/studies/import-suggest';
 import { loadAssignments, loadCourses } from '$lib/classwork/server/loaders';
-import { loadBookListFiltered, loadEssaySearchHits } from '$lib/library/server/loaders';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
-import type { BookListRow, EssaySearchHit } from '$lib/types/library';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const SOURCE_SEARCH_LIMIT = 8;
 
 export const load: PageServerLoad = async ({ locals, params, url, depends }) => {
 	const { user } = await locals.safeGetSession();
@@ -55,178 +38,43 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 
 	const supabase = locals.supabase;
 	const todayYmd = ymdInChicago();
-
-	// Sources hydrate one loadBookDetail per distinct book (parallel) —
-	// documented round-trip exception for the research surface (decision 189).
-	const [paperRes, sourcesRes, groupsRes, coursesRes, assignmentsRes, linkedRes, profileRes, setRes, otherPapersRes] =
-		await Promise.all([
-			loadPaperDetail(supabase, params.id),
-			loadPaperSourceViews(supabase, params.id),
-			loadPaperGroups(supabase, params.id),
-			loadCourses(supabase),
-			loadAssignments(supabase, { todayYmd }),
-			supabase
-				.from('papers')
-				.select('assignment_id')
-				.not('assignment_id', 'is', null)
-				.is('deleted_at', null),
-			supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
-			loadResourceSetSummaries(supabase),
-			supabase
-				.from('papers')
-				.select('id, title, passage_display')
-				.is('deleted_at', null)
-				.neq('status', 'archived')
-				.neq('id', params.id)
-				.order('created_at', { ascending: false })
-		]);
-
+	const paperRes = await loadPaperDetail(supabase, params.id);
 	if (!paperRes.paper) error(404, 'Paper not found');
+
+	const [workspace, coursesRes, assignmentsRes, linkedRes, profileRes] = await Promise.all([
+		loadStudyWorkspace(
+			supabase,
+			{ kind: 'paper', id: params.id },
+			{
+				topical: paperRes.paper.topical,
+				passageDisplay: paperRes.paper.passage_display,
+				topic: paperRes.paper.topic
+			},
+			url.searchParams.get('import'),
+			url.searchParams.get('src_q')?.trim() ?? ''
+		),
+		loadCourses(supabase),
+		loadAssignments(supabase, { todayYmd }),
+		supabase.from('papers').select('assignment_id').not('assignment_id', 'is', null).is('deleted_at', null),
+		supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+	]);
 
 	if (linkedRes.error) console.error('[papers] linked ids', linkedRes.error);
 	if (profileRes.error) console.error('[papers] profile', profileRes.error);
-	if (otherPapersRes.error) console.error('[papers] import papers', otherPapersRes.error);
 	const isOwner = ((profileRes.data?.role as string | null) ?? null) === 'owner';
 
 	const linkedAssignmentIds = ((linkedRes.data ?? []) as { assignment_id: string | null }[])
-		.map((r) => r.assignment_id)
-		.filter((v): v is string => !!v);
-
-	const srcQ = url.searchParams.get('src_q')?.trim() ?? '';
-	let bookHits: BookListRow[] = [];
-	let essayHits: EssaySearchHit[] = [];
-	if (srcQ) {
-		const [booksRes, essays] = await Promise.all([
-			loadBookListFiltered(
-				supabase,
-				sourcesRes.people,
-				{ q: srcQ, includeUnowned: true },
-				{ limit: SOURCE_SEARCH_LIMIT }
-			),
-			loadEssaySearchHits(supabase, srcQ, {
-				limit: SOURCE_SEARCH_LIMIT,
-				includeUnowned: true
-			})
-		]);
-		bookHits = booksRes.books;
-		essayHits = essays;
-	}
-
-	const setSummaries = setRes.sets;
-	const suggestions: SetSuggestion[] = paperRes.paper
-		? suggestResourceSets(
-				{
-					topical: paperRes.paper.topical,
-					passageDisplay: paperRes.paper.passage_display,
-					topic: paperRes.paper.topic
-				},
-				setSummaries
-			)
-		: [];
-	const groupedSets = groupImportSets(setSummaries);
-	const importPapers = ((otherPapersRes.data ?? []) as {
-		id: string;
-		title: string;
-		passage_display: string | null;
-	}[]).map((p) => ({
-		id: p.id,
-		title: p.title,
-		passageDisplay: p.passage_display
-	}));
-
-	const attachedBookIds = sourcesRes.sources
-		.filter((s) => s.kind === 'book')
-		.map((s) => s.citation.id);
-	const attachedEssayIds = sourcesRes.sources
-		.filter((s) => s.kind === 'essay')
-		.map((s) => s.essayId);
-
-	let importChecklist: {
-		key: string;
-		groupName: string;
-		sourceLabel: string;
-		copyNotes: boolean;
-		rows: ImportChecklistRow[];
-	} | null = null;
-	let importError: string | null = null;
-	const importTarget = parseImportTarget(url.searchParams.get('import'));
-	if (importTarget?.kind === 'set') {
-		const detail = await loadResourceSetDetail(supabase, importTarget.id);
-		if (!detail.set) {
-			importError = detail.error ?? 'Set not found.';
-		} else {
-			importChecklist = {
-				key: `set:${detail.set.id}`,
-				groupName: importGroupName('set', detail.set.name),
-				sourceLabel: detail.set.name,
-				copyNotes: false,
-				rows: buildImportChecklist(
-					detail.set.included.map((m) => ({
-						bookId: m.bookId,
-						essayId: m.essayId,
-						title: m.title,
-						notes: null
-					})),
-					attachedBookIds,
-					attachedEssayIds
-				)
-			};
-		}
-	} else if (importTarget?.kind === 'paper') {
-		if (importTarget.id === params.id) {
-			importError = 'Pick a different paper.';
-		} else {
-			const [priorPaper, priorSources] = await Promise.all([
-				loadPaperDetail(supabase, importTarget.id),
-				loadPaperSourceViews(supabase, importTarget.id)
-			]);
-			if (!priorPaper.paper) {
-				importError = priorPaper.error ?? 'Paper not found.';
-			} else {
-				importChecklist = {
-					key: `paper:${priorPaper.paper.id}`,
-					groupName: importGroupName('paper', priorPaper.paper.title),
-					sourceLabel: priorPaper.paper.title,
-					copyNotes: true,
-					rows: buildImportChecklist(
-						priorSources.sources.map((s) => ({
-							bookId: s.kind === 'book' ? s.citation.id : null,
-							essayId: s.kind === 'essay' ? s.essayId : null,
-							title: s.kind === 'book' ? (s.citation.title ?? 'Untitled') : s.essay.essay_title,
-							notes: s.notes
-						})),
-						attachedBookIds,
-						attachedEssayIds
-					)
-				};
-				importError = priorSources.error;
-			}
-		}
-	}
+		.map((row) => row.assignment_id)
+		.filter((value): value is string => !!value);
 
 	return {
 		paper: paperRes.paper,
-		sources: sourcesRes.sources,
-		groups: groupsRes.groups,
-		orphanSources: sourcesRes.orphans,
+		...workspace,
 		courses: coursesRes.courses,
 		assignments: assignmentsRes.assignments,
 		linkedAssignmentIds,
-		srcQ,
-		bookHits,
-		essayHits,
 		isOwner,
-		suggestions,
-		importSets: {
-			bibleBooks: groupedSets.bibleBooks.map((s) => ({ id: s.id, name: s.name })),
-			language: groupedSets.language.map((s) => ({ id: s.id, name: s.name })),
-			custom: groupedSets.custom.map((s) => ({ id: s.id, name: s.name }))
-		},
-		setNames: setSummaries.map((s) => ({ id: s.id, name: s.name })),
-		importPapers,
-		importChecklist,
-		importError,
-		loadError: paperRes.error ?? sourcesRes.error ?? groupsRes.error ?? setRes.error
+		loadError: paperRes.error ?? workspace.loadError
 	};
 };
 

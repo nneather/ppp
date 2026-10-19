@@ -9,6 +9,13 @@
 import type { BookCitationInput, EssayCitationInput } from '$lib/library/turabian';
 import type { StudyUsage } from './source-usage';
 
+/** Live junction row whose catalog book or essay was soft-deleted. */
+export type OrphanPaperSource = {
+	sourceId: string;
+	kind: 'book' | 'essay';
+	notes: string | null;
+};
+
 export type PaperBookSourceView = {
 	kind: 'book';
 	sourceId: string;

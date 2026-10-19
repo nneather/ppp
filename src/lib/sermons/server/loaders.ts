@@ -11,6 +11,12 @@ import {
 	summarizeByBookRows
 } from '$lib/sermons/by-book';
 import { librarySearchHref } from '$lib/sermons/passage-parse';
+import { hitRateKey } from '$lib/studies/hit-rate';
+import {
+	hitRatesForCoverage,
+	loadAcquiredOn,
+	loadCanonStudyFacts
+} from '$lib/studies/server/hit-rate-loaders';
 import { parseContextType } from '$lib/sermons/venue-context';
 import { clockForInput, formatVenueLogistics, parseHymnal } from '$lib/sermons/venue-logistics';
 import type { PersonRow } from '$lib/types/library';
@@ -58,6 +64,7 @@ type SermonDb = {
 	topic: string | null;
 	passage_display: string | null;
 	notes: string | null;
+	topical: boolean;
 };
 
 
@@ -217,7 +224,8 @@ export async function loadSermons(
 		context: null,
 		venueId: null,
 		bibleBook: null
-	}
+	},
+	onlyId: string | null = null
 ): Promise<{ sermons: SermonListRow[]; error: string | null }> {
 	let sermonIdFilter: string[] | null = null;
 	if (filters.bibleBook) {
@@ -242,7 +250,7 @@ export async function loadSermons(
 
 	let q = supabase
 		.from('sermons')
-		.select('id, preached_on, venue_id, context_type, topic, passage_display, notes')
+		.select('id, preached_on, venue_id, context_type, topic, passage_display, notes, topical')
 		.is('deleted_at', null)
 		.order('preached_on', { ascending: false });
 
@@ -259,6 +267,9 @@ export async function loadSermons(
 	}
 	if (sermonIdFilter) {
 		q = q.in('id', sermonIdFilter);
+	}
+	if (onlyId) {
+		q = q.eq('id', onlyId);
 	}
 
 	const sermonsRes = await q;
@@ -318,6 +329,7 @@ export async function loadSermons(
 			topic: s.topic,
 			passage_display: s.passage_display,
 			notes: s.notes,
+			topical: s.topical,
 			passages,
 			library_search_href: first
 				? librarySearchHref(
@@ -335,6 +347,18 @@ export async function loadSermons(
 	});
 
 	return { sermons, error: null };
+}
+
+export async function loadSermonById(
+	supabase: SupabaseClient,
+	sermonId: string
+): Promise<{ sermon: SermonListRow | null; error: string | null }> {
+	const result = await loadSermons(
+		supabase,
+		{ year: null, context: null, venueId: null, bibleBook: null },
+		sermonId
+	);
+	return { sermon: result.sermons[0] ?? null, error: result.error };
 }
 
 export function parseSermonListFilters(url: URL): SermonListFilters {
@@ -516,7 +540,7 @@ export async function loadByBookStats(
 	filters: ByBookListFilters;
 	error: string | null;
 }> {
-	const [passagesRes, coverageRes] = await Promise.all([
+	const [passagesRes, coverageRes, facts] = await Promise.all([
 		supabase
 			.from('sermon_passages')
 			.select('sermon_id, bible_book, sermons!inner ( id, deleted_at, preached_on )')
@@ -553,7 +577,8 @@ export async function loadByBookStats(
 				)
 			)
 		`
-		)
+		),
+		loadCanonStudyFacts(supabase)
 	]);
 
 	if (passagesRes.error) {
@@ -748,15 +773,36 @@ export async function loadByBookStats(
 			commentaryCount: commentaries.length,
 			fourStarCount,
 			commentaries,
-			alsoOnShelf
+			alsoOnShelf,
+			paperCount: facts.paperCountByBook.get(row.bibleBook) ?? 0
 		};
 	});
+
+	const coveragePairs: { bookId: string; bibleBook: string }[] = [];
+	for (const row of assembled) {
+		for (const hit of row.commentaries) {
+			coveragePairs.push({ bookId: hit.bookId, bibleBook: row.bibleBook });
+		}
+	}
+	const acquired = await loadAcquiredOn(supabase, [...new Set(coveragePairs.map((pair) => pair.bookId))]);
+	const rateByKey = new Map(
+		hitRatesForCoverage(facts.studies, coveragePairs, acquired).map((rate) => [
+			hitRateKey(rate.bookId, rate.bibleBook),
+			rate
+		])
+	);
+	for (const row of assembled) {
+		row.commentaries = row.commentaries.map((hit) => ({
+			...hit,
+			hitRate: rateByKey.get(hitRateKey(hit.bookId, row.bibleBook)) ?? null
+		}));
+	}
 
 	const summary = summarizeByBookRows(assembled, allSermonIds.size);
 	const filtered = filterByBookRows(assembled, filters);
 	const rows = sortByBookRows(filtered, filters.sort, filters.sortDir);
 
-	return { rows, summary, filters, error: null };
+	return { rows, summary, filters, error: facts.error };
 }
 
 export { parseByBookListFilters };
