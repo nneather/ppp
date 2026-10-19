@@ -12,9 +12,10 @@ import {
 	type PaperStatus
 } from '$lib/types/classwork';
 import type { PaperGroupView, PaperSourceView } from '$lib/studies/paper-sources';
+import { parseStudyUsage } from '$lib/studies/source-usage';
 
 const PAPER_COLUMNS =
-	'id, title, status, course_id, assignment_id, due_date, topic, passage_display, notes, sort_order, created_at';
+	'id, title, status, course_id, assignment_id, due_date, topic, passage_display, topical, notes, sort_order, created_at';
 
 type PaperDb = {
 	id: string;
@@ -25,6 +26,7 @@ type PaperDb = {
 	due_date: string | null;
 	topic: string | null;
 	passage_display: string | null;
+	topical: boolean;
 	notes: string | null;
 	sort_order: number;
 	created_at: string;
@@ -36,6 +38,7 @@ type PaperSourceDb = {
 	book_id: string | null;
 	essay_id: string | null;
 	notes: string | null;
+	usage: string;
 	sort_order: number;
 	created_at: string;
 };
@@ -141,6 +144,7 @@ async function hydratePapers(supabase: SupabaseClient, rows: PaperDb[]): Promise
 			due_date: raw.due_date,
 			topic: raw.topic,
 			passage_display: raw.passage_display,
+			topical: raw.topical !== false,
 			notes: raw.notes,
 			sort_order: raw.sort_order
 		});
@@ -148,17 +152,25 @@ async function hydratePapers(supabase: SupabaseClient, rows: PaperDb[]): Promise
 	return papers;
 }
 
-export async function loadPapers(supabase: SupabaseClient): Promise<{
+export async function loadPapers(
+	supabase: SupabaseClient,
+	show: 'active' | 'archived' = 'active'
+): Promise<{
 	papers: PaperListRow[];
 	error: string | null;
 }> {
+	let papersQuery = supabase
+		.from('papers')
+		.select(PAPER_COLUMNS)
+		.is('deleted_at', null)
+		.order('created_at', { ascending: false });
+	papersQuery =
+		show === 'archived'
+			? papersQuery.eq('status', 'archived')
+			: papersQuery.neq('status', 'archived');
+
 	const [papersRes, countsRes] = await Promise.all([
-		supabase
-			.from('papers')
-			.select(PAPER_COLUMNS)
-			.is('deleted_at', null)
-			.neq('status', 'archived')
-			.order('created_at', { ascending: false }),
+		papersQuery,
 		supabase.from('study_sources').select('paper_id').is('deleted_at', null)
 	]);
 
@@ -249,7 +261,7 @@ export async function loadPaperSourceViews(
 	const [sourcesRes, people] = await Promise.all([
 		supabase
 			.from('study_sources')
-			.select('id, group_id, book_id, essay_id, notes, sort_order, created_at')
+			.select('id, group_id, book_id, essay_id, notes, usage, sort_order, created_at')
 			.eq('paper_id', paperId)
 			.is('deleted_at', null)
 			.order('created_at', { ascending: true }),
@@ -317,6 +329,7 @@ export async function loadPaperSourceViews(
 				kind: 'book',
 				sourceId: r.id,
 				groupId: r.group_id,
+				usage: parseStudyUsage(r.usage),
 				notes: r.notes,
 				citation,
 				owned: detail.owned,
@@ -339,6 +352,7 @@ export async function loadPaperSourceViews(
 				kind: 'essay',
 				sourceId: r.id,
 				groupId: r.group_id,
+				usage: parseStudyUsage(r.usage),
 				notes: r.notes,
 				essayId: r.essay_id,
 				essay: {

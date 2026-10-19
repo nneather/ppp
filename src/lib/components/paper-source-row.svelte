@@ -17,6 +17,7 @@
 		type PaperGroupView,
 		type PaperSourceView
 	} from '$lib/classwork/paper-sources';
+	import { nextStudyUsage, STUDY_USAGE_LABELS } from '$lib/studies/source-usage';
 	import NotebookPen from '@lucide/svelte/icons/notebook-pen';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
@@ -26,14 +27,19 @@
 		isOwner = false,
 		onCopied,
 		onRemove,
+		onRemoveFromSet,
+		originSetId = null,
 		onSaved
 	}: {
 		source: PaperSourceView;
 		/** Live research groups — when non-empty, owners get a group selector. */
 		groups?: PaperGroupView[];
 		isOwner?: boolean;
+		/** Set whose name matches this source's research group. */
+		originSetId?: string | null;
 		onCopied?: (message: string) => void;
 		onRemove?: (source: PaperSourceView) => void;
+		onRemoveFromSet?: (source: PaperSourceView, setId: string) => void;
 		onSaved?: () => void | Promise<void>;
 	} = $props();
 
@@ -43,6 +49,7 @@
 	let notesPending = $state(false);
 	let groupFormEl = $state<HTMLFormElement | null>(null);
 	let groupPending = $state(false);
+	let usagePending = $state(false);
 
 	const pageOpts = $derived({ page: page.trim() || undefined });
 
@@ -108,6 +115,15 @@
 			if (result.type === 'success') await onSaved?.();
 		};
 	};
+
+	const usageEnhance: SubmitFunction = () => {
+		usagePending = true;
+		return async ({ result, update }) => {
+			usagePending = false;
+			await update({ reset: false });
+			if (result.type === 'success') await onSaved?.();
+		};
+	};
 </script>
 
 <li class="rounded-lg border border-border px-3 py-2.5">
@@ -116,7 +132,7 @@
 			<p class="text-sm font-medium break-words">
 				<a href={href} class="hover:underline">{title}</a>
 			</p>
-			<p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+			<div class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
 				{#if source.authorsLabel}
 					<span>{source.authorsLabel}</span>
 					<span aria-hidden="true">·</span>
@@ -131,10 +147,38 @@
 				{#if notOwned}
 					<Badge variant="secondary" class="px-1.5 py-0 text-[10px]">Not owned</Badge>
 				{/if}
-			</p>
+				{#if isOwner}
+					<form method="POST" action="?/setPaperSourceUsage" use:enhance={usageEnhance}>
+						<input type="hidden" name="source_id" value={source.sourceId} />
+						<input type="hidden" name="usage" value={nextStudyUsage(source.usage)} />
+						<button
+							type="submit"
+							class="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:bg-muted/70 hover:text-foreground disabled:opacity-50"
+							disabled={usagePending}
+							aria-label={`Usage ${STUDY_USAGE_LABELS[source.usage]}. Next: ${STUDY_USAGE_LABELS[nextStudyUsage(source.usage)]}`}
+						>
+							{STUDY_USAGE_LABELS[source.usage]}
+						</button>
+					</form>
+				{:else}
+					<span class="text-[10px] font-medium uppercase tracking-wide">{STUDY_USAGE_LABELS[source.usage]}</span>
+				{/if}
+			</div>
 		</div>
 		{#if isOwner}
-			<div class="flex shrink-0 gap-1">
+			<div class="flex shrink-0 items-center gap-1">
+				{#if originSetId}
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						class="h-8 px-2 text-xs text-muted-foreground"
+						aria-label="Remove from set"
+						onclick={() => onRemoveFromSet?.(source, originSetId)}
+					>
+						From set
+					</Button>
+				{/if}
 				<Button
 					type="button"
 					variant="ghost"
@@ -149,7 +193,7 @@
 					variant="outline"
 					size="icon-sm"
 					class="text-destructive"
-					aria-label="Remove source"
+					aria-label="Remove from study"
 					onclick={() => onRemove?.(source)}
 				>
 					<Trash2 class="size-3.5" />

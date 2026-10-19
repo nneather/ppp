@@ -9,8 +9,9 @@ import {
 } from '$lib/studies/server/paper-actions';
 import { loadPapers } from '$lib/studies/server/paper-loaders';
 import { loadAssignments, loadCourses } from '$lib/classwork/server/loaders';
+import { parsePaperListShow } from '$lib/studies/import-suggest';
 
-export const load: PageServerLoad = async ({ locals, depends }) => {
+export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 
@@ -18,9 +19,10 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 
 	const todayYmd = ymdInChicago();
 	const supabase = locals.supabase;
+	const show = parsePaperListShow(url.searchParams.get('show'));
 
 	const [papersRes, coursesRes, assignmentsRes, profileRes] = await Promise.all([
-		loadPapers(supabase),
+		loadPapers(supabase, show),
 		loadCourses(supabase),
 		loadAssignments(supabase, { todayYmd }),
 		supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
@@ -39,6 +41,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		assignments: assignmentsRes.assignments,
 		linkedAssignmentIds,
 		isOwner,
+		show,
 		loadError: papersRes.error ?? coursesRes.error ?? assignmentsRes.error
 	};
 };

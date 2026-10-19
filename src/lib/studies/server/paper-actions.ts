@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { normalizeTitleKey } from '$lib/library/not-owned-queue';
 import { findOrCreatePerson, parseTypedName } from '$lib/library/server/people-actions';
 import { PAPER_STATUSES, type PaperStatus } from '$lib/types/classwork';
+import { parseStudyUsage, type StudyUsage } from '$lib/studies/source-usage';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -11,6 +12,13 @@ function trimOrNull(v: FormDataEntryValue | null): string | null {
 	if (v === null || v === undefined) return null;
 	const t = String(v).trim();
 	return t.length > 0 ? t : null;
+}
+
+function parseTopical(fd: FormData): boolean {
+	const raw = fd.get('topical');
+	if (raw === null) return true;
+	const v = String(raw).trim().toLowerCase();
+	return v !== 'false' && v !== '0' && v !== 'off';
 }
 
 function parsePaperStatus(raw: string | null): PaperStatus | null {
@@ -116,6 +124,7 @@ export async function createPaperAction(supabase: SupabaseClient, userId: string
 			due_date,
 			topic: trimOrNull(fd.get('topic')),
 			passage_display: trimOrNull(fd.get('passage_display')),
+			topical: parseTopical(fd),
 			notes: trimOrNull(fd.get('notes')),
 			created_by: userId
 		} as never)
@@ -184,6 +193,7 @@ export async function updatePaperAction(supabase: SupabaseClient, fd: FormData) 
 			due_date,
 			topic: trimOrNull(fd.get('topic')),
 			passage_display: trimOrNull(fd.get('passage_display')),
+			topical: parseTopical(fd),
 			notes: trimOrNull(fd.get('notes'))
 		} as never)
 		.eq('id', paperId)
@@ -314,11 +324,20 @@ export async function openResearchPaperAction(
  * `(paper_id, book_id|essay_id)` is not an upsert conflict target, so we
  * pre-load any prior row (incl. soft-deleted) and revive by PK.
  */
+type AttachOpts = {
+	groupId?: string | null;
+	notes?: string | null;
+	/** Prior-paper import writes the copied note. Set import leaves an existing note. */
+	writeNotes?: boolean;
+	usage?: StudyUsage;
+};
+
 async function attachSource(
 	supabase: SupabaseClient,
 	userId: string,
 	paperId: string,
-	target: { book_id: string | null; essay_id: string | null }
+	target: { book_id: string | null; essay_id: string | null },
+	opts: AttachOpts = {}
 ): Promise<{ ok: true; sourceId: string; revived: boolean } | { ok: false; message: string }> {
 	const col = target.book_id ? 'book_id' : 'essay_id';
 	const val = target.book_id ?? target.essay_id!;
@@ -343,9 +362,20 @@ async function attachSource(
 
 	const dead = rows[0];
 	if (dead) {
+		const patch: {
+			deleted_at: null;
+			group_id: string | null;
+			notes?: string | null;
+			usage?: StudyUsage;
+		} = {
+			deleted_at: null,
+			group_id: opts.groupId !== undefined ? opts.groupId : null
+		};
+		if (opts.writeNotes) patch.notes = opts.notes ?? null;
+		if (opts.usage) patch.usage = opts.usage;
 		const { error: reviveErr } = await supabase
 			.from('study_sources')
-			.update({ deleted_at: null, group_id: null } as never)
+			.update(patch as never)
 			.eq('id', dead.id);
 		if (reviveErr) {
 			console.error('[papers] attachSource revive', reviveErr);
@@ -360,6 +390,9 @@ async function attachSource(
 			paper_id: paperId,
 			book_id: target.book_id,
 			essay_id: target.essay_id,
+			group_id: opts.groupId ?? null,
+			notes: opts.writeNotes ? (opts.notes ?? null) : null,
+			usage: opts.usage ?? 'candidate',
 			created_by: userId
 		} as never)
 		.select('id')
@@ -886,5 +919,288 @@ export async function createNotOwnedSourceAction(
 		bookId,
 		sourceId: attached.sourceId,
 		alreadyExisted
+	};
+}
+
+const IMPORT_ITEM_CAP = 200;
+
+type ImportItem = {
+	book_id: string | null;
+	essay_id: string | null;
+	notes: string | null;
+	writeNotes: boolean;
+};
+
+function parseImportItems(raw: FormDataEntryValue | null): { ok: true; items: ImportItem[] } | { ok: false; message: string } {
+	if (typeof raw !== 'string' || !raw.trim()) {
+		return { ok: false, message: 'Select at least one source.' };
+	}
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return { ok: false, message: 'Could not read the import list.' };
+	}
+	if (!Array.isArray(parsed) || parsed.length === 0) {
+		return { ok: false, message: 'Select at least one source.' };
+	}
+	if (parsed.length > IMPORT_ITEM_CAP) {
+		return { ok: false, message: `Import at most ${IMPORT_ITEM_CAP} sources at a time.` };
+	}
+	const items: ImportItem[] = [];
+	for (const row of parsed) {
+		if (!row || typeof row !== 'object') {
+			return { ok: false, message: 'Invalid import row.' };
+		}
+		const book_id = trimOrNull((row as { book_id?: unknown }).book_id as FormDataEntryValue);
+		const essay_id = trimOrNull((row as { essay_id?: unknown }).essay_id as FormDataEntryValue);
+		if ((book_id && essay_id) || (!book_id && !essay_id)) {
+			return { ok: false, message: 'Each import row needs a book or an essay.' };
+		}
+		if (book_id && !UUID_RE.test(book_id)) return { ok: false, message: 'Invalid book.' };
+		if (essay_id && !UUID_RE.test(essay_id)) return { ok: false, message: 'Invalid essay.' };
+		const notesRaw = (row as { notes?: unknown }).notes;
+		const notes = typeof notesRaw === 'string' ? trimOrNull(notesRaw) : null;
+		const writeFlag = (row as { write_notes?: unknown }).write_notes === true;
+		items.push({
+			book_id,
+			essay_id,
+			notes,
+			writeNotes: writeFlag || typeof notesRaw === 'string'
+		});
+	}
+	return { ok: true, items };
+}
+
+async function findOrCreateImportGroup(
+	supabase: SupabaseClient,
+	userId: string,
+	paperId: string,
+	name: string
+): Promise<{ ok: true; groupId: string } | { ok: false; message: string }> {
+	const { data: existing, error: existErr } = await supabase
+		.from('study_research_groups')
+		.select('id')
+		.eq('paper_id', paperId)
+		.eq('name', name)
+		.is('deleted_at', null)
+		.order('sort_order', { ascending: true })
+		.limit(1);
+	if (existErr) {
+		console.error('[papers] import group lookup', existErr);
+		return { ok: false, message: existErr.message };
+	}
+	const found = (existing ?? [])[0] as { id: string } | undefined;
+	if (found) return { ok: true, groupId: found.id };
+
+	const { count, error: countErr } = await supabase
+		.from('study_research_groups')
+		.select('id', { count: 'exact', head: true })
+		.eq('paper_id', paperId)
+		.is('deleted_at', null);
+	if (countErr) console.error('[papers] import group count', countErr);
+
+	const { data: inserted, error: insErr } = await supabase
+		.from('study_research_groups')
+		.insert({
+			paper_id: paperId,
+			name,
+			sort_order: count ?? 0,
+			created_by: userId
+		} as never)
+		.select('id')
+		.single();
+	if (insErr || !inserted) {
+		console.error('[papers] import group insert', insErr);
+		return { ok: false, message: insErr?.message ?? 'Could not create the research group.' };
+	}
+	return { ok: true, groupId: (inserted as { id: string }).id };
+}
+
+export async function importPaperSourcesAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const paperId = trimOrNull(fd.get('paper_id'));
+	if (!paperId || !UUID_RE.test(paperId)) {
+		return fail(400, { kind: 'importPaperSources' as const, message: 'Invalid paper.' });
+	}
+	const groupName = trimOrNull(fd.get('group_name'));
+	if (!groupName) {
+		return fail(400, {
+			kind: 'importPaperSources' as const,
+			paperId,
+			message: 'Group name is required.'
+		});
+	}
+	const parsed = parseImportItems(fd.get('items'));
+	if (!parsed.ok) {
+		return fail(400, { kind: 'importPaperSources' as const, paperId, message: parsed.message });
+	}
+	const paperOk = await assertPaperLive(supabase, paperId);
+	if (!paperOk.ok) {
+		return fail(400, { kind: 'importPaperSources' as const, paperId, message: paperOk.message });
+	}
+	const group = await findOrCreateImportGroup(supabase, userId, paperId, groupName);
+	if (!group.ok) {
+		return fail(500, { kind: 'importPaperSources' as const, paperId, message: group.message });
+	}
+
+	let imported = 0;
+	for (const item of parsed.items) {
+		const attached = await attachSource(
+			supabase,
+			userId,
+			paperId,
+			{ book_id: item.book_id, essay_id: item.essay_id },
+			{
+				groupId: group.groupId,
+				notes: item.notes,
+				writeNotes: item.writeNotes,
+				usage: 'candidate'
+			}
+		);
+		if (!attached.ok) {
+			if (attached.message.includes('Already attached')) continue;
+			return fail(400, {
+				kind: 'importPaperSources' as const,
+				paperId,
+				message: attached.message
+			});
+		}
+		imported += 1;
+	}
+
+	return {
+		kind: 'importPaperSources' as const,
+		success: true as const,
+		paperId,
+		imported,
+		groupName
+	};
+}
+
+export async function setPaperSourceUsageAction(supabase: SupabaseClient, fd: FormData) {
+	const sourceId = trimOrNull(fd.get('source_id'));
+	if (!sourceId || !UUID_RE.test(sourceId)) {
+		return fail(400, { kind: 'setPaperSourceUsage' as const, message: 'Invalid source.' });
+	}
+	const usage = parseStudyUsage(trimOrNull(fd.get('usage')));
+	const requested = trimOrNull(fd.get('usage'));
+	if (!requested || parseStudyUsage(requested) !== requested) {
+		return fail(400, { kind: 'setPaperSourceUsage' as const, sourceId, message: 'Invalid usage.' });
+	}
+	const { error } = await supabase
+		.from('study_sources')
+		.update({ usage } as never)
+		.eq('id', sourceId)
+		.is('deleted_at', null);
+	if (error) {
+		console.error('[papers] setPaperSourceUsage', error);
+		return fail(500, { kind: 'setPaperSourceUsage' as const, sourceId, message: error.message });
+	}
+	return { kind: 'setPaperSourceUsage' as const, success: true as const, sourceId, usage };
+}
+
+export async function restorePaperSourceAction(supabase: SupabaseClient, fd: FormData) {
+	const sourceId = trimOrNull(fd.get('source_id'));
+	if (!sourceId || !UUID_RE.test(sourceId)) {
+		return fail(400, { kind: 'restorePaperSource' as const, message: 'Invalid source.' });
+	}
+	const { data, error } = await supabase
+		.from('study_sources')
+		.select('id, paper_id, book_id, essay_id, deleted_at')
+		.eq('id', sourceId)
+		.maybeSingle();
+	if (error) {
+		console.error('[papers] restorePaperSource', error);
+		return fail(500, { kind: 'restorePaperSource' as const, sourceId, message: error.message });
+	}
+	const row = data as {
+		id: string;
+		paper_id: string | null;
+		book_id: string | null;
+		essay_id: string | null;
+		deleted_at: string | null;
+	} | null;
+	if (!row?.paper_id) {
+		return fail(404, { kind: 'restorePaperSource' as const, sourceId, message: 'Source not found.' });
+	}
+	if (row.deleted_at === null) {
+		return { kind: 'restorePaperSource' as const, success: true as const, sourceId };
+	}
+	const col = row.book_id ? 'book_id' : 'essay_id';
+	const val = row.book_id ?? row.essay_id;
+	if (!val) {
+		return fail(400, { kind: 'restorePaperSource' as const, sourceId, message: 'Source has no catalog row.' });
+	}
+	const { data: live, error: liveErr } = await supabase
+		.from('study_sources')
+		.select('id')
+		.eq('paper_id', row.paper_id)
+		.eq(col, val)
+		.is('deleted_at', null)
+		.limit(1);
+	if (liveErr) {
+		console.error('[papers] restorePaperSource live', liveErr);
+		return fail(500, { kind: 'restorePaperSource' as const, sourceId, message: liveErr.message });
+	}
+	if ((live ?? []).length > 0) {
+		return fail(400, {
+			kind: 'restorePaperSource' as const,
+			sourceId,
+			message: 'That source is already on the paper.'
+		});
+	}
+	const { error: updErr } = await supabase
+		.from('study_sources')
+		.update({ deleted_at: null } as never)
+		.eq('id', sourceId);
+	if (updErr) {
+		console.error('[papers] restorePaperSource update', updErr);
+		return fail(500, { kind: 'restorePaperSource' as const, sourceId, message: updErr.message });
+	}
+	return { kind: 'restorePaperSource' as const, success: true as const, sourceId };
+}
+
+export async function setPaperStatusAction(supabase: SupabaseClient, fd: FormData) {
+	const paperId = trimOrNull(fd.get('paper_id'));
+	if (!paperId || !UUID_RE.test(paperId)) {
+		return fail(400, { kind: 'setPaperStatus' as const, message: 'Invalid paper.' });
+	}
+	const status = parsePaperStatus(trimOrNull(fd.get('status')));
+	if (!status) {
+		return fail(400, { kind: 'setPaperStatus' as const, paperId, message: 'Invalid status.' });
+	}
+	const { data, error } = await supabase
+		.from('papers')
+		.select('status')
+		.eq('id', paperId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (error) {
+		console.error('[papers] setPaperStatus read', error);
+		return fail(500, { kind: 'setPaperStatus' as const, paperId, message: error.message });
+	}
+	if (!data) {
+		return fail(404, { kind: 'setPaperStatus' as const, paperId, message: 'Paper not found.' });
+	}
+	const previousStatus = parsePaperStatus((data as { status: string }).status) ?? 'researching';
+	const { error: updErr } = await supabase
+		.from('papers')
+		.update({ status } as never)
+		.eq('id', paperId)
+		.is('deleted_at', null);
+	if (updErr) {
+		console.error('[papers] setPaperStatus', updErr);
+		return fail(500, { kind: 'setPaperStatus' as const, paperId, message: updErr.message });
+	}
+	return {
+		kind: 'setPaperStatus' as const,
+		success: true as const,
+		paperId,
+		status,
+		previousStatus
 	};
 }

@@ -7,11 +7,13 @@
  * Turabian footnote / short form / bibliography without extra fetches.
  */
 import type { BookCitationInput, EssayCitationInput } from '$lib/library/turabian';
+import type { StudyUsage } from './source-usage';
 
 export type PaperBookSourceView = {
 	kind: 'book';
 	sourceId: string;
 	groupId: string | null;
+	usage: StudyUsage;
 	notes: string | null;
 	/** Sort/citation-ready book input (title, authors, pub facts). */
 	citation: BookCitationInput;
@@ -23,6 +25,7 @@ export type PaperEssaySourceView = {
 	kind: 'essay';
 	sourceId: string;
 	groupId: string | null;
+	usage: StudyUsage;
 	notes: string | null;
 	essayId: string;
 	essay: EssayCitationInput & { essay_title: string };
@@ -80,4 +83,13 @@ export function paperSourceTitle(source: PaperSourceView): string {
 /** Book id behind the source (the essay's parent volume for essays). */
 export function paperSourceBookId(source: PaperSourceView): string {
 	return source.kind === 'book' ? source.citation.id : source.parentBookId;
+}
+
+/** Catalog identity for set exclude / import (essay wins over its parent book). */
+export function paperSourceCatalog(source: PaperSourceView): {
+	bookId: string | null;
+	essayId: string | null;
+} {
+	if (source.kind === 'essay') return { bookId: null, essayId: source.essayId };
+	return { bookId: source.citation.id, essayId: null };
 }

@@ -4,10 +4,14 @@ import {
 	addPaperSourceAction,
 	createNotOwnedSourceAction,
 	createPaperGroupAction,
+	importPaperSourcesAction,
 	removePaperSourceAction,
 	renamePaperGroupAction,
 	reorderPaperGroupsAction,
+	restorePaperSourceAction,
 	setPaperSourceGroupAction,
+	setPaperSourceUsageAction,
+	setPaperStatusAction,
 	softDeletePaperAction,
 	softDeletePaperGroupAction,
 	updatePaperAction,
@@ -18,6 +22,20 @@ import {
 	loadPaperGroups,
 	loadPaperSourceViews
 } from '$lib/studies/server/paper-loaders';
+import { loadResourceSetDetail, loadResourceSetSummaries } from '$lib/studies/server/resource-set-loaders';
+import {
+	removeSetMemberAction,
+	restoreSetMemberAction
+} from '$lib/studies/server/resource-set-actions';
+import {
+	buildImportChecklist,
+	groupImportSets,
+	importGroupName,
+	parseImportTarget,
+	suggestResourceSets,
+	type ImportChecklistRow,
+	type SetSuggestion
+} from '$lib/studies/import-suggest';
 import { loadAssignments, loadCourses } from '$lib/classwork/server/loaders';
 import { loadBookListFiltered, loadEssaySearchHits } from '$lib/library/server/loaders';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
@@ -40,7 +58,7 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 
 	// Sources hydrate one loadBookDetail per distinct book (parallel) —
 	// documented round-trip exception for the research surface (decision 189).
-	const [paperRes, sourcesRes, groupsRes, coursesRes, assignmentsRes, linkedRes, profileRes] =
+	const [paperRes, sourcesRes, groupsRes, coursesRes, assignmentsRes, linkedRes, profileRes, setRes, otherPapersRes] =
 		await Promise.all([
 			loadPaperDetail(supabase, params.id),
 			loadPaperSourceViews(supabase, params.id),
@@ -52,13 +70,22 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 				.select('assignment_id')
 				.not('assignment_id', 'is', null)
 				.is('deleted_at', null),
-			supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+			supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+			loadResourceSetSummaries(supabase),
+			supabase
+				.from('papers')
+				.select('id, title, passage_display')
+				.is('deleted_at', null)
+				.neq('status', 'archived')
+				.neq('id', params.id)
+				.order('created_at', { ascending: false })
 		]);
 
 	if (!paperRes.paper) error(404, 'Paper not found');
 
 	if (linkedRes.error) console.error('[papers] linked ids', linkedRes.error);
 	if (profileRes.error) console.error('[papers] profile', profileRes.error);
+	if (otherPapersRes.error) console.error('[papers] import papers', otherPapersRes.error);
 	const isOwner = ((profileRes.data?.role as string | null) ?? null) === 'owner';
 
 	const linkedAssignmentIds = ((linkedRes.data ?? []) as { assignment_id: string | null }[])
@@ -85,6 +112,98 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 		essayHits = essays;
 	}
 
+	const setSummaries = setRes.sets;
+	const suggestions: SetSuggestion[] = paperRes.paper
+		? suggestResourceSets(
+				{
+					topical: paperRes.paper.topical,
+					passageDisplay: paperRes.paper.passage_display,
+					topic: paperRes.paper.topic
+				},
+				setSummaries
+			)
+		: [];
+	const groupedSets = groupImportSets(setSummaries);
+	const importPapers = ((otherPapersRes.data ?? []) as {
+		id: string;
+		title: string;
+		passage_display: string | null;
+	}[]).map((p) => ({
+		id: p.id,
+		title: p.title,
+		passageDisplay: p.passage_display
+	}));
+
+	const attachedBookIds = sourcesRes.sources
+		.filter((s) => s.kind === 'book')
+		.map((s) => s.citation.id);
+	const attachedEssayIds = sourcesRes.sources
+		.filter((s) => s.kind === 'essay')
+		.map((s) => s.essayId);
+
+	let importChecklist: {
+		key: string;
+		groupName: string;
+		sourceLabel: string;
+		copyNotes: boolean;
+		rows: ImportChecklistRow[];
+	} | null = null;
+	let importError: string | null = null;
+	const importTarget = parseImportTarget(url.searchParams.get('import'));
+	if (importTarget?.kind === 'set') {
+		const detail = await loadResourceSetDetail(supabase, importTarget.id);
+		if (!detail.set) {
+			importError = detail.error ?? 'Set not found.';
+		} else {
+			importChecklist = {
+				key: `set:${detail.set.id}`,
+				groupName: importGroupName('set', detail.set.name),
+				sourceLabel: detail.set.name,
+				copyNotes: false,
+				rows: buildImportChecklist(
+					detail.set.included.map((m) => ({
+						bookId: m.bookId,
+						essayId: m.essayId,
+						title: m.title,
+						notes: null
+					})),
+					attachedBookIds,
+					attachedEssayIds
+				)
+			};
+		}
+	} else if (importTarget?.kind === 'paper') {
+		if (importTarget.id === params.id) {
+			importError = 'Pick a different paper.';
+		} else {
+			const [priorPaper, priorSources] = await Promise.all([
+				loadPaperDetail(supabase, importTarget.id),
+				loadPaperSourceViews(supabase, importTarget.id)
+			]);
+			if (!priorPaper.paper) {
+				importError = priorPaper.error ?? 'Paper not found.';
+			} else {
+				importChecklist = {
+					key: `paper:${priorPaper.paper.id}`,
+					groupName: importGroupName('paper', priorPaper.paper.title),
+					sourceLabel: priorPaper.paper.title,
+					copyNotes: true,
+					rows: buildImportChecklist(
+						priorSources.sources.map((s) => ({
+							bookId: s.kind === 'book' ? s.citation.id : null,
+							essayId: s.kind === 'essay' ? s.essayId : null,
+							title: s.kind === 'book' ? (s.citation.title ?? 'Untitled') : s.essay.essay_title,
+							notes: s.notes
+						})),
+						attachedBookIds,
+						attachedEssayIds
+					)
+				};
+				importError = priorSources.error;
+			}
+		}
+	}
+
 	return {
 		paper: paperRes.paper,
 		sources: sourcesRes.sources,
@@ -97,7 +216,17 @@ export const load: PageServerLoad = async ({ locals, params, url, depends }) => 
 		bookHits,
 		essayHits,
 		isOwner,
-		loadError: paperRes.error ?? sourcesRes.error ?? groupsRes.error
+		suggestions,
+		importSets: {
+			bibleBooks: groupedSets.bibleBooks.map((s) => ({ id: s.id, name: s.name })),
+			language: groupedSets.language.map((s) => ({ id: s.id, name: s.name })),
+			custom: groupedSets.custom.map((s) => ({ id: s.id, name: s.name }))
+		},
+		setNames: setSummaries.map((s) => ({ id: s.id, name: s.name })),
+		importPapers,
+		importChecklist,
+		importError,
+		loadError: paperRes.error ?? sourcesRes.error ?? groupsRes.error ?? setRes.error
 	};
 };
 
@@ -166,5 +295,35 @@ export const actions: Actions = {
 			return fail(401, { kind: 'setPaperSourceGroup' as const, message: 'Unauthorized' });
 		}
 		return setPaperSourceGroupAction(locals.supabase, await request.formData());
+	},
+	importPaperSources: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'importPaperSources' as const, message: 'Unauthorized' });
+		return importPaperSourcesAction(locals.supabase, user.id, await request.formData());
+	},
+	setPaperSourceUsage: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'setPaperSourceUsage' as const, message: 'Unauthorized' });
+		return setPaperSourceUsageAction(locals.supabase, await request.formData());
+	},
+	restorePaperSource: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'restorePaperSource' as const, message: 'Unauthorized' });
+		return restorePaperSourceAction(locals.supabase, await request.formData());
+	},
+	setPaperStatus: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'setPaperStatus' as const, message: 'Unauthorized' });
+		return setPaperStatusAction(locals.supabase, await request.formData());
+	},
+	removeSetMember: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'removeSetMember' as const, message: 'Unauthorized' });
+		return removeSetMemberAction(locals.supabase, user.id, await request.formData());
+	},
+	restoreSetMember: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'restoreSetMember' as const, message: 'Unauthorized' });
+		return restoreSetMemberAction(locals.supabase, user.id, await request.formData());
 	}
 };

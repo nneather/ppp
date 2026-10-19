@@ -5,6 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
+	import { paperDisplayLead } from '$lib/studies/paper-display';
 	import { PAPER_STATUS_LABELS, type PaperListRow, type PaperStatus } from '$lib/types/classwork';
 	import { cn } from '$lib/utils';
 	import FileText from '@lucide/svelte/icons/file-text';
@@ -79,10 +80,12 @@
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 pb-tabbar">
 	<PageHeader
 		title="Research papers"
-		subtitle="Paper-scoped bibliography and citations. Deadlines still live on assignments."
+		subtitle={data.show === 'archived'
+			? 'Completed papers stay out of the active list.'
+			: 'Paper-scoped bibliography and citations. Deadlines still live on assignments.'}
 	>
 		{#snippet actions()}
-			{#if data.isOwner}
+			{#if data.isOwner && data.show !== 'archived'}
 				<Button type="button" class="gap-2" hotkey="b" onclick={openCreate}>
 					<Plus class="size-4" />
 					<HotkeyLabel label="New paper" mnemonic="b" />
@@ -90,6 +93,14 @@
 			{/if}
 		{/snippet}
 	</PageHeader>
+
+	<p class="mt-4 text-sm">
+		{#if data.show === 'archived'}
+			<a href="/studies/papers" class="text-muted-foreground underline-offset-2 hover:underline">Active papers</a>
+		{:else}
+			<a href="/studies/papers?show=archived" class="text-muted-foreground underline-offset-2 hover:underline">Complete</a>
+		{/if}
+	</p>
 
 	{#if data.loadError}
 		<p class="mt-4 text-sm text-destructive" role="alert">{data.loadError}</p>
@@ -102,7 +113,10 @@
 	{#if data.papers.length === 0}
 		<div class="mt-8 rounded-lg border border-dashed border-border px-4 py-10 text-center">
 			<FileText class="mx-auto size-8 text-muted-foreground" />
-			<p class="mt-3 text-sm font-medium">No research papers yet</p>
+			<p class="mt-3 text-sm font-medium">
+				{data.show === 'archived' ? 'No completed papers' : 'No research papers yet'}
+			</p>
+			{#if data.show !== 'archived'}
 			<p class="mt-1 text-sm text-muted-foreground">
 				Create one here, or open one from a paper assignment. Short reflections don't need a
 				paper — they stay assignments.
@@ -115,15 +129,20 @@
 					</Button>
 				</div>
 			{/if}
+			{/if}
 		</div>
 	{:else}
 		<ul class="mt-6 space-y-2">
 			{#each data.papers as p (p.id)}
 				{@const due = effectiveDue(p)}
+				{@const lead = paperDisplayLead(p)}
 				<li class="rounded-lg border border-border px-3 py-2.5">
 					<div class="flex items-start justify-between gap-3">
 						<a href={`/studies/papers/${p.id}`} class="min-w-0 flex-1">
-							<p class="text-sm font-medium break-words">{p.title}</p>
+							<p class="text-sm font-medium break-words">{lead.lead}</p>
+							{#if lead.detail}
+								<p class="text-xs text-muted-foreground">{lead.detail}</p>
+							{/if}
 							<p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
 								<span
 									class={cn(

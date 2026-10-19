@@ -535,4 +535,37 @@ export async function loadResourceSetDetail(
 	};
 }
 
+/** Names + rules only. Import suggestions must not resolve every commentary set. */
+export async function loadResourceSetSummaries(supabase: SupabaseClient): Promise<{
+	sets: {
+		id: string;
+		name: string;
+		kind: ResourceSetKind;
+		rules: ResourceSetRule[];
+	}[];
+	error: string | null;
+}> {
+	const { data, error } = await supabase
+		.from('resource_sets')
+		.select('id, name, kind, rules')
+		.is('deleted_at', null)
+		.order('name', { ascending: true });
+	if (error) {
+		console.error('[studies] loadResourceSetSummaries', error);
+		return { sets: [], error: error.message };
+	}
+	const sets = [];
+	for (const row of (data ?? []) as { id: string; name: string; kind: string; rules: unknown }[]) {
+		const kind = asKind(row.kind);
+		if (!kind) continue;
+		sets.push({
+			id: row.id,
+			name: row.name,
+			kind,
+			rules: parseResourceSetRules(row.rules)
+		});
+	}
+	return { sets, error: null };
+}
+
 export type { CatalogRef };

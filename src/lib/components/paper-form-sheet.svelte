@@ -50,6 +50,7 @@
 	let dueDate = $state('');
 	let topic = $state('');
 	let passageDisplay = $state('');
+	let topical = $state(true);
 	let notes = $state('');
 
 	const formAction = $derived(mode === 'create' ? '?/createPaper' : '?/updatePaper');
@@ -88,6 +89,7 @@
 			dueDate = paper.due_date ?? '';
 			topic = paper.topic ?? '';
 			passageDisplay = paper.passage_display ?? '';
+			topical = paper.topical;
 			notes = paper.notes ?? '';
 		} else {
 			title = '';
@@ -97,6 +99,7 @@
 			dueDate = '';
 			topic = '';
 			passageDisplay = '';
+			topical = true;
 			notes = '';
 		}
 	}
@@ -269,6 +272,24 @@
 					rows={2}
 					class="flex min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				></textarea>
+			</div>
+
+			<div class="space-y-2">
+				<input type="hidden" name="topical" value={topical ? 'true' : 'false'} />
+				<label class="flex items-start gap-2 text-sm">
+					<input
+						type="checkbox"
+						class="mt-0.5 size-4"
+						checked={topical}
+						onchange={(e) => (topical = e.currentTarget.checked)}
+					/>
+					<span>
+						Topical
+						<span class="mt-0.5 block text-xs text-muted-foreground">
+							Off suggests the passage commentaries, language tools, and Systematic Theology.
+						</span>
+					</span>
+				</label>
 			</div>
 
 			<div class="space-y-2">

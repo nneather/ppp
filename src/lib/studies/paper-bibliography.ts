@@ -13,6 +13,7 @@ import {
 	type CitationFormatted
 } from '$lib/library/turabian';
 import type { PaperSourceView } from './paper-sources';
+import { includeInCompiledBibliography } from './source-usage';
 
 function essaySortKey(source: Extract<PaperSourceView, { kind: 'essay' }>): BibliographySortKey {
 	return {
@@ -55,8 +56,14 @@ export function formatPaperBibliographyEntries(sources: PaperSourceView[]): Cita
 	});
 }
 
-export function compilePaperBibliography(sources: PaperSourceView[]): CitationFormatted {
-	const entries = formatPaperBibliographyEntries(sources);
+export function compilePaperBibliography(
+	sources: PaperSourceView[],
+	opts?: { includeCandidates?: boolean }
+): CitationFormatted {
+	const scoped = sources.filter((s) =>
+		includeInCompiledBibliography(s.usage, opts?.includeCandidates === true)
+	);
+	const entries = formatPaperBibliographyEntries(scoped);
 	return {
 		plain: entries.map((e) => e.plain).join('\n\n'),
 		html: entries.map((e) => `<p>${e.html}</p>`).join('\n'),

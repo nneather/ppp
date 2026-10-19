@@ -2,8 +2,11 @@
 	import { enhance } from '$app/forms';
 	import { goto, invalidate } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { page } from '$app/state';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import PaperFormSheet from '$lib/components/paper-form-sheet.svelte';
+	import PaperImportSheet from '$lib/components/paper-import-sheet.svelte';
 	import PaperSourceRow from '$lib/components/paper-source-row.svelte';
 	import PaperAddSourcePanel from '$lib/components/paper-add-source-panel.svelte';
 	import PaperGroupHeader from '$lib/components/paper-group-header.svelte';
@@ -12,16 +15,21 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { compilePaperBibliography } from '$lib/studies/paper-bibliography';
+	import { paperDisplayLead } from '$lib/studies/paper-display';
+	import { setIdForGroupName } from '$lib/studies/import-suggest';
 	import {
 		groupPaperSources,
+		paperSourceCatalog,
 		paperSourceTitle,
 		type PaperGroupView,
 		type PaperSourceView
 	} from '$lib/studies/paper-sources';
+	import { includeInCompiledBibliography } from '$lib/studies/source-usage';
 	import { copyCitationToClipboard } from '$lib/library/turabian';
 	import { PAPER_STATUS_LABELS, type PaperStatus } from '$lib/types/classwork';
 	import { cn } from '$lib/utils';
 	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
+	import FolderInput from '@lucide/svelte/icons/folder-input';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import type { PageProps } from './$types';
@@ -38,15 +46,32 @@
 	const paperKey = $derived(`app:classwork:paper:${data.paper.id}`);
 
 	let sheetOpen = $state(false);
+	let importOpen = $state(false);
+	let openedImportKey = $state<string | null>(null);
+	let includeCandidates = $state(false);
 
 	let deletePaperOpen = $state(false);
 	let deletePaperPending = $state(false);
 	let deletePaperFormEl = $state<HTMLFormElement | null>(null);
 
-	let removeTarget = $state<{ sourceId: string; title: string } | null>(null);
-	let removeSourceOpen = $state(false);
-	let removeSourcePending = $state(false);
-	let removeSourceFormEl = $state<HTMLFormElement | null>(null);
+	let removeStudyFormEl = $state<HTMLFormElement | null>(null);
+	let restoreStudyFormEl = $state<HTMLFormElement | null>(null);
+	let removeSetFormEl = $state<HTMLFormElement | null>(null);
+	let restoreSetFormEl = $state<HTMLFormElement | null>(null);
+	let statusFormEl = $state<HTMLFormElement | null>(null);
+	let pendingStudy: { sourceId: string; title: string } | null = null;
+	let pendingSet: { setId: string; bookId: string; essayId: string; title: string } | null = null;
+	// Same-page form updates must not invalidateAll: the layout swaps the page for a
+	// nav skeleton while `navigating` is set, which drops this toast.
+	let removedSourceIds = $state<string[]>([]);
+	let statusOverride = $state<PaperStatus | null>(null);
+
+	type UndoState =
+		| { kind: 'study'; message: string; sourceId: string }
+		| { kind: 'set'; message: string; setId: string; bookId: string; essayId: string }
+		| { kind: 'status'; message: string; status: PaperStatus };
+	let undo = $state<UndoState | null>(null);
+	let undoTimer: ReturnType<typeof setTimeout> | null = null;
 
 	let newGroupOpen = $state(false);
 	let newGroupName = $state('');
@@ -69,6 +94,121 @@
 		copyToastTimer = setTimeout(() => (copyToast = null), 2500);
 	}
 
+	const PAPER_UNDO_KEY = 'ppp.studies.paper-undo';
+
+	function persistUndo(next: UndoState, at = Date.now()) {
+		const body =
+			next.kind === 'study'
+				? { kind: next.kind, message: next.message, sourceId: next.sourceId }
+				: next.kind === 'set'
+					? {
+							kind: next.kind,
+							message: next.message,
+							setId: next.setId,
+							bookId: next.bookId,
+							essayId: next.essayId
+						}
+					: { kind: next.kind, message: next.message, status: next.status };
+		try {
+			sessionStorage.setItem(PAPER_UNDO_KEY, JSON.stringify({ ...body, at, paperId: data.paper.id }));
+		} catch {
+			/* private mode */
+		}
+	}
+
+	function clearPersistedUndo() {
+		try {
+			sessionStorage.removeItem(PAPER_UNDO_KEY);
+		} catch {
+			/* private mode */
+		}
+	}
+
+	function showUndo(next: UndoState, ttlMs = 10000) {
+		undo = next;
+		persistUndo(next, Date.now() - (10000 - ttlMs));
+		if (undoTimer) clearTimeout(undoTimer);
+		undoTimer = setTimeout(() => {
+			undo = null;
+			clearPersistedUndo();
+		}, ttlMs);
+	}
+
+	onMount(() => {
+		let raw: string | null = null;
+		try {
+			raw = sessionStorage.getItem(PAPER_UNDO_KEY);
+		} catch {
+			return;
+		}
+		if (!raw) return;
+		try {
+			const saved = JSON.parse(raw) as UndoState & { at?: number; paperId?: string };
+			if (saved.paperId !== data.paper.id || typeof saved.at !== 'number') return;
+			const left = 10000 - (Date.now() - saved.at);
+			if (left <= 0 || (saved.kind !== 'study' && saved.kind !== 'set' && saved.kind !== 'status')) {
+				clearPersistedUndo();
+				return;
+			}
+			if (saved.kind === 'study' && saved.sourceId) {
+				showUndo({ kind: 'study', message: saved.message, sourceId: saved.sourceId }, left);
+			} else if (saved.kind === 'set' && saved.setId) {
+				showUndo(
+					{
+						kind: 'set',
+						message: saved.message,
+						setId: saved.setId,
+						bookId: saved.bookId,
+						essayId: saved.essayId
+					},
+					left
+				);
+			} else if (saved.kind === 'status' && saved.status) {
+				showUndo({ kind: 'status', message: saved.message, status: saved.status }, left);
+			}
+		} catch {
+			clearPersistedUndo();
+		}
+	});
+
+	onDestroy(() => {
+		if (undoTimer) clearTimeout(undoTimer);
+	});
+
+	const sources = $derived(data.sources.filter((s) => !removedSourceIds.includes(s.sourceId)));
+	const paperStatus = $derived(statusOverride ?? data.paper.status);
+	const displayLead = $derived(paperDisplayLead(data.paper));
+
+	$effect(() => {
+		const key = data.importChecklist?.key ?? null;
+		if (!key || key === openedImportKey) return;
+		untrack(() => {
+			openedImportKey = key;
+			importOpen = true;
+		});
+	});
+
+	$effect(() => {
+		if (importOpen) return;
+		const key = data.importChecklist?.key ?? null;
+		if (!key || openedImportKey !== key) return;
+		untrack(() => {
+			void clearImportParam();
+		});
+	});
+
+	async function clearImportParam() {
+		if (!page.url.searchParams.has('import')) return;
+		const url = new URL(page.url);
+		url.searchParams.delete('import');
+		await goto(`${url.pathname}${url.search}`, { replaceState: true, noScroll: true, keepFocus: true });
+	}
+
+	function originSetId(source: PaperSourceView): string | null {
+		const group = data.groups.find((g) => g.id === source.groupId);
+		return setIdForGroupName(group?.name, data.setNames);
+	}
+
 	const sheetError = $derived.by(() => {
 		if (!f || f.success === true) return null;
 		if (f.kind === 'updatePaper') return f.message ?? null;
@@ -87,7 +227,13 @@
 			f.kind === 'renamePaperGroup' ||
 			f.kind === 'reorderPaperGroups' ||
 			f.kind === 'softDeletePaperGroup' ||
-			f.kind === 'setPaperSourceGroup'
+			f.kind === 'setPaperSourceGroup' ||
+			f.kind === 'importPaperSources' ||
+			f.kind === 'setPaperSourceUsage' ||
+			f.kind === 'restorePaperSource' ||
+			f.kind === 'setPaperStatus' ||
+			f.kind === 'removeSetMember' ||
+			f.kind === 'restoreSetMember'
 		) {
 			return f.message ?? null;
 		}
@@ -99,10 +245,10 @@
 	}
 
 	const attachedBookIds = $derived(
-		data.sources.filter((s) => s.kind === 'book').map((s) => s.citation.id)
+		sources.filter((s) => s.kind === 'book').map((s) => s.citation.id)
 	);
 	const attachedEssayIds = $derived(
-		data.sources.filter((s) => s.kind === 'essay').map((s) => s.essayId)
+		sources.filter((s) => s.kind === 'essay').map((s) => s.essayId)
 	);
 
 	const effectiveDue = $derived(data.paper.assignment_due_date ?? data.paper.due_date);
@@ -119,7 +265,7 @@
 	}
 
 	async function copyCompiledBibliography() {
-		const compiled = compilePaperBibliography(data.sources);
+		const compiled = compilePaperBibliography(sources, { includeCandidates });
 		if (!compiled.plain) {
 			flashCopyToast('No bibliography entries yet');
 			return;
@@ -132,42 +278,134 @@
 		}
 	}
 
-	function askRemoveSource(source: PaperSourceView) {
-		removeTarget = { sourceId: source.sourceId, title: paperSourceTitle(source) };
-		removeSourceOpen = true;
+	function fillInput(form: HTMLFormElement | null, name: string, value: string) {
+		const input = form?.querySelector(`input[name="${name}"]`) as HTMLInputElement | null;
+		if (input) input.value = value;
 	}
 
-	function askRemoveOrphan(sourceId: string) {
-		removeTarget = { sourceId, title: 'Unavailable source' };
-		removeSourceOpen = true;
+	function removeFromStudy(source: PaperSourceView) {
+		if (!removeStudyFormEl) return;
+		pendingStudy = { sourceId: source.sourceId, title: paperSourceTitle(source) };
+		fillInput(removeStudyFormEl, 'source_id', source.sourceId);
+		removeStudyFormEl.requestSubmit();
 	}
 
-	function submitRemoveSource() {
-		if (!removeTarget || !removeSourceFormEl) return;
-		const idInput = removeSourceFormEl.querySelector(
-			'input[name="source_id"]'
-		) as HTMLInputElement | null;
-		if (!idInput) return;
-		idInput.value = removeTarget.sourceId;
-		removeSourceFormEl.requestSubmit();
+	function removeOrphan(sourceId: string) {
+		if (!removeStudyFormEl) return;
+		pendingStudy = { sourceId, title: 'Unavailable source' };
+		fillInput(removeStudyFormEl, 'source_id', sourceId);
+		removeStudyFormEl.requestSubmit();
 	}
 
-	const removeSourceEnhance: SubmitFunction = () => {
-		removeSourcePending = true;
+	const removeStudyEnhance: SubmitFunction = () => {
+		const snapshot = pendingStudy;
 		return async ({ result, update }) => {
-			removeSourcePending = false;
-			await update({ reset: false });
-			if (result.type === 'success') {
-				removeSourceOpen = false;
-				removeTarget = null;
-				await refresh();
+			if (result.type === 'success' && snapshot) {
+				if (!removedSourceIds.includes(snapshot.sourceId)) {
+					removedSourceIds = [...removedSourceIds, snapshot.sourceId];
+				}
+				showUndo({
+					kind: 'study',
+					message: `Removed “${snapshot.title}” from this paper`,
+					sourceId: snapshot.sourceId
+				});
 			}
+			await update({ reset: false, invalidateAll: false });
 		};
 	};
 
-	const totalSourceCount = $derived(data.sources.length + data.orphanSources.length);
+	function removeFromSet(source: PaperSourceView, setId: string) {
+		if (!removeSetFormEl) return;
+		const catalog = paperSourceCatalog(source);
+		pendingSet = {
+			setId,
+			bookId: catalog.bookId ?? '',
+			essayId: catalog.essayId ?? '',
+			title: paperSourceTitle(source)
+		};
+		fillInput(removeSetFormEl, 'set_id', setId);
+		fillInput(removeSetFormEl, 'book_id', catalog.bookId ?? '');
+		fillInput(removeSetFormEl, 'essay_id', catalog.essayId ?? '');
+		removeSetFormEl.requestSubmit();
+	}
 
-	const buckets = $derived(groupPaperSources(data.sources, data.groups));
+	const removeSetEnhance: SubmitFunction = () => {
+		const snapshot = pendingSet;
+		return async ({ result, update }) => {
+			if (result.type === 'success' && snapshot) {
+				showUndo({
+					kind: 'set',
+					message: `Removed “${snapshot.title}” from the set`,
+					setId: snapshot.setId,
+					bookId: snapshot.bookId,
+					essayId: snapshot.essayId
+				});
+			}
+			await update({ reset: false, invalidateAll: false });
+		};
+	};
+
+	function submitStatus(status: PaperStatus) {
+		if (!statusFormEl) return;
+		fillInput(statusFormEl, 'status', status);
+		statusFormEl.requestSubmit();
+	}
+
+	const statusEnhance: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			if (result.type === 'success' && result.data && typeof result.data === 'object') {
+				const body = result.data as { status?: PaperStatus; previousStatus?: PaperStatus };
+				if (body.status) statusOverride = body.status;
+				if (body.status === 'archived' && body.previousStatus && body.previousStatus !== 'archived') {
+					showUndo({
+						kind: 'status',
+						message: 'Marked complete',
+						status: body.previousStatus
+					});
+				}
+			}
+			await update({ reset: false, invalidateAll: false });
+		};
+	};
+
+	function runUndo() {
+		const current = undo;
+		undo = null;
+		if (undoTimer) clearTimeout(undoTimer);
+		clearPersistedUndo();
+		if (!current) return;
+		if (current.kind === 'study' && restoreStudyFormEl) {
+			removedSourceIds = removedSourceIds.filter((id) => id !== current.sourceId);
+			fillInput(restoreStudyFormEl, 'source_id', current.sourceId);
+			restoreStudyFormEl.requestSubmit();
+			return;
+		}
+		if (current.kind === 'set' && restoreSetFormEl) {
+			fillInput(restoreSetFormEl, 'set_id', current.setId);
+			fillInput(restoreSetFormEl, 'book_id', current.bookId);
+			fillInput(restoreSetFormEl, 'essay_id', current.essayId);
+			restoreSetFormEl.requestSubmit();
+			return;
+		}
+		if (current.kind === 'status') submitStatus(current.status);
+	}
+
+	const quietEnhance: SubmitFunction = () => {
+		return async ({ update }) => {
+			await update({ reset: false, invalidateAll: false });
+		};
+	};
+
+	async function onImported() {
+		importOpen = false;
+		openedImportKey = data.importChecklist?.key ?? openedImportKey;
+		await clearImportParam();
+		await refresh();
+	}
+
+	const totalSourceCount = $derived(sources.length + data.orphanSources.length);
+
+	const buckets = $derived(groupPaperSources(sources, data.groups));
 
 	const newGroupEnhance: SubmitFunction = () => {
 		newGroupPending = true;
@@ -256,20 +494,20 @@
 </script>
 
 <svelte:head>
-	<title>{data.paper.title} — Research papers — ppp</title>
+	<title>{displayLead.lead} — Research papers — ppp</title>
 </svelte:head>
 
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 pb-tabbar">
-	<PageHeader title={data.paper.title} back={{ href: '/studies/papers', label: 'Research papers' }}>
+	<PageHeader title={displayLead.lead} back={{ href: '/studies/papers', label: 'Research papers' }}>
 		{#snippet meta()}
 			<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
 				<span
 					class={cn(
 						'rounded-full px-2 py-0.5 text-xs font-medium',
-						statusBadgeClass[data.paper.status]
+						statusBadgeClass[paperStatus]
 					)}
 				>
-					{PAPER_STATUS_LABELS[data.paper.status]}
+					{PAPER_STATUS_LABELS[paperStatus]}
 				</span>
 				{#if data.paper.course_name}
 					<span>{data.paper.course_code ? `${data.paper.course_code} · ` : ''}{data.paper.course_name}</span>
@@ -282,9 +520,9 @@
 					<span aria-hidden="true">·</span>
 					<span>Due {formatDate(effectiveDue)}</span>
 				{/if}
-				{#if data.paper.passage_display}
+				{#if displayLead.detail}
 					<span aria-hidden="true">·</span>
-					<span>{data.paper.passage_display}</span>
+					<span>{displayLead.detail}</span>
 				{/if}
 			</div>
 			{#if data.paper.topic}
@@ -294,6 +532,15 @@
 		{#snippet actions()}
 			{#if data.isOwner}
 				<div class="flex flex-wrap items-center gap-2">
+					{#if paperStatus === 'archived'}
+						<Button type="button" variant="outline" onclick={() => submitStatus('researching')}>
+							Restore
+						</Button>
+					{:else}
+						<Button type="button" variant="outline" onclick={() => submitStatus('archived')}>
+							Complete
+						</Button>
+					{/if}
 					<Button type="button" variant="outline" class="gap-2" hotkey="e" onclick={() => (sheetOpen = true)}>
 						<Pencil class="size-4" />
 						<HotkeyLabel label="Edit" mnemonic="e" />
@@ -333,21 +580,32 @@
 				Sources
 				<span class="ml-1 font-normal text-muted-foreground">({totalSourceCount})</span>
 			</h2>
+			<div class="flex flex-wrap items-center gap-2">
+				{#if data.isOwner}
+					<Button type="button" variant="outline" class="gap-2" onclick={() => (importOpen = true)}>
+						<FolderInput class="size-4" />
+						Import sources
+					</Button>
+				{/if}
+				<label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+					<input type="checkbox" class="size-3.5" bind:checked={includeCandidates} />
+					Include candidates
+				</label>
 			<Button
 				type="button"
 				variant="outline"
 				class="gap-2"
 				hotkey="b"
-				disabled={data.sources.length === 0}
+				disabled={sources.filter((s) => includeInCompiledBibliography(s.usage, includeCandidates)).length === 0}
 				onclick={copyCompiledBibliography}
 			>
 				<ClipboardList class="size-4" />
 				<HotkeyLabel label="Copy bibliography" mnemonic="b" />
 			</Button>
+			</div>
 		</div>
 		<p class="mt-1 text-xs text-muted-foreground">
-			Flat Turabian order, books + essays merged. Unsigned reference articles are cited in
-			notes only and stay out of the bibliography.
+			Bibliography defaults to consulted and cited. Unsigned reference articles stay out.
 		</p>
 
 		{#if data.isOwner}
@@ -414,7 +672,9 @@
 				groups={data.groups}
 				isOwner={data.isOwner}
 				onCopied={flashCopyToast}
-				onRemove={askRemoveSource}
+				onRemove={removeFromStudy}
+				onRemoveFromSet={removeFromSet}
+				originSetId={originSetId(source)}
 				onSaved={refresh}
 			/>
 		{/snippet}
@@ -428,7 +688,7 @@
 			</div>
 		{:else if data.groups.length === 0}
 			<ul class="mt-4 space-y-2">
-				{#each data.sources as source (source.sourceId)}
+				{#each sources as source (source.sourceId)}
 					{@render sourceRow(source)}
 				{/each}
 			</ul>
@@ -506,7 +766,7 @@
 								size="icon-sm"
 								class="shrink-0 text-destructive"
 								aria-label="Remove unavailable source"
-								onclick={() => askRemoveOrphan(orphan.sourceId)}
+								onclick={() => removeOrphan(orphan.sourceId)}
 							>
 								<Trash2 class="size-3.5" />
 							</Button>
@@ -518,7 +778,15 @@
 	</section>
 </div>
 
-{#if copyToast}
+{#if undo}
+	<div
+		class="bottom-tabbar fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg"
+		role="status"
+	>
+		<span>{undo.message}</span>
+		<button type="button" class="underline underline-offset-2" onclick={runUndo}>Undo</button>
+	</div>
+{:else if copyToast}
 	<div
 		class="bottom-tabbar fixed left-1/2 z-50 -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg"
 		role="status"
@@ -531,7 +799,7 @@
 	<PaperFormSheet
 		bind:open={sheetOpen}
 		mode="edit"
-		paper={data.paper}
+		paper={{ ...data.paper, status: paperStatus }}
 		courses={data.courses}
 		assignments={data.assignments}
 		linkedAssignmentIds={data.linkedAssignmentIds}
@@ -540,23 +808,65 @@
 	/>
 
 	<form
-		bind:this={removeSourceFormEl}
+		bind:this={removeStudyFormEl}
 		method="POST"
 		action="?/removePaperSource"
-		use:enhance={removeSourceEnhance}
+		use:enhance={removeStudyEnhance}
 		class="hidden"
 	>
 		<input type="hidden" name="source_id" value="" />
 	</form>
-	<ConfirmDialog
-		bind:open={removeSourceOpen}
-		title="Remove source?"
-		description={removeTarget
-			? `Remove “${removeTarget.title}” from this paper? Its research note goes with it (re-attaching restores it). The library entry is untouched.`
-			: ''}
-		confirmLabel="Remove"
-		pending={removeSourcePending}
-		onConfirm={submitRemoveSource}
+	<form
+		bind:this={restoreStudyFormEl}
+		method="POST"
+		action="?/restorePaperSource"
+		use:enhance={quietEnhance}
+		class="hidden"
+	>
+		<input type="hidden" name="source_id" value="" />
+	</form>
+	<form
+		bind:this={removeSetFormEl}
+		method="POST"
+		action="?/removeSetMember"
+		use:enhance={removeSetEnhance}
+		class="hidden"
+	>
+		<input type="hidden" name="set_id" value="" />
+		<input type="hidden" name="book_id" value="" />
+		<input type="hidden" name="essay_id" value="" />
+	</form>
+	<form
+		bind:this={restoreSetFormEl}
+		method="POST"
+		action="?/restoreSetMember"
+		use:enhance={quietEnhance}
+		class="hidden"
+	>
+		<input type="hidden" name="set_id" value="" />
+		<input type="hidden" name="book_id" value="" />
+		<input type="hidden" name="essay_id" value="" />
+	</form>
+	<form
+		bind:this={statusFormEl}
+		method="POST"
+		action="?/setPaperStatus"
+		use:enhance={statusEnhance}
+		class="hidden"
+	>
+		<input type="hidden" name="paper_id" value={data.paper.id} />
+		<input type="hidden" name="status" value="" />
+	</form>
+
+	<PaperImportSheet
+		bind:open={importOpen}
+		paperId={data.paper.id}
+		suggestions={data.suggestions}
+		importSets={data.importSets}
+		importPapers={data.importPapers}
+		checklist={data.importChecklist}
+		importError={data.importError}
+		onImported={onImported}
 	/>
 
 	<form

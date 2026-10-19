@@ -48,11 +48,18 @@ function book(id: string, title: string, authors: BookAuthorAssignment[], year =
 	} satisfies BookCitationInput;
 }
 
-function bookSource(id: string, title: string, last: string, year = 2001): PaperBookSourceView {
+function bookSource(
+	id: string,
+	title: string,
+	last: string,
+	year = 2001,
+	usage: PaperBookSourceView['usage'] = 'cited'
+): PaperBookSourceView {
 	return {
 		kind: 'book',
 		sourceId: `src-${id}`,
 		groupId: null,
+		usage,
 		notes: null,
 		citation: book(id, title, [author(last)], year),
 		owned: true,
@@ -73,6 +80,7 @@ function essaySource(
 		kind: 'essay',
 		sourceId: `src-essay-${essayTitle}`,
 		groupId: null,
+		usage: 'cited',
 		notes: null,
 		essayId: `essay-${essayTitle}`,
 		essay: {
@@ -126,6 +134,7 @@ describe('formatPaperBibliographyEntries', () => {
 			kind: 'essay',
 			sourceId: `src-${title}`,
 			groupId: null,
+			usage: 'cited',
 			notes: null,
 			essayId: `essay-${title}`,
 			essay: {
@@ -149,6 +158,7 @@ describe('formatPaperBibliographyEntries', () => {
 			kind: 'book',
 			sourceId: 'src-vol',
 			groupId: null,
+			usage: 'cited',
 			notes: null,
 			citation: essay.volume,
 			owned: true,
@@ -174,5 +184,21 @@ describe('compilePaperBibliography', () => {
 		const compiled = compilePaperBibliography([]);
 		expect(compiled.plain).toBe('');
 		expect(compiled.html).toBe('');
+	});
+
+	it('defaults to consulted and cited, and can include candidates', () => {
+		const compiled = compilePaperBibliography([
+			bookSource('b1', 'Alpha Themes', 'Adams', 2001, 'cited'),
+			bookSource('b2', 'Zeta Studies', 'Zimmerman', 2001, 'candidate'),
+			bookSource('b3', 'Middle Work', 'Miller', 2002, 'consulted')
+		]);
+		expect(compiled.plain).toContain('Adams');
+		expect(compiled.plain).toContain('Miller');
+		expect(compiled.plain).not.toContain('Zimmerman');
+		const all = compilePaperBibliography(
+			[bookSource('b2', 'Zeta Studies', 'Zimmerman', 2001, 'candidate')],
+			{ includeCandidates: true }
+		);
+		expect(all.plain).toContain('Zimmerman');
 	});
 });

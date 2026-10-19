@@ -74,6 +74,8 @@ export type PaperRow = {
 	due_date: string | null;
 	topic: string | null;
 	passage_display: string | null;
+	/** True → topic-set suggestions. False → commentary, language tools, systematics. */
+	topical: boolean;
 	notes: string | null;
 	sort_order: number;
 };
