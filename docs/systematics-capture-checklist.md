@@ -17,9 +17,10 @@ Source: Parker’s English PDF of the P&R set, tracked outside this repo. The go
 
 Volume 3 only. Three columns. Arabic `vol:page`. Genesis on the leaf before printed p. 740 through printed p. 780. Gold gate 99.610% ([263](decisions/263-systematics-page-index-gold-gate.md)).
 
-1. OCR the rest of that index from the PDF. Scripture index mode. Side-by-side **Verified** pass. The book name prints only when it changes.
-2. Save `vol:page`. The outline on each English volume supplies the topic and question.
-3. Smoke — `/library/search-passage?bible_book=1+Thessalonians&chapter=1&verse=5` shows the Systematic theologies band.
+1. **Text layer first:** `npx tsx scripts/ocr-index-eval/parse-turretin-text.ts` on Parker’s PDF ([270](decisions/270-turretin-text-layer-parser.md)). Clear `turretin.review.txt` (apocrypha + damaged tokens). Gold leaves pp. 760/764/766 should match before insert.
+2. OCR only for leaves the text layer cannot parse. Scripture index mode. Side-by-side **Verified** pass. The book name prints only when it changes.
+3. Save `vol:page`. The outline on each English volume supplies the topic and question.
+4. Smoke — `/library/search-passage?bible_book=1+Thessalonians&chapter=1&verse=5` shows the Systematic theologies band.
 
 The 1734 Latin index (page + thesis) is written up in [267](decisions/267-systematics-index-sources.md). It is not this capture.
 

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — OCR daily cap is 300 so the Turretin index can finish in one sitting ([268](docs/decisions/268-ocr-daily-cap-turretin-index.md)). Turretin’s scripture index comes from Parker’s English PDF ([267](docs/decisions/267-systematics-index-sources.md)).
+**Last updated:** 2026-10-19 — Turretin scripture index **text-layer parser** on Parker’s PDF ([270](docs/decisions/270-turretin-text-layer-parser.md)); gold leaves 99.805% before review clear.
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [270 — Turretin text-layer index parser](docs/decisions/270-turretin-text-layer-parser.md) (2026-10-19) — `parse-turretin-text.ts` on FineReader PDF; gold leaves 1023/1025; review for apocrypha + damaged tokens; no DB insert yet.
+- [269 — Sonnet bake-off on the Turretin gold gate](docs/decisions/269-ocr-sonnet-gold-bakeoff.md) (2026-10-19) — Gold page numbers held. Stay on Sonnet 4.6. Sonnet 5.5 matched every pointer and mislabeled one John column as Matthew.
 - [268 — OCR daily cap for the Turretin index](docs/decisions/268-ocr-daily-cap-turretin-index.md) (2026-10-19) — 50 calls stopped index mode around leaf 8. Cap is 300 for this capture.
 - [267 — Systematics index sources](docs/decisions/267-systematics-index-sources.md) (2026-10-19) — Turretin from Parker’s English PDF. Calvin from shelf photos. van Mastricht and Bavinck theories stored, not chosen.
 - [266 — Outline and passage sections start collapsed](docs/decisions/266-book-detail-outline-passage-collapsed.md) (2026-10-19) — Book detail headers keep the count. A `#section-` link still opens Passage sections.
-- [265 — Ask about study sets when adding books](docs/decisions/265-library-add-books-ask-sets.md) (2026-10-19) — Confirm a set before insert. Girdlestone is already on OT language tools by genre rule.
-- [264 — Girdlestone OT synonyms](docs/decisions/264-library-girdlestone-ot-synonyms.md) (2026-10-19) — Eerdmans 1981 reprint of 1897. Short title, middle initial, no series, matching Trench.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Book-detail collapse [266](docs/decisions/266-book-detail-outline-passage-collapsed.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **687/687** (2026-10-19).
+**Repo gate:** Turretin text-layer parser [270](docs/decisions/270-turretin-text-layer-parser.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **688/688** (2026-10-19).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

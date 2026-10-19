@@ -21,7 +21,18 @@ scripts/ocr-index-eval/
   build-gold.ts
   page-ocr.ts           # column split + two passes → page-0N.ocr.json
   compare.ts            # row-level exact-match report
+  parse-turretin-text.ts # FineReader PDF text layer → turretin.* (gitignored)
 ```
+
+## Turretin PDF text layer
+
+Owner English PDF (outside repo). No OCR:
+
+```bash
+npx tsx scripts/ocr-index-eval/parse-turretin-text.ts "/path/to/…-scripture-index.pdf"
+```
+
+Writes `turretin.lines.txt`, `turretin.review.txt`, `turretin.rows.json` next to the script. To fix a row, add `corrected: …` (and keep `book:`) under its `# p.NNN col N` block and re-run. Ends with a gold-leaf diff for printed pp. 760 / 764 / 766.
 
 ## Gold file shape
 

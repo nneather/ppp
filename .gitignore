@@ -41,3 +41,8 @@ scripts/library-import/output/
 
 # Page-index gold photographs (owner scan). Not committed.
 scripts/ocr-index-eval/images/
+
+# Turretin PDF text-layer extract (parse-turretin-text.ts)
+scripts/ocr-index-eval/turretin.lines.txt
+scripts/ocr-index-eval/turretin.review.txt
+scripts/ocr-index-eval/turretin.rows.json
