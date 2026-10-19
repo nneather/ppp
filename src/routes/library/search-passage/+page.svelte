@@ -138,7 +138,7 @@
 {#snippet searchPassageMeta()}
 	<p class="text-sm text-muted-foreground">
 		Find every book in your library that engages a passage. Commentaries and curated
-		sections lead; systematic theologies show volume:page with TOC labels; the
+		sections lead; systematic theologies show the section or volume:page with the outline label; the
 		scripture index stays below for the eventual backload.
 	</p>
 {/snippet}

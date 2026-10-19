@@ -2,7 +2,7 @@
 
 After the OCR gold gate passes (≥99.5% — [scripts/ocr-index-eval/README.md](../scripts/ocr-index-eval/README.md)), capture one page-index set per session.
 
-**Practice first:** Calvin *Institutes* (Battles). The scripture index cites section locators and ranges (`III.2.12–14`), not pages. Those tokens are the pointer — same role as a page number — and should match outline locators ([252](decisions/252-systematics-by-passage-session-0.md)).
+**Practice first:** Calvin *Institutes* (Battles) — section locators, not pages ([252](decisions/252-systematics-by-passage-session-0.md), [259](decisions/259-calvin-section-index-practice.md)). A short outline and verified refs are on volume 2. Bulk capture of this index still waits on shelf photos; the page-index sets below still wait on the ≥99.5% gold gate.
 
 Page-index sets, after the gold gate:
 
