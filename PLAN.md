@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Studies Session 4 shipped ([248](docs/decisions/248-studies-session-4.md)): sectioned bibliography export, read-only study MCP, Overview.
+**Last updated:** 2026-10-19 — Passage-section research pass ([250](docs/decisions/250-passage-sections-research-pass.md)): Carson, Keener, Women in the Church, Doriani, Snodgrass.
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — curated monograph ranges on search-passage above the scripture index ([249](docs/decisions/249-library-passage-sections.md)). List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Latest shelf add: NIDOTTE (5 vols), Beale and Weima BECNT, Kim/Bruce WBC 45 2nd ed. ([246](docs/decisions/246-library-oct19-nidotte-shelf.md)). |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** schema + bands ([249](docs/decisions/249-library-passage-sections.md)); first research fill (~56 rows / 6 books) ([250](docs/decisions/250-passage-sections-research-pass.md)). List **search persists** across reading-status / bulk edits ([209](docs/decisions/209-library-list-search-survives-status.md)). **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. Latest shelf add: NIDOTTE (5 vols), Beale and Weima BECNT, Kim/Bruce WBC 45 2nd ed. ([246](docs/decisions/246-library-oct19-nidotte-shelf.md)). |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
-- [248 — Studies Session 4](docs/decisions/248-studies-session-4.md) (2026-10-19) — Sectioned clipboard and `.docx`; `list_studies` / `get_study_sources` / `suggest_sources`; Overview links.
+- [250 — Passage sections research pass](docs/decisions/250-passage-sections-research-pass.md) (2026-10-19) — Edition-matched sections for Carson, Keener, Women in the Church, Doriani, Snodgrass (~56 live rows).
 - [249 — Passage sections](docs/decisions/249-library-passage-sections.md) (2026-10-19) — Curated monograph ranges (not a second scripture-ref tier); search-passage bands; study-import/footnote prefill deferred.
+- [248 — Studies Session 4](docs/decisions/248-studies-session-4.md) (2026-10-19) — Sectioned clipboard and `.docx`; `list_studies` / `get_study_sources` / `suggest_sources`; Overview links.
 - [247 — Studies Session 3](docs/decisions/247-studies-session-3.md) (2026-10-19) — Sermon detail shares the sources panel; Systematic Theology auto-attaches; hit rate since `acquired_on`.
 - [246 — Oct 19 shelf: NIDOTTE and commentaries](docs/decisions/246-library-oct19-nidotte-shelf.md) (2026-10-19) — NIDOTTE 1997 hardcovers, Beale and Weima BECNT, Kim/Bruce WBC 45 2nd ed., Noonan, Connelly, Celebration Hymnal. Bruce ebook ISBN corrected.
-- [245 — Studies Session 2](docs/decisions/245-studies-session-2.md) (2026-10-19) — Import a set or prior paper, usage cycle, compiled bib scope, archived list.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Studies Session 4 [248](docs/decisions/248-studies-session-4.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **622/622** (2026-10-19). No new migration in this commit.
+**Repo gate:** Passage-section research fill [250](docs/decisions/250-passage-sections-research-pass.md) — data-only (hosted `book_passage_sections`); docs commit. Prior Studies Session 4 [248](docs/decisions/248-studies-session-4.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **622/622** (2026-10-19).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -201,11 +201,10 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Studies Session 4** — sectioned `.docx`, read-only study MCP, Overview polish ([247](docs/decisions/247-studies-session-3.md)). Prompt above.
-2. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
-3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
-4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
-5. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
+1. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
+2. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
+3. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
+4. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
 
 ### Next / parallel
 6. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
