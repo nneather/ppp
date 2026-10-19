@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Set member tiers / multi-select ([257](docs/decisions/257-sets-sections-septuagint.md)).
+**Last updated:** 2026-10-19 — Muraoka’s Septuagint lexicon on the set ([260](docs/decisions/260-library-muraoka-gels.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [260 — Muraoka’s Septuagint lexicon](docs/decisions/260-library-muraoka-gels.md) (2026-10-19) — 2009 Peeters GELS, keyed by ISBN beside LEH. Included on Septuagint studies; dismissed from NT language tools.
 - [259 — Calvin section-index practice](docs/decisions/259-calvin-section-index-practice.md) (2026-10-19) — Section locators join the outline; a short Battles outline and verified refs show on the systematic band. Page-index bulk capture still waits on the gold gate.
 - [258 — Study attachments parked](docs/decisions/258-study-attachments-parked.md) (2026-10-19) — Scans as PDF fit Free for years; audio is the budget breaker (links first). One table + one bucket + one panel when picked up.
 - [257 — Sets sections + Septuagint](docs/decisions/257-sets-sections-septuagint.md) (2026-10-19) — Sections, reference-only, volume rollup, multi-select move/dismiss, Septuagint under Language tools.
 - [256 — Nachfolge and Eastman from the shelf](docs/decisions/256-nachfolge-eastman-shelf-contents.md) (2026-10-19) — Brunnen contents: same passages as the English Bonhoeffer. Eastman: Romans 7, Philippians 2, Galatians 2.
-- [255 — Sermon on the Mount as passages](docs/decisions/255-sermon-mount-passages-not-coverage.md) (2026-10-19) — Guelich (from 4:23), Pennington, and Augustine are one sermon each.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Set member tiers [257](docs/decisions/257-sets-sections-septuagint.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **667/667** (2026-10-19). Migration `20261019240000_resource_set_member_dismiss.sql` pushed.
+**Repo gate:** Muraoka GELS [260](docs/decisions/260-library-muraoka-gels.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **673/673** (2026-10-19). Migration `20261019253000_library_muraoka_gels.sql` pushed.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
