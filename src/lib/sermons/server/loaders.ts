@@ -12,6 +12,7 @@ import {
 } from '$lib/sermons/by-book';
 import { librarySearchHref } from '$lib/sermons/passage-parse';
 import { parseContextType } from '$lib/sermons/venue-context';
+import { clockForInput, formatVenueLogistics, parseHymnal } from '$lib/sermons/venue-logistics';
 import type { PersonRow } from '$lib/types/library';
 import {
 	CONTEXT_TYPES,
@@ -32,6 +33,10 @@ type VenueDb = {
 	name: string;
 	notes: string | null;
 	context_type: string | null;
+	service_start: string | null;
+	drive_minutes: number | null;
+	depart_by: string | null;
+	hymnal: string | null;
 };
 
 type PassageDb = {
@@ -75,7 +80,9 @@ export async function loadSermonVenues(supabase: SupabaseClient): Promise<{
 	const [venuesRes, countsRes] = await Promise.all([
 		supabase
 			.from('sermon_venues')
-			.select('id, name, notes, context_type')
+			.select(
+				'id, name, notes, context_type, service_start, drive_minutes, depart_by, hymnal'
+			)
 			.is('deleted_at', null)
 			.order('name', { ascending: true }),
 		supabase.from('sermons').select('venue_id').is('deleted_at', null).not('venue_id', 'is', null)
@@ -101,6 +108,10 @@ export async function loadSermonVenues(supabase: SupabaseClient): Promise<{
 		name: v.name,
 		notes: v.notes,
 		context_type: parseContextType(v.context_type),
+		service_start: clockForInput(v.service_start) || null,
+		drive_minutes: v.drive_minutes,
+		depart_by: clockForInput(v.depart_by) || null,
+		hymnal: parseHymnal(v.hymnal),
 		sermonCount: countByVenue.get(v.id) ?? 0
 	}));
 
@@ -141,25 +152,60 @@ export async function loadUpcomingSermons(
 		...new Set(sermonRows.map((s) => s.venue_id).filter((id): id is string => id != null))
 	];
 	const venuesRes = venueIds.length
-		? await supabase.from('sermon_venues').select('id, name').in('id', venueIds)
-		: { data: [] as { id: string; name: string }[], error: null };
+		? await supabase
+				.from('sermon_venues')
+				.select('id, name, service_start, drive_minutes, depart_by, hymnal')
+				.in('id', venueIds)
+		: {
+				data: [] as {
+					id: string;
+					name: string;
+					service_start: string | null;
+					drive_minutes: number | null;
+					depart_by: string | null;
+					hymnal: string | null;
+				}[],
+				error: null
+			};
 
 	if (venuesRes.error) console.error('[sermons] upcoming venues', venuesRes.error);
 
-	const venueNameById = new Map<string, string>();
+	const venueById = new Map<
+		string,
+		{ name: string; logistics: string | null }
+	>();
 	for (const v of venuesRes.data ?? []) {
-		const row = v as { id: string; name: string };
-		venueNameById.set(row.id, row.name);
+		const row = v as {
+			id: string;
+			name: string;
+			service_start: string | null;
+			drive_minutes: number | null;
+			depart_by: string | null;
+			hymnal: string | null;
+		};
+		venueById.set(row.id, {
+			name: row.name,
+			logistics: formatVenueLogistics({
+				service_start: row.service_start,
+				drive_minutes: row.drive_minutes,
+				depart_by: row.depart_by,
+				hymnal: row.hymnal ? parseHymnal(row.hymnal) : null
+			})
+		});
 	}
 
-	const sermons: DashboardSermonRow[] = sermonRows.map((s) => ({
-		id: s.id,
-		preached_on: s.preached_on,
-		venue_name: s.venue_id ? (venueNameById.get(s.venue_id) ?? null) : null,
-		context_type: parseContextType(s.context_type),
-		topic: s.topic,
-		passage_display: s.passage_display
-	}));
+	const sermons: DashboardSermonRow[] = sermonRows.map((s) => {
+		const venue = s.venue_id ? venueById.get(s.venue_id) : undefined;
+		return {
+			id: s.id,
+			preached_on: s.preached_on,
+			venue_name: venue?.name ?? null,
+			venue_logistics: venue?.logistics ?? null,
+			context_type: parseContextType(s.context_type),
+			topic: s.topic,
+			passage_display: s.passage_display
+		};
+	});
 
 	return { sermons, error: null };
 }

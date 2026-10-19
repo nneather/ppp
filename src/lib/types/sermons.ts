@@ -33,12 +33,28 @@ export const CONTEXT_TYPE_FILTER_ACTIVE_CLASSES: Record<ContextType, string> = {
 	academic: 'border-sky-700 bg-sky-600 text-white'
 };
 
+/** Closed hymnal presets for `sermon_venues.hymnal`. */
+export const HYMNALS = ['trinity', 'celebration', 'worship_and_celebration'] as const;
+export type Hymnal = (typeof HYMNALS)[number];
+
+export const HYMNAL_LABELS: Record<Hymnal, string> = {
+	trinity: 'Trinity Hymnal',
+	celebration: 'The Celebration Hymnal',
+	worship_and_celebration: 'The Hymnal for Worship and Celebration'
+};
+
 export type SermonVenueRow = {
 	id: string;
 	name: string;
 	notes: string | null;
 	/** Default occasion type for sermons at this venue (C/P/A). Null = untyped. */
 	context_type: ContextType | null;
+	/** `HH:MM` service start, or null. */
+	service_start: string | null;
+	drive_minutes: number | null;
+	/** `HH:MM` leave-by time, or null. Not derived from start minus drive. */
+	depart_by: string | null;
+	hymnal: Hymnal | null;
 	sermonCount: number;
 };
 
@@ -70,6 +86,8 @@ export type DashboardSermonRow = {
 	id: string;
 	preached_on: string;
 	venue_name: string | null;
+	/** Compact service / drive / hymnal line, or null when the venue has none. */
+	venue_logistics: string | null;
 	context_type: ContextType | null;
 	topic: string | null;
 	passage_display: string | null;

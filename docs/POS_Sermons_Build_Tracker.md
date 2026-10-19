@@ -1,6 +1,6 @@
 # Personal Operations System — Sermons Module Build Tracker
 
-_Last updated: 2026-09-02 | Module: Sermons (4th) | Sessions 1–2 complete + venue type ([217](decisions/217-sermon-venues-context-type.md))_
+_Last updated: 2026-10-19 | Module: Sermons (4th) | Sessions 1–2 complete + venue type ([217](decisions/217-sermon-venues-context-type.md)) + venue logistics ([241](decisions/241-sermon-venue-logistics.md))_
 
 **Read before any session:** `docs/MODULE_KICKOFF_PLAYBOOK.md`, [090](decisions/090-sermons-session-0.md), [091](decisions/091-sermons-session-1.md), [095](decisions/095-sermons-by-book-stats.md), grill [brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md](../brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md).
 
@@ -52,6 +52,7 @@ Core value — **log sermons preached (including date-only drafts) and jump to l
 | 1 | ✅ | Schema + seed + `/sermons` + Sheet + venues settings + library deep-link + nav/audit — [091](decisions/091-sermons-session-1.md) |
 | 2 | ✅ | `/sermons/by-book` commentary × sermon stats — [095](decisions/095-sermons-by-book-stats.md); grill [brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md](../brainstorms/2026-07-17-commentary-sermon-stats-dashboard.md) |
 | Ad-hoc | ✅ | Venue location type auto-fills sermon context — [217](decisions/217-sermon-venues-context-type.md) |
+| Ad-hoc | ✅ | Venue service start, drive, leave-by, hymnal, notes — [241](decisions/241-sermon-venue-logistics.md) |
 
 ---
 

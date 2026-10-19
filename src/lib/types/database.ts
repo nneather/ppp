@@ -2464,9 +2464,13 @@ export type Database = {
           created_at: string
           created_by: string | null
           deleted_at: string | null
+          depart_by: string | null
+          drive_minutes: number | null
+          hymnal: string | null
           id: string
           name: string
           notes: string | null
+          service_start: string | null
           updated_at: string
         }
         Insert: {
@@ -2474,9 +2478,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
+          depart_by?: string | null
+          drive_minutes?: number | null
+          hymnal?: string | null
           id?: string
           name: string
           notes?: string | null
+          service_start?: string | null
           updated_at?: string
         }
         Update: {
@@ -2484,9 +2492,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
+          depart_by?: string | null
+          drive_minutes?: number | null
+          hymnal?: string | null
           id?: string
           name?: string
           notes?: string | null
+          service_start?: string | null
           updated_at?: string
         }
         Relationships: [

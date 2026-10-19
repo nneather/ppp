@@ -4,6 +4,7 @@ import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
 import type { ContextType } from '$lib/types/sermons';
 import { parsePassageDisplay } from '$lib/sermons/passage-parse';
 import { parseContextType } from '$lib/sermons/venue-context';
+import { parseVenueLogisticsFields } from '$lib/sermons/venue-logistics';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -345,11 +346,20 @@ export async function createVenueAction(
 		return fail(400, { kind: 'createVenue' as const, message: 'Name is too long.' });
 	}
 
-	const notes = trimOrNull(fd.get('notes'));
 	const contextRaw = trimOrNull(fd.get('context_type'));
 	const context_type = parseContextType(contextRaw);
 	if (contextRaw && !context_type) {
 		return fail(400, { kind: 'createVenue' as const, message: 'Invalid context type.' });
+	}
+	const logistics = parseVenueLogisticsFields({
+		serviceStart: trimOrNull(fd.get('service_start')),
+		driveMinutes: trimOrNull(fd.get('drive_minutes')),
+		departBy: trimOrNull(fd.get('depart_by')),
+		hymnal: trimOrNull(fd.get('hymnal')),
+		notes: trimOrNull(fd.get('notes'))
+	});
+	if (!logistics.ok) {
+		return fail(400, { kind: 'createVenue' as const, message: logistics.message });
 	}
 
 	const { data: existing } = await supabase
@@ -370,7 +380,12 @@ export async function createVenueAction(
 
 	const { data: inserted, error: insErr } = await supabase
 		.from('sermon_venues')
-		.insert({ name, notes, context_type, created_by: userId } as never)
+		.insert({
+			name,
+			context_type,
+			created_by: userId,
+			...logistics.value
+		} as never)
 		.select('id')
 		.single();
 
@@ -405,7 +420,6 @@ export async function updateVenueAction(supabase: SupabaseClient, fd: FormData) 
 		});
 	}
 
-	const notes = trimOrNull(fd.get('notes'));
 	const contextRaw = trimOrNull(fd.get('context_type'));
 	const context_type = parseContextType(contextRaw);
 	if (contextRaw && !context_type) {
@@ -413,6 +427,20 @@ export async function updateVenueAction(supabase: SupabaseClient, fd: FormData) 
 			kind: 'updateVenue' as const,
 			venueId,
 			message: 'Invalid context type.'
+		});
+	}
+	const logistics = parseVenueLogisticsFields({
+		serviceStart: trimOrNull(fd.get('service_start')),
+		driveMinutes: trimOrNull(fd.get('drive_minutes')),
+		departBy: trimOrNull(fd.get('depart_by')),
+		hymnal: trimOrNull(fd.get('hymnal')),
+		notes: trimOrNull(fd.get('notes'))
+	});
+	if (!logistics.ok) {
+		return fail(400, {
+			kind: 'updateVenue' as const,
+			venueId,
+			message: logistics.message
 		});
 	}
 
@@ -436,7 +464,7 @@ export async function updateVenueAction(supabase: SupabaseClient, fd: FormData) 
 
 	const { error: updErr } = await supabase
 		.from('sermon_venues')
-		.update({ name, notes, context_type } as never)
+		.update({ name, context_type, ...logistics.value } as never)
 		.eq('id', venueId)
 		.is('deleted_at', null);
 

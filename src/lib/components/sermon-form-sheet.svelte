@@ -21,6 +21,7 @@
 		type SermonVenueRow
 	} from '$lib/types/sermons';
 	import { contextTypeForVenue } from '$lib/sermons/venue-context';
+	import { formatVenueLogistics } from '$lib/sermons/venue-logistics';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
@@ -153,10 +154,14 @@
 		contextType ? CONTEXT_TYPE_LABELS[contextType] : 'None'
 	);
 
+	const selectedVenue = $derived(venues.find((v) => v.id === venueId) ?? null);
 	const venueLabel = $derived.by(() => {
 		if (!venueId) return 'No venue';
-		return venues.find((v) => v.id === venueId)?.name ?? 'Select venue';
+		return selectedVenue?.name ?? 'Select venue';
 	});
+	const selectedLogistics = $derived(
+		selectedVenue ? formatVenueLogistics(selectedVenue) : null
+	);
 
 	function applyParseAssist() {
 		const parsed = parsePassageDisplay(passageDisplay);
@@ -209,6 +214,10 @@
 							name,
 							notes: null,
 							context_type: createdType,
+							service_start: null,
+							drive_minutes: null,
+							depart_by: null,
+							hymnal: null,
 							sermonCount: 0
 						}
 					].sort((a, b) => a.name.localeCompare(b.name));
@@ -288,6 +297,16 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
+				{#if selectedLogistics || selectedVenue?.notes}
+					<div class="space-y-1 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+						{#if selectedLogistics}
+							<p>{selectedLogistics}</p>
+						{/if}
+						{#if selectedVenue?.notes}
+							<p class="whitespace-pre-line">{selectedVenue.notes}</p>
+						{/if}
+					</div>
+				{/if}
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<Input
 						placeholder="New venue name"

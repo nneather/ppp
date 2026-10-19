@@ -4,20 +4,19 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
+	import VenueFormFields from '$lib/components/venue-form-fields.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import { formatVenueLogistics } from '$lib/sermons/venue-logistics';
 	import {
-		CONTEXT_TYPES,
 		CONTEXT_TYPE_BADGE_CLASSES,
 		CONTEXT_TYPE_LABELS,
 		CONTEXT_TYPE_SHORT,
 		type ContextType,
+		type Hymnal,
 		type SermonVenueRow
 	} from '$lib/types/sermons';
 	import { cn } from '$lib/utils';
@@ -37,33 +36,34 @@
 	let createName = $state('');
 	let createNotes = $state('');
 	let createContextType = $state<ContextType | ''>('');
+	let createServiceStart = $state('');
+	let createDriveMinutes = $state('');
+	let createDepartBy = $state('');
+	let createHymnal = $state<Hymnal | ''>('');
 
 	let editOpen = $state(false);
 	let editRow = $state<SermonVenueRow | null>(null);
 	let editName = $state('');
 	let editNotes = $state('');
 	let editContextType = $state<ContextType | ''>('');
+	let editServiceStart = $state('');
+	let editDriveMinutes = $state('');
+	let editDepartBy = $state('');
+	let editHymnal = $state<Hymnal | ''>('');
 
 	let deleteOpen = $state(false);
 	let deleteTarget = $state<SermonVenueRow | null>(null);
 	let deletePending = $state(false);
 	let deleteFormEl = $state<HTMLFormElement | null>(null);
 
-	const NONE = '__none__';
-
-	const createContextSelect = $derived(createContextType || NONE);
-	const editContextSelect = $derived(editContextType || NONE);
-	const createContextLabel = $derived(
-		createContextType ? CONTEXT_TYPE_LABELS[createContextType] : 'None'
-	);
-	const editContextLabel = $derived(
-		editContextType ? CONTEXT_TYPE_LABELS[editContextType] : 'None'
-	);
-
 	function openCreate() {
 		createName = '';
 		createNotes = '';
 		createContextType = '';
+		createServiceStart = '';
+		createDriveMinutes = '';
+		createDepartBy = '';
+		createHymnal = '';
 		createOpen = true;
 	}
 
@@ -72,6 +72,10 @@
 		editName = v.name;
 		editNotes = v.notes ?? '';
 		editContextType = v.context_type ?? '';
+		editServiceStart = v.service_start ?? '';
+		editDriveMinutes = v.drive_minutes != null ? String(v.drive_minutes) : '';
+		editDepartBy = v.depart_by ?? '';
+		editHymnal = v.hymnal ?? '';
 		editOpen = true;
 	}
 
@@ -168,8 +172,9 @@
 
 		<ul class="mt-4 space-y-2">
 			{#each data.venues as v (v.id)}
+				{@const logistics = formatVenueLogistics(v)}
 				<li
-					class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-card-foreground"
+					class="flex items-start justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-card-foreground"
 				>
 					<div class="min-w-0">
 						<p class="flex items-center gap-2 truncate text-sm font-medium">
@@ -186,12 +191,17 @@
 								</span>
 							{/if}
 						</p>
+						{#if logistics}
+							<p class="text-xs text-muted-foreground">{logistics}</p>
+						{/if}
 						<p class="text-xs text-muted-foreground">
 							{v.sermonCount} sermon{v.sermonCount === 1 ? '' : 's'}
-							{#if v.notes}
-								· {v.notes}
-							{/if}
 						</p>
+						{#if v.notes}
+							<p class="mt-0.5 line-clamp-3 text-xs whitespace-pre-line text-muted-foreground">
+								{v.notes}
+							</p>
+						{/if}
 					</div>
 					<div class="flex shrink-0 gap-1">
 						<Button
@@ -228,7 +238,7 @@
 
 {#if !data.notOwner}
 	<Dialog.Root bind:open={createOpen}>
-		<Dialog.Content class="sm:max-w-md">
+		<Dialog.Content class="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
 			<Dialog.Header>
 				<Dialog.Title>New venue</Dialog.Title>
 			</Dialog.Header>
@@ -236,33 +246,16 @@
 				{#if createErr}
 					<p class="text-sm text-destructive" role="alert">{createErr}</p>
 				{/if}
-				<div class="space-y-2">
-					<Label for="create-name">Name</Label>
-					<Input id="create-name" name="name" bind:value={createName} required />
-				</div>
-				<div class="space-y-2">
-					<Label>Type</Label>
-					<input type="hidden" name="context_type" value={createContextType} />
-					<Select.Root
-						type="single"
-						value={createContextSelect}
-						onValueChange={(v) => {
-							createContextType = !v || v === NONE ? '' : (v as ContextType);
-						}}
-					>
-						<Select.Trigger class="w-full">{createContextLabel}</Select.Trigger>
-						<Select.Content>
-							<Select.Item value={NONE}>None</Select.Item>
-							{#each CONTEXT_TYPES as ct (ct)}
-								<Select.Item value={ct}>{CONTEXT_TYPE_LABELS[ct]}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="space-y-2">
-					<Label for="create-notes">Notes</Label>
-					<Input id="create-notes" name="notes" bind:value={createNotes} />
-				</div>
+				<VenueFormFields
+					idPrefix="create"
+					bind:name={createName}
+					bind:contextType={createContextType}
+					bind:serviceStart={createServiceStart}
+					bind:driveMinutes={createDriveMinutes}
+					bind:departBy={createDepartBy}
+					bind:hymnal={createHymnal}
+					bind:notes={createNotes}
+				/>
 				<div class="flex justify-end gap-2">
 					<Button type="button" variant="outline" hotkey="Escape" label="Cancel" onclick={() => (createOpen = false)} />
 					<Button type="submit" hotkey="s" label="Save venue" />
@@ -272,7 +265,7 @@
 	</Dialog.Root>
 
 	<Dialog.Root bind:open={editOpen}>
-		<Dialog.Content class="sm:max-w-md">
+		<Dialog.Content class="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
 			<Dialog.Header>
 				<Dialog.Title>Edit venue</Dialog.Title>
 			</Dialog.Header>
@@ -281,33 +274,16 @@
 				{#if updateErr}
 					<p class="text-sm text-destructive" role="alert">{updateErr}</p>
 				{/if}
-				<div class="space-y-2">
-					<Label for="edit-name">Name</Label>
-					<Input id="edit-name" name="name" bind:value={editName} required />
-				</div>
-				<div class="space-y-2">
-					<Label>Type</Label>
-					<input type="hidden" name="context_type" value={editContextType} />
-					<Select.Root
-						type="single"
-						value={editContextSelect}
-						onValueChange={(v) => {
-							editContextType = !v || v === NONE ? '' : (v as ContextType);
-						}}
-					>
-						<Select.Trigger class="w-full">{editContextLabel}</Select.Trigger>
-						<Select.Content>
-							<Select.Item value={NONE}>None</Select.Item>
-							{#each CONTEXT_TYPES as ct (ct)}
-								<Select.Item value={ct}>{CONTEXT_TYPE_LABELS[ct]}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="space-y-2">
-					<Label for="edit-notes">Notes</Label>
-					<Input id="edit-notes" name="notes" bind:value={editNotes} />
-				</div>
+				<VenueFormFields
+					idPrefix="edit"
+					bind:name={editName}
+					bind:contextType={editContextType}
+					bind:serviceStart={editServiceStart}
+					bind:driveMinutes={editDriveMinutes}
+					bind:departBy={editDepartBy}
+					bind:hymnal={editHymnal}
+					bind:notes={editNotes}
+				/>
 				<div class="flex justify-end gap-2">
 					<Button type="button" variant="outline" hotkey="Escape" label="Cancel" onclick={() => (editOpen = false)} />
 					<Button type="submit" hotkey="u" label="Update venue" />

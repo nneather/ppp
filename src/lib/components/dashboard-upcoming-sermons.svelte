@@ -68,6 +68,9 @@
 								{#if sermon.topic?.trim() && sermon.passage_display?.trim()}{sermon.topic.trim()}{/if}
 							</p>
 						{/if}
+						{#if sermon.venue_logistics}
+							<p class="mt-0.5 text-xs text-muted-foreground">{sermon.venue_logistics}</p>
+						{/if}
 					</a>
 				</li>
 			{/each}
