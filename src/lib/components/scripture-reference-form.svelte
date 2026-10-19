@@ -39,6 +39,7 @@
 		continuationNeedsBook,
 		draftRowFromExisting,
 		freshDraftRowKey,
+		hidesAsHighConfidence,
 		isDraftRowSaveable,
 		type ScriptureDraftRow,
 		type ScripturePageJob
@@ -138,6 +139,8 @@
 	let rowListViewportHeight = $state(400);
 	let rowListEl = $state<HTMLDivElement | null>(null);
 	let ocrPipelineBusy = $state(false);
+	/** 90%+ OCR rows stay in the save and off the list until this is on. */
+	let showHighConfidence = $state(false);
 
 	const PATCH_ROW_THRESHOLD = 50;
 
@@ -149,22 +152,34 @@
 			(rows.some((r) => r.included && isDraftRowSaveable(r)) || pages.length > 0 || ocrPipelineBusy)
 	);
 
-	const useRowWindow = $derived(!isEdit && rows.length > BATCH_ROW_WINDOW_THRESHOLD);
+	const listedRows = $derived(
+		rows.flatMap((row, idx) =>
+			!isEdit && !showHighConfidence && hidesAsHighConfidence(row.confidence_score)
+				? []
+				: [{ row, idx }]
+		)
+	);
+
+	const hiddenHighConfidenceCount = $derived(
+		isEdit ? 0 : rows.filter((r) => hidesAsHighConfidence(r.confidence_score)).length
+	);
+
+	const useRowWindow = $derived(!isEdit && listedRows.length > BATCH_ROW_WINDOW_THRESHOLD);
 
 	const rowWindow = $derived.by(() => {
 		if (!useRowWindow) {
-			return { start: 0, end: rows.length, topSpacer: 0, bottomSpacer: 0 };
+			return { start: 0, end: listedRows.length, topSpacer: 0, bottomSpacer: 0 };
 		}
-		const inputs = rows.map((r, i) => ({
-			expanded: r.expanded,
-			pageJobOrder: r.pageJobOrder,
-			prevPageJobOrder: i > 0 ? rows[i - 1]!.pageJobOrder : 0
+		const inputs = listedRows.map((item, i) => ({
+			expanded: item.row.expanded,
+			pageJobOrder: item.row.pageJobOrder,
+			prevPageJobOrder: i > 0 ? listedRows[i - 1]!.row.pageJobOrder : 0
 		}));
 		return computeRowWindow(inputs, rowListScrollTop, rowListViewportHeight);
 	});
 
 	const visibleRows = $derived(
-		useRowWindow ? rows.slice(rowWindow.start, rowWindow.end) : rows
+		useRowWindow ? listedRows.slice(rowWindow.start, rowWindow.end) : listedRows
 	);
 
 	let biblePickerOpen = $state(false);
@@ -812,6 +827,9 @@
 			>
 				<p class="min-w-0 flex-1 leading-snug text-foreground">
 					{batchReviewStats.total} references parsed.
+					{#if hiddenHighConfidenceCount > 0 && !showHighConfidence}
+						<span>{hiddenHighConfidenceCount} at 90%+ hidden. They stay included.</span>
+					{/if}
 					{#if batchReviewStats.flagged > 0}
 						<span class="text-amber-800 dark:text-amber-200">
 							{batchReviewStats.flagged} flagged for review.
@@ -819,6 +837,18 @@
 					{/if}
 				</p>
 				<div class="flex flex-wrap gap-2">
+					{#if hiddenHighConfidenceCount > 0}
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onclick={() => (showHighConfidence = !showHighConfidence)}
+						>
+							{showHighConfidence
+								? 'Hide 90%+'
+								: `Show ${hiddenHighConfidenceCount} at 90%+`}
+						</Button>
+					{/if}
 					{#if batchReviewStats.confident > 0}
 						<Button type="button" variant="secondary" size="sm" onclick={confirmConfidentRows}>
 							Confirm {batchReviewStats.confident} confident
@@ -842,9 +872,12 @@
 			{#if useRowWindow && rowWindow.topSpacer > 0}
 				<div aria-hidden="true" style:height="{rowWindow.topSpacer}px"></div>
 			{/if}
-			{#each visibleRows as row, localIdx (row.key)}
-				{@const idx = useRowWindow ? rowWindow.start + localIdx : localIdx}
-				{#if !isEdit && idx > 0 && row.pageJobOrder > 0 && rows[idx - 1]!.pageJobOrder !== row.pageJobOrder}
+			{#each visibleRows as item, localIdx (item.row.key)}
+				{@const row = item.row}
+				{@const idx = item.idx}
+				{@const listIdx = useRowWindow ? rowWindow.start + localIdx : localIdx}
+				{@const prevRow = listIdx > 0 ? listedRows[listIdx - 1]!.row : null}
+				{#if !isEdit && prevRow && row.pageJobOrder > 0 && prevRow.pageJobOrder !== row.pageJobOrder}
 					<div
 						class="flex items-center gap-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
 						role="separator"

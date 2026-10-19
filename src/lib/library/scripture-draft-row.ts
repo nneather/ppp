@@ -9,6 +9,12 @@ import { continuationNeedsBookRow } from '$lib/library/scripture-batch-upload';
 
 export type PositionInPage = 'first' | 'middle' | 'last' | 'only';
 
+/** Rows the review list hides until the owner asks to see them. Matches the displayed percent. */
+export function hidesAsHighConfidence(score: number | null | undefined): boolean {
+	if (score == null || !Number.isFinite(score)) return false;
+	return Math.round(score * 100) >= 90;
+}
+
 export type ScriptureDraftRow = {
 	key: string;
 	bible_book: string;
