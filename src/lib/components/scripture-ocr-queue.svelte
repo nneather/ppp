@@ -28,7 +28,7 @@
 		removeCandidatesForPdfPages,
 		stampSourcePageIndex
 	} from '$lib/library/scripture-ocr-merge';
-	import { mergeOcrConsensus } from '$lib/library/scripture-ocr-consensus';
+	import { mergeIndexChecker } from '$lib/library/scripture-ocr-consensus';
 	import { flagIndexCandidates } from '$lib/library/scripture-index-validate';
 	import { applyIndexQualifierFields } from '$lib/library/scripture-index-qualifiers';
 
@@ -190,7 +190,7 @@
 		}
 	}
 
-	/** Index mode: column crops, two prompt passes, consensus + structural flags. */
+	/** Index mode: column crops, Sonnet 4.6 writer, Sonnet 5.5 pointer check, structural flags. */
 	async function ocrIndexJpeg(
 		supa: ReturnType<typeof createClient>,
 		jpegBlob: Blob,
@@ -235,9 +235,23 @@
 		for (const crop of crops) {
 			const [passA, passB] = await Promise.all([onePass(crop, 1), onePass(crop, 2)]);
 			if (passA == null && passB == null) continue;
-			if (passA == null) merged.push(...prepare(passB ?? []));
-			else if (passB == null) merged.push(...prepare(passA));
-			else merged.push(...mergeOcrConsensus(prepare(passA), prepare(passB)));
+			if (passA == null) {
+				merged.push(
+					...prepare(passB ?? []).map((c) => ({
+						...c,
+						confidence_score: Math.min(c.confidence_score, 0.75),
+						consensus_flag: 'checker_only' as const
+					}))
+				);
+			} else if (passB == null) {
+				merged.push(
+					...prepare(passA).map((c) => ({
+						...c,
+						confidence_score: Math.min(c.confidence_score, 0.75),
+						consensus_flag: 'checker_mismatch' as const
+					}))
+				);
+			} else merged.push(...mergeIndexChecker(prepare(passA), prepare(passB)));
 		}
 		return flagIndexCandidates(merged);
 	}

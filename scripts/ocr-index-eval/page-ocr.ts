@@ -8,9 +8,9 @@
  * Images live in scripts/ocr-index-eval/images/page-0N-full.png (gitignored).
  * Env: ANTHROPIC_API_KEY (optional ANTHROPIC_OCR_MODEL). Loaded from .env.local.
  *
- * The system prompt below is the one that produced gold/page-0N.ocr.json
- * on 2026-10-19 (99.610%). The edge function's index_mode prompt also
- * includes the Calvin locator rules from decision 262.
+ * Pass 1 is the writer (Sonnet 4.6). Pass 2 is the Sonnet 5.5 pointer checker
+ * ([271](../../docs/decisions/271-ocr-index-checker-pass.md)). The edge function's
+ * index_mode prompt also includes the Calvin locator rules from decision 262.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { BIBLE_BOOK_NAMES } from '../../src/lib/library/bible-book-names.ts';
 import { columnSpansFromInk } from '../../src/lib/library/column-spans.ts';
-import { mergeOcrConsensus } from '../../src/lib/library/scripture-ocr-consensus.ts';
+import { mergeIndexChecker } from '../../src/lib/library/scripture-ocr-consensus.ts';
 import type { OcrScriptureCandidate } from '../../src/lib/library/ocr-scripture-refs.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -48,7 +48,8 @@ function loadEnvLocal(): void {
 
 loadEnvLocal();
 
-const model = process.env.ANTHROPIC_OCR_MODEL?.trim() || 'claude-sonnet-4-6';
+const writerModel = process.env.ANTHROPIC_OCR_MODEL?.trim() || 'claude-sonnet-4-6';
+const checkerModel = 'claude-sonnet-5-5';
 const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
 if (!apiKey) {
 	console.error('ANTHROPIC_API_KEY is required');
@@ -245,6 +246,7 @@ function normalize(raw: unknown): OcrScriptureCandidate | null {
 }
 
 async function ocrPng(bytes: Buffer, pass: 1 | 2): Promise<OcrScriptureCandidate[]> {
+	const checker = pass === 2;
 	const user =
 		pass === 2
 			? 'Second read of this scripture index column. Prefer fewer rows over guessed digits (3/8, 1/7). Emit printed order only.'
@@ -259,9 +261,11 @@ async function ocrPng(bytes: Buffer, pass: 1 | 2): Promise<OcrScriptureCandidate
 				'anthropic-version': '2023-06-01'
 			},
 			body: JSON.stringify({
-				model,
+				model: checker ? checkerModel : writerModel,
 				max_tokens: 32000,
-				temperature: 0,
+				...(checker
+					? { thinking: { type: 'between_tools' }, output_config: { effort: 'high' } }
+					: { temperature: 0 }),
 				system: prompt,
 				messages: [
 					{
@@ -322,7 +326,7 @@ async function ocrPage(id: string): Promise<void> {
 		const png = cropPng(img, span.x0, span.x1);
 		const t0 = Date.now();
 		const [passA, passB] = await Promise.all([ocrPng(png, 1), ocrPng(png, 2)]);
-		const rows = mergeOcrConsensus(passA, passB);
+		const rows = mergeIndexChecker(passA, passB);
 		console.log(
 			`  col ${i + 1}: pass ${passA.length}/${passB.length} → ${rows.length} in ${((Date.now() - t0) / 1000).toFixed(0)}s`
 		);

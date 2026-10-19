@@ -8,7 +8,7 @@ import { normalizeSectionPageFields } from './section-pointer.ts';
 
 /**
  * Per-user UTC-day cap. Phone batches stay far under this.
- * Index mode spends 6 calls per leaf (3 columns × 2 passes); Turretin vol. 3 is ~252.
+ * Index mode spends 6 calls per leaf (3 columns × writer + checker); Turretin vol. 3 is ~252.
  */
 const OCR_DAILY_CAP = 300;
 
@@ -36,6 +36,8 @@ const SCRIPTURE_IMAGES_BUCKET = 'library-scripture-images';
 /** ~25 MiB — matches storage bucket cap; Anthropic document blocks accept up to 32 MiB. */
 const MAX_PAYLOAD_BYTES = 26_214_400;
 const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-6';
+/** Index-mode pass 2. Pointer check only; the client ignores this model's book name. */
+const INDEX_CHECKER_MODEL = 'claude-sonnet-5-5';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
@@ -353,7 +355,7 @@ Deno.serve(async (req) => {
 	const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
 	const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 	const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-	const model = Deno.env.get('ANTHROPIC_OCR_MODEL')?.trim() || DEFAULT_ANTHROPIC_MODEL;
+	const writerModel = Deno.env.get('ANTHROPIC_OCR_MODEL')?.trim() || DEFAULT_ANTHROPIC_MODEL;
 
 	if (!supabaseUrl || !anonKey) {
 		return jsonResponse(req, { error: 'Server configuration error' }, 500);
@@ -394,6 +396,8 @@ Deno.serve(async (req) => {
 	const pdf_page_index = asOptionalInt(body.pdf_page_index, 999);
 	const indexMode = body.index_mode === true;
 	const indexPass = body.index_pass === 2 ? 2 : 1;
+	const useChecker = indexMode && indexPass === 2;
+	const model = useChecker ? INDEX_CHECKER_MODEL : writerModel;
 
 	if (!object_path || !mime_type || !book_id) {
 		return jsonResponse(req,
@@ -605,7 +609,9 @@ Rules:
 			body: JSON.stringify({
 				model,
 				max_tokens: visionInput.kind === 'image' ? 32768 : 64000,
-				temperature: 0,
+				...(useChecker
+					? { thinking: { type: 'between_tools' }, output_config: { effort: 'high' } }
+					: { temperature: 0 }),
 				system: systemPrompt,
 				messages: [
 					{

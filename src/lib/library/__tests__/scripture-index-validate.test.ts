@@ -59,6 +59,48 @@ describe('validateIndexRows', () => {
 		expect(flagged[1]!.review_note).toContain('edition_PA');
 	});
 
+	it('flags a one-digit page among three-digit pages in the same volume', () => {
+		const issues = validateIndexRows([
+			{
+				bible_book: 'John',
+				chapter_start: 6,
+				verse_start: 54,
+				page_start: '475',
+				volume: '3'
+			},
+			{
+				bible_book: 'John',
+				chapter_start: 6,
+				verse_start: 54,
+				page_start: '5',
+				volume: '3'
+			},
+			{
+				bible_book: 'John',
+				chapter_start: 6,
+				verse_start: 54,
+				page_start: '516',
+				volume: '3'
+			},
+			{
+				bible_book: 'Romans',
+				chapter_start: 1,
+				verse_start: 1,
+				page_start: '7',
+				volume: '1'
+			},
+			{
+				bible_book: 'Romans',
+				chapter_start: 1,
+				verse_start: 1,
+				page_start: '214',
+				volume: '2'
+			}
+		]);
+		const shorts = issues.filter((i) => i.reason === 'short_page_among_longer');
+		expect(shorts).toEqual([{ index: 1, reason: 'short_page_among_longer' }]);
+	});
+
 	it('flags pages outside outline bounds', () => {
 		const issues = validateIndexRows(
 			[{ bible_book: 'Romans', chapter_start: 1, verse_start: 1, page_start: '5' }],

@@ -15,6 +15,7 @@ export type IndexValidateRow = {
 	chapter_end?: number | null;
 	verse_end?: number | null;
 	page_start?: string | null;
+	volume?: string | null;
 };
 
 /** Protestant canon chapter counts (KJV versification). */
@@ -152,7 +153,42 @@ export function validateIndexRows(
 		if (abs != null) prevAbs = abs;
 	}
 
+	const byVerse = new Map<string, number[]>();
+	for (let i = 0; i < rows.length; i++) {
+		const r = rows[i]!;
+		const len = arabicPageLength(r.page_start);
+		if (len == null) continue;
+		const key = [
+			r.bible_book,
+			r.chapter_start ?? '',
+			r.verse_start ?? '',
+			r.chapter_end ?? '',
+			r.verse_end ?? '',
+			(r.volume ?? '').trim()
+		].join('|');
+		const group = byVerse.get(key) ?? [];
+		group.push(i);
+		byVerse.set(key, group);
+	}
+	for (const indexes of byVerse.values()) {
+		const lengths = indexes.map((i) => arabicPageLength(rows[i]!.page_start) ?? 0);
+		if (!lengths.some((n) => n >= 3)) continue;
+		for (let g = 0; g < indexes.length; g++) {
+			if (lengths[g]! <= 2) {
+				issues.push({ index: indexes[g]!, reason: 'short_page_among_longer' });
+			}
+		}
+	}
+
 	return issues;
+}
+
+/** Digit length of a bare page token. Note tokens and section locators are not pages here. */
+function arabicPageLength(page: string | null | undefined): number | null {
+	if (page == null) return null;
+	const t = page.trim();
+	if (!/^\d{1,5}$/.test(t)) return null;
+	return t.length;
 }
 
 /**

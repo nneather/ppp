@@ -141,7 +141,7 @@ supabase secrets set \
 
 ```bash
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-api03-...
-# optional — defaults to claude-sonnet-4-6 in code
+# optional — writer defaults to claude-sonnet-4-6. Index-mode pass 2 is claude-sonnet-5-5 in code.
 supabase secrets set ANTHROPIC_OCR_MODEL=claude-sonnet-4-6
 ```
 
