@@ -20,6 +20,7 @@
 - Review: any open block (raw present, no `corrected:` / `skip:`) → fail. Prior `corrected:`/`skip:` blocks are preserved across re-parse so fixes stay stable.
 - Corrections apply **in place** (match `page:col:raw`), not appended at file end.
 - Full-row validate: **fail** on `unknown_bible_book`, chapter/verse out of range, `out_of_canonical_order`, suspicious verse (&gt;100 non-Psalms). **Warn-only** `short_page_among_longer` (valid `1:10` beside `1:242` on one index line — skipped at accept time too).
+- **Duplicate compare keys** (`rowKey` in `turretin-gold.ts`, same shape as `compare.ts`) → fail (catches double-emitted rows before import dedupe).
 - Agent routing: Composer/gates → Parker clears review → Opus import → Fable pre-`--apply` audit ([workflow doc](../session-prompts/turretin-text-layer-workflow.md)).
 
 ## Schema changes
@@ -39,7 +40,7 @@
 
 - Position-based `apocryphaZone` (p.753/754 col 1 only) was wrong: 2 Esdras starts p.753 col 3; 2 Maccabees spills into col 2. Heading-as-book fixes that.
 - Gate must run on fresh `turretin:parse` output; stale `rows.json` without `printed_page` cannot gold-diff.
-- Fresh parse (2026-10-19): gold **1023/1025** (99.805%), **0 extras**, **50** apocrypha rows, **130** open review. Full-file validate also fails **6× `out_of_canonical_order`** (same-chapter verse backtracks, e.g. Judges 14:20→14:6; 2 Macc 15:39→15:14) plus **444×** warn-only `short_page_among_longer`.
+- Fresh parse (2026-10-19): gold **1023/1025** (99.805%), **0 extras**, **0 duplicate keys**, **50** apocrypha rows, **130** open review. Full-file validate also fails **6× `out_of_canonical_order`** (same-chapter verse backtracks, e.g. Judges 14:20→14:6; 2 Macc 15:39→15:14) plus **444×** warn-only `short_page_among_longer`. Session re-ran `turretin:gate -- --parse` on owner PDF — same numbers; exit **2** (expected until Parker clears review + canonical-order fixes).
 
 ## Carry-forward updates
 
