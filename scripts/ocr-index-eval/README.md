@@ -32,16 +32,38 @@ Owner English PDF (outside repo). No OCR:
 npx tsx scripts/ocr-index-eval/parse-turretin-text.ts "/path/to/…-scripture-index.pdf"
 ```
 
-Writes `turretin.lines.txt`, `turretin.review.txt`, `turretin.rows.json` next to the script (gitignored). To fix a row, add `corrected: …` (and keep `book:`) under its `# p.NNN col N` block and re-run. Ends with a gold-leaf diff for printed pp. 760 / 764 / 766.
+Writes `turretin.lines.txt`, `turretin.review.txt`, `turretin.rows.json` next to the script (gitignored). PDF path: argv, else `TURRETIN_PDF`, else the script default under `Documents/ppp/PDFs for parsing/`. Ends with a gold-leaf diff for printed pp. 760 / 764 / 766.
+
+Apocrypha headings (2 Esdras … 2 Maccabees; printed `Son of Sirach` → `Sirach`) become real `# book` rows in `rows.json`. DB `bible_books` vocab is deferred.
+
+### Review file contract
+
+Under each `# p.NNN col N` block:
+
+- `reason:` / `book:` / raw line (as emitted by parse)
+- `corrected: <line>` — re-parse accepts this **in place** (keep `book:`)
+- `skip: <why>` — drop noise (e.g. whole-book pointer) without a corrected line
+
+Resolved `corrected:` / `skip:` blocks are preserved across re-parse. Gate fails only on **open** blocks (raw present, neither directive).
 
 ### Review gate (before DB import)
 
 ```bash
-npm run turretin:parse          # or pass PDF path via script default / env
-npm run turretin:review-summary # counts by page / reason
-npm run turretin:gate           # fail until review clear + gold leaves ≥ 99.5%
+npm run turretin:parse          # argv PDF or TURRETIN_PDF
+npm run turretin:review-summary # open / corrected / skipped; by reason prefix + page
+npm run turretin:gate           # exit 0 pass / 2 fail
 npm run turretin:gate -- --parse "/path/to/…-scripture-index.pdf"
 ```
+
+**Fail if:**
+
+- any open review block
+- gold leaves overall &lt; 99.5% **or any extra** on pp. 760 / 764 / 766 (misses = warnings; known `8:141` / `7:1749` still need `corrected:` for a full pass because they stay open in review)
+- `turretin.lines.txt` chapter-went-backwards / entry before `# book`
+- rows: unknown book, chapter/verse out of range, `out_of_canonical_order`, suspicious verse (&gt;100 non-Psalms)
+- zero apocrypha rows, or `Son of Sirach` spelling in rows
+
+**Warn-only:** `short_page_among_longer` (accept gate also ignores it — valid `1:10` beside `1:242`).
 
 Policy + agent routing: [274](../../docs/decisions/274-turretin-review-gate-and-routing.md), [workflow](../../docs/session-prompts/turretin-text-layer-workflow.md).
 

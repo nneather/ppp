@@ -42,7 +42,7 @@ Deliver:
 2. scripts/ocr-index-eval/README.md gate section; finalize docs/decisions/274-turretin-review-gate-and-routing.md; PLAN.md (Recent decisions + repo gate date if you run check/test)
 3. Run: npm run turretin:gate -- --parse "<PDF path>" if file exists; record pass/fail honestly (gate may still FAIL until Parker clears review — that is OK if tooling is correct)
 
-Gate fail if: gold leaves < 99.5% or extras on pp. 760/764/766; open review (apocrypha skipped = resolved per 274); full-file validate failures; chapter backwards per book; apocrypha policy violations; duplicate compare keys.
+Gate fail if: gold leaves < 99.5% or extras on pp. 760/764/766; open review; full-file validate failures; chapter backwards per book; zero apocrypha rows (NRSV names in rows.json per 274); duplicate compare keys. Apocrypha are included as books, not skipped.
 
 Acceptance:
 - [ ] npm run check passes

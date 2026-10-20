@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Book-detail outline topics start collapsed ([273](docs/decisions/273-outline-topic-dropdowns.md)). Index OCR pass 2 is a Sonnet 5.5 pointer check ([271](docs/decisions/271-ocr-index-checker-pass.md)).
+**Last updated:** 2026-10-19 — Turretin text-layer gate (`turretin:gate`) + apocrypha-in-rows ([274](docs/decisions/274-turretin-review-gate-and-routing.md)). Outline topics start collapsed ([273](docs/decisions/273-outline-topic-dropdowns.md)).
 
 **How to use this file — read this first:**
 
@@ -49,12 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [274 — Turretin review gate + agent routing](docs/decisions/274-turretin-review-gate-and-routing.md) (2026-10-19) — `turretin:gate` / review-summary; apocrypha in rows.json (NRSV names); Composer → Opus → Fable prompts in session-prompts.
 - [273 — Outline topic dropdowns](docs/decisions/273-outline-topic-dropdowns.md) (2026-10-19) — Topics, headings, and Calvin book titles start collapsed. A chapter `I.1` nests under book `I`.
 - [272 — Turretin outlines](docs/decisions/272-turretin-outlines.md) (2026-10-19) — P&R vols. 1–3 contents, with the shared boundary page on both questions.
 - [271 — Index OCR checker pass](docs/decisions/271-ocr-index-checker-pass.md) (2026-10-19) — Pass 2 is Sonnet 5.5 on page pointers. Disagreements stay one row. A short page among longer siblings is flagged.
-- [274 — Turretin review gate + agent routing](docs/decisions/274-turretin-review-gate-and-routing.md) (2026-10-19) — `turretin:gate` / review-summary; Composer → Opus → Fable prompts in session-prompts.
-- [270 — Turretin text-layer index parser](docs/decisions/270-turretin-text-layer-parser.md) (2026-10-19) — `parse-turretin-text.ts` on FineReader PDF; gold leaves 1023/1025; review for apocrypha + damaged tokens; no DB insert yet.
-- [269 — Sonnet bake-off on the Turretin gold gate](docs/decisions/269-ocr-sonnet-gold-bakeoff.md) (2026-10-19) — Gold page numbers held. Stay on Sonnet 4.6. Sonnet 5.5 matched every pointer and mislabeled one John column as Matthew.
+- [270 — Turretin text-layer index parser](docs/decisions/270-turretin-text-layer-parser.md) (2026-10-19) — `parse-turretin-text.ts` on FineReader PDF; gold leaves 1023/1025; no DB insert yet.
 
 ---
 
@@ -86,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Turretin text-layer parser [270](docs/decisions/270-turretin-text-layer-parser.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **688/688** (2026-10-19).
+**Repo gate:** Turretin review gate [274](docs/decisions/274-turretin-review-gate-and-routing.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **718/718**; `turretin:gate` exit **2** until review clear (2026-10-19).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
