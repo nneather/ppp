@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
 	bibleBooksInDisplay,
 	buildImportChecklist,
+	groupImportSetSections,
 	importChecklistLead,
 	importGroupName,
+	importSectionDisplayLabel,
+	importSelectableKeys,
 	parseImportTarget,
 	parsePaperListShow,
 	setIdForGroupName,
@@ -139,6 +142,47 @@ describe('import checklist', () => {
 		expect(importChecklistLead({ title: 'Cost of Discipleship', seriesAbbreviation: null })).toBe(
 			'Cost of Discipleship'
 		);
+	});
+
+	it('labels bible_book sections Books of the Bible and groups by kind', () => {
+		expect(importSectionDisplayLabel('bible_book', 'Bible books')).toBe('Books of the Bible');
+		const sections = groupImportSetSections(sets);
+		const bible = sections.find((s) => s.kind === 'bible_book');
+		expect(bible?.displayLabel).toBe('Books of the Bible');
+		expect(bible?.sets.map((s) => s.name)).toEqual([
+			'Commentaries: Psalms',
+			'Commentaries: Romans'
+		]);
+	});
+
+	it('Select all keys ignore not-included and attached rows', () => {
+		const rows: ImportChecklistRow[] = [
+			{
+				key: 'b:a',
+				bookId: 'a',
+				essayId: null,
+				title: 'Included',
+				notes: null,
+				attached: false
+			},
+			{
+				key: 'b:b',
+				bookId: 'b',
+				essayId: null,
+				title: 'Attached',
+				notes: null,
+				attached: true
+			},
+			{
+				key: 'b:c',
+				bookId: 'c',
+				essayId: null,
+				title: 'Excluded',
+				notes: null,
+				attached: false
+			}
+		];
+		expect(importSelectableKeys(rows, new Set(['b:c']))).toEqual(['b:a']);
 	});
 
 	it('filters by title, abbreviation, or author and sorts authors with blanks last', () => {

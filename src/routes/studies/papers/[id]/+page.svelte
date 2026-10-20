@@ -195,6 +195,7 @@
 	<StudySourcesPanel
 		parentKind="paper"
 		parentId={data.paper.id}
+		passageDisplay={data.paper.passage_display}
 		sources={sources}
 		orphanSources={data.orphanSources}
 		groups={data.groups}
@@ -205,12 +206,11 @@
 		essayHits={data.essayHits}
 		suggestions={data.suggestions}
 		importSets={data.importSets}
+		importCreateSections={data.importCreateSections}
 		importPapers={data.importPapers}
-		importChecklist={data.importChecklist}
 		sectionCandidateCount={data.sectionCandidateCount}
 		footnotePages={data.footnotePages}
 		systematics={data.systematics}
-		importError={data.importError}
 		invalidateKey={paperKey}
 		form={f}
 	/>

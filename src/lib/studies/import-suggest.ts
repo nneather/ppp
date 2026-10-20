@@ -230,18 +230,54 @@ export function groupImportSets(sets: ImportSetSummary[]): {
 	};
 }
 
+export type ImportSetSection = {
+	/** Stored section name (e.g. "Bible books"). */
+	label: string;
+	/** Display title in the import dialog. */
+	displayLabel: string;
+	kind: ResourceSetKind;
+	sets: ImportSetSummary[];
+};
+
+/** Dialog label for a section kind / stored name. */
+export function importSectionDisplayLabel(
+	kind: ResourceSetKind,
+	storedLabel?: string | null
+): string {
+	if (kind === 'bible_book') return 'Books of the Bible';
+	if (kind === 'language') return 'Language tools';
+	const trimmed = storedLabel?.trim();
+	return trimmed || 'Custom';
+}
+
+/**
+ * Keys Select all / Clear should touch: visible included rows that are not
+ * already attached. Not-included (opt-in) keys are never in this list.
+ */
+export function importSelectableKeys(
+	included: readonly ImportChecklistRow[],
+	notIncludedKeys: ReadonlySet<string> = new Set()
+): string[] {
+	return included
+		.filter((row) => !row.attached && !notIncludedKeys.has(row.key))
+		.map((row) => row.key);
+}
+
 /** Import picker groups follow the Sets page sections, canon order inside Bible books. */
-export function groupImportSetSections(
-	sets: ImportSetSummary[]
-): { label: string; sets: ImportSetSummary[] }[] {
+export function groupImportSetSections(sets: ImportSetSummary[]): ImportSetSection[] {
 	const canon = new Map(BIBLE_BOOK_NAMES.map((name, i) => [name, i]));
-	const buckets = new Map<string, { sort: number; sets: ImportSetSummary[] }>();
+	const buckets = new Map<
+		string,
+		{ sort: number; kind: ResourceSetKind; sets: ImportSetSummary[] }
+	>();
 	for (const set of sets) {
 		const label =
 			set.sectionName?.trim() ||
 			(set.kind === 'bible_book' ? 'Bible books' : set.kind === 'language' ? 'Language tools' : 'Custom');
 		const sort = set.sectionSort ?? (set.kind === 'bible_book' ? 0 : set.kind === 'language' ? 1 : 2);
-		const bucket = buckets.get(label) ?? { sort, sets: [] };
+		const bucket = buckets.get(label) ?? { sort, kind: set.kind, sets: [] };
+		if (set.kind === 'bible_book') bucket.kind = 'bible_book';
+		else if (bucket.kind !== 'bible_book' && set.kind === 'language') bucket.kind = 'language';
 		bucket.sets.push(set);
 		buckets.set(label, bucket);
 	}
@@ -249,6 +285,8 @@ export function groupImportSetSections(
 		.sort((a, b) => a[1].sort - b[1].sort || a[0].localeCompare(b[0]))
 		.map(([label, bucket]) => ({
 			label,
+			displayLabel: importSectionDisplayLabel(bucket.kind, label),
+			kind: bucket.kind,
 			sets: bucket.sets.slice().sort((a, b) => {
 				if (a.kind === 'bible_book' || b.kind === 'bible_book') {
 					const ai = canon.get(bibleBookFromRules(a.rules) ?? '') ?? 999;

@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { goto, invalidate } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import { page } from '$app/state';
-	import { onDestroy, onMount, untrack } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import PaperImportDialog from '$lib/components/paper-import-dialog.svelte';
 	import PaperSourceRow from '$lib/components/paper-source-row.svelte';
 	import PaperAddSourcePanel from '$lib/components/paper-add-source-panel.svelte';
@@ -18,7 +17,11 @@
 		compilePaperBibliography,
 		compileSectionedBibliography
 	} from '$lib/studies/paper-bibliography';
-	import { setIdForGroupName, type ImportChecklistRow, type SetSuggestion } from '$lib/studies/import-suggest';
+	import {
+		setIdForGroupName,
+		type ImportSetSection,
+		type SetSuggestion
+	} from '$lib/studies/import-suggest';
 	import {
 		groupPaperSources,
 		paperSourceCatalog,
@@ -35,11 +38,12 @@
 	import FolderInput from '@lucide/svelte/icons/folder-input';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
-	type FormShape = { kind?: string; message?: string; success?: boolean };
+	type FormShape = { kind?: string; message?: string; success?: boolean; setId?: string };
 
 	let {
 		parentKind,
 		parentId,
+		passageDisplay = null,
 		sources: sourceRows,
 		orphanSources,
 		groups,
@@ -50,17 +54,17 @@
 		essayHits,
 		suggestions,
 		importSets,
+		importCreateSections = [],
 		importPapers,
-		importChecklist,
 		sectionCandidateCount = 0,
 		footnotePages = {},
 		systematics = [],
-		importError = null,
 		invalidateKey,
 		form
 	}: {
 		parentKind: 'paper' | 'sermon';
 		parentId: string;
+		passageDisplay?: string | null;
 		sources: PaperSourceView[];
 		orphanSources: OrphanPaperSource[];
 		groups: PaperGroupView[];
@@ -70,19 +74,12 @@
 		bookHits: BookListRow[];
 		essayHits: EssaySearchHit[];
 		suggestions: SetSuggestion[];
-		importSets: { label: string; sets: { id: string; name: string }[] }[];
+		importSets: ImportSetSection[];
+		importCreateSections?: { id: string; name: string; setKind: 'language' | 'custom' }[];
 		importPapers: { id: string; title: string; passageDisplay: string | null }[];
-		importChecklist: {
-			key: string;
-			groupName: string;
-			sourceLabel: string;
-			copyNotes: boolean;
-			rows: ImportChecklistRow[];
-		} | null;
 		sectionCandidateCount?: number;
 		footnotePages?: Record<string, string>;
 		systematics?: SystematicSetBlock[];
-		importError?: string | null;
 		invalidateKey: string;
 		form: FormShape | null;
 	} = $props();
@@ -94,7 +91,6 @@
 	);
 
 	let importOpen = $state(false);
-	let openedImportKey = $state<string | null>(null);
 	let includeCandidates = $state(false);
 	let sectionByGroup = $state(false);
 	let removedSourceIds = $state<string[]>([]);
@@ -209,31 +205,6 @@
 	});
 
 	const sources = $derived(sourceRows.filter((source) => !removedSourceIds.includes(source.sourceId)));
-
-	$effect(() => {
-		const key = importChecklist?.key ?? null;
-		if (!key || key === openedImportKey) return;
-		untrack(() => {
-			openedImportKey = key;
-			importOpen = true;
-		});
-	});
-
-	$effect(() => {
-		if (importOpen) return;
-		const key = importChecklist?.key ?? null;
-		if (!key || openedImportKey !== key) return;
-		untrack(() => {
-			void clearImportParam();
-		});
-	});
-
-	async function clearImportParam() {
-		if (!page.url.searchParams.has('import')) return;
-		const url = new URL(page.url);
-		url.searchParams.delete('import');
-		await goto(`${url.pathname}${url.search}`, { replaceState: true, noScroll: true, keepFocus: true });
-	}
 
 	function originSetId(source: PaperSourceView): string | null {
 		const group = groups.find((item) => item.id === source.groupId);
@@ -396,8 +367,6 @@
 
 	async function onImported() {
 		importOpen = false;
-		openedImportKey = importChecklist?.key ?? openedImportKey;
-		await clearImportParam();
 		await refresh();
 	}
 
@@ -766,14 +735,16 @@
 
 	<PaperImportDialog
 		bind:open={importOpen}
-		paperId={parentId}
+		{parentKind}
+		{parentId}
 		{parentField}
+		{passageDisplay}
+		{isOwner}
 		{suggestions}
 		{importSets}
+		{importCreateSections}
 		{importPapers}
-		checklist={importChecklist}
 		{sectionCandidateCount}
-		{importError}
 		onImported={onImported}
 	/>
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ByBookShelfHit } from '$lib/types/sermons';
 import {
 	candidatesFromCommentaryHits,
+	catalogRefsFromGroupSources,
 	countNewMembers,
 	filterResourceSetItems,
 	groupResourceSetList,
@@ -284,6 +285,46 @@ describe('candidatesFromCommentaryHits', () => {
 		]);
 		expect(out).toHaveLength(1);
 		expect(out[0]?.createdAt).toBe('2026-10-01T00:00:00Z');
+		expect(out[0]?.seriesAbbreviation).toBe('NICNT');
+		expect(out[0]?.seriesId).toBe('series-1');
+	});
+
+	it('falls back to series name when abbreviation is absent', () => {
+		const hit: ByBookShelfHit & { createdAt: string; volumeNumber?: string } = {
+			kind: 'book',
+			bookId: 'b1',
+			essayId: null,
+			title: 'Romans',
+			authorShort: null,
+			seriesLabel: 'New International Commentary',
+			seriesId: 'series-1',
+			authorKey: null,
+			rating: null,
+			genre: 'Commentary',
+			href: '/library/books/b1',
+			createdAt: '2020-01-01T00:00:00Z',
+			volumeNumber: '1'
+		};
+		const out = candidatesFromCommentaryHits([hit]);
+		expect(out[0]?.seriesAbbreviation).toBe('New International Commentary');
+		expect(out[0]?.volumeNumber).toBe('1');
+	});
+});
+
+describe('catalogRefsFromGroupSources', () => {
+	it('dedupes book and essay sources for save-as-set', () => {
+		expect(
+			catalogRefsFromGroupSources([
+				{ book_id: 'b1', essay_id: null },
+				{ book_id: 'b1', essay_id: null },
+				{ book_id: null, essay_id: 'e1' },
+				{ bookId: 'b2', essayId: null }
+			])
+		).toEqual([
+			{ bookId: 'b1', essayId: null },
+			{ bookId: null, essayId: 'e1' },
+			{ bookId: 'b2', essayId: null }
+		]);
 	});
 });
 

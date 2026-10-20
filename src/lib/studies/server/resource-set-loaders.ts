@@ -44,9 +44,23 @@ type BookEmbed = {
 	rating: number | null;
 	deleted_at: string | null;
 	series_id: string | null;
+	volume_number: string | null;
 	created_at: string;
 	series: SeriesEmbed | SeriesEmbed[] | null;
 };
+
+/** Prefer series abbreviation, else series name — same rule as by-book. */
+function seriesLabelFromEmbed(
+	seriesId: string | null,
+	series: SeriesEmbed | SeriesEmbed[] | null
+): { seriesId: string | null; seriesLabel: string | null } {
+	if (!seriesId) return { seriesId: null, seriesLabel: null };
+	const live = oneEmbed(series);
+	if (!live || live.deleted_at) return { seriesId: null, seriesLabel: null };
+	const abbr = live.abbreviation?.trim() || '';
+	const name = live.name?.trim() || '';
+	return { seriesId: live.id, seriesLabel: abbr || name || null };
+}
 
 type EssayEmbed = {
 	id: string;
@@ -177,13 +191,13 @@ async function commentaryCandidatesByBook(
 			book_id,
 			essay_id,
 			books (
-				id, title, genre, rating, deleted_at, series_id, created_at,
+				id, title, genre, rating, deleted_at, series_id, volume_number, created_at,
 				series ( id, name, abbreviation, deleted_at )
 			),
 			essays (
 				id, essay_title, deleted_at, parent_book_id, created_at,
 				books!essays_parent_book_id_fkey (
-					id, title, genre, rating, deleted_at, series_id, created_at,
+					id, title, genre, rating, deleted_at, series_id, volume_number, created_at,
 					series ( id, name, abbreviation, deleted_at )
 				)
 			)
@@ -247,18 +261,22 @@ async function commentaryCandidatesByBook(
 		const essay = oneEmbed(row.essays);
 		const parent = essay ? oneEmbed(essay.books) : null;
 		if (essay && !essay.deleted_at && parent && !parent.deleted_at && parent.genre === 'Commentary') {
-			const series = oneEmbed(parent.series);
-			const hit = emptyHit({
-				kind: 'essay',
-				bookId: parent.id,
-				essayId: essay.id,
-				title: essay.essay_title,
-				seriesId: parent.series_id && series && !series.deleted_at ? series.id : null,
-				authorKey: authorKey(authorsByEssay.get(essay.id) ?? []) || null,
-				rating: parent.rating,
-				genre: parent.genre
-			});
-			hit.createdAt = essay.created_at;
+			const { seriesId, seriesLabel } = seriesLabelFromEmbed(parent.series_id, parent.series);
+			const hit: ByBookShelfHit & { createdAt: string | null; volumeNumber?: string | null } = {
+				...emptyHit({
+					kind: 'essay',
+					bookId: parent.id,
+					essayId: essay.id,
+					title: essay.essay_title,
+					seriesId,
+					authorKey: authorKey(authorsByEssay.get(essay.id) ?? []) || null,
+					rating: parent.rating,
+					genre: parent.genre
+				}),
+				seriesLabel,
+				createdAt: essay.created_at,
+				volumeNumber: parent.volume_number
+			};
 			const list = hitsByBook.get(row.bible_book) ?? [];
 			list.push(hit);
 			hitsByBook.set(row.bible_book, list);
@@ -269,18 +287,22 @@ async function commentaryCandidatesByBook(
 		if (!book || book.deleted_at || book.genre !== 'Commentary' || !row.book_id || row.essay_id) {
 			continue;
 		}
-		const series = oneEmbed(book.series);
-		const hit = emptyHit({
-			kind: 'book',
-			bookId: book.id,
-			essayId: null,
-			title: (book.title ?? '').trim() || 'Untitled',
-			seriesId: book.series_id && series && !series.deleted_at ? series.id : null,
-			authorKey: authorKey(authorsByBook.get(book.id) ?? []) || null,
-			rating: book.rating,
-			genre: book.genre
-		});
-		hit.createdAt = book.created_at;
+		const { seriesId, seriesLabel } = seriesLabelFromEmbed(book.series_id, book.series);
+		const hit: ByBookShelfHit & { createdAt: string | null; volumeNumber?: string | null } = {
+			...emptyHit({
+				kind: 'book',
+				bookId: book.id,
+				essayId: null,
+				title: (book.title ?? '').trim() || 'Untitled',
+				seriesId,
+				authorKey: authorKey(authorsByBook.get(book.id) ?? []) || null,
+				rating: book.rating,
+				genre: book.genre
+			}),
+			seriesLabel,
+			createdAt: book.created_at,
+			volumeNumber: book.volume_number
+		};
 		const list = hitsByBook.get(row.bible_book) ?? [];
 		list.push(hit);
 		hitsByBook.set(row.bible_book, list);
@@ -300,7 +322,7 @@ async function candidatesByGenre(
 	if (genres.length === 0) return out;
 	const { data, error } = await supabase
 		.from('books')
-		.select('id, title, genre, created_at, series_id, volume_number, series ( id, abbreviation, deleted_at )')
+		.select('id, title, genre, created_at, series_id, volume_number, series ( id, name, abbreviation, deleted_at )')
 		.in('genre', genres)
 		.is('deleted_at', null);
 	if (error) {
@@ -314,23 +336,19 @@ async function candidatesByGenre(
 		created_at: string;
 		series_id: string | null;
 		volume_number: string | null;
-		series:
-			| { id: string; abbreviation: string | null; deleted_at: string | null }
-			| { id: string; abbreviation: string | null; deleted_at: string | null }[]
-			| null;
+		series: SeriesEmbed | SeriesEmbed[] | null;
 	}[]) {
 		if (!row.genre) continue;
-		const series = oneEmbed(row.series);
-		const seriesLive = row.series_id && series && !series.deleted_at ? series : null;
+		const { seriesId, seriesLabel } = seriesLabelFromEmbed(row.series_id, row.series);
 		const list = out.get(row.genre) ?? [];
 		list.push({
 			bookId: row.id,
 			essayId: null,
 			title: (row.title ?? '').trim() || 'Untitled',
 			createdAt: row.created_at,
-			seriesId: seriesLive?.id ?? null,
+			seriesId,
 			volumeNumber: row.volume_number,
-			seriesAbbreviation: seriesLive?.abbreviation?.trim() || null
+			seriesAbbreviation: seriesLabel
 		});
 		out.set(row.genre, list);
 	}
@@ -346,7 +364,9 @@ async function candidatesByTopic(
 	if (lowered.length === 0) return out;
 	const { data, error } = await supabase
 		.from('book_topics')
-		.select('topic, book_id, books ( id, title, created_at, deleted_at, series_id, volume_number, series ( id, abbreviation, deleted_at ) )')
+		.select(
+			'topic, book_id, books ( id, title, created_at, deleted_at, series_id, volume_number, series ( id, name, abbreviation, deleted_at ) )'
+		)
 		.in('topic', lowered)
 		.is('deleted_at', null);
 	if (error) {
@@ -364,10 +384,7 @@ async function candidatesByTopic(
 					deleted_at: string | null;
 					series_id: string | null;
 					volume_number: string | null;
-					series:
-						| { id: string; abbreviation: string | null; deleted_at: string | null }
-						| { id: string; abbreviation: string | null; deleted_at: string | null }[]
-						| null;
+					series: SeriesEmbed | SeriesEmbed[] | null;
 			  }
 			| {
 					id: string;
@@ -376,17 +393,13 @@ async function candidatesByTopic(
 					deleted_at: string | null;
 					series_id: string | null;
 					volume_number: string | null;
-					series:
-						| { id: string; abbreviation: string | null; deleted_at: string | null }
-						| { id: string; abbreviation: string | null; deleted_at: string | null }[]
-						| null;
+					series: SeriesEmbed | SeriesEmbed[] | null;
 			  }[]
 			| null;
 	}[]) {
 		const book = oneEmbed(row.books);
 		if (!book || book.deleted_at || !row.book_id) continue;
-		const series = oneEmbed(book.series);
-		const seriesLive = book.series_id && series && !series.deleted_at ? series : null;
+		const { seriesId, seriesLabel } = seriesLabelFromEmbed(book.series_id, book.series);
 		const list = out.get(row.topic) ?? [];
 		if (list.some((c) => c.bookId === book.id)) continue;
 		list.push({
@@ -394,9 +407,9 @@ async function candidatesByTopic(
 			essayId: null,
 			title: (book.title ?? '').trim() || 'Untitled',
 			createdAt: book.created_at,
-			seriesId: seriesLive?.id ?? null,
+			seriesId,
 			volumeNumber: book.volume_number,
-			seriesAbbreviation: seriesLive?.abbreviation?.trim() || null
+			seriesAbbreviation: seriesLabel
 		});
 		out.set(row.topic, list);
 	}
@@ -450,7 +463,7 @@ async function loadOverrides(
 		bookIds.length
 			? supabase
 					.from('books')
-					.select('id, title, series_id, volume_number, series ( id, abbreviation, deleted_at )')
+					.select('id, title, series_id, volume_number, series ( id, name, abbreviation, deleted_at )')
 					.in('id', bookIds)
 					.is('deleted_at', null)
 			: Promise.resolve({
@@ -459,10 +472,7 @@ async function loadOverrides(
 						title: string | null;
 						series_id: string | null;
 						volume_number: string | null;
-						series:
-							| { id: string; abbreviation: string | null; deleted_at: string | null }
-							| { id: string; abbreviation: string | null; deleted_at: string | null }[]
-							| null;
+						series: SeriesEmbed | SeriesEmbed[] | null;
 					}[],
 					error: null
 				}),
@@ -477,10 +487,7 @@ async function loadOverrides(
 		title: string | null;
 		series_id: string | null;
 		volume_number: string | null;
-		series:
-			| { id: string; abbreviation: string | null; deleted_at: string | null }
-			| { id: string; abbreviation: string | null; deleted_at: string | null }[]
-			| null;
+		series: SeriesEmbed | SeriesEmbed[] | null;
 	};
 	const bookMeta = new Map<string, OverrideBook>();
 	for (const book of (booksRes.data ?? []) as OverrideBook[]) bookMeta.set(book.id, book);
@@ -494,8 +501,9 @@ async function loadOverrides(
 	for (const row of rows) {
 		if (row.kind !== 'include' && row.kind !== 'exclude' && row.kind !== 'dismiss') continue;
 		const book = row.book_id ? bookMeta.get(row.book_id) : undefined;
-		const series = book ? oneEmbed(book.series) : null;
-		const seriesLive = book?.series_id && series && !series.deleted_at ? series : null;
+		const { seriesId, seriesLabel } = book
+			? seriesLabelFromEmbed(book.series_id, book.series)
+			: { seriesId: null, seriesLabel: null };
 		const title = book
 			? (book.title ?? '').trim() || 'Untitled'
 			: row.essay_id
@@ -508,9 +516,9 @@ async function loadOverrides(
 			kind: row.kind,
 			title,
 			bibliographical: row.bibliographical !== false,
-			seriesId: seriesLive?.id ?? null,
+			seriesId,
 			volumeNumber: book?.volume_number ?? null,
-			seriesAbbreviation: seriesLive?.abbreviation?.trim() || null
+			seriesAbbreviation: seriesLabel
 		});
 		out.set(row.set_id, list);
 	}
@@ -856,6 +864,34 @@ export async function loadResourceSetMoveTargets(
 		name: row.name,
 		sectionName: oneEmbed(row.resource_set_sections)?.name ?? null
 	}));
+}
+
+/** Unlocked sections that can take a new set from the import dialog. */
+export async function loadImportCreateSections(supabase: SupabaseClient): Promise<{
+	sections: { id: string; name: string; setKind: 'language' | 'custom' }[];
+	error: string | null;
+}> {
+	const { data, error } = await supabase
+		.from('resource_set_sections')
+		.select('id, name, set_kind, locked')
+		.is('deleted_at', null)
+		.order('sort_order', { ascending: true });
+	if (error) {
+		console.error('[studies] loadImportCreateSections', error);
+		return { sections: [], error: error.message };
+	}
+	const sections: { id: string; name: string; setKind: 'language' | 'custom' }[] = [];
+	for (const row of (data ?? []) as {
+		id: string;
+		name: string;
+		set_kind: string;
+		locked: boolean;
+	}[]) {
+		if (row.locked) continue;
+		if (row.set_kind !== 'language' && row.set_kind !== 'custom') continue;
+		sections.push({ id: row.id, name: row.name, setKind: row.set_kind });
+	}
+	return { sections, error: null };
 }
 
 /** Names + rules only. Import suggestions must not resolve every commentary set. */

@@ -20,8 +20,10 @@ import {
 import { loadPaperDetail } from '$lib/studies/server/paper-loaders';
 import { loadStudyWorkspace } from '$lib/studies/server/study-workspace';
 import {
+	createResourceSetAction,
 	removeSetMemberAction,
-	restoreSetMemberAction
+	restoreSetMemberAction,
+	saveGroupAsSetAction
 } from '$lib/studies/server/resource-set-actions';
 import { loadAssignments, loadCourses } from '$lib/classwork/server/loaders';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
@@ -173,5 +175,15 @@ export const actions: Actions = {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'restoreSetMember' as const, message: 'Unauthorized' });
 		return restoreSetMemberAction(locals.supabase, user.id, await request.formData());
+	},
+	createSet: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'createSet' as const, message: 'Unauthorized' });
+		return createResourceSetAction(locals.supabase, user.id, await request.formData());
+	},
+	saveGroupAsSet: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'saveGroupAsSet' as const, message: 'Unauthorized' });
+		return saveGroupAsSetAction(locals.supabase, user.id, await request.formData());
 	}
 };

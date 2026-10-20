@@ -119,6 +119,7 @@
 	<StudySourcesPanel
 		parentKind="sermon"
 		parentId={data.sermon.id}
+		passageDisplay={data.sermon.passage_display}
 		sources={data.sources}
 		orphanSources={data.orphanSources}
 		groups={data.groups}
@@ -129,12 +130,11 @@
 		essayHits={data.essayHits}
 		suggestions={data.suggestions}
 		importSets={data.importSets}
+		importCreateSections={data.importCreateSections}
 		importPapers={data.importPapers}
-		importChecklist={data.importChecklist}
 		sectionCandidateCount={data.sectionCandidateCount}
 		footnotePages={data.footnotePages}
 		systematics={data.systematics}
-		importError={data.importError}
 		invalidateKey={sermonKey}
 		form={f}
 	/>

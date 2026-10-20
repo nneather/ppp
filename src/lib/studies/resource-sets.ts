@@ -38,6 +38,26 @@ export type CatalogRef = {
 	essayId: string | null;
 };
 
+/**
+ * Deduped book/essay refs from a study group's sources — used when saving a
+ * paper group as a custom resource set.
+ */
+export function catalogRefsFromGroupSources(
+	sources: readonly { book_id?: string | null; essay_id?: string | null; bookId?: string | null; essayId?: string | null }[]
+): CatalogRef[] {
+	const refs: CatalogRef[] = [];
+	const seen = new Set<string>();
+	for (const row of sources) {
+		const essayId = row.essay_id ?? row.essayId ?? null;
+		const bookId = row.book_id ?? row.bookId ?? null;
+		const key = essayId ? `e:${essayId}` : bookId ? `b:${bookId}` : '';
+		if (!key || seen.has(key)) continue;
+		seen.add(key);
+		refs.push({ bookId: essayId ? null : bookId, essayId });
+	}
+	return refs;
+}
+
 export type RuleCandidate = CatalogRef & {
 	title: string;
 	/** ISO timestamp of the catalog row (max across a collapsed series). */
@@ -461,12 +481,16 @@ export function groupSetsIntoSections(
 		});
 }
 
-type HitWithCreated = ByBookShelfHit & { createdAt: string | null };
+type HitWithCreated = ByBookShelfHit & {
+	createdAt: string | null;
+	volumeNumber?: string | null;
+};
 
 /**
  * Collapse commentary hits the same way By book does, then one candidate per
  * surviving hit. `createdAt` is the newest row in the collapse group so a
- * newly acquired volume badges the series.
+ * newly acquired volume badges the series. Series abbreviation (or name) and
+ * volume number ride through for the import checklist lead.
  */
 export function candidatesFromCommentaryHits(hits: HitWithCreated[]): RuleCandidate[] {
 	const parentsWithEssay = new Set<string>();
@@ -487,17 +511,35 @@ export function candidatesFromCommentaryHits(hits: HitWithCreated[]): RuleCandid
 	return collapseCommentaryHits(hits).map((hit) => {
 		const group = byKey.get(commentaryCollapseKey(hit)) ?? [];
 		let createdAt: string | null = null;
+		let volumeNumber: string | null = null;
+		let seriesAbbreviation: string | null = hit.seriesLabel?.trim() || null;
 		for (const g of group) {
 			if (g.createdAt && (!createdAt || g.createdAt > createdAt)) createdAt = g.createdAt;
+			if (!seriesAbbreviation && g.seriesLabel?.trim()) {
+				seriesAbbreviation = g.seriesLabel.trim();
+			}
+			if (!volumeNumber && g.volumeNumber) volumeNumber = g.volumeNumber;
 		}
+		const seriesId = hit.seriesId;
 		if (hit.kind === 'essay' && hit.essayId) {
 			return {
 				bookId: null,
 				essayId: hit.essayId,
 				title: hit.title,
-				createdAt
+				createdAt,
+				seriesId,
+				volumeNumber,
+				seriesAbbreviation
 			};
 		}
-		return { bookId: hit.bookId, essayId: null, title: hit.title, createdAt };
+		return {
+			bookId: hit.bookId,
+			essayId: null,
+			title: hit.title,
+			createdAt,
+			seriesId,
+			volumeNumber,
+			seriesAbbreviation
+		};
 	});
 }

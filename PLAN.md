@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Import sources detail dialog ([276](docs/decisions/276-import-sources-detail-dialog.md)). New paper opens that paper ([275](docs/decisions/275-new-paper-opens-detail.md)).
+**Last updated:** 2026-10-19 — Import picker research UX ([277](docs/decisions/277-import-picker-research.md)): collapsed sections, series on commentaries, in-dialog checklist JSON, Not included / New set / Save as set.
 
 **How to use this file — read this first:**
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Import sources is a detail dialog with authors. New paper opens that paper. Sets polish shipped. |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Import picker is a research tool (collapsed sections, series leads, checklist off page load, Not included / New set / Save as set — [277](docs/decisions/277-import-picker-research.md)). New paper opens that paper. Sets polish shipped. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [277 — Import picker research UX](docs/decisions/277-import-picker-research.md) (2026-10-19) — Collapsed sections; series on commentaries; checklist JSON off page load; Not included / New set / Save as set.
 - [276 — Import sources detail dialog](docs/decisions/276-import-sources-detail-dialog.md) (2026-10-19) — Large dialog; checklist shows abbreviation + author; filter / sort / Select all.
 - [275 — New paper opens its screen](docs/decisions/275-new-paper-opens-detail.md) (2026-10-19) — Saving New paper on `/studies/papers` redirects to that paper.
 - [274 — Turretin review gate + agent routing](docs/decisions/274-turretin-review-gate-and-routing.md) (2026-10-19) — `turretin:gate` / review-summary; apocrypha in rows.json (NRSV names); Composer → Opus → Fable prompts in session-prompts.
 - [273 — Outline topic dropdowns](docs/decisions/273-outline-topic-dropdowns.md) (2026-10-19) — Topics, headings, and Calvin book titles start collapsed. A chapter `I.1` nests under book `I`.
-- [272 — Turretin outlines](docs/decisions/272-turretin-outlines.md) (2026-10-19) — P&R vols. 1–3 contents, with the shared boundary page on both questions.
 
 ---
 

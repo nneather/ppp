@@ -1,6 +1,12 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { parseResourceSetRules, slugifyResourceName, type CatalogRef, type ResourceSetKind } from '$lib/studies/resource-sets';
+import {
+	catalogRefsFromGroupSources,
+	parseResourceSetRules,
+	slugifyResourceName,
+	type CatalogRef,
+	type ResourceSetKind
+} from '$lib/studies/resource-sets';
 import { GENRES, type Genre } from '$lib/types/library';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -543,18 +549,156 @@ export async function createResourceSetAction(
 	if (lastErr) console.error('[studies] set sort', lastErr);
 	const sortOrder = ((last?.sort_order as number | undefined) ?? -1) + 1;
 	const rules = genre ? [{ kind: 'genre' as const, value: genre }] : [];
-	const { error } = await supabase.from('resource_sets').insert({
-		name: parsed.name,
-		slug,
-		kind,
-		section_id: sectionId,
-		rules,
-		sort_order: sortOrder,
-		created_by: userId
-	});
+	const { data: created, error } = await supabase
+		.from('resource_sets')
+		.insert({
+			name: parsed.name,
+			slug,
+			kind,
+			section_id: sectionId,
+			rules,
+			sort_order: sortOrder,
+			created_by: userId
+		})
+		.select('id')
+		.single();
 	if (error) {
 		console.error('[studies] create set', error);
 		return fail(500, { kind: 'createSet' as const, sectionId, message: error.message });
 	}
-	return { kind: 'createSet' as const, sectionId, success: true as const };
+	return {
+		kind: 'createSet' as const,
+		sectionId,
+		setId: (created as { id: string }).id,
+		success: true as const
+	};
+}
+
+/**
+ * Create a custom set whose include members are the book/essay sources in a
+ * study research group. Name defaults to the group name.
+ */
+export async function saveGroupAsSetAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const groupId = trimOrNull(fd.get('group_id'));
+	if (!groupId || !UUID_RE.test(groupId)) {
+		return fail(400, { kind: 'saveGroupAsSet' as const, message: 'Missing group.' });
+	}
+	const groupRes = await supabase
+		.from('study_research_groups')
+		.select('id, name, paper_id, sermon_id')
+		.eq('id', groupId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (groupRes.error || !groupRes.data) {
+		return fail(404, {
+			kind: 'saveGroupAsSet' as const,
+			message: groupRes.error?.message ?? 'Group not found.'
+		});
+	}
+	const group = groupRes.data as {
+		id: string;
+		name: string;
+		paper_id: string | null;
+		sermon_id: string | null;
+	};
+	const nameParsed = parseName(trimOrNull(fd.get('name')) ?? group.name, 'Set name');
+	if (!nameParsed.ok) {
+		return fail(400, { kind: 'saveGroupAsSet' as const, message: nameParsed.message });
+	}
+
+	let sourcesQuery = supabase
+		.from('study_sources')
+		.select('book_id, essay_id')
+		.eq('group_id', groupId)
+		.is('deleted_at', null);
+	if (group.paper_id) sourcesQuery = sourcesQuery.eq('paper_id', group.paper_id);
+	else if (group.sermon_id) sourcesQuery = sourcesQuery.eq('sermon_id', group.sermon_id);
+	const sourcesRes = await sourcesQuery;
+	if (sourcesRes.error) {
+		console.error('[studies] saveGroupAsSet sources', sourcesRes.error);
+		return fail(500, { kind: 'saveGroupAsSet' as const, message: sourcesRes.error.message });
+	}
+	const refs = catalogRefsFromGroupSources(
+		(sourcesRes.data ?? []) as { book_id: string | null; essay_id: string | null }[]
+	);
+	if (refs.length === 0) {
+		return fail(400, {
+			kind: 'saveGroupAsSet' as const,
+			message: 'This group has no catalog sources to save.'
+		});
+	}
+
+	const sectionRes = await supabase
+		.from('resource_set_sections')
+		.select('id')
+		.eq('set_kind', 'custom')
+		.eq('locked', false)
+		.is('deleted_at', null)
+		.order('sort_order', { ascending: true })
+		.limit(1)
+		.maybeSingle();
+	if (sectionRes.error || !sectionRes.data) {
+		return fail(400, {
+			kind: 'saveGroupAsSet' as const,
+			message: sectionRes.error?.message ?? 'No custom set section available.'
+		});
+	}
+	const sectionId = (sectionRes.data as { id: string }).id;
+	const slug = slugifyResourceName(nameParsed.name);
+	if (await liveSlugTaken(supabase, 'resource_sets', slug)) {
+		return fail(400, {
+			kind: 'saveGroupAsSet' as const,
+			message: 'A set with that name already exists.'
+		});
+	}
+	const { data: last, error: lastErr } = await supabase
+		.from('resource_sets')
+		.select('sort_order')
+		.eq('section_id', sectionId)
+		.is('deleted_at', null)
+		.order('sort_order', { ascending: false })
+		.limit(1)
+		.maybeSingle();
+	if (lastErr) console.error('[studies] saveGroupAsSet sort', lastErr);
+	const sortOrder = ((last?.sort_order as number | undefined) ?? -1) + 1;
+	const { data: created, error: createErr } = await supabase
+		.from('resource_sets')
+		.insert({
+			name: nameParsed.name,
+			slug,
+			kind: 'custom',
+			section_id: sectionId,
+			rules: [],
+			sort_order: sortOrder,
+			created_by: userId
+		})
+		.select('id')
+		.single();
+	if (createErr || !created) {
+		console.error('[studies] saveGroupAsSet create', createErr);
+		return fail(500, {
+			kind: 'saveGroupAsSet' as const,
+			message: createErr?.message ?? 'Could not create set.'
+		});
+	}
+	const setId = (created as { id: string }).id;
+	const { error: memberErr } = await supabase.from('resource_set_members').insert(
+		refs.map((ref) => ({
+			set_id: setId,
+			book_id: ref.bookId,
+			essay_id: ref.essayId,
+			kind: 'include' as const,
+			bibliographical: true,
+			created_by: userId
+		}))
+	);
+	if (memberErr) {
+		console.error('[studies] saveGroupAsSet members', memberErr);
+		return fail(500, { kind: 'saveGroupAsSet' as const, setId, message: memberErr.message });
+	}
+	return { kind: 'saveGroupAsSet' as const, setId, success: true as const };
 }

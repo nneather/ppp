@@ -1,6 +1,6 @@
 # Personal Operations System — Studies Module Build Tracker
 
-_Last updated: 2026-10-19 | Module: Studies | Session 4 shipped ([248](decisions/248-studies-session-4.md)); import sources detail dialog ([276](decisions/276-import-sources-detail-dialog.md))_
+_Last updated: 2026-10-19 | Module: Studies | Session 4 shipped ([248](decisions/248-studies-session-4.md)); import picker research UX ([277](decisions/277-import-picker-research.md))_
 
 **Read before any session:** [docs/MODULE_KICKOFF_PLAYBOOK.md](MODULE_KICKOFF_PLAYBOOK.md), [243](decisions/243-studies-session-0.md), papers retro [188](decisions/188-classwork-research-papers-session-0.md) / [189](decisions/189-classwork-papers-session-1.md) / [190](decisions/190-classwork-papers-session-2.md), sermons [090](decisions/090-sermons-session-0.md) / [095](decisions/095-sermons-by-book-stats.md). Brainstorm: [brainstorms/2026-10-19-papers-research-tool.md](../brainstorms/2026-10-19-papers-research-tool.md).
 
@@ -163,3 +163,4 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 - [x] Sets sections collapse; commentaries load; Septuagint under Language tools; reference-only; multi-select move/dismiss ([257](decisions/257-sets-sections-septuagint.md)).
 - [x] New paper on `/studies/papers` opens that paper ([275](decisions/275-new-paper-opens-detail.md)).
 - [x] Import sources is a large dialog with authors / abbreviations ([276](decisions/276-import-sources-detail-dialog.md)).
+- [x] Import picker research UX: collapsed sections, series leads, checklist JSON, Not included / New set / Save as set ([277](decisions/277-import-picker-research.md)).
