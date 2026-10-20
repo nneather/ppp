@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { parseIndexEntry } from '../parse-index-line.ts';
 import {
 	isRunningHeader,
 	parseTurretinLines,
@@ -59,12 +60,14 @@ describe('parseTurretinLines', () => {
 		expect(result.review.some((r) => r.reason.includes('chapter_out_of_range'))).toBe(true);
 	});
 
-	it('rejects suspicious verse 8:141 (FineReader glue)', () => {
+	it('normalizes FineReader glued 8:141 to 8:1–11', () => {
 		const result = parseTurretinLines(
-			lines([760, 1, 'John'], [760, 1, '8:141—3:100'])
+			lines([760, 1, 'John'], [760, 1, '8:141—1:115'])
 		);
-		expect(result.rows).toHaveLength(0);
-		expect(result.review.some((r) => r.reason === 'suspicious_verse_token')).toBe(true);
+		expect(result.review).toHaveLength(0);
+		expect(result.rows).toHaveLength(1);
+		expect(result.rows[0]?.verse_start).toBe(1);
+		expect(result.rows[0]?.verse_end).toBe(11);
 	});
 
 	it('accepts short page among longer siblings (does not reject short_page_among_longer at accept)', () => {
@@ -78,16 +81,18 @@ describe('parseTurretinLines', () => {
 		expect(result.rows.map((r) => r.page_start)).toEqual(['10', '242']);
 	});
 
-	it('flags chapter went backwards within a book', () => {
+	it('reorders chapters within a book after parse (10:6 before 10:3 in PDF)', () => {
 		const result = parseTurretinLines(
 			lines(
-				[740, 1, 'Genesis'],
-				[740, 1, '13:1—1:100'],
-				[740, 1, '12:1—1:101']
+				[740, 1, 'Matthew'],
+				[740, 1, '10:6—3:167'],
+				[740, 1, '10:3—3:131']
 			)
 		);
-		expect(result.rows).toHaveLength(1);
-		expect(result.review.some((r) => r.reason.includes('chapter went backwards'))).toBe(true);
+		expect(result.review).toHaveLength(0);
+		expect(result.rows).toHaveLength(2);
+		expect(result.rows[0]?.chapter_start).toBe(10);
+		expect(result.rows[0]?.verse_start).toBe(3);
 	});
 
 	it('merges continuation line onto pending entry', () => {
@@ -125,6 +130,15 @@ describe('parseTurretinLines', () => {
 		);
 		expect(result.review).toHaveLength(0);
 		expect(result.rows).toHaveLength(1);
+	});
+
+	it('parses FineReader-glued two-entry lines', () => {
+		const rows = parseIndexEntry(
+			'22:18, 19—1:76, 22:21—1:631',
+			'Jeremiah'
+		);
+		expect(rows).toHaveLength(2);
+		expect(rows.map((r) => r.chapter_start)).toEqual([22, 22]);
 	});
 
 	it('applies corrected: in place by page:col:raw', () => {

@@ -132,11 +132,63 @@ export function correctionsFromBlocks(blocks: ReviewBlock[]): ReviewBlock[] {
 	return blocks.filter((b) => b.corrected?.trim() && b.book?.trim() && b.raw?.trim());
 }
 
+function blockResolveScore(b: ReviewBlock): number {
+	if (b.corrected?.trim() && !b.skip?.trim()) return 4;
+	if (b.corrected?.trim()) return 3;
+	if (b.skip?.trim()) return 2;
+	if (isOpenBlock(b)) return 1;
+	return 0;
+}
+
+function mergeReviewBlockPreferResolved(a: ReviewBlock, b: ReviewBlock): ReviewBlock {
+	const pick = blockResolveScore(b) >= blockResolveScore(a) ? b : a;
+	const other = pick === b ? a : b;
+	const merged: ReviewBlock = {
+		...other,
+		...pick,
+		book: pick.book ?? other.book,
+		reason: pick.reason?.includes('corrected still fails')
+			? other.reason ?? pick.reason
+			: pick.reason ?? other.reason
+	};
+	if (merged.corrected?.trim()) merged.skip = undefined;
+	return merged;
+}
+
+/** One block per page:col:raw — keeps the best resolved state when review grew duplicates. */
+export function dedupeReviewBlocks(blocks: ReviewBlock[]): ReviewBlock[] {
+	const byKey = new Map<string, ReviewBlock>();
+	for (const b of blocks) {
+		if (!b.raw?.trim()) continue;
+		const k = blockKey(b);
+		const existing = byKey.get(k);
+		byKey.set(k, existing ? mergeReviewBlockPreferResolved(existing, b) : b);
+	}
+	return [...byKey.values()].sort(
+		(a, b) =>
+			a.printedPage - b.printedPage ||
+			a.column - b.column ||
+			(a.raw ?? '').localeCompare(b.raw ?? '')
+	);
+}
+
 /** Skip directives keyed by page:col:raw. */
 export function skipKeysFromBlocks(blocks: ReviewBlock[]): Set<string> {
 	const keys = new Set<string>();
 	for (const b of blocks) {
-		if (b.skip?.trim() && b.raw?.trim()) keys.add(blockKey(b));
+		if (b.skip?.trim() && b.raw?.trim() && !b.corrected?.trim()) keys.add(blockKey(b));
 	}
 	return keys;
+}
+
+export function formatReviewBlock(b: ReviewBlock): string {
+	const pageLabel = b.printedPage > 0 ? `p.${b.printedPage}` : 'p.?';
+	const lines = [`# ${pageLabel} col ${b.column}`];
+	if (b.reason) lines.push(`reason: ${b.reason}`);
+	if (b.book) lines.push(`book: ${b.book}`);
+	if (b.raw) lines.push(b.raw);
+	if (b.corrected?.trim()) lines.push(`corrected: ${b.corrected.trim()}`);
+	if (b.skip?.trim()) lines.push(`skip: ${b.skip.trim()}`);
+	lines.push('');
+	return lines.join('\n');
 }

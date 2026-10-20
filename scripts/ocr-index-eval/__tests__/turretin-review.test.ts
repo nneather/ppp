@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	dedupeReviewBlocks,
 	isOpenBlock,
 	parseReviewBlocks,
 	reasonPrefix,
@@ -64,6 +65,29 @@ describe('turretin-review', () => {
 		expect(summary.byReasonPrefix['suspicious_verse_token']).toBe(1);
 		expect(summary.openByPrintedPage[760]).toBe(2);
 		expect(reasonPrefix('validateIndexRows: chapter_out_of_range')).toBe('validateIndexRows');
+	});
+
+	it('dedupes blocks by page:col:raw preferring corrected over skip', () => {
+		const blocks = parseReviewBlocks(
+			[
+				'# p.751 col 2',
+				'reason: corrected still fails',
+				'book: Jeremiah',
+				'23:5-1:80, 2:291 23 5, 6-1:283, 2:198,',
+				'skip: glue',
+				'',
+				'# p.751 col 2',
+				'reason: manual correction',
+				'book: Jeremiah',
+				'23:5-1:80, 2:291 23 5, 6-1:283, 2:198,',
+				'corrected: 23:5—1:80, 2:291',
+				''
+			].join('\n')
+		);
+		const deduped = dedupeReviewBlocks(blocks);
+		expect(deduped).toHaveLength(1);
+		expect(deduped[0]!.corrected).toContain('23:5—1:80');
+		expect(deduped[0]!.skip).toBeUndefined();
 	});
 
 	it('treats legacy second differing line as corrected', () => {

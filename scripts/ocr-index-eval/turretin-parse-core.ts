@@ -5,6 +5,7 @@
 import { BIBLE_BOOK_NAMES } from '../../src/lib/library/bible-book-names.ts';
 import { validateIndexRows } from '../../src/lib/library/scripture-index-validate.ts';
 import { parseIndexEntry, type IndexGoldRow } from './parse-index-line.ts';
+import { normalizeTurretinIndexLine } from './turretin-line-normalize.ts';
 import {
 	APOCRYPHA_BOOKS,
 	APOCRYPHA_HEADING_ALIASES,
@@ -192,7 +193,7 @@ export function parseTurretinLines(
 		column: number
 	): IndexGoldRow[] | null {
 		try {
-			return parseIndexEntry(line, book);
+			return parseIndexEntry(normalizeTurretinIndexLine(line, book), book);
 		} catch (e) {
 			const reason = e instanceof Error ? e.message : String(e);
 			pushReview({ printedPage, column, raw: line, reason, book });
@@ -202,6 +203,7 @@ export function parseTurretinLines(
 
 	function recordAccepted(
 		line: string,
+		book: string,
 		parsed: IndexGoldRow[],
 		printedPage: number,
 		column: number
@@ -212,7 +214,8 @@ export function parseTurretinLines(
 		const withMeta: TurretinRow[] = parsed.map((r) => ({
 			...r,
 			printed_page: printedPage,
-			column
+			column,
+			source_line: `${book}\t${line}`
 		}));
 		allRows.push(...withMeta);
 		const pageRows = rowsByPrinted.get(printedPage) ?? [];
@@ -242,13 +245,6 @@ export function parseTurretinLines(
 				reason: isApocryphaBook(book)
 					? `validateApocryphaRows: ${issues[0]!.reason}`
 					: `validateIndexRows: ${issues[0]!.reason}`
-			};
-		}
-		const chapter = parsed[0]?.chapter_start ?? 0;
-		if (chapter < prevChapter) {
-			return {
-				ok: false,
-				reason: `chapter went backwards (${prevChapter} → ${chapter})`
 			};
 		}
 		return { ok: true };
@@ -286,7 +282,7 @@ export function parseTurretinLines(
 			pushReview({ printedPage, column, raw: line, reason: v.reason, book });
 			return;
 		}
-		recordAccepted(line, parsed, printedPage, column);
+		recordAccepted(line, book, parsed, printedPage, column);
 	}
 
 	/** Apply a corrected line without re-entering the correction lookup (avoids loops). */
@@ -299,7 +295,7 @@ export function parseTurretinLines(
 	): boolean {
 		let parsed: IndexGoldRow[];
 		try {
-			parsed = parseIndexEntry(line, book);
+			parsed = parseIndexEntry(normalizeTurretinIndexLine(line, book), book);
 		} catch {
 			return false;
 		}
@@ -312,9 +308,7 @@ export function parseTurretinLines(
 			? validateApocryphaRows(parsed)
 			: validateIndexRows(parsed).filter((i) => i.reason !== 'short_page_among_longer');
 		if (issues.length > 0) return false;
-		const chapter = parsed[0]?.chapter_start ?? 0;
-		if (chapter < prevChapter) return false;
-		recordAccepted(line, parsed, printedPage, column);
+		recordAccepted(line, book, parsed, printedPage, column);
 		return true;
 	}
 
@@ -430,14 +424,117 @@ export function parseTurretinLines(
 
 	flushPending();
 
+	const sorted = sortLinesAndRowsWithinBooks(linesOut, allRows);
+
 	return {
-		linesOut,
-		rows: allRows,
+		linesOut: sorted.linesOut,
+		rows: sorted.rows,
 		review,
 		skipped,
-		rowsByPrinted,
-		linesByPrinted
+		rowsByPrinted: sorted.rowsByPrinted,
+		linesByPrinted: sorted.linesByPrinted
 	};
+}
+
+function lineCanonicalKey(line: string, book: string): number {
+	const norm = normalizeTurretinIndexLine(line, book);
+	try {
+		const p = parseIndexEntry(norm, book)[0];
+		return (p.chapter_start ?? 0) * 1000 + (p.verse_start ?? 0);
+	} catch {
+		return Number.MAX_SAFE_INTEGER - 1;
+	}
+}
+
+/** Multi-column PDF order can run 10:6 before 10:3; index rows are canonical within each book. */
+function sortLinesAndRowsWithinBooks(
+	linesOut: string[],
+	allRows: TurretinRow[]
+): {
+	linesOut: string[];
+	rows: TurretinRow[];
+	rowsByPrinted: Map<number, TurretinRow[]>;
+	linesByPrinted: Map<number, string[]>;
+} {
+	const sortedLines: string[] = [];
+	let i = 0;
+	while (i < linesOut.length) {
+		const line = linesOut[i]!;
+		if (!line.startsWith('# book ')) {
+			sortedLines.push(line);
+			i++;
+			continue;
+		}
+		const book = line.slice('# book '.length).trim();
+		sortedLines.push(line);
+		i++;
+		const entries: string[] = [];
+		while (i < linesOut.length && !linesOut[i]!.startsWith('# book ')) {
+			const entry = linesOut[i]!;
+			if (!entry.startsWith('#')) entries.push(entry);
+			else sortedLines.push(entry);
+			i++;
+		}
+		entries.sort((a, b) => lineCanonicalKey(a, book) - lineCanonicalKey(b, book));
+		sortedLines.push(...entries);
+	}
+
+	const rowsByLine = new Map<string, TurretinRow[]>();
+	for (const r of allRows) {
+		const key = r.source_line ?? '';
+		if (!key) continue;
+		const list = rowsByLine.get(key) ?? [];
+		list.push(r);
+		rowsByLine.set(key, list);
+	}
+
+	let sortBook = '';
+	const sortedRows: TurretinRow[] = [];
+	for (const line of sortedLines) {
+		if (line.startsWith('# book ')) {
+			sortBook = line.slice('# book '.length).trim();
+			continue;
+		}
+		if (line.startsWith('#')) continue;
+		const chunk = rowsByLine.get(`${sortBook}\t${line}`);
+		if (chunk) sortedRows.push(...chunk);
+	}
+
+	const seenRowKeys = new Set<string>();
+	const dedupedRows: TurretinRow[] = [];
+	for (const r of sortedRows) {
+		const k = [
+			r.bible_book,
+			r.chapter_start,
+			r.verse_start ?? '',
+			r.chapter_end ?? '',
+			r.verse_end ?? '',
+			r.page_start,
+			r.page_end ?? '',
+			r.volume
+		].join('|');
+		if (seenRowKeys.has(k)) continue;
+		seenRowKeys.add(k);
+		dedupedRows.push(r);
+	}
+
+	const rowsByPrinted = new Map<number, TurretinRow[]>();
+	const linesByPrinted = new Map<number, string[]>();
+	for (const r of dedupedRows) {
+		const p = r.printed_page;
+		if (p == null) continue;
+		const pr = rowsByPrinted.get(p) ?? [];
+		pr.push(r);
+		rowsByPrinted.set(p, pr);
+		const sl = r.source_line?.split('\t')[1];
+		if (sl) {
+			const pl = linesByPrinted.get(p) ?? [];
+			if (!pl.includes(sl)) pl.push(sl);
+			linesByPrinted.set(p, pl);
+		}
+	}
+
+	return { linesOut: sortedLines, rows: dedupedRows, rowsByPrinted, linesByPrinted };
 }
 
 /** Format review items for turretin.review.txt (open items only; corrections live in the prior file). */

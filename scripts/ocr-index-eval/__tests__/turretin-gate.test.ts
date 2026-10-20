@@ -72,6 +72,31 @@ describe('runGateChecks', () => {
 		expect(result.failures.some((f) => f.includes('open block'))).toBe(true);
 	});
 
+	it('fails on duplicate compare keys', () => {
+		const twin = goldRow({
+			bible_book: 'John',
+			chapter_start: 1,
+			verse_start: 1,
+			page_start: '10',
+			volume: '1',
+			printed_page: 760
+		});
+		const result = runGateChecks({
+			linesText: '# book John\n1:1—1:10\n# book Tobit\n1:1—1:1\n',
+			reviewText: '',
+			rows: [twin, { ...twin }, goldRow({
+				bible_book: 'Tobit',
+				chapter_start: 1,
+				page_start: '1',
+				volume: '1',
+				printed_page: 754
+			})],
+			goldDir: writeTempGold([twin])
+		});
+		expect(result.ok).toBe(false);
+		expect(result.failures.some((f) => f.includes('duplicate compare keys'))).toBe(true);
+	});
+
 	it('fails on gold extras', () => {
 		const goldOnly = goldRow({
 			bible_book: 'John',

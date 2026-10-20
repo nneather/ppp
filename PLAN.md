@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Import picker research UX ([277](docs/decisions/277-import-picker-research.md)): collapsed sections, series on commentaries, in-dialog checklist JSON, Not included / New set / Save as set.
+**Last updated:** 2026-10-19 — Turretin text-layer gate PASS + manual corrections ([278](docs/decisions/278-turretin-manual-corrections-gate-pass.md)).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books, including Brunnen *Nachfolge* and Eastman ([256](docs/decisions/256-nachfolge-eastman-shelf-contents.md)). **Systematics:** Calvin from Battles shelf photos; Turretin from Parker’s English PDF of the P&R set, tracked outside the repo ([267](docs/decisions/267-systematics-index-sources.md)). Turretin contents are in; book-detail topics start collapsed ([272](docs/decisions/272-turretin-outlines.md)/[273](docs/decisions/273-outline-topic-dropdowns.md)). van Mastricht and Bavinck sources are written down there and not chosen. **Open:** August shelf QA Track B + "Needs the shelf" (65) — Madison. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books. **Systematics:** Calvin shelf photos; **Turretin vol. 3 scripture index** text-layer parse + **`turretin:gate` PASS** (gold 100%, manual corrections in repo — [278](docs/decisions/278-turretin-manual-corrections-gate-pass.md)). van Mastricht / Bavinck sources in [267](docs/decisions/267-systematics-index-sources.md). **Open:** bulk DB import after Parker sign-off; August shelf QA — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [278 — Turretin manual corrections + gate pass](docs/decisions/278-turretin-manual-corrections-gate-pass.md) (2026-10-19) — `turretin-manual-corrections.ts` merged on parse; glued-line parser; review dedupe; gold 1025/1025.
 - [277 — Import picker research UX](docs/decisions/277-import-picker-research.md) (2026-10-19) — Collapsed sections; series on commentaries; checklist JSON off page load; Not included / New set / Save as set.
 - [276 — Import sources detail dialog](docs/decisions/276-import-sources-detail-dialog.md) (2026-10-19) — Large dialog; checklist shows abbreviation + author; filter / sort / Select all.
 - [275 — New paper opens its screen](docs/decisions/275-new-paper-opens-detail.md) (2026-10-19) — Saving New paper on `/studies/papers` redirects to that paper.
 - [274 — Turretin review gate + agent routing](docs/decisions/274-turretin-review-gate-and-routing.md) (2026-10-19) — `turretin:gate` / review-summary; apocrypha in rows.json (NRSV names); Composer → Opus → Fable prompts in session-prompts.
-- [273 — Outline topic dropdowns](docs/decisions/273-outline-topic-dropdowns.md) (2026-10-19) — Topics, headings, and Calvin book titles start collapsed. A chapter `I.1` nests under book `I`.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Import sources detail dialog [276](docs/decisions/276-import-sources-detail-dialog.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **721/721** (2026-10-19).
+**Repo gate:** Turretin gate pass [278](docs/decisions/278-turretin-manual-corrections-gate-pass.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **727/727**; `npm run turretin:gate` PASS (2026-10-19).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

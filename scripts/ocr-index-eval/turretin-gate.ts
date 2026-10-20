@@ -15,6 +15,7 @@ import { spawnSync } from 'node:child_process';
 import { BIBLE_BOOK_NAMES } from '../../src/lib/library/bible-book-names.ts';
 import { validateIndexRows } from '../../src/lib/library/scripture-index-validate.ts';
 import { parseIndexEntry } from './parse-index-line.ts';
+import { normalizeTurretinIndexLine } from './turretin-line-normalize.ts';
 import {
 	APOCRYPHA_BOOKS,
 	isApocryphaBook,
@@ -22,6 +23,7 @@ import {
 } from './turretin-apocrypha.ts';
 import {
 	compareGoldLeaves,
+	findDuplicateRowKeys,
 	rowsByPrintedPage,
 	type TurretinRow
 } from './turretin-gold.ts';
@@ -83,7 +85,7 @@ export function scanLinesForChapterBackwards(linesText: string): string[] {
 			continue;
 		}
 		try {
-			const parsed = parseIndexEntry(line, book);
+			const parsed = parseIndexEntry(normalizeTurretinIndexLine(line, book), book);
 			const chapter = parsed[0]?.chapter_start ?? 0;
 			if (chapter < prevChapter) {
 				failures.push(
@@ -125,6 +127,19 @@ export function runGateChecks(inputs: GateInputs): GateResult {
 		failures.push(
 			`review has ${summary.open} open block(s) — clear with corrected: / skip: or fix the PDF extract`
 		);
+	}
+
+	const dupes = findDuplicateRowKeys(inputs.rows);
+	if (dupes.length) {
+		const extraRows = dupes.reduce((n, d) => n + d.count - 1, 0);
+		failures.push(
+			`duplicate compare keys: ${dupes.length} key(s), ${extraRows} redundant row(s)`
+		);
+		report.push(`duplicate keys: ${dupes.length} (${extraRows} redundant rows)`);
+		for (const d of dupes.slice(0, 10)) report.push(`  ${d.count}× ${d.key}`);
+		if (dupes.length > 10) report.push(`  … ${dupes.length - 10} more keys`);
+	} else {
+		report.push('duplicate keys: none');
 	}
 
 	const byPrinted = rowsByPrintedPage(inputs.rows);

@@ -19,7 +19,16 @@ import {
 	parseTurretinLines,
 	type ParsedColumnLine
 } from './turretin-parse-core.ts';
-import { isOpenBlock, parseReviewBlocks, type ReviewBlock } from './turretin-review.ts';
+import {
+	dedupeReviewBlocks,
+	isOpenBlock,
+	parseReviewBlocks,
+	type ReviewBlock
+} from './turretin-review.ts';
+import {
+	manualReviewBlocks,
+	mergeReviewCorrections
+} from './turretin-manual-corrections.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -129,9 +138,12 @@ async function main(): Promise<void> {
 	const linesPath = join(here, 'turretin.lines.txt');
 	const rowsPath = join(here, 'turretin.rows.json');
 
-	const priorBlocks = existsSync(reviewPath)
-		? parseReviewBlocks(readFileSync(reviewPath, 'utf8'))
-		: [];
+	const priorBlocks = mergeReviewCorrections(
+		dedupeReviewBlocks(
+			existsSync(reviewPath) ? parseReviewBlocks(readFileSync(reviewPath, 'utf8')) : []
+		),
+		manualReviewBlocks()
+	);
 
 	const data = new Uint8Array(readFileSync(pdfPath));
 	const doc = await getDocument({ data, useSystemFonts: true }).promise;
@@ -186,7 +198,10 @@ async function main(): Promise<void> {
 	}
 
 	writeFileSync(linesPath, result.linesOut.join('\n') + '\n');
-	writeFileSync(reviewPath, formatReviewPreservingResolved(result.review, priorBlocks));
+	writeFileSync(
+		reviewPath,
+		formatReviewPreservingResolved(result.review, dedupeReviewBlocks(priorBlocks))
+	);
 	writeFileSync(rowsPath, JSON.stringify({ rows: result.rows }, null, 2) + '\n');
 
 	console.log(

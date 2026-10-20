@@ -18,6 +18,8 @@ export const GOLD_LEAF_PAGES: { printed: number; goldId: string }[] = [
 export type TurretinRow = IndexGoldRow & {
 	printed_page?: number;
 	column?: number;
+	/** Original accepted index line (for per-book resort). */
+	source_line?: string;
 };
 
 export function rowKey(r: Pick<
@@ -127,6 +129,21 @@ export function compareGoldLeaves(
 	}
 
 	return { leaves, totalMatch, totalGold, overall, extraCount };
+}
+
+/** Same key as compare.ts / gold diff — duplicate rows break import dedupe expectations. */
+export function findDuplicateRowKeys(
+	rows: TurretinRow[]
+): { key: string; count: number }[] {
+	const counts = new Map<string, number>();
+	for (const r of rows) {
+		const k = rowKey(r);
+		counts.set(k, (counts.get(k) ?? 0) + 1);
+	}
+	return [...counts.entries()]
+		.filter(([, n]) => n > 1)
+		.map(([key, count]) => ({ key, count }))
+		.sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 }
 
 /** Group rows that carry printed_page into a map for gold compare. */

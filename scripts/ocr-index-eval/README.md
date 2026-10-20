@@ -44,13 +44,16 @@ Under each `# p.NNN col N` block:
 - `corrected: <line>` — re-parse accepts this **in place** (keep `book:`)
 - `skip: <why>` — drop noise (e.g. whole-book pointer) without a corrected line
 
-Resolved `corrected:` / `skip:` blocks are preserved across re-parse. Gate fails only on **open** blocks (raw present, neither directive).
+Resolved `corrected:` / `skip:` blocks are preserved across re-parse. **`turretin-manual-corrections.ts`** is merged on every parse (same `page:col:raw` keys) so hand fixes survive review-file churn. Gate fails only on **open** blocks (raw present, neither directive).
+
+FineReader quirks: middle **`4`** often encodes an en-dash in glued verses (`8:141` → `8:1–11`); **`1` misread as `4`** in verse blobs (`16:1345` → `16:13–15`, `15:1345` → `15:13–15`, `6:941` → `6:9–11`, `8:1042` → `8:10–12`, `139:740` → `139:7–10`). **`B:` / `D:` / `D9:`** at line start → chapter **13** (or **139** for `D9`). **`l` / `lff`** → leading **1** + strip **`ff.`**
 
 ### Review gate (before DB import)
 
 ```bash
 npm run turretin:parse          # argv PDF or TURRETIN_PDF
 npm run turretin:review-summary # open / corrected / skipped; by reason prefix + page
+npx tsx scripts/ocr-index-eval/turretin-prune-review.ts --write  # dedupe review blocks
 npm run turretin:gate           # exit 0 pass / 2 fail
 npm run turretin:gate -- --parse "/path/to/…-scripture-index.pdf"
 ```
@@ -62,6 +65,7 @@ npm run turretin:gate -- --parse "/path/to/…-scripture-index.pdf"
 - `turretin.lines.txt` chapter-went-backwards / entry before `# book`
 - rows: unknown book, chapter/verse out of range, `out_of_canonical_order`, suspicious verse (&gt;100 non-Psalms)
 - zero apocrypha rows, or `Son of Sirach` spelling in rows
+- duplicate `rowKey` rows in `rows.json` (same compare key twice)
 
 **Warn-only:** `short_page_among_longer` (accept gate also ignores it — valid `1:10` beside `1:242`).
 
