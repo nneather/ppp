@@ -34,6 +34,7 @@
 		"library:migrate:apply": "dotenv -e .env -e .env.local -- tsx scripts/library-migrate-local-to-prod/migrateLibraryData.ts --apply",
 		"library:language-audit": "dotenv -e .env -e .env.local -- tsx scripts/library-language-audit/auditLanguage.ts",
 		"library:review-research": "dotenv -e .env -e .env.local -- tsx scripts/library-review-research/proposeMetadata.ts",
+		"library:amazon-acquired": "dotenv -e .env -e .env.local -- tsx scripts/library-amazon-acquired/applyAcquiredOn.ts",
 		"mcp:smoke": "tsx scripts/ppp-mcp/smoke.ts",
 		"mcp:serve": "tsx scripts/ppp-mcp/index.ts",
 		"classwork:canvas-import": "dotenv -e .env -e .env.local -- tsx scripts/classwork-canvas-import.ts",
