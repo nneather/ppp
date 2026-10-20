@@ -205,7 +205,7 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Turretin apocrypha** — canon index imported ([279](docs/decisions/279-turretin-index-import.md)); vocab migration + re-run for the 51 rows in `scripts/ocr-index-eval/turretin-apocrypha-pending.json`. Optional: delete the 252 seed row 1 Thess 1:5 → II:620. Do not start van Mastricht or Bavinck.
+1. **Turretin apocrypha** — canon index imported ([279](docs/decisions/279-turretin-index-import.md)); vocab migration + re-run for the 51 rows in `scripts/ocr-index-eval/turretin-apocrypha-pending.json`. Seed row 1 Thess 1:5 → II:620 soft-deleted 2026-10-20. Do not start van Mastricht or Bavinck.
 2. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
 3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
