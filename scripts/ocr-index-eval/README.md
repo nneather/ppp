@@ -71,6 +71,16 @@ npm run turretin:gate -- --parse "/path/to/…-scripture-index.pdf"
 
 Policy + agent routing: [274](../../docs/decisions/274-turretin-review-gate-and-routing.md), [workflow](../../docs/session-prompts/turretin-text-layer-workflow.md).
 
+### Import (after gate pass)
+
+```bash
+npm run turretin:import                            # dry run — summary only
+npm run turretin:import -- --apply                 # insert scripture_references
+npm run turretin:import -- --apply --revive-deleted  # also un-delete soft-deleted matches
+```
+
+`import-turretin-index.ts` re-runs the gate on local artifacts and refuses on fail. Env: `PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `POS_OWNER_ID` (owner-asserted via `scripts/ppp-mcp/client.ts`). Volumes resolve from series **Institutes of Elenctic Theology (Turretin)** → one live book each for `I` / `II` / `III`. Only explicit `vol:page` routes; anything else is skipped. Natural key = book + `verse_*_abs` + `page_start` + `page_end`, so re-runs insert nothing new. Pure planning + tests: `turretin-import-plan.ts`. Rows blocked on `bible_books` vocab (apocrypha) are written to committed `turretin-apocrypha-pending.json` each run. Decision: [279](../../docs/decisions/279-turretin-index-import.md).
+
 ## Gold file shape
 
 ```json

@@ -242,7 +242,7 @@ export function runGateChecks(inputs: GateInputs): GateResult {
 	};
 }
 
-function loadGateInputsFromDisk(): GateInputs | { error: string } {
+export function loadGateInputsFromDisk(): GateInputs | { error: string } {
 	const linesPath = join(here, 'turretin.lines.txt');
 	const reviewPath = join(here, 'turretin.review.txt');
 	const rowsPath = join(here, 'turretin.rows.json');

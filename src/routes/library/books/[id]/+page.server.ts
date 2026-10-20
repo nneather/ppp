@@ -8,11 +8,14 @@ import {
 	loadEssaysForBook,
 	loadPeople,
 	loadPersonBookCounts,
-	loadScriptureRefsForBook,
 	loadPassageSectionsForBook,
 	loadSeriesSiblingBooks,
 	loadAlsoByAuthorBooks
 } from '$lib/library/server/loaders';
+import {
+	loadScriptureImagesForBook,
+	loadScriptureIndexCounts
+} from '$lib/library/server/scripture-index-loaders';
 import { primaryAuthorPersonIds } from '$lib/library/book-detail-related';
 import { loadBookStudyUse } from '$lib/studies/server/hit-rate-loaders';
 import {
@@ -116,14 +119,21 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		personBookCounts,
 		series,
 		bibleBookNames,
-		scriptureRefsPromise: loadScriptureRefsForBook(supabase, id),
+		setVolumeBooksPromise: book.series_id
+			? loadSetVolumeBooks(supabase, book.series_id)
+			: Promise.resolve([]),
+		scriptureCountsPromise: (async () => {
+			const volumes = book.series_id
+				? await loadSetVolumeBooks(supabase, book.series_id)
+				: [];
+			const ids =
+				volumes.length > 0 ? volumes.map((v) => v.bookId) : [id];
+			return loadScriptureIndexCounts(supabase, ids);
+		})(),
+		scriptureImagesPromise: loadScriptureImagesForBook(supabase, id),
 		passageSectionsPromise: loadPassageSectionsForBook(supabase, id),
 		outlineSectionsPromise: loadOutlineSectionsForBook(supabase, id),
 		outlineBookSpansPromise: loadOutlineBookSpans(supabase, id, book.series_id),
-		setVolumeBooksPromise:
-			book.genre === 'Systematic Theology'
-				? loadSetVolumeBooks(supabase, book.series_id)
-				: Promise.resolve([]),
 		seriesSiblingsPromise: loadSeriesSiblingBooks(supabase, book.series_id, id),
 		alsoByAuthorPromise: loadAlsoByAuthorBooks(supabase, alsoByPersonIds, id),
 		isOwner,

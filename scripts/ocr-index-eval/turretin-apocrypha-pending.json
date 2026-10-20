@@ -1,0 +1,536 @@
+{
+  "note": "Written by npm run turretin:import. Rows whose bible_book is not in prod bible_books yet. After the vocab migration, re-run the import; these rows insert and this file empties.",
+  "books": {
+    "2 Esdras": 3,
+    "Tobit": 7,
+    "Judith": 4,
+    "Wisdom of Solomon": 8,
+    "Sirach": 10,
+    "Baruch": 1,
+    "1 Maccabees": 9,
+    "2 Maccabees": 9
+  },
+  "rows": [
+    {
+      "bible_book": "2 Esdras",
+      "chapter_start": 4,
+      "page_start": "59",
+      "volume": "1",
+      "verse_start": 23,
+      "printed_page": 753,
+      "column": 3,
+      "source_line": "2 Esdras\t4:23-1:59, 98"
+    },
+    {
+      "bible_book": "2 Esdras",
+      "chapter_start": 4,
+      "page_start": "98",
+      "volume": "1",
+      "verse_start": 23,
+      "printed_page": 753,
+      "column": 3,
+      "source_line": "2 Esdras\t4:23-1:59, 98"
+    },
+    {
+      "bible_book": "2 Esdras",
+      "chapter_start": 14,
+      "page_start": "98",
+      "volume": "1",
+      "verse_start": 21,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "2 Esdras\t14:21-1:98"
+    },
+    {
+      "bible_book": "Tobit",
+      "chapter_start": 5,
+      "page_start": "103",
+      "volume": "1",
+      "verse_start": 12,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Tobit\t5:12-1:103"
+    },
+    {
+      "bible_book": "Tobit",
+      "chapter_start": 6,
+      "page_start": "103",
+      "volume": "1",
+      "verse_start": 6,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Tobit\t6:6-1:103"
+    },
+    {
+      "bible_book": "Tobit",
+      "chapter_start": 7,
+      "page_start": "563",
+      "volume": "1",
+      "verse_start": 3,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Tobit\t7:3-1:563"
+    },
+    {
+      "bible_book": "Tobit",
+      "chapter_start": 12,
+      "page_start": "390",
+      "volume": "2",
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Tobit\t12-2:390"
+    },
+    {
+      "bible_book": "Tobit",
+      "chapter_start": 12,
+      "page_start": "103",
+      "volume": "1",
+      "verse_start": 12,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Tobit\t12:12-1:103"
+    },
+    {
+      "bible_book": "Tobit",
+      "chapter_start": 12,
+      "page_start": "552",
+      "volume": "1",
+      "verse_start": 15,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Tobit\t12:15-1:552, 563"
+    },
+    {
+      "bible_book": "Tobit",
+      "chapter_start": 12,
+      "page_start": "563",
+      "volume": "1",
+      "verse_start": 15,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Tobit\t12:15-1:552, 563"
+    },
+    {
+      "bible_book": "Judith",
+      "chapter_start": 6,
+      "page_start": "7",
+      "volume": "3",
+      "verse_start": 20,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Judith\t6:20-3:7"
+    },
+    {
+      "bible_book": "Judith",
+      "chapter_start": 9,
+      "page_start": "103",
+      "volume": "1",
+      "verse_start": 2,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Judith\t9:2-1:103"
+    },
+    {
+      "bible_book": "Judith",
+      "chapter_start": 9,
+      "page_start": "103",
+      "volume": "1",
+      "verse_start": 13,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Judith\t9:13-1:103"
+    },
+    {
+      "bible_book": "Judith",
+      "chapter_start": 11,
+      "page_start": "103",
+      "volume": "1",
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Judith\t11-1:103"
+    },
+    {
+      "bible_book": "Wisdom of Solomon",
+      "chapter_start": 2,
+      "page_start": "563",
+      "volume": "3",
+      "verse_start": 1,
+      "verse_end": 2,
+      "chapter_end": 2,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Wisdom of Solomon\t2:1, 2-3:563"
+    },
+    {
+      "bible_book": "Wisdom of Solomon",
+      "chapter_start": 4,
+      "page_start": "103",
+      "volume": "1",
+      "verse_start": 2,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Wisdom of Solomon\t4:2-1:103"
+    },
+    {
+      "bible_book": "Wisdom of Solomon",
+      "chapter_start": 7,
+      "page_start": "457",
+      "volume": "1",
+      "verse_start": 1,
+      "page_end": "58",
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Wisdom of Solomon\t7:1-1:457-58"
+    },
+    {
+      "bible_book": "Wisdom of Solomon",
+      "chapter_start": 8,
+      "page_start": "103",
+      "volume": "1",
+      "verse_start": 19,
+      "verse_end": 20,
+      "chapter_end": 8,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Wisdom of Solomon\t8:19, 20-1:103"
+    },
+    {
+      "bible_book": "Wisdom of Solomon",
+      "chapter_start": 9,
+      "page_start": "103",
+      "volume": "1",
+      "verse_start": 7,
+      "verse_end": 8,
+      "chapter_end": 9,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Wisdom of Solomon\t9:7, 8-1:103"
+    },
+    {
+      "bible_book": "Wisdom of Solomon",
+      "chapter_start": 9,
+      "page_start": "642",
+      "volume": "1",
+      "verse_start": 15,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Wisdom of Solomon\t9:15-1:642"
+    },
+    {
+      "bible_book": "Wisdom of Solomon",
+      "chapter_start": 14,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 15,
+      "verse_end": 16,
+      "chapter_end": 14,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Wisdom of Solomon\t14:15, 16-1:104"
+    },
+    {
+      "bible_book": "Wisdom of Solomon",
+      "chapter_start": 14,
+      "page_start": "564",
+      "volume": "1",
+      "verse_start": 27,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Wisdom of Solomon\t14:27-1:564"
+    },
+    {
+      "bible_book": "Sirach",
+      "chapter_start": 1,
+      "page_start": "681",
+      "volume": "2",
+      "verse_start": 21,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Sirach\t1:21-2:681"
+    },
+    {
+      "bible_book": "Sirach",
+      "chapter_start": 7,
+      "page_start": "561",
+      "volume": "3",
+      "verse_start": 36,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Sirach\t7:36-3:561"
+    },
+    {
+      "bible_book": "Sirach",
+      "chapter_start": 10,
+      "page_start": "606",
+      "volume": "1",
+      "verse_start": 12,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Sirach\t10:12-1:606"
+    },
+    {
+      "bible_book": "Sirach",
+      "chapter_start": 10,
+      "page_start": "606",
+      "volume": "1",
+      "verse_start": 13,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Sirach\t10:13—1:606"
+    },
+    {
+      "bible_book": "Sirach",
+      "chapter_start": 15,
+      "page_start": "680",
+      "volume": "1",
+      "verse_start": 14,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Sirach\t15:14-1:680"
+    },
+    {
+      "bible_book": "Sirach",
+      "chapter_start": 18,
+      "page_start": "445",
+      "volume": "1",
+      "verse_start": 1,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Sirach\t18:1-1:445"
+    },
+    {
+      "bible_book": "Sirach",
+      "chapter_start": 44,
+      "page_start": "588",
+      "volume": "1",
+      "verse_start": 16,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Sirach\t44:16-1:588"
+    },
+    {
+      "bible_book": "Sirach",
+      "chapter_start": 46,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 20,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Sirach\t46:20-1:104, 549"
+    },
+    {
+      "bible_book": "Sirach",
+      "chapter_start": 46,
+      "page_start": "549",
+      "volume": "1",
+      "verse_start": 20,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Sirach\t46:20-1:104, 549"
+    },
+    {
+      "bible_book": "Sirach",
+      "chapter_start": 48,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 10,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Sirach\t48:10-1:104"
+    },
+    {
+      "bible_book": "Baruch",
+      "chapter_start": 1,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 10,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "Baruch\t1:10-1:104"
+    },
+    {
+      "bible_book": "1 Maccabees",
+      "chapter_start": 1,
+      "page_start": "49",
+      "volume": "3",
+      "chapter_end": 16,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "1 Maccabees\t1–16—3:49"
+    },
+    {
+      "bible_book": "1 Maccabees",
+      "chapter_start": 1,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 16,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "1 Maccabees\t1:16-1:104"
+    },
+    {
+      "bible_book": "1 Maccabees",
+      "chapter_start": 4,
+      "page_start": "339",
+      "volume": "2",
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "1 Maccabees\t4-2:339"
+    },
+    {
+      "bible_book": "1 Maccabees",
+      "chapter_start": 4,
+      "page_start": "219",
+      "volume": "2",
+      "verse_start": 56,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "1 Maccabees\t4:56-2:219"
+    },
+    {
+      "bible_book": "1 Maccabees",
+      "chapter_start": 4,
+      "page_start": "219",
+      "volume": "2",
+      "verse_start": 59,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "1 Maccabees\t4:59-2:219"
+    },
+    {
+      "bible_book": "1 Maccabees",
+      "chapter_start": 6,
+      "page_start": "117",
+      "volume": "2",
+      "verse_start": 43,
+      "verse_end": 45,
+      "chapter_end": 6,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "1 Maccabees\t6:43-45-2:117"
+    },
+    {
+      "bible_book": "1 Maccabees",
+      "chapter_start": 9,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 5,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "1 Maccabees\t9:5-1:104"
+    },
+    {
+      "bible_book": "1 Maccabees",
+      "chapter_start": 9,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 28,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "1 Maccabees\t9:28-1:104"
+    },
+    {
+      "bible_book": "1 Maccabees",
+      "chapter_start": 10,
+      "page_start": "104",
+      "volume": "1",
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "1 Maccabees\t10—1:104"
+    },
+    {
+      "bible_book": "2 Maccabees",
+      "chapter_start": 2,
+      "page_start": "98",
+      "volume": "1",
+      "verse_start": 5,
+      "printed_page": 754,
+      "column": 1,
+      "source_line": "2 Maccabees\t2:5-1:98"
+    },
+    {
+      "bible_book": "2 Maccabees",
+      "chapter_start": 2,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 23,
+      "verse_end": 24,
+      "chapter_end": 2,
+      "printed_page": 754,
+      "column": 2,
+      "source_line": "2 Maccabees\t2:23, 24-1:104"
+    },
+    {
+      "bible_book": "2 Maccabees",
+      "chapter_start": 3,
+      "page_start": "291",
+      "volume": "2",
+      "verse_start": 19,
+      "printed_page": 754,
+      "column": 2,
+      "source_line": "2 Maccabees\t3:19-2:291"
+    },
+    {
+      "bible_book": "2 Maccabees",
+      "chapter_start": 7,
+      "page_start": "432",
+      "volume": "1",
+      "verse_start": 28,
+      "printed_page": 754,
+      "column": 2,
+      "source_line": "2 Maccabees\t7:28-1:432"
+    },
+    {
+      "bible_book": "2 Maccabees",
+      "chapter_start": 12,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 42,
+      "printed_page": 754,
+      "column": 2,
+      "source_line": "2 Maccabees\t12:42-1:104"
+    },
+    {
+      "bible_book": "2 Maccabees",
+      "chapter_start": 14,
+      "page_start": "117",
+      "volume": "2",
+      "verse_start": 41,
+      "verse_end": 42,
+      "chapter_end": 14,
+      "printed_page": 754,
+      "column": 2,
+      "source_line": "2 Maccabees\t14:41, 42-2:117"
+    },
+    {
+      "bible_book": "2 Maccabees",
+      "chapter_start": 14,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 42,
+      "printed_page": 754,
+      "column": 2,
+      "source_line": "2 Maccabees\t14:42-1:104"
+    },
+    {
+      "bible_book": "2 Maccabees",
+      "chapter_start": 15,
+      "page_start": "390",
+      "volume": "2",
+      "verse_start": 14,
+      "printed_page": 754,
+      "column": 2,
+      "source_line": "2 Maccabees\t15:14-2:390"
+    },
+    {
+      "bible_book": "2 Maccabees",
+      "chapter_start": 15,
+      "page_start": "104",
+      "volume": "1",
+      "verse_start": 39,
+      "printed_page": 754,
+      "column": 2,
+      "source_line": "2 Maccabees\t15:39-1:104"
+    }
+  ]
+}

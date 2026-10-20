@@ -403,3 +403,166 @@ export async function softDeleteScriptureRefAction(supabase: SupabaseClient, fd:
 	}
 	return { kind: 'softDeleteScriptureRef' as const, refId: id, success: true as const };
 }
+
+/** PostgREST `.in(uuid)` header budget — keep chunks ≤200. */
+const ID_CHUNK = 200;
+
+function parseUuidList(fd: FormData, key: string): string[] | { error: string } {
+	const raw = String(fd.get(key) ?? '').trim();
+	if (!raw) return { error: 'No reference ids.' };
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return { error: 'ids_json is malformed.' };
+	}
+	if (!Array.isArray(parsed)) return { error: 'ids_json must be an array.' };
+	const ids: string[] = [];
+	for (const item of parsed) {
+		const id = String(item ?? '').trim();
+		if (!UUID_RE.test(id)) return { error: 'ids_json contains an invalid id.' };
+		ids.push(id);
+	}
+	if (ids.length === 0) return { error: 'No reference ids.' };
+	if (ids.length > 2000) return { error: 'Too many ids (max 2000).' };
+	return [...new Set(ids)];
+}
+
+function parseScopeBookIds(fd: FormData): string[] | { error: string } {
+	const raw = String(fd.get('scope_book_ids_json') ?? '').trim();
+	if (!raw) return { error: 'scope_book_ids_json is required.' };
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return { error: 'scope_book_ids_json is malformed.' };
+	}
+	if (!Array.isArray(parsed) || parsed.length === 0) {
+		return { error: 'scope_book_ids_json must be a non-empty array.' };
+	}
+	const ids: string[] = [];
+	for (const item of parsed) {
+		const id = String(item ?? '').trim();
+		if (!UUID_RE.test(id)) return { error: 'scope_book_ids_json contains an invalid id.' };
+		ids.push(id);
+	}
+	return [...new Set(ids)];
+}
+
+async function chunkedUpdate(
+	supabase: SupabaseClient,
+	ids: string[],
+	scopeBookIds: string[],
+	patch: Record<string, unknown>
+): Promise<{ ok: true; count: number } | { ok: false; message: string }> {
+	let count = 0;
+	for (let i = 0; i < ids.length; i += ID_CHUNK) {
+		const chunk = ids.slice(i, i + ID_CHUNK);
+		const { data, error } = await supabase
+			.from('scripture_references')
+			.update(patch as never)
+			.in('id', chunk)
+			.in('book_id', scopeBookIds)
+			.select('id');
+		if (error) {
+			return { ok: false, message: error.message ?? 'Update failed.' };
+		}
+		count += (data ?? []).length;
+	}
+	return { ok: true, count };
+}
+
+export async function softDeleteScriptureRefsBulkAction(
+	supabase: SupabaseClient,
+	fd: FormData
+) {
+	const ids = parseUuidList(fd, 'ids_json');
+	if ('error' in ids) {
+		return fail(400, { kind: 'softDeleteScriptureRefsBulk' as const, message: ids.error });
+	}
+	const scope = parseScopeBookIds(fd);
+	if ('error' in scope) {
+		return fail(400, { kind: 'softDeleteScriptureRefsBulk' as const, message: scope.error });
+	}
+	const result = await chunkedUpdate(supabase, ids, scope, {
+		deleted_at: new Date().toISOString()
+	});
+	if (!result.ok) {
+		console.error('[softDeleteScriptureRefsBulk]', result.message);
+		return fail(500, {
+			kind: 'softDeleteScriptureRefsBulk' as const,
+			message: result.message
+		});
+	}
+	return {
+		kind: 'softDeleteScriptureRefsBulk' as const,
+		refIds: ids,
+		count: result.count,
+		success: true as const
+	};
+}
+
+export async function undoSoftDeleteScriptureRefsBulkAction(
+	supabase: SupabaseClient,
+	fd: FormData
+) {
+	const ids = parseUuidList(fd, 'ids_json');
+	if ('error' in ids) {
+		return fail(400, {
+			kind: 'undoSoftDeleteScriptureRefsBulk' as const,
+			message: ids.error
+		});
+	}
+	const scope = parseScopeBookIds(fd);
+	if ('error' in scope) {
+		return fail(400, {
+			kind: 'undoSoftDeleteScriptureRefsBulk' as const,
+			message: scope.error
+		});
+	}
+	const result = await chunkedUpdate(supabase, ids, scope, { deleted_at: null });
+	if (!result.ok) {
+		console.error('[undoSoftDeleteScriptureRefsBulk]', result.message);
+		return fail(500, {
+			kind: 'undoSoftDeleteScriptureRefsBulk' as const,
+			message: result.message
+		});
+	}
+	return {
+		kind: 'undoSoftDeleteScriptureRefsBulk' as const,
+		refIds: ids,
+		count: result.count,
+		success: true as const
+	};
+}
+
+export async function setScriptureRefsNeedsReviewAction(
+	supabase: SupabaseClient,
+	fd: FormData
+) {
+	const ids = parseUuidList(fd, 'ids_json');
+	if ('error' in ids) {
+		return fail(400, { kind: 'setScriptureRefsNeedsReview' as const, message: ids.error });
+	}
+	const scope = parseScopeBookIds(fd);
+	if ('error' in scope) {
+		return fail(400, { kind: 'setScriptureRefsNeedsReview' as const, message: scope.error });
+	}
+	const raw = String(fd.get('needs_review') ?? '').trim().toLowerCase();
+	const needsReview = raw === 'true' || raw === '1' || raw === 'on';
+	const result = await chunkedUpdate(supabase, ids, scope, { needs_review: needsReview });
+	if (!result.ok) {
+		console.error('[setScriptureRefsNeedsReview]', result.message);
+		return fail(500, {
+			kind: 'setScriptureRefsNeedsReview' as const,
+			message: result.message
+		});
+	}
+	return {
+		kind: 'setScriptureRefsNeedsReview' as const,
+		refIds: ids,
+		needsReview,
+		count: result.count,
+		success: true as const
+	};
+}

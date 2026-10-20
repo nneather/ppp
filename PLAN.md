@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-19 — Turretin text-layer gate PASS + manual corrections ([278](docs/decisions/278-turretin-manual-corrections-gate-pass.md)).
+**Last updated:** 2026-10-20 — Scripture index book-detail UX ([280](docs/decisions/280-scripture-index-book-detail.md)); Turretin index imported (11,078 rows) ([279](docs/decisions/279-turretin-index-import.md)).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books. **Systematics:** Calvin shelf photos; **Turretin vol. 3 scripture index** text-layer parse + **`turretin:gate` PASS** (gold 100%, manual corrections in repo — [278](docs/decisions/278-turretin-manual-corrections-gate-pass.md)). van Mastricht / Bavinck sources in [267](docs/decisions/267-systematics-index-sources.md). **Open:** bulk DB import after Parker sign-off; August shelf QA — Madison. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2 Sessions 1–4 complete; owner smokes ✅. **Passage sections** — 96 live rows on 12 books. **Systematics:** Calvin shelf photos; **Turretin index imported** — 11,078 canon rows on vols I–III; 51 apocrypha held ([279](docs/decisions/279-turretin-index-import.md)). **Scripture index UX** — counts RPC + summary/dialog on book detail (≤150 stays inline); manage page with filters + bulk delete/flag ([280](docs/decisions/280-scripture-index-book-detail.md)). **Open:** apocrypha vocab migration + re-run; August shelf QA — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [280 — Scripture index on book detail](docs/decisions/280-scripture-index-book-detail.md) (2026-10-20) — Counts RPC; summary + per-Bible-book dialog; manage page with bulk delete/flag; volume-default scope.
+- [279 — Turretin index import](docs/decisions/279-turretin-index-import.md) (2026-10-20) — 11,078 rows applied; explicit-volume routing; natural-key idempotent; 51 apocrypha held for vocab FK.
 - [278 — Turretin manual corrections + gate pass](docs/decisions/278-turretin-manual-corrections-gate-pass.md) (2026-10-19) — `turretin-manual-corrections.ts` merged on parse; glued-line parser; review dedupe; gold 1025/1025.
 - [277 — Import picker research UX](docs/decisions/277-import-picker-research.md) (2026-10-19) — Collapsed sections; series on commentaries; checklist JSON off page load; Not included / New set / Save as set.
 - [276 — Import sources detail dialog](docs/decisions/276-import-sources-detail-dialog.md) (2026-10-19) — Large dialog; checklist shows abbreviation + author; filter / sort / Select all.
-- [275 — New paper opens its screen](docs/decisions/275-new-paper-opens-detail.md) (2026-10-19) — Saving New paper on `/studies/papers` redirects to that paper.
-- [274 — Turretin review gate + agent routing](docs/decisions/274-turretin-review-gate-and-routing.md) (2026-10-19) — `turretin:gate` / review-summary; apocrypha in rows.json (NRSV names); Composer → Opus → Fable prompts in session-prompts.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Turretin gate pass [278](docs/decisions/278-turretin-manual-corrections-gate-pass.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **727/727**; `npm run turretin:gate` PASS (2026-10-19).
+**Repo gate:** Scripture index book detail [280](docs/decisions/280-scripture-index-book-detail.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **755/755** (2026-10-20).
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -104,7 +104,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ### Library — Turretin text layer (gates → review → import)
 
-**Agents:** Composer 2.5 (gates) → Parker clears review → Opus 5.5 (import) → Fable 5.1 (read-only pre-apply audit). [Workflow + prompts](docs/session-prompts/turretin-text-layer-workflow.md).
+Gates ✅, review ✅, **import applied 2026-10-20** (11,078 rows — [279](docs/decisions/279-turretin-index-import.md)). **Next:** apocrypha `bible_books` vocab migration (8 books + `BIBLE_BOOK_NAMES` / by-book / studies / MCP / Edge allowlist), then `npm run turretin:import -- --apply` inserts the 51 held rows.
 
 ### Contacts / CRM — remaining MCP smoke (owner, ~5 min)
 
@@ -205,7 +205,7 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Turretin scripture index** — from Parker’s English PDF of P&R vol. 3 (tracked outside the repo; same owner scan as the gold leaves). Arabic `vol:page`, Genesis through printed p. 780 ([267](docs/decisions/267-systematics-index-sources.md)). Do not start van Mastricht or Bavinck.
+1. **Turretin apocrypha** — canon index imported ([279](docs/decisions/279-turretin-index-import.md)); vocab migration + re-run for the 51 rows in `scripts/ocr-index-eval/turretin-apocrypha-pending.json`. Optional: delete the 252 seed row 1 Thess 1:5 → II:620. Do not start van Mastricht or Bavinck.
 2. **Owner — hand-correct notable `books.acquired_on` dates** after the `created_at::date` backfill ([244](docs/decisions/244-studies-session-1.md)).
 3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).

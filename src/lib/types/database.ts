@@ -3331,6 +3331,15 @@ export type Database = {
         Args: { p_book_id: string }
         Returns: undefined
       }
+      library_scripture_ref_counts: {
+        Args: { p_book_ids: string[] }
+        Returns: {
+          bible_book: string
+          book_id: string
+          chapter_start: number
+          n: number
+        }[]
+      }
       normalize_publisher_text: { Args: { raw: string }; Returns: string }
       search_scripture_refs: {
         Args: {

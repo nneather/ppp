@@ -40,7 +40,8 @@
 		"sports:sync": "dotenv -e .env -e .env.local -- tsx scripts/sports-sync.ts",
 		"turretin:parse": "tsx scripts/ocr-index-eval/parse-turretin-text.ts",
 		"turretin:review-summary": "tsx scripts/ocr-index-eval/turretin-review-summary.ts",
-		"turretin:gate": "tsx scripts/ocr-index-eval/turretin-gate.ts"
+		"turretin:gate": "tsx scripts/ocr-index-eval/turretin-gate.ts",
+		"turretin:import": "tsx scripts/ocr-index-eval/import-turretin-index.ts"
 	},
 	"devDependencies": {
 		"@fontsource-variable/geist": "^5.2.8",

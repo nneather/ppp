@@ -52,7 +52,6 @@
 		PassageSectionRow,
 		PersonRow,
 		ReadingStatus,
-		ScriptureRefRow,
 		TopicCount
 	} from '$lib/types/library';
 	import { siblingBookLabel } from '$lib/library/book-detail-related';
@@ -62,19 +61,29 @@
 		formatScriptureRefPageSummary,
 		formatScriptureRefRangeDisplay
 	} from '$lib/library/scripture-ref-format';
+	import {
+		aggregateScriptureCounts,
+		type BibleBookTally,
+		type ScriptureCountRow,
+		type ScriptureIndexScope
+	} from '$lib/library/scripture-index';
+	import type {
+		ScriptureImageThumb,
+		ScriptureIndexRefRow
+	} from '$lib/library/server/scripture-index-loaders';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import BookEssaysEditor from '$lib/components/book-essays-editor.svelte';
 	import BookRatingScale from '$lib/components/book-rating-scale.svelte';
 	import PassageSectionForm from '$lib/components/passage-section-form.svelte';
 	import OutlineSectionForm from '$lib/components/outline-section-form.svelte';
 	import OutlineSectionList from '$lib/components/outline-section-list.svelte';
+	import ScriptureIndexSummary from '$lib/components/scripture-index-summary.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import type { PageProps } from './$types';
 	import { cn } from '$lib/utils.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-	import Image from '@lucide/svelte/icons/image';
 
 	let { data, form }: PageProps = $props();
 
@@ -134,7 +143,6 @@
 	let notesSyncedBookId = $state('');
 
 	/** Queued while notes are focused — flush on blur / notes save to avoid iOS focus loss. */
-	let pendingRefs: ScriptureRefRow[] | null = null;
 	let pendingTopics: BookTopicRow[] | null = null;
 	let pendingEssays: EssayRow[] | null = null;
 	let coverageImportWanted = false;
@@ -152,10 +160,6 @@
 	}
 
 	function flushDeferredBookStreams(opts?: { mountCoverage?: boolean }) {
-		if (pendingRefs !== null) {
-			refs = pendingRefs;
-			pendingRefs = null;
-		}
 		if (pendingTopics !== null) {
 			topics = pendingTopics;
 			pendingTopics = null;
@@ -204,7 +208,6 @@
 			notesFocused = false;
 			notesEditing = false;
 			cancelNotesBlurFlush();
-			pendingRefs = null;
 			pendingTopics = null;
 			pendingEssays = null;
 			coverageImportWanted = false;
@@ -743,82 +746,103 @@
 		}
 	]);
 
-	// Optimistic local list — start from server state, mutate on add/edit/delete
-	// for snappy feedback. After invalidate(book) the canonical state takes over.
-	let refs = $state<ScriptureRefRow[]>([]);
-	let scriptureRefsLoading = $state(true);
-	/** One-shot open-state seed per book after first load settles. */
+	let scriptureCounts = $state<ScriptureCountRow[]>([]);
+	let scriptureCountsLoading = $state(true);
+	let scriptureImages = $state<ScriptureImageThumb[]>([]);
+	let scriptureScope = $state<ScriptureIndexScope>('volume');
+	let refsOpen = $state(false);
 	let refsOpenSeededForBookId: string | null = null;
 
 	$effect(() => {
-		const p = data.scriptureRefsPromise;
-		scriptureRefsLoading = true;
+		const p = data.scriptureCountsPromise;
+		scriptureCountsLoading = true;
 		void p
 			.then((rows) => {
-				if (notesFocused || notesEditing) {
-					pendingRefs = rows;
-				} else {
-					refs = rows;
-				}
+				scriptureCounts = rows;
 			})
 			.catch(() => {
-				if (notesFocused || notesEditing) {
-					pendingRefs = [];
-				} else {
-					refs = [];
-				}
+				scriptureCounts = [];
 			})
 			.finally(() => {
-				scriptureRefsLoading = false;
+				scriptureCountsLoading = false;
 			});
 	});
+
+	$effect(() => {
+		void data.scriptureImagesPromise
+			.then((imgs) => {
+				scriptureImages = imgs;
+			})
+			.catch(() => {
+				scriptureImages = [];
+			});
+	});
+
+	const volumeRefTotal = $derived(
+		aggregateScriptureCounts(scriptureCounts, new Set([data.book.id])).total
+	);
 
 	let addOpen = $state(false);
 	let batchFormDirty = $state(false);
 	let confirmedBatchDiscard = $state(false);
 	let batchDiscardOpen = $state(false);
 	let pendingBatchNav = $state<URL | null>(null);
-	/** Scroll batch form into view when opening (dense scripture block is long). */
 	let scriptureAddFormEl = $state<HTMLElement | null>(null);
 	let editingId = $state<string | null>(null);
+	let editingRef = $state<ScriptureIndexRefRow | null>(null);
 	let pendingDeleteId = $state<string | null>(null);
 	let confirmDeleteOpen = $state(false);
 
-	/** Closed by default when the book has refs; open when empty, adding, or deep-linked. */
-	let refsOpen = $state(false);
-	let recordedImagesOpen = $state(false);
+	let dialogOpen = $state(false);
+	let dialogBook = $state<string | null>(null);
+	let dialogTally = $state<BibleBookTally | null>(null);
+	let dialogHighlightId = $state<string | null>(null);
+	/** `undefined` = auto first chapter; `null` = whole-book chip; number = chapter. */
+	let dialogInitialChapter = $state<number | null | undefined>(undefined);
+	let ScriptureIndexDialogCmp = $state<typeof import('$lib/components/scripture-index-dialog.svelte').default | null>(null);
+
+	async function ensureScriptureDialog() {
+		if (ScriptureIndexDialogCmp) return;
+		const m = await import('$lib/components/scripture-index-dialog.svelte');
+		ScriptureIndexDialogCmp = m.default;
+	}
+
+	function openScriptureBook(bibleBook: string, tally: BibleBookTally) {
+		dialogBook = bibleBook;
+		dialogTally = tally;
+		dialogHighlightId = null;
+		dialogInitialChapter = undefined;
+		void ensureScriptureDialog().then(() => {
+			dialogOpen = true;
+		});
+	}
+
 	let scriptureRefsBookId: string | null = null;
 	$effect(() => {
 		const id = data.book.id;
 		if (scriptureRefsBookId !== id) {
 			scriptureRefsBookId = id;
-			recordedImagesOpen = false;
 			refsOpenSeededForBookId = null;
 			refsOpen = false;
+			scriptureScope = 'volume';
+			dialogOpen = false;
+			dialogBook = null;
+			editingId = null;
+			editingRef = null;
 		}
 	});
 
-	// Seed open state once per book when the first load finishes — do not re-force
-	// on later invalidations or fight manual <details> toggles.
 	$effect(() => {
-		if (scriptureRefsLoading) return;
+		if (scriptureCountsLoading) return;
 		const id = data.book.id;
 		if (scriptureRefsBookId !== id) return;
 		if (refsOpenSeededForBookId === id) return;
 		refsOpenSeededForBookId = id;
-		const effectiveLen = pendingRefs !== null ? pendingRefs.length : refs.length;
-		if (effectiveLen === 0 || addOpen) refsOpen = true;
+		if (volumeRefTotal === 0 || addOpen) refsOpen = true;
 	});
 
 	$effect(() => {
 		if (addOpen) refsOpen = true;
-	});
-
-	// Opening the disclosure must materialize any notes-focus-deferred rows.
-	$effect(() => {
-		if (!refsOpen || pendingRefs === null) return;
-		refs = pendingRefs;
-		pendingRefs = null;
 	});
 
 	$effect(() => {
@@ -859,67 +883,71 @@
 			});
 		});
 	});
-	const uniqueImageRefs = $derived.by(() => {
-		const seen = new Map<
-			string,
-			{ source_image_url: string; source_image_signed_url: string; refCount: number }
-		>();
-		for (const r of refs) {
-			if (!r.source_image_url || !r.source_image_signed_url) continue;
-			const existing = seen.get(r.source_image_url);
-			if (existing) existing.refCount += 1;
-			else
-				seen.set(r.source_image_url, {
-					source_image_url: r.source_image_url,
-					source_image_signed_url: r.source_image_signed_url,
-					refCount: 1
-				});
-		}
-		return [...seen.values()];
-	});
 
-	// Hash-driven scroll + briefly highlight the matching ref. Triggered by
-	// deep links from /library/search-passage (?#ref-<uuid>). The effect tracks
-	// page.url.hash so it re-fires on hash-only navigation, not just on mount.
+	// Hash-driven deep-link: #ref-<uuid> → open dialog on that book/chapter.
 	const UUID_HASH_RE = /^#ref-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-	let highlightedRefId = $state<string | null>(null);
-	let highlightTimer: number | null = null;
 	$effect(() => {
 		if (!browser) return;
 		const m = page.url.hash.match(UUID_HASH_RE);
 		if (!m) return;
-		const id = m[1];
-		// Wait for the matching <li> to be in the DOM (refs are populated by
-		// the parallel $effect above — both fire on load, ordering is racy).
-		const tryScroll = () => {
-			refsOpen = true;
-			// Deep-link must render rows even if notes-focus deferred the assign.
-			if (pendingRefs !== null) {
-				refs = pendingRefs;
-				pendingRefs = null;
-			}
-			const el = document.getElementById(`ref-${id}`);
-			if (!el) {
-				if (refs.find((r) => r.id === id)) {
-					// Row is in state but not yet rendered; bail.
-					return;
-				}
-				return;
-			}
-			el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-			highlightedRefId = id;
-			if (highlightTimer != null) clearTimeout(highlightTimer);
-			highlightTimer = window.setTimeout(() => {
-				highlightedRefId = null;
-				highlightTimer = null;
-			}, 2200);
-		};
-		// Defer to next frame so we run after the {#each} finishes mounting.
-		queueMicrotask(() => {
-			requestAnimationFrame(() => {
-				requestAnimationFrame(tryScroll);
-			});
-		});
+		const id = m[1]!;
+		const bookId = data.book.id;
+		refsOpen = true;
+		void (async () => {
+			await ensureScriptureDialog();
+			const scope: ScriptureIndexScope = setVolumeBooks.length > 1 ? 'set' : 'volume';
+			const res = await fetch(
+				`/library/books/${bookId}/scripture-refs.json?locate=${encodeURIComponent(id)}&scope=${scope}`
+			);
+			if (!res.ok) return;
+			const body = (await res.json()) as {
+				locate: {
+					id: string;
+					book_id: string;
+					bible_book: string;
+					chapter_start: number | null;
+				};
+				rows: ScriptureIndexRefRow[];
+			};
+			// A sibling-volume ref is invisible under "This volume".
+			const locatedOffVolume = body.locate.book_id !== bookId;
+			scriptureScope = locatedOffVolume ? 'set' : scope;
+			const scopeIds =
+				scriptureScope === 'set'
+					? new Set(setVolumeBooks.map((v) => v.bookId))
+					: new Set([bookId]);
+			const tallies = aggregateScriptureCounts(scriptureCounts, scopeIds);
+			const tally =
+				tallies.books.find((b) => b.bible_book === body.locate.bible_book) ?? {
+					bible_book: body.locate.bible_book,
+					count: body.rows.length,
+					chapters: [
+						{
+							chapter: body.locate.chapter_start,
+							count: body.rows.length
+						}
+					]
+				};
+			dialogBook = body.locate.bible_book;
+			dialogTally = tally;
+			dialogInitialChapter = body.locate.chapter_start;
+			dialogHighlightId = body.locate.id;
+			dialogOpen = true;
+		})();
+	});
+
+	// Counts often land after the hash fetch. Upgrade the open tally without
+	// resetting the chapter the deep link already chose.
+	$effect(() => {
+		if (!dialogOpen || !dialogBook) return;
+		const scopeIds =
+			scriptureScope === 'set'
+				? new Set(setVolumeBooks.map((v) => v.bookId))
+				: new Set([data.book.id]);
+		const found = aggregateScriptureCounts(scriptureCounts, scopeIds).books.find(
+			(b) => b.bible_book === dialogBook
+		);
+		if (found && found.count > 0) dialogTally = found;
 	});
 
 	const formMessage = $derived.by(() => {
@@ -937,114 +965,45 @@
 		return null;
 	});
 
-	// Group refs by bible_book in canon order (driven by data.bibleBookNames).
-	type RefGroup = { bible_book: string; rows: ScriptureRefRow[] };
-	const groupedRefs = $derived.by<RefGroup[]>(() => {
-		const map = new Map<string, ScriptureRefRow[]>();
-		for (const r of refs) {
-			const arr = map.get(r.bible_book) ?? [];
-			arr.push(r);
-			map.set(r.bible_book, arr);
-		}
-		const out: RefGroup[] = [];
-		for (const name of data.bibleBookNames) {
-			const rows = map.get(name);
-			if (rows && rows.length > 0) {
-				out.push({ bible_book: name, rows });
-				map.delete(name);
-			}
-		}
-		// Any leftover (orphan bible_book strings) sort alphabetically at the end.
-		for (const [name, rows] of [...map.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-			out.push({ bible_book: name, rows });
-		}
-		return out;
-	});
-
-	function fmtRef(r: ScriptureRefRow): string {
-		const cs = r.chapter_start;
-		const vs = r.verse_start;
-		const ce = r.chapter_end;
-		const ve = r.verse_end;
-		if (cs == null && ce == null) return r.bible_book; // whole book
-		const startPart =
-			cs != null && vs != null
-				? `${cs}:${vs}`
-				: cs != null
-					? `${cs}`
-					: '';
-		const endPart =
-			ce != null && ve != null
-				? `${ce}:${ve}`
-				: ce != null
-					? `${ce}`
-					: '';
-		// Collapse same-chapter ranges: 2:1–11 instead of 2:1–2:11.
-		let rangeText = startPart;
-		if (endPart && endPart !== startPart) {
-			if (cs != null && ce != null && cs === ce && ve != null && ve !== vs) {
-				rangeText = `${startPart}–${ve}`;
-			} else {
-				rangeText = `${startPart}–${endPart}`;
-			}
-		}
-		return `${r.bible_book} ${rangeText}`.trim();
-	}
-
-	function fmtRefRangeOnly(r: ScriptureRefRow): string {
-		const cs = r.chapter_start;
-		const vs = r.verse_start;
-		const ce = r.chapter_end;
-		const ve = r.verse_end;
-		if (cs == null && ce == null) return '—';
-		const startPart =
-			cs != null && vs != null
-				? `${cs}:${vs}`
-				: cs != null
-					? `${cs}`
-					: '';
-		const endPart =
-			ce != null && ve != null
-				? `${ce}:${ve}`
-				: ce != null
-					? `${ce}`
-					: '';
-		let rangeText = startPart;
-		if (endPart && endPart !== startPart) {
-			if (cs != null && ce != null && cs === ce && ve != null && ve !== vs) {
-				rangeText = `${startPart}–${ve}`;
-			} else {
-				rangeText = `${startPart}–${endPart}`;
-			}
-		}
-		return rangeText.trim();
-	}
-
-	function fmtPages(r: ScriptureRefRow): string {
-		if (!r.page_start) return '';
-		const end = r.page_end ?? '';
-		return end && end !== r.page_start
-			? `pp. ${r.page_start}–${end}`
-			: `p. ${r.page_start}`;
-	}
+	let editLoadError = $state(false);
 
 	function startEdit(id: string) {
 		editingId = id;
+		editingRef = null;
+		editLoadError = false;
 		addOpen = false;
 		refsOpen = true;
+		dialogOpen = false;
+		void fetch(
+			`/library/books/${data.book.id}/scripture-refs.json?locate=${encodeURIComponent(id)}&scope=${scriptureScope}`
+		)
+			.then(async (res) => {
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				const body = (await res.json()) as { rows: ScriptureIndexRefRow[] };
+				const row = body.rows.find((r) => r.id === id) ?? null;
+				if (!row) throw new Error('Reference not found.');
+				editingRef = row;
+			})
+			.catch(() => {
+				editingRef = null;
+				editLoadError = true;
+			});
 	}
 
 	function cancelEdit() {
 		editingId = null;
+		editingRef = null;
+		editLoadError = false;
 	}
 
-	async function onCreatedBatch(refIds: string[]) {
+	async function onCreatedBatch(_refIds: string[]) {
 		addOpen = false;
 		await invalidateBook();
 	}
 
-	async function onUpdated(refId: string) {
+	async function onUpdated(_refId: string) {
 		editingId = null;
+		editingRef = null;
 		await invalidateBook();
 	}
 
@@ -1065,18 +1024,14 @@
 
 	const deleteRefEnhance: SubmitFunction = () => {
 		deleteRefPending = true;
-		const removingId = pendingDeleteId;
-		// Optimistic remove.
-		if (removingId) refs = refs.filter((r) => r.id !== removingId);
 		return async ({ result }) => {
 			deleteRefPending = false;
 			confirmDeleteOpen = false;
 			pendingDeleteId = null;
-			if (result.type === 'success') {
-				await invalidateBook();
-			} else {
-				// Revert optimistic remove on failure by reloading.
-				await invalidateBook();
+			dialogOpen = false;
+			await invalidateBook();
+			if (result.type !== 'success') {
+				/* reload restores */
 			}
 		};
 	};
@@ -1104,7 +1059,7 @@
 	});
 
 	const showSectionPeeks = $derived(
-		refs.length > 0 ||
+		volumeRefTotal > 0 ||
 			bibleCoverageCount > 0 ||
 			ancientCoverageCount > 0 ||
 			topics.length > 0
@@ -1824,13 +1779,13 @@
 
 			{#if showSectionPeeks}
 				<div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-					{#if refs.length > 0}
+					{#if volumeRefTotal > 0}
 						<button
 							type="button"
 							class="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
 							onclick={() => jumpToSection('scripture-refs-heading', { openRefs: true })}
 						>
-							Scripture · {refs.length}
+							Scripture · {volumeRefTotal.toLocaleString()}
 						</button>
 					{/if}
 					{#if bibleCoverageCount > 0}
@@ -2148,229 +2103,85 @@
 	<!-- ------------------------------------------------------------------- -->
 	<!-- Scripture references                                                  -->
 	<!-- ------------------------------------------------------------------- -->
-	<details
-		class="mt-10 rounded-lg border border-border bg-card text-card-foreground shadow-sm"
+	<ScriptureIndexSummary
+		bookId={data.book.id}
+		manageHref={`/library/books/${data.book.id}/scripture`}
+		counts={scriptureCounts}
+		countsLoading={scriptureCountsLoading}
+		setVolumeCount={setVolumeBooks.length}
+		images={scriptureImages}
 		bind:open={refsOpen}
+		bind:addOpen
+		bind:scope={scriptureScope}
+		onOpenBook={openScriptureBook}
+		onEdit={startEdit}
+		onDelete={requestDelete}
 	>
-		<summary
-			class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden"
-		>
-			<span
-				id="scripture-refs-heading"
-				class="text-lg font-semibold tracking-tight text-foreground"
-			>
-				Scripture references
-				{#if refs.length > 0}
-					<span class="ml-1 text-sm font-normal text-muted-foreground">({refs.length})</span>
-				{/if}
-			</span>
-			<ChevronDown
-				class={cn(
-					'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
-					refsOpen && 'rotate-180'
-				)}
-				aria-hidden="true"
-			/>
-		</summary>
-		<div class="border-t border-border px-4 pb-4 pt-3">
-			<div class="mb-3 flex justify-end">
-				{#if !addOpen}
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						onclick={() => {
-							addOpen = true;
-							editingId = null;
-						}}
-					>
-						<Plus class="size-4" /> Add references
-					</Button>
-				{/if}
-			</div>
-
-			{#if scriptureRefsLoading}
-				<p class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-					Loading scripture references…
-				</p>
-			{:else if refs.length === 0 && !addOpen}
-				<p
-					class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground"
-				>
-					No scripture references yet. Click <strong class="font-semibold text-foreground">Add references</strong>
-					to log a passage you found discussed in this book.
-				</p>
-			{/if}
-
-			{#if refsOpen && !scriptureRefsLoading && groupedRefs.length > 0}
-				<div class="space-y-5">
-					{#each groupedRefs as group (group.bible_book)}
-						<div>
-							<h3
-								id={`scripture-group-${group.bible_book}`}
-								class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-							>
-								{group.bible_book}
-							</h3>
-							<ul
-								class="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60 bg-card text-sm"
-							>
-								{#each group.rows as ref (ref.id)}
-									<li
-										id={`ref-${ref.id}`}
-										class={cn(
-											'group/row flex min-h-12 items-center gap-2 px-3 py-1.5 transition-colors md:min-h-9',
-											highlightedRefId === ref.id &&
-												'bg-amber-500/10 ring-2 ring-amber-500/40 ring-inset'
-										)}
-									>
-										{#if editingId === ref.id}
-											<div class="w-full py-2">
-												{#if ScriptureReferenceFormCmp}
-													<ScriptureReferenceFormCmp
-														books={sourcePickerBooks}
-														bibleBookNames={data.bibleBookNames}
-														lockedBookId={data.book.id}
-														userId={data.userId}
-														existingRef={ref}
-														{formMessage}
-														onSaved={onUpdated}
-														onCancel={cancelEdit}
-													/>
-												{:else}
-													<div
-														class="h-16 w-full animate-pulse rounded-lg bg-muted/40"
-														aria-hidden="true"
-													></div>
-												{/if}
-											</div>
-										{:else}
-											<span class="shrink-0 font-medium tabular-nums text-foreground">
-												{fmtRefRangeOnly(ref)}
-											</span>
-											{#if fmtPages(ref)}
-												<span class="shrink-0 text-muted-foreground">— {fmtPages(ref)}</span>
-											{/if}
-											{#if ref.needs_review}
-												<span
-													class="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200"
-												>
-													<AlertCircle class="size-3" /> Review
-												</span>
-											{/if}
-											{#if ref.review_note}
-												<span
-													class="min-w-0 flex-1 truncate text-xs italic text-muted-foreground"
-													title={ref.review_note}
-												>
-													{ref.review_note}
-												</span>
-											{/if}
-											<div
-												class="ml-auto flex shrink-0 gap-0.5 opacity-70 group-hover/row:opacity-100"
-											>
-												<Button
-													type="button"
-													variant="ghost"
-													size="icon-sm"
-													class="size-9 md:size-7"
-													onclick={() => startEdit(ref.id)}
-													aria-label={`Edit ${fmtRef(ref)}`}
-												>
-													<Pencil class="size-3.5" />
-												</Button>
-												<Button
-													type="button"
-													variant="ghost"
-													size="icon-sm"
-													class="size-9 text-destructive hover:text-destructive md:size-7"
-													onclick={() => requestDelete(ref.id)}
-													aria-label={`Delete ${fmtRef(ref)}`}
-												>
-													<Trash2 class="size-3.5" />
-												</Button>
-											</div>
-										{/if}
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/each}
-				</div>
-			{/if}
-
-			{#if refsOpen && uniqueImageRefs.length > 0}
-				<details
-					class="mt-4 rounded-lg border border-border/60 bg-muted/20"
-					bind:open={recordedImagesOpen}
-				>
-					<summary
-						class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden"
-					>
-						<Image class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-						See recorded images ({uniqueImageRefs.length})
-						<ChevronDown
-							class={cn(
-								'ml-auto size-4 shrink-0 text-muted-foreground transition-transform duration-200',
-								recordedImagesOpen && 'rotate-180'
-							)}
-							aria-hidden="true"
-						/>
-					</summary>
-					<div class="flex flex-wrap gap-2 border-t border-border/40 p-3">
-						{#each uniqueImageRefs as img (img.source_image_url)}
-							<a
-								href={img.source_image_signed_url}
-								target="_blank"
-								rel="noopener noreferrer"
-								class="group/img relative"
-								title={`${img.refCount} ref${img.refCount === 1 ? '' : 's'}`}
-							>
-								<img
-									src={img.source_image_signed_url}
-									alt=""
-									loading="lazy"
-									class="size-28 rounded-md border border-border object-cover transition-transform group-hover/img:scale-105"
-								/>
-								{#if img.refCount > 1}
-									<span
-										class="absolute right-1 bottom-1 rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-foreground"
-									>
-										{img.refCount}
-									</span>
-								{/if}
-							</a>
-						{/each}
-					</div>
-				</details>
-			{/if}
-
-			{#if addOpen}
-				<div id="scripture-add-form" bind:this={scriptureAddFormEl} class="mt-4 scroll-mt-6">
-					{#if ScriptureReferenceFormCmp}
-						<ScriptureReferenceFormCmp
-							books={sourcePickerBooks}
-							bibleBookNames={data.bibleBookNames}
-							lockedBookId={data.book.id}
-							userId={data.userId}
-							{formMessage}
-							setVolumes={setVolumeBooks}
-							onSavedBatch={onCreatedBatch}
-							onBatchDirtyChange={(d) => (batchFormDirty = d)}
-							onCancel={() => (addOpen = false)}
-						/>
-					{:else}
-						<div class="h-16 w-full animate-pulse rounded-lg bg-muted/40" aria-hidden="true"></div>
-					{/if}
-					<div class="mt-2 flex justify-end">
-						<Button type="button" variant="ghost" size="sm" onclick={() => (addOpen = false)}>
-							Close add form
+		{#if editingId !== null}
+			<div class="mt-4 rounded-lg border border-border p-3">
+				{#if ScriptureReferenceFormCmp && editingRef}
+					<ScriptureReferenceFormCmp
+						books={sourcePickerBooks}
+						bibleBookNames={data.bibleBookNames}
+						lockedBookId={data.book.id}
+						userId={data.userId}
+						existingRef={editingRef}
+						{formMessage}
+						onSaved={onUpdated}
+						onCancel={cancelEdit}
+					/>
+				{:else if editLoadError}
+					<div class="flex flex-wrap items-center justify-between gap-2 py-2">
+						<p class="text-sm text-destructive">Could not load that reference for editing.</p>
+						<Button type="button" variant="outline" size="sm" hotkey="Escape" label="Cancel" onclick={cancelEdit}>
+							Cancel
 						</Button>
 					</div>
+				{:else}
+					<div class="h-16 w-full animate-pulse rounded-lg bg-muted/40" aria-hidden="true"></div>
+				{/if}
+			</div>
+		{/if}
+		{#if addOpen}
+			<div id="scripture-add-form" bind:this={scriptureAddFormEl} class="mt-4 scroll-mt-6">
+				{#if ScriptureReferenceFormCmp}
+					<ScriptureReferenceFormCmp
+						books={sourcePickerBooks}
+						bibleBookNames={data.bibleBookNames}
+						lockedBookId={data.book.id}
+						userId={data.userId}
+						{formMessage}
+						setVolumes={setVolumeBooks}
+						onSavedBatch={onCreatedBatch}
+						onBatchDirtyChange={(d) => (batchFormDirty = d)}
+						onCancel={() => (addOpen = false)}
+					/>
+				{:else}
+					<div class="h-16 w-full animate-pulse rounded-lg bg-muted/40" aria-hidden="true"></div>
+				{/if}
+				<div class="mt-2 flex justify-end">
+					<Button type="button" variant="ghost" size="sm" onclick={() => (addOpen = false)}>
+						Close add form
+					</Button>
 				</div>
-			{/if}
-		</div>
-	</details>
+			</div>
+		{/if}
+	</ScriptureIndexSummary>
+
+	{#if ScriptureIndexDialogCmp && dialogBook}
+		<ScriptureIndexDialogCmp
+			bind:open={dialogOpen}
+			bookId={data.book.id}
+			bibleBook={dialogBook}
+			bookTally={dialogTally}
+			scope={scriptureScope}
+			showVolume={scriptureScope === 'set'}
+			highlightRefId={dialogHighlightId}
+			initialChapter={dialogInitialChapter}
+			onEdit={startEdit}
+			onDelete={requestDelete}
+		/>
+	{/if}
 
 	<!-- ------------------------------------------------------------------- -->
 	<!-- Bible coverage                                                         -->

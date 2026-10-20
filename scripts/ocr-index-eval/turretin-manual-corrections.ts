@@ -116,6 +116,8 @@ export const MANUAL_CORRECTIONS: Record<string, ManualFix> = {
 		corrected: '12:13—3:22, 27, 28, 377, 383, 385, 400, 474, 514'
 	},
 	'769:3:15:1345-3:567-68': { book: '1 Corinthians', corrected: '15:13–15—3:567-68' },
+	// Publisher typo: volume 4 does not exist (Parker, 2026-10-20)
+	'769:1:10:16,17-4:445': { book: '1 Corinthians', corrected: '10:16,17—3:445' },
 	'768:3:7:18ff.-3:255': { book: '1 Corinthians', corrected: '7:18—3:255' },
 	'769:2:12:14-3:153': { book: '1 Corinthians', corrected: '12:14—3:153' },
 	'769:2:12:15-3:153': { book: '1 Corinthians', corrected: '12:15—3:153' },
@@ -143,6 +145,7 @@ export const MANUAL_CORRECTIONS: Record<string, ManualFix> = {
 	// Revelation glued verses + ff.
 	'779:3:6:941-1:484': { book: 'Revelation', corrected: '6:9–11—1:484' },
 	'780:1:8:1042-3:589': { book: 'Revelation', corrected: '8:10–12—3:589' },
+	'780:1:12:11-2:21142, 221': { book: 'Revelation', corrected: '12:11—2:211-12, 221' },
 	'780:2:19:lff.-3:636': { book: 'Revelation', corrected: '19:1—3:636' },
 	// Proverbs ff.
 	'748:2:8:27ff.-1:287': { book: 'Proverbs', corrected: '8:27—1:287' }
