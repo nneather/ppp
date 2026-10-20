@@ -112,7 +112,7 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 | # | Entity | Q | Resolve by |
 |---|---|---|---|
 | S1 | resource set | Systematic Theology seed: which catalog titles count as Calvin / van Mastricht / Bavinck / Leiden Synopsis / Turretin? | Session 1 — exact title + genre `Systematic Theology` (multi-volume includes). Empty includes only if a title is missing. |
-| B1 | book | `acquired_on` backfill from `created_at::date` is the day the row was entered. | Matcher ready ([283](decisions/283-amazon-acquired-on.md)). Parker dry-runs the Amazon Items CSV, then `--apply` for ISBN matches. |
+| B1 | book | `acquired_on` backfill from `created_at::date` is the day the row was entered. | ISBN matches applied 2026-10-20 ([283](decisions/283-amazon-acquired-on.md), 196 rows). Books with no Amazon ISBN hit, and two title-only suggestions, still need a hand date. |
 
 ---
 

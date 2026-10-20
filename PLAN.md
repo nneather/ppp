@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-20 — Amazon `acquired_on` matcher ready, dry-run until the order CSV is confirmed ([283](docs/decisions/283-amazon-acquired-on.md)); apocrypha vocab + 51 Turretin rows imported ([282](docs/decisions/282-apocrypha-vocab-impl.md)).
+**Last updated:** 2026-10-20 — Amazon ISBN `acquired_on` dates applied, 196 rows ([283](docs/decisions/283-amazon-acquired-on.md)); apocrypha vocab + 51 Turretin rows imported ([282](docs/decisions/282-apocrypha-vocab-impl.md)).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2. Passage sections live. **Turretin scripture index imported** (11,129 rows, including 51 NRSV Apocrypha — [282](docs/decisions/282-apocrypha-vocab-impl.md)). Canon spine stays 66. Scripture index on book detail ([280](docs/decisions/280-scripture-index-book-detail.md)). **Amazon `acquired_on` matcher ready** — waiting on the order CSV ([283](docs/decisions/283-amazon-acquired-on.md)). **Open:** Calvin shelf photos; August shelf QA — Madison. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2. Passage sections live. **Turretin scripture index imported** (11,129 rows, including 51 NRSV Apocrypha — [282](docs/decisions/282-apocrypha-vocab-impl.md)). Canon spine stays 66. Scripture index on book detail ([280](docs/decisions/280-scripture-index-book-detail.md)). **Amazon ISBN `acquired_on` applied** — 196 rows ([283](docs/decisions/283-amazon-acquired-on.md)). **Open:** Calvin shelf photos; August shelf QA — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
@@ -49,7 +49,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
-- [283 — Amazon acquired_on](docs/decisions/283-amazon-acquired-on.md) (2026-10-20) — Items CSV matcher. Dry-run proposes the earliest ISBN order date; title hits stay suggestions. `--apply` not run (no CSV yet).
+- [283 — Amazon acquired_on](docs/decisions/283-amazon-acquired-on.md) (2026-10-20) — Items CSV matcher. Applied 196 ISBN order dates; title hits left alone. A second dry-run would write 0.
 - [282 — Apocrypha vocab implementation](docs/decisions/282-apocrypha-vocab-impl.md) (2026-10-20) — Testament `AP`, 18 NRSV books at sort 67–84, 66-book spine unchanged. 51 Turretin rows inserted (I 38 / II 9 / III 4). Counts RPC paged past the 1000-row cap.
 - [281 — Apocrypha vocab](docs/decisions/281-apocrypha-vocab.md) (2026-10-20) — Design lock: testament `AP`, 18 NRSV books at sort 67–84, `BIBLE_BOOK_NAMES` stays 66.
 - [280 — Scripture index on book detail](docs/decisions/280-scripture-index-book-detail.md) (2026-10-20) — Counts RPC; summary + per-Bible-book dialog; manage page with bulk delete/flag; volume-default scope.
@@ -202,7 +202,7 @@ Acceptance:
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
 1. **Calvin shelf photos** — Turretin index is fully imported, including the 51 apocrypha rows ([282](docs/decisions/282-apocrypha-vocab-impl.md)). Next capture is Calvin ([262](docs/decisions/262-calvin-index-capture-rules.md)). Do not start van Mastricht or Bavinck.
-2. **Owner — Amazon `acquired_on`** — matcher is ready ([283](docs/decisions/283-amazon-acquired-on.md)). Drop the Items CSV somewhere uncommitted and dry-run `npm run library:amazon-acquired -- <file>`. `--apply` only after the preview looks right. No Amazon hit leaves the `created_at` backfill ([244](docs/decisions/244-studies-session-1.md)).
+2. **Owner — remaining `acquired_on` dates** — ISBN matches from the Amazon order export are applied ([283](docs/decisions/283-amazon-acquired-on.md), 196 rows). Still the catalog-entry date: books with no Amazon ISBN hit, plus two title-only suggestions (Building a Vision for Your Life, Additional Notes on Exodus).
 3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
 5. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.

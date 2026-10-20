@@ -30,7 +30,7 @@
 
 ## Open questions surfaced
 
-- Parker still needs to drop the Items CSV (do not commit) and confirm the dry-run before `--apply`. B1 stays open until that write.
+- ISBN apply is done (196 rows, 2026-10-20). Books with no Amazon ISBN hit still have the `created_at` date. Two title suggestions are earlier and were not written: Building a Vision for Your Life (2024-10-06) and Additional Notes on Exodus (2026-09-05).
 
 ## Surprises (read these before the next session)
 
@@ -43,11 +43,10 @@
 - [x] components.mdc — no UI component
 - [x] AGENTS.md inventory updated
 - [x] new env vars documented (`LIBRARY_AMAZON_ACQUIRED_CONFIRM` in the script README)
-- [x] Studies tracker B1 points at this matcher; still open until `--apply`
+- [x] Studies tracker B1 notes the ISBN apply; books with no Amazon hit remain
 
 ## Verification
 
 - `npm run check` — 0 errors / 0 warnings.
 - `npm run test` — 780/780 (20 new Amazon matcher tests).
-- Dry-run against hosted prod with a one-row CSV that cannot match: scanned **1,535** owned books, miss 1, would write 0. Nothing updated.
-- `--apply` was not run. No order CSV was committed.
+- Parker’s `Order History.csv` (772 rows, privacy export: Product Name + ASIN + Department). ISBN match 198. `--apply` updated **196** `acquired_on` values, all earlier than the catalog date. A second dry-run reported would-write 0. Four title suggestions were not written. No order CSV was committed.
