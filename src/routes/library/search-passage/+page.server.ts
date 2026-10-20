@@ -122,11 +122,11 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	if (!user) redirect(303, '/login');
 
 	const supabase = locals.supabase;
-	const { bibleBookNames } = await parent();
+	const { allBibleBookNames } = await parent();
 
 	const bibleBookParam = url.searchParams.get('bible_book');
 	const bible_book =
-		bibleBookParam && bibleBookNames.includes(bibleBookParam) ? bibleBookParam : null;
+		bibleBookParam && allBibleBookNames.includes(bibleBookParam) ? bibleBookParam : null;
 	const chapter = parseIntOrNull(url.searchParams.get('chapter'));
 	const verse = parseIntOrNull(url.searchParams.get('verse'));
 	const chapter_end = parseIntOrNull(url.searchParams.get('chapter_end'));
@@ -397,7 +397,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	}
 
 	return {
-		bibleBookNames,
+		allBibleBookNames,
 		results,
 		systematicsBlocks,
 		query: { bible_book, chapter, verse, chapter_end, verse_end },

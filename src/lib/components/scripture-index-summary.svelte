@@ -273,6 +273,25 @@
 						</div>
 					</div>
 				{/if}
+				{#if tallies.apocrypha.length > 0}
+					<div>
+						<p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+							Apocrypha
+						</p>
+						<div class="flex flex-wrap gap-1.5">
+							{#each tallies.apocrypha as b (b.bible_book)}
+								<button
+									type="button"
+									class="rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-muted"
+									onclick={() => onOpenBook?.(b.bible_book, b)}
+								>
+									<span class="font-medium text-foreground">{b.bible_book}</span>
+									<span class="ml-1 tabular-nums text-muted-foreground">{b.count}</span>
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
 				{#if tallies.other.length > 0}
 					<div>
 						<p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

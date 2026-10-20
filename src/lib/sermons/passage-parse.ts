@@ -16,13 +16,20 @@ export type ParsedSermonPassage = {
 };
 
 /** Longest-first so "1 John" wins over "John", "Song of Songs" over "Song". */
-const BOOK_NAMES_LONGEST_FIRST = [...BIBLE_BOOK_NAMES].sort((a, b) => b.length - a.length);
+function bookNamesLongestFirst(names: readonly string[]): string[] {
+	return [...names].sort((a, b) => b.length - a.length);
+}
 
-function matchBibleBook(raw: string): { book: string; rest: string } | null {
+const DEFAULT_BOOK_NAMES_LONGEST_FIRST = bookNamesLongestFirst(BIBLE_BOOK_NAMES);
+
+function matchBibleBook(
+	raw: string,
+	namesLongestFirst: readonly string[]
+): { book: string; rest: string } | null {
 	const trimmed = raw.trim();
 	if (!trimmed) return null;
 	const lower = trimmed.toLowerCase();
-	for (const name of BOOK_NAMES_LONGEST_FIRST) {
+	for (const name of namesLongestFirst) {
 		const n = name.toLowerCase();
 		if (lower === n) return { book: name, rest: '' };
 		if (lower.startsWith(n + ' ')) {
@@ -88,12 +95,18 @@ function parseChapterVerseCluster(
 /**
  * Parse a full passage_display string into zero or more structured rows.
  * Returns [] when nothing reliable can be extracted (caller keeps display text).
+ * `names` defaults to the 66-book canon. Scripture-index filters pass the Apocrypha list.
  */
-export function parsePassageDisplay(input: string): ParsedSermonPassage[] {
+export function parsePassageDisplay(
+	input: string,
+	names: readonly string[] = BIBLE_BOOK_NAMES
+): ParsedSermonPassage[] {
 	const raw = input.trim();
 	if (!raw) return [];
 
-	const matched = matchBibleBook(raw);
+	const ordered =
+		names === BIBLE_BOOK_NAMES ? DEFAULT_BOOK_NAMES_LONGEST_FIRST : bookNamesLongestFirst(names);
+	const matched = matchBibleBook(raw, ordered);
 	if (!matched) return [];
 
 	const { book, rest } = matched;

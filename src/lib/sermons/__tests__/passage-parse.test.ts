@@ -48,6 +48,19 @@ describe('parsePassageDisplay', () => {
 	it('returns empty for unknown book', () => {
 		expect(parsePassageDisplay('NotABook 1:1')).toEqual([]);
 	});
+
+	it('rejects Apocrypha unless names are passed', () => {
+		expect(parsePassageDisplay('Sirach 7')).toEqual([]);
+		expect(parsePassageDisplay('Sirach 7', ['Sirach'])).toEqual([
+			{
+				bible_book: 'Sirach',
+				chapter_start: 7,
+				verse_start: null,
+				chapter_end: null,
+				verse_end: null
+			}
+		]);
+	});
 });
 
 describe('librarySearchHref', () => {

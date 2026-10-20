@@ -3,7 +3,7 @@
 
 	let { data }: PageProps = $props();
 
-	const total = $derived(data.ot.length + data.nt.length);
+	const total = $derived(data.ot.length + data.nt.length + data.ap.length);
 </script>
 
 <svelte:head>
@@ -11,8 +11,9 @@
 </svelte:head>
 
 <p class="text-sm text-muted-foreground">
-	66-book Protestant canon. Seed in <code class="rounded bg-muted px-1.5 py-0.5 text-xs"
-		>supabase/seed/library_seed.sql</code>.
+	66-book Protestant canon, plus the NRSV Apocrypha (testament AP). Studies and sermons stay on the
+	66. Seed in
+	<code class="rounded bg-muted px-1.5 py-0.5 text-xs">supabase/seed/library_seed.sql</code>.
 </p>
 
 {#if total === 0}
@@ -55,4 +56,22 @@
 			</ol>
 		</section>
 	</div>
+
+	{#if data.ap.length > 0}
+		<section class="mt-6">
+			<h2 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+				Apocrypha <span class="font-normal">({data.ap.length})</span>
+			</h2>
+			<ol class="mt-3 grid gap-1 text-sm sm:grid-cols-2">
+				{#each data.ap as b (b.id)}
+					<li class="flex items-baseline gap-2">
+						<span class="w-6 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+							{b.sort_order}.
+						</span>
+						<span>{b.name}</span>
+					</li>
+				{/each}
+			</ol>
+		</section>
+	{/if}
 {/if}

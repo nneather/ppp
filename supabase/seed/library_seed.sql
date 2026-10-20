@@ -3,7 +3,7 @@
 -- Filed: 2026-04-25 (Session 0)
 --
 -- This file is the canonical seed for static library reference data:
---   - bible_books (66 — Protestant canon, OT + NT)
+--   - bible_books (66 Protestant canon, OT + NT, plus 18 NRSV Apocrypha, testament AP)
 --   - ancient_texts (Josephus, Philo, Apostolic Fathers, Apocrypha)
 --   - series (ICC, NTC, OTL, EKK, TWOT, AB, MH, COT)
 --   - categories (placeholder — pending Round 2 confirmation)
@@ -95,6 +95,28 @@ INSERT INTO public.bible_books (name, testament, sort_order) VALUES
 	('3 John',          'NT', 64),
 	('Jude',            'NT', 65),
 	('Revelation',      'NT', 66)
+ON CONFLICT (name) DO NOTHING;
+
+-- NRSV Apocrypha. sort_order continues after Revelation; not part of the canon spine.
+INSERT INTO public.bible_books (name, testament, sort_order) VALUES
+	('Tobit',                 'AP', 67),
+	('Judith',                'AP', 68),
+	('Additions to Esther',   'AP', 69),
+	('Wisdom of Solomon',     'AP', 70),
+	('Sirach',                'AP', 71),
+	('Baruch',                'AP', 72),
+	('Letter of Jeremiah',    'AP', 73),
+	('Prayer of Azariah',     'AP', 74),
+	('Susanna',               'AP', 75),
+	('Bel and the Dragon',    'AP', 76),
+	('1 Maccabees',           'AP', 77),
+	('2 Maccabees',           'AP', 78),
+	('1 Esdras',              'AP', 79),
+	('Prayer of Manasseh',    'AP', 80),
+	('Psalm 151',             'AP', 81),
+	('3 Maccabees',           'AP', 82),
+	('2 Esdras',              'AP', 83),
+	('4 Maccabees',           'AP', 84)
 ON CONFLICT (name) DO NOTHING;
 
 -- ---------------------------------------------------------------------------

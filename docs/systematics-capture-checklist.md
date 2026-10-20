@@ -19,7 +19,7 @@ Volume 3 only. Three columns. Arabic `vol:page`. Genesis on the leaf before prin
 
 1. **Text layer first:** `npm run turretin:parse` on Parker’s PDF ([270](decisions/270-turretin-text-layer-parser.md)/[274](decisions/274-turretin-review-gate-and-routing.md)). Apocrypha land in `rows.json` (NRSV names). Clear open blocks in `turretin.review.txt` (`corrected:` / `skip:`). **`npm run turretin:gate` must exit 0** before insert. Gold leaves pp. 760/764/766 ≥ 99.5% with zero extras.
 2. **Agents (Cursor):** Composer 2.5 → build gates/tests; Parker clears review; **Opus 5.5** → import script + dry-run; **Fable 5.1** → read-only pre-`--apply` audit. Full prompts: [docs/session-prompts/turretin-text-layer-workflow.md](session-prompts/turretin-text-layer-workflow.md). Security Review on import diff; Bugbot if >400 LOC.
-2b. **Import:** `npm run turretin:import` (dry run), then `-- --apply` ([279](decisions/279-turretin-index-import.md)). Apocrypha wait on a `bible_books` vocab migration; re-run after it lands.
+2b. **Import:** `npm run turretin:import` (dry run), then `-- --apply` ([279](decisions/279-turretin-index-import.md)). Canon rows applied 2026-10-20 (11,078). Apocrypha vocab + the 51 held rows applied the same day ([282](decisions/282-apocrypha-vocab-impl.md)): testament `AP`, 18 NRSV books after Revelation, 66-book spine unchanged. Pending file emptied. Do not start van Mastricht or Bavinck.
 3. OCR only for leaves the text layer cannot parse. Scripture index mode. Side-by-side **Verified** pass. The book name prints only when it changes.
 4. Save `vol:page`. The outline on each English volume supplies the topic and question.
 5. Smoke — `/library/search-passage?bible_book=1+Thessalonians&chapter=1&verse=5` shows the Systematic theologies band.

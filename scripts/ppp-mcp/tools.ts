@@ -468,11 +468,11 @@ export async function listSystematicsForPassage(
 		verse_end?: number;
 	}
 ) {
-	const resolved = resolveBibleBookName(args.bible_book);
+	const resolved = resolveBibleBookName(args.bible_book, { includeApocrypha: true });
 	if (!resolved) {
 		return jsonText({
 			error: `Unknown bible_book: ${args.bible_book}`,
-			suggestions: bibleBookSuggestions(args.bible_book)
+			suggestions: bibleBookSuggestions(args.bible_book, 8, { includeApocrypha: true })
 		});
 	}
 	const blocks = await loadSystematicsForPassage(supabase, {

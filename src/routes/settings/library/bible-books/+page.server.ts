@@ -4,7 +4,7 @@ import type { PageServerLoad } from './$types';
 type BibleBookRow = {
 	id: string;
 	name: string;
-	testament: 'OT' | 'NT';
+	testament: 'OT' | 'NT' | 'AP';
 	sort_order: number;
 };
 
@@ -24,13 +24,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		return {
 			id: x.id,
 			name: x.name,
-			testament: (x.testament as 'OT' | 'NT') ?? 'OT',
+			testament: x.testament === 'NT' || x.testament === 'AP' ? x.testament : 'OT',
 			sort_order: x.sort_order
 		} satisfies BibleBookRow;
 	});
 
 	return {
 		ot: rows.filter((r) => r.testament === 'OT'),
-		nt: rows.filter((r) => r.testament === 'NT')
+		nt: rows.filter((r) => r.testament === 'NT'),
+		ap: rows.filter((r) => r.testament === 'AP')
 	};
 };

@@ -71,7 +71,42 @@ export const BIBLE_BOOK_NAMES: readonly string[] = [
 	'Revelation'
 ] as const;
 
-/** Layout / scripture UI — avoids a `bible_books` round-trip on every `/library/*` nav. */
-export function getBibleBookNames(): string[] {
+/**
+ * NRSV Apocrypha, in NRSV order. `sort_order` 67–84 on `bible_books`.
+ * Not part of the 66-book canon spine (`BIBLE_BOOK_NAMES`).
+ */
+export const APOCRYPHA_BOOK_NAMES: readonly string[] = [
+	'Tobit',
+	'Judith',
+	'Additions to Esther',
+	'Wisdom of Solomon',
+	'Sirach',
+	'Baruch',
+	'Letter of Jeremiah',
+	'Prayer of Azariah',
+	'Susanna',
+	'Bel and the Dragon',
+	'1 Maccabees',
+	'2 Maccabees',
+	'1 Esdras',
+	'Prayer of Manasseh',
+	'Psalm 151',
+	'3 Maccabees',
+	'2 Esdras',
+	'4 Maccabees'
+] as const;
+
+/** Canon, then Apocrypha. Scripture index, search-passage, and systematics MCP. */
+export const ALL_BIBLE_BOOK_NAMES: readonly string[] = [
+	...BIBLE_BOOK_NAMES,
+	...APOCRYPHA_BOOK_NAMES
+];
+
+/**
+ * Layout / scripture UI — avoids a `bible_books` round-trip on every `/library/*` nav.
+ * Defaults to the 66-book canon. Pass `{ includeApocrypha: true }` for the NRSV 18 as well.
+ */
+export function getBibleBookNames(opts?: { includeApocrypha?: boolean }): string[] {
+	if (opts?.includeApocrypha) return [...ALL_BIBLE_BOOK_NAMES];
 	return [...BIBLE_BOOK_NAMES];
 }

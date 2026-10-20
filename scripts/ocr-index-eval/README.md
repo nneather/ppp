@@ -34,7 +34,7 @@ npx tsx scripts/ocr-index-eval/parse-turretin-text.ts "/path/to/…-scripture-in
 
 Writes `turretin.lines.txt`, `turretin.review.txt`, `turretin.rows.json` next to the script (gitignored). PDF path: argv, else `TURRETIN_PDF`, else the script default under `Documents/ppp/PDFs for parsing/`. Ends with a gold-leaf diff for printed pp. 760 / 764 / 766.
 
-Apocrypha headings (2 Esdras … 2 Maccabees; printed `Son of Sirach` → `Sirach`) become real `# book` rows in `rows.json`. DB `bible_books` vocab is deferred.
+Apocrypha headings (2 Esdras … 2 Maccabees; printed `Son of Sirach` → `Sirach`) become real `# book` rows in `rows.json`. Those eight names are a subset of the NRSV 18 in `bible_books` (testament `AP`).
 
 ### Review file contract
 

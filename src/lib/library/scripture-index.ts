@@ -2,7 +2,11 @@
  * Pure helpers for the book-detail scripture index summary / dialog / manage page.
  * Client-safe — no Supabase.
  */
-import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
+import {
+	ALL_BIBLE_BOOK_NAMES,
+	APOCRYPHA_BOOK_NAMES,
+	BIBLE_BOOK_NAMES
+} from '$lib/library/bible-book-names';
 import { parsePassageDisplay } from '$lib/sermons/passage-parse';
 
 /** Below this total in the active scope, book detail renders the inline list. */
@@ -36,7 +40,9 @@ export type ScriptureIndexTallies = {
 	books: BibleBookTally[];
 	ot: BibleBookTally[];
 	nt: BibleBookTally[];
-	/** Books not in the Protestant canon list (e.g. future apocrypha). */
+	/** NRSV Apocrypha (`APOCRYPHA_BOOK_NAMES`), in that order. */
+	apocrypha: BibleBookTally[];
+	/** Names in neither the canon nor the Apocrypha list. */
 	other: BibleBookTally[];
 };
 
@@ -85,42 +91,51 @@ export function aggregateScriptureCounts(
 			})
 			.map(([chapter, count]) => ({ chapter, count }));
 
-	const canonIndex = new Map(BIBLE_BOOK_NAMES.map((name, i) => [name, i]));
-	const books: BibleBookTally[] = [];
+	const toTally = (
+		bible_book: string,
+		slot: { total: number; chapters: Map<number | null, number> }
+	): BibleBookTally => ({
+		bible_book,
+		count: slot.total,
+		chapters: sortChapterEntries([...slot.chapters.entries()])
+	});
 
-	for (const name of BIBLE_BOOK_NAMES) {
-		const slot = byBook.get(name);
-		if (!slot) continue;
-		byBook.delete(name);
-		books.push({
-			bible_book: name,
-			count: slot.total,
-			chapters: sortChapterEntries([...slot.chapters.entries()])
-		});
-	}
+	const takeNamed = (names: readonly string[]): BibleBookTally[] => {
+		const out: BibleBookTally[] = [];
+		for (const name of names) {
+			const slot = byBook.get(name);
+			if (!slot) continue;
+			byBook.delete(name);
+			out.push(toTally(name, slot));
+		}
+		return out;
+	};
+
+	const canonIndex = new Map(BIBLE_BOOK_NAMES.map((name, i) => [name, i]));
+	const canon = takeNamed(BIBLE_BOOK_NAMES);
+	const apocrypha = takeNamed(APOCRYPHA_BOOK_NAMES);
 
 	const other: BibleBookTally[] = [...byBook.entries()]
 		.sort(([a], [b]) => a.localeCompare(b))
-		.map(([bible_book, slot]) => ({
-			bible_book,
-			count: slot.total,
-			chapters: sortChapterEntries([...slot.chapters.entries()])
-		}));
+		.map(([bible_book, slot]) => toTally(bible_book, slot));
 
 	const ot: BibleBookTally[] = [];
 	const nt: BibleBookTally[] = [];
-	for (const b of books) {
+	for (const b of canon) {
 		const idx = canonIndex.get(b.bible_book) ?? -1;
 		if (idx >= 0 && idx < OT_BOOK_COUNT) ot.push(b);
 		else nt.push(b);
 	}
 
+	const books = [...canon, ...apocrypha, ...other];
+
 	return {
 		total,
-		bibleBookCount: books.length + other.length,
-		books: [...books, ...other],
+		bibleBookCount: books.length,
+		books,
 		ot,
 		nt,
+		apocrypha,
 		other
 	};
 }
@@ -156,7 +171,7 @@ export function parsePassageFilter(raw: string | null | undefined): ParsedPassag
 	const t = (raw ?? '').trim();
 	if (!t) return null;
 
-	const parsed = parsePassageDisplay(t);
+	const parsed = parsePassageDisplay(t, ALL_BIBLE_BOOK_NAMES);
 	if (parsed.length > 0) {
 		const first = parsed[0]!;
 		return {

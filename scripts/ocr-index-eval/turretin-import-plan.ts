@@ -317,7 +317,7 @@ export type PendingVocabFile = {
 	rows: TurretinRow[];
 };
 
-/** Rows held back because `bible_books` lacks the book (apocrypha until the vocab migration). */
+/** Rows held back because `bible_books` lacks the book. */
 export function pendingVocabFile(plan: TurretinImportPlan): PendingVocabFile {
 	const rows = plan.skips
 		.filter((s) => s.reason === 'bible_book_not_in_vocab')
@@ -326,8 +326,8 @@ export function pendingVocabFile(plan: TurretinImportPlan): PendingVocabFile {
 	for (const r of rows) books[r.bible_book] = (books[r.bible_book] ?? 0) + 1;
 	return {
 		note:
-			'Written by npm run turretin:import. Rows whose bible_book is not in prod bible_books yet. ' +
-			'After the vocab migration, re-run the import; these rows insert and this file empties.',
+			'Written by npm run turretin:import. Rows whose bible_book is not in prod bible_books. ' +
+			'A re-run inserts them once those names exist, and this file empties.',
 		books,
 		rows
 	};

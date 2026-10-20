@@ -1099,7 +1099,7 @@ export async function countBooksNeedingReview(
 	return fetchLiveBookCount(supabase, true);
 }
 
-export type BibleBookListRow = { name: string; testament: 'OT' | 'NT' };
+export type BibleBookListRow = { name: string; testament: 'OT' | 'NT' | 'AP' };
 
 export async function loadBibleBookList(supabase: SupabaseClient): Promise<BibleBookListRow[]> {
 	const { data, error } = await supabase
@@ -1110,10 +1110,13 @@ export async function loadBibleBookList(supabase: SupabaseClient): Promise<Bible
 		console.error(error);
 		return [];
 	}
-	return (data ?? []).map((r) => ({
-		name: (r as { name: string }).name,
-		testament: (r as { testament: 'OT' | 'NT' }).testament
-	}));
+	return (data ?? []).map((r) => {
+		const testament = (r as { testament: string }).testament;
+		return {
+			name: (r as { name: string }).name,
+			testament: testament === 'NT' || testament === 'AP' ? testament : 'OT'
+		};
+	});
 }
 
 /** Shared deps for `/library/books/new`, `/library/add`, etc. */
@@ -1817,11 +1820,9 @@ type RawScriptureRefRow = {
 };
 
 /**
- * 66 bible_book names in canon order. Drives both the `<Select>` in
- * `<ScriptureReferenceForm>` AND the canon-ordered grouping on the book
- * detail page (so groups render Genesis → Revelation, not alphabetical).
+ * Canon bible_book names in Protestant order — no DB round-trip on `/library/*` layout navigations.
+ * Scripture index and search-passage use `getBibleBookNames({ includeApocrypha: true })`.
  */
-/** Static canon order — no DB round-trip on `/library/*` layout navigations. */
 export async function loadBibleBookNames(_supabase?: SupabaseClient): Promise<string[]> {
 	return getBibleBookNames();
 }

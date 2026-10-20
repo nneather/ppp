@@ -137,7 +137,7 @@
 		series: SeriesRow[];
 		publishers: PublisherRow[];
 		/** Canonical bible book names for commentary auto-coverage (create mode). */
-		bibleBooks?: { name: string; testament: 'OT' | 'NT' }[];
+		bibleBooks?: { name: string; testament: 'OT' | 'NT' | 'AP' }[];
 		formMessage?: FormMessage;
 		onSaved?: (bookId: string, opts?: { returnToScanner?: boolean }) => void;
 		onDirtyChange?: (dirty: boolean) => void;
@@ -340,7 +340,11 @@
 	const detectedBibleBook = $derived.by(() => {
 		if (mode !== 'create' || genre !== 'Commentary') return null;
 		if (title.trim().length === 0) return null;
-		return detectBibleBookFromTitle(title, subtitle, bibleBooks);
+		return detectBibleBookFromTitle(
+			title,
+			subtitle,
+			bibleBooks.filter((b) => b.testament !== 'AP')
+		);
 	});
 
 	$effect(() => {

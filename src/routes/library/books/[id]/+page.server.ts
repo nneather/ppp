@@ -85,7 +85,7 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	depends('app:library:people');
 
 	const supabase = locals.supabase;
-	const { series, bibleBookNames } = await parent();
+	const { series, bibleBookNames, allBibleBookNames } = await parent();
 
 	const [people, profileRow] = await Promise.all([
 		loadPeople(supabase),
@@ -119,6 +119,7 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		personBookCounts,
 		series,
 		bibleBookNames,
+		allBibleBookNames,
 		setVolumeBooksPromise: book.series_id
 			? loadSetVolumeBooks(supabase, book.series_id)
 			: Promise.resolve([]),

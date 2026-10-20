@@ -28,7 +28,8 @@ describe('aggregateScriptureCounts', () => {
 		expect(t.books.map((b) => b.bible_book)).toEqual(['Genesis', 'John', 'Romans', 'Tobit']);
 		expect(t.ot.map((b) => b.bible_book)).toEqual(['Genesis']);
 		expect(t.nt.map((b) => b.bible_book)).toEqual(['John', 'Romans']);
-		expect(t.other.map((b) => b.bible_book)).toEqual(['Tobit']);
+		expect(t.apocrypha.map((b) => b.bible_book)).toEqual(['Tobit']);
+		expect(t.other).toEqual([]);
 		const gen = t.books.find((b) => b.bible_book === 'Genesis')!;
 		expect(gen.count).toBe(18);
 		expect(gen.chapters).toEqual([
@@ -44,6 +45,17 @@ describe('aggregateScriptureCounts', () => {
 		const t = aggregateScriptureCounts(rows, new Set(['v2']));
 		expect(t.total).toBe(25);
 		expect(t.books.map((b) => b.bible_book)).toEqual(['Genesis', 'John', 'Romans']);
+	});
+
+	it('keeps NRSV Apocrypha order and leaves unknown names in other', () => {
+		const t = aggregateScriptureCounts([
+			{ book_id: 'v1', bible_book: 'Judith', chapter_start: 1, n: 2 },
+			{ book_id: 'v1', bible_book: 'Tobit', chapter_start: 1, n: 1 },
+			{ book_id: 'v1', bible_book: 'Enoch', chapter_start: 1, n: 4 }
+		]);
+		expect(t.apocrypha.map((b) => b.bible_book)).toEqual(['Tobit', 'Judith']);
+		expect(t.other.map((b) => b.bible_book)).toEqual(['Enoch']);
+		expect(t.books.map((b) => b.bible_book)).toEqual(['Tobit', 'Judith', 'Enoch']);
 	});
 });
 
@@ -63,6 +75,16 @@ describe('parsePassageFilter', () => {
 			verse_start: 1,
 			chapter_end: 9,
 			verse_end: 5
+		});
+	});
+
+	it('parses an Apocrypha passage', () => {
+		expect(parsePassageFilter('Sirach 7:36')).toMatchObject({
+			bible_book: 'Sirach',
+			chapter_start: 7,
+			verse_start: 36,
+			chapter_end: null,
+			verse_end: null
 		});
 	});
 

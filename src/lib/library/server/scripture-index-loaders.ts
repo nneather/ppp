@@ -98,30 +98,39 @@ function mapRawToRow(
 	};
 }
 
-/** RPC tallies for one or more volume books. */
+/** RPC tallies for one or more volume books. Pages past PostgREST's 1000-row cap. */
 export async function loadScriptureIndexCounts(
 	supabase: SupabaseClient,
 	bookIds: string[]
 ): Promise<ScriptureCountRow[]> {
 	if (bookIds.length === 0) return [];
-	const { data, error } = await supabase.rpc('library_scripture_ref_counts', {
-		p_book_ids: bookIds
-	});
-	if (error) {
-		console.error('[loadScriptureIndexCounts]', error);
-		return [];
+	const PAGE = 1000;
+	const out: ScriptureCountRow[] = [];
+	for (let from = 0; ; from += PAGE) {
+		const { data, error } = await supabase
+			.rpc('library_scripture_ref_counts', { p_book_ids: bookIds })
+			.range(from, from + PAGE - 1);
+		if (error) {
+			console.error('[loadScriptureIndexCounts]', error);
+			return [];
+		}
+		const rows = (data ?? []) as {
+			book_id: string;
+			bible_book: string;
+			chapter_start: number | null;
+			n: number;
+		}[];
+		for (const r of rows) {
+			out.push({
+				book_id: r.book_id,
+				bible_book: r.bible_book,
+				chapter_start: r.chapter_start,
+				n: Number(r.n) || 0
+			});
+		}
+		if (rows.length < PAGE) break;
 	}
-	return ((data ?? []) as {
-		book_id: string;
-		bible_book: string;
-		chapter_start: number | null;
-		n: number;
-	}[]).map((r) => ({
-		book_id: r.book_id,
-		bible_book: r.bible_book,
-		chapter_start: r.chapter_start,
-		n: Number(r.n) || 0
-	}));
+	return out;
 }
 
 export type LoadScriptureIndexRowsOpts = {

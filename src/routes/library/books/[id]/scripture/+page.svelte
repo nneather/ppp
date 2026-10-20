@@ -140,7 +140,7 @@
 					bind:value={bibleBook}
 				>
 					<option value="">Any</option>
-					{#each data.bibleBookNames as name}
+					{#each data.allBibleBookNames as name (name)}
 						<option value={name}>{name}</option>
 					{/each}
 				</select>

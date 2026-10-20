@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ params, locals, url, depends, paren
 	depends(`app:library:book:${id}`);
 
 	const supabase = locals.supabase;
-	const { bibleBookNames } = await parent();
+	const { allBibleBookNames } = await parent();
 
 	const { data: book, error: bookErr } = await supabase
 		.from('books')
@@ -93,7 +93,7 @@ export const load: PageServerLoad = async ({ params, locals, url, depends, paren
 			series_id: seriesId,
 			series_name: seriesName
 		},
-		bibleBookNames,
+		allBibleBookNames,
 		filters,
 		filterQuery: scriptureManageFiltersToSearchParams(filters).toString(),
 		scopeBookIds,

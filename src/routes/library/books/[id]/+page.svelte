@@ -2122,7 +2122,7 @@
 				{#if ScriptureReferenceFormCmp && editingRef}
 					<ScriptureReferenceFormCmp
 						books={sourcePickerBooks}
-						bibleBookNames={data.bibleBookNames}
+						bibleBookNames={data.allBibleBookNames}
 						lockedBookId={data.book.id}
 						userId={data.userId}
 						existingRef={editingRef}
@@ -2147,7 +2147,7 @@
 				{#if ScriptureReferenceFormCmp}
 					<ScriptureReferenceFormCmp
 						books={sourcePickerBooks}
-						bibleBookNames={data.bibleBookNames}
+						bibleBookNames={data.allBibleBookNames}
 						lockedBookId={data.book.id}
 						userId={data.userId}
 						{formMessage}

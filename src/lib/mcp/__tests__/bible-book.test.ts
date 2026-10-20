@@ -22,6 +22,17 @@ describe('resolveBibleBookName', () => {
 		expect(resolveBibleBookName('xyzzy')).toBeNull();
 	});
 
+	it('resolves Apocrypha names and aliases only with the flag', () => {
+		expect(resolveBibleBookName('sirach')).toBeNull();
+		expect(resolveBibleBookName('ecclesiasticus')).toBeNull();
+		expect(resolveBibleBookName('4 ezra')).toBeNull();
+		expect(resolveBibleBookName('sirach', { includeApocrypha: true })).toBe('Sirach');
+		expect(resolveBibleBookName('ecclesiasticus', { includeApocrypha: true })).toBe('Sirach');
+		expect(resolveBibleBookName('sir', { includeApocrypha: true })).toBe('Sirach');
+		expect(resolveBibleBookName('4 ezra', { includeApocrypha: true })).toBe('2 Esdras');
+		expect(resolveBibleBookName('wis', { includeApocrypha: true })).toBe('Wisdom of Solomon');
+	});
+
 	it('suggests substring matches', () => {
 		expect(bibleBookSuggestions('john')).toContain('John');
 		expect(bibleBookSuggestions('john')).toContain('1 John');

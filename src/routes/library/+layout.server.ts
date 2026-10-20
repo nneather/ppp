@@ -11,5 +11,9 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 
 	const series = await locals.perf.measure('db', () => loadSeries(locals.supabase));
 
-	return { series, bibleBookNames: getBibleBookNames() };
+	return {
+		series,
+		bibleBookNames: getBibleBookNames(),
+		allBibleBookNames: getBibleBookNames({ includeApocrypha: true })
+	};
 };

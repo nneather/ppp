@@ -1,6 +1,6 @@
 /**
- * Apocrypha book names + soft validators for the Turretin text-layer parser.
- * Parser/gate only — `bible_books` vocab is deferred to the insert session.
+ * Turretin's eight Apocrypha names + soft validators for the text-layer parser.
+ * The library vocab is the NRSV 18 in `APOCRYPHA_BOOK_NAMES`; this list stays the subset Turretin cites.
  */
 
 export const APOCRYPHA_BOOKS = [

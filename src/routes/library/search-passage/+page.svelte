@@ -170,7 +170,7 @@
 				required
 			>
 				<option value="" disabled>— Select —</option>
-				{#each data.bibleBookNames as name (name)}
+				{#each data.allBibleBookNames as name (name)}
 					<option value={name}>{name}</option>
 				{/each}
 			</select>

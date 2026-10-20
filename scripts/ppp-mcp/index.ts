@@ -247,7 +247,7 @@ server.registerTool(
 	'list_systematics_for_passage',
 	{
 		description:
-			'Systematic theology scripture-index hits for a passage, grouped by set with TOC labels (e.g. Turretin 2:620 Full Assurance). Same data as the Systematic theologies band on /library/search-passage.',
+			'Systematic theology scripture-index hits for a passage, grouped by set with TOC labels (e.g. Turretin 2:620 Full Assurance). Same data as the Systematic theologies band on /library/search-passage. Accepts the Protestant canon and the NRSV Apocrypha (Sirach, Tobit, Wisdom of Solomon, 2 Esdras; aliases ecclesiasticus, sir, wis, tob, jdt, bar, 1 macc, 2 macc, 4 ezra).',
 		inputSchema: {
 			bible_book: z.string().describe('Bible book name, e.g. 1 Thessalonians, Romans'),
 			chapter: z.number().int().min(1).max(199).optional(),
