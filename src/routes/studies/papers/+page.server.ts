@@ -56,7 +56,11 @@ export const actions: Actions = {
 	createPaper: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'createPaper' as const, message: 'Unauthorized' });
-		return createPaperAction(locals.supabase, user.id, await request.formData());
+		const result = await createPaperAction(locals.supabase, user.id, await request.formData());
+		if ('success' in result && result.success) {
+			redirect(303, `/studies/papers/${result.paperId}`);
+		}
+		return result;
 	},
 	updatePaper: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

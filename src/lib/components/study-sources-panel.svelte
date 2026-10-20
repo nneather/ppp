@@ -4,7 +4,7 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { page } from '$app/state';
 	import { onDestroy, onMount, untrack } from 'svelte';
-	import PaperImportSheet from '$lib/components/paper-import-sheet.svelte';
+	import PaperImportDialog from '$lib/components/paper-import-dialog.svelte';
 	import PaperSourceRow from '$lib/components/paper-source-row.svelte';
 	import PaperAddSourcePanel from '$lib/components/paper-add-source-panel.svelte';
 	import PaperGroupHeader from '$lib/components/paper-group-header.svelte';
@@ -764,7 +764,7 @@
 		<input type="hidden" name="essay_id" value="" />
 	</form>
 
-	<PaperImportSheet
+	<PaperImportDialog
 		bind:open={importOpen}
 		paperId={parentId}
 		{parentField}

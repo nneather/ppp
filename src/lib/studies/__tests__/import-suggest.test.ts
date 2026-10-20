@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
 	bibleBooksInDisplay,
 	buildImportChecklist,
+	importChecklistLead,
 	importGroupName,
 	parseImportTarget,
 	parsePaperListShow,
 	setIdForGroupName,
 	suggestResourceSets,
+	visibleImportChecklistRows,
+	type ImportChecklistRow,
 	type ImportSetSummary
 } from '../import-suggest';
 import { nextStudyUsage, includeInCompiledBibliography } from '../source-usage';
@@ -127,6 +130,58 @@ describe('import checklist', () => {
 	it('maps an import group name back to its set', () => {
 		expect(setIdForGroupName('Commentaries: Romans', sets)).toBe('set-rom');
 		expect(setIdForGroupName('From: Psalm 110', sets)).toBeNull();
+	});
+
+	it('leads with the series abbreviation when present', () => {
+		expect(importChecklistLead({ title: 'The Epistle to the Romans', seriesAbbreviation: 'NICNT' })).toBe(
+			'NICNT'
+		);
+		expect(importChecklistLead({ title: 'Cost of Discipleship', seriesAbbreviation: null })).toBe(
+			'Cost of Discipleship'
+		);
+	});
+
+	it('filters by title, abbreviation, or author and sorts authors with blanks last', () => {
+		const rows: ImportChecklistRow[] = [
+			{
+				key: 'b:a',
+				bookId: 'a',
+				essayId: null,
+				title: 'Romans',
+				notes: null,
+				attached: false,
+				authors: 'Douglas J. Moo',
+				seriesAbbreviation: 'NICNT'
+			},
+			{
+				key: 'b:b',
+				bookId: 'b',
+				essayId: null,
+				title: 'Matthew',
+				notes: null,
+				attached: false,
+				authors: null,
+				seriesAbbreviation: 'PNTC'
+			},
+			{
+				key: 'b:c',
+				bookId: 'c',
+				essayId: null,
+				title: 'Galatians',
+				notes: null,
+				attached: false,
+				authors: 'F. F. Bruce',
+				seriesAbbreviation: 'NIGTC'
+			}
+		];
+		expect(visibleImportChecklistRows(rows, 'moo', 'title').map((r) => r.key)).toEqual(['b:a']);
+		expect(visibleImportChecklistRows(rows, 'nigtc', 'title').map((r) => r.key)).toEqual(['b:c']);
+		expect(visibleImportChecklistRows(rows, '', 'author').map((r) => r.authors)).toEqual([
+			'Douglas J. Moo',
+			'F. F. Bruce',
+			null
+		]);
+		expect(visibleImportChecklistRows(rows, '', 'title').map((r) => r.key)).toEqual(['b:a', 'b:b', 'b:c']);
 	});
 });
 

@@ -7,6 +7,7 @@
  * assignment does not drop a section because an index hit exists.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { effectiveSeriesAbbreviation } from '$lib/library/citation-abbreviation';
 import { rangesOverlap, searchPassageAbsBounds } from '$lib/library/passage-search-bands';
 import type { OverlappingSection } from '$lib/studies/passage-section-suggest';
 import type { StructuredStudyPassage, StudyPassageRange } from '$lib/studies/passage-ranges';
@@ -18,10 +19,20 @@ export type PassageSectionOverlap = {
 	error: string | null;
 };
 
+type SectionSeries = {
+	id: string;
+	abbreviation: string | null;
+	deleted_at: string | null;
+};
+
 type SectionBook = {
 	id: string;
 	title: string | null;
 	deleted_at: string | null;
+	total_volumes: number | null;
+	citation_abbreviation: string | null;
+	series_id: string | null;
+	series: SectionSeries | SectionSeries[] | null;
 };
 
 type RawSection = {
@@ -111,7 +122,15 @@ export async function loadOverlappingPassageSections(
 				verse_end_abs,
 				page_start,
 				page_end,
-				books!inner ( id, title, deleted_at )
+				books!inner (
+					id,
+					title,
+					deleted_at,
+					total_volumes,
+					citation_abbreviation,
+					series_id,
+					series ( id, abbreviation, deleted_at )
+				)
 			`
 			)
 			.in('bible_book', bibleBooks)
@@ -138,6 +157,9 @@ export async function loadOverlappingPassageSections(
 		if (!sectionOverlaps(raw, ranges)) continue;
 		const book = one(raw.books);
 		if (!book || book.deleted_at) continue;
+		const series = one(book.series);
+		const seriesLive = book.series_id && series && !series.deleted_at ? series : null;
+		const vols = book.total_volumes;
 		sections.push({
 			bookId: raw.book_id,
 			title: book.title?.trim() || 'Untitled',
@@ -145,7 +167,12 @@ export async function loadOverlappingPassageSections(
 			pageStart: raw.page_start,
 			pageEnd: raw.page_end,
 			verseStartAbs: raw.verse_start_abs ?? 0,
-			verseEndAbs: raw.verse_end_abs ?? 999999
+			verseEndAbs: raw.verse_end_abs ?? 999999,
+			seriesAbbreviation: effectiveSeriesAbbreviation({
+				citation_abbreviation: book.citation_abbreviation,
+				series_abbreviation: seriesLive?.abbreviation ?? null
+			}),
+			volumeCount: typeof vols === 'number' && vols > 0 ? vols : null
 		});
 	}
 

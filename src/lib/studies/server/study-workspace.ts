@@ -21,7 +21,12 @@ import {
 } from '$lib/studies/server/passage-section-suggest';
 import type { PaperGroupView, PaperSourceView, OrphanPaperSource } from '$lib/studies/paper-sources';
 import { citeableSetMembers } from '$lib/studies/resource-sets';
-import { loadResourceSetDetail, loadResourceSetSummaries } from '$lib/studies/server/resource-set-loaders';
+import {
+	authorLabelsForRefs,
+	loadResourceSetDetail,
+	loadResourceSetSummaries
+} from '$lib/studies/server/resource-set-loaders';
+import { refKey } from '$lib/studies/resource-sets';
 import type { StudyParent } from '$lib/studies/study-parent';
 import type { BookListRow, EssaySearchHit } from '$lib/types/library';
 import {
@@ -170,7 +175,10 @@ export async function loadStudyWorkspace(
 						bookId: member.bookId,
 						essayId: member.essayId,
 						title: member.title,
-						notes: null
+						notes: null,
+						authors: member.authors,
+						seriesAbbreviation: member.seriesAbbreviation,
+						volumeCount: member.volumeCount
 					})),
 					attachedBookIds,
 					attachedEssayIds
@@ -194,15 +202,34 @@ export async function loadStudyWorkspace(
 					sourceLabel: priorPaper.paper.title,
 					copyNotes: true,
 					rows: buildImportChecklist(
-						priorSources.sources.map((source) => ({
-							bookId: source.kind === 'book' ? source.citation.id : null,
-							essayId: source.kind === 'essay' ? source.essayId : null,
-							title:
-								source.kind === 'book'
-									? (source.citation.title ?? 'Untitled')
-									: source.essay.essay_title,
-							notes: source.notes
-						})),
+						priorSources.sources.map((source) => {
+							if (source.kind === 'essay') {
+								return {
+									bookId: null,
+									essayId: source.essayId,
+									title: source.essay.essay_title,
+									notes: source.notes,
+									authors: source.authorsLabel,
+									seriesAbbreviation: source.volume.series_abbreviation,
+									volumeCount:
+										source.volume.total_volumes && source.volume.total_volumes > 1
+											? source.volume.total_volumes
+											: null
+								};
+							}
+							return {
+								bookId: source.citation.id,
+								essayId: null,
+								title: source.citation.title ?? 'Untitled',
+								notes: source.notes,
+								authors: source.authorsLabel,
+								seriesAbbreviation: source.citation.series_abbreviation,
+								volumeCount:
+									source.citation.total_volumes && source.citation.total_volumes > 1
+										? source.citation.total_volumes
+										: null
+							};
+						}),
 						attachedBookIds,
 						attachedEssayIds
 					)
@@ -211,12 +238,23 @@ export async function loadStudyWorkspace(
 			}
 		}
 	} else if (importTarget?.kind === 'sections') {
+		const authorMap = await authorLabelsForRefs(
+			supabase,
+			sectionCandidates.map((c) => ({ bookId: c.bookId, essayId: c.essayId }))
+		);
 		importChecklist = {
 			key: 'sections',
 			groupName: PASSAGE_SECTION_GROUP_NAME,
 			sourceLabel: study.passageDisplay?.trim() || 'this passage',
 			copyNotes: false,
-			rows: buildImportChecklist(sectionCandidates, attachedBookIds, attachedEssayIds)
+			rows: buildImportChecklist(
+				sectionCandidates.map((c) => ({
+					...c,
+					authors: authorMap.get(refKey(c))?.label ?? null
+				})),
+				attachedBookIds,
+				attachedEssayIds
+			)
 		};
 		importError = sectionOverlap.error;
 	}

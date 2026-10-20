@@ -52,12 +52,58 @@ export type ImportCandidate = {
 	notes: string | null;
 	/** Checklist subtitle. Not stored on the study source. */
 	hint?: string | null;
+	/** Short author line for the checklist ("Douglas J. Moo"). */
+	authors?: string | null;
+	/** Series / citation abbreviation when the book has one (NICNT). */
+	seriesAbbreviation?: string | null;
+	/** Multi-volume set size; UI shows "N vols." when > 1. */
+	volumeCount?: number | null;
 };
 
 export type ImportChecklistRow = ImportCandidate & {
 	key: string;
 	attached: boolean;
 };
+
+export type ImportChecklistSort = 'title' | 'author';
+
+/** Lead label for a checklist row: abbreviation when present, else title. */
+export function importChecklistLead(row: Pick<ImportCandidate, 'title' | 'seriesAbbreviation'>): string {
+	const abbr = row.seriesAbbreviation?.trim();
+	return abbr || row.title;
+}
+
+/**
+ * Filter by title / abbreviation / author / hint, then optional author sort.
+ * Title sort keeps the loader order (set order or section title order).
+ */
+export function visibleImportChecklistRows(
+	rows: readonly ImportChecklistRow[],
+	query: string,
+	sort: ImportChecklistSort
+): ImportChecklistRow[] {
+	const q = query.trim().toLowerCase();
+	const filtered = q
+		? rows.filter((row) => {
+				const hay = [row.title, row.seriesAbbreviation, row.authors, row.hint]
+					.filter((part): part is string => !!part && part.trim().length > 0)
+					.join(' ')
+					.toLowerCase();
+				return hay.includes(q);
+			})
+		: [...rows];
+
+	if (sort !== 'author') return filtered;
+
+	return filtered.slice().sort((a, b) => {
+		const aa = (a.authors ?? '').trim().toLowerCase();
+		const bb = (b.authors ?? '').trim().toLowerCase();
+		if (!aa && bb) return 1;
+		if (aa && !bb) return -1;
+		if (aa !== bb) return aa.localeCompare(bb, undefined, { sensitivity: 'base' });
+		return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+	});
+}
 
 function normalizePassageAliases(input: string): string {
 	return input

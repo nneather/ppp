@@ -22,6 +22,8 @@ export type OverlappingSection = {
 	pageEnd: string | null;
 	verseStartAbs: number;
 	verseEndAbs: number;
+	seriesAbbreviation?: string | null;
+	volumeCount?: number | null;
 };
 
 export function sectionAbsSpan(section: { verseStartAbs: number; verseEndAbs: number }): number {
@@ -117,7 +119,9 @@ export function passageSectionImportCandidates(
 			essayId: null,
 			title: tight.title.trim() || 'Untitled',
 			notes: null,
-			hint: sectionHint(tight)
+			hint: sectionHint(tight),
+			seriesAbbreviation: tight.seriesAbbreviation ?? null,
+			volumeCount: tight.volumeCount ?? null
 		});
 	}
 	return out;

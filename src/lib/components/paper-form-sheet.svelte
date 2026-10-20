@@ -124,6 +124,8 @@
 		pending = true;
 		return async ({ result, update }) => {
 			pending = false;
+			// Create redirects to the new paper. `update` follows that.
+			if (result.type === 'redirect') open = false;
 			await update({ reset: false });
 			if (result.type === 'success') {
 				open = false;
