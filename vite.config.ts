@@ -61,7 +61,7 @@ export default defineConfig(() => ({
 			: [])
 	],
 	test: {
-		include: ['src/**/*.test.ts']
+		include: ['src/**/*.test.ts', 'scripts/ocr-index-eval/**/*.test.ts']
 	},
 	build: {
 		rollupOptions: {

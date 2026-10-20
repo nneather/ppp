@@ -17,10 +17,11 @@ Source: Parker’s English PDF of the P&R set, tracked outside this repo. The go
 
 Volume 3 only. Three columns. Arabic `vol:page`. Genesis on the leaf before printed p. 740 through printed p. 780. Gold gate 99.610% ([263](decisions/263-systematics-page-index-gold-gate.md)).
 
-1. **Text layer first:** `npx tsx scripts/ocr-index-eval/parse-turretin-text.ts` on Parker’s PDF ([270](decisions/270-turretin-text-layer-parser.md)). Clear `turretin.review.txt` (apocrypha + damaged tokens). Gold leaves pp. 760/764/766 should match before insert.
-2. OCR only for leaves the text layer cannot parse. Scripture index mode. Side-by-side **Verified** pass. The book name prints only when it changes.
-3. Save `vol:page`. The outline on each English volume supplies the topic and question.
-4. Smoke — `/library/search-passage?bible_book=1+Thessalonians&chapter=1&verse=5` shows the Systematic theologies band.
+1. **Text layer first:** `npx tsx scripts/ocr-index-eval/parse-turretin-text.ts` on Parker’s PDF ([270](decisions/270-turretin-text-layer-parser.md)). Clear `turretin.review.txt` (apocrypha + damaged tokens). **`npm run turretin:gate` must pass** before insert. Gold leaves pp. 760/764/766 should match before insert.
+2. **Agents (Cursor):** Composer 2.5 → build gates/tests; Parker clears review; **Opus 5.5** → import script + dry-run; **Fable 5.1** → read-only pre-`--apply` audit. Full prompts: [docs/session-prompts/turretin-text-layer-workflow.md](session-prompts/turretin-text-layer-workflow.md). Security Review on import diff; Bugbot if >400 LOC.
+3. OCR only for leaves the text layer cannot parse. Scripture index mode. Side-by-side **Verified** pass. The book name prints only when it changes.
+4. Save `vol:page`. The outline on each English volume supplies the topic and question.
+5. Smoke — `/library/search-passage?bible_book=1+Thessalonians&chapter=1&verse=5` shows the Systematic theologies band.
 
 The 1734 Latin index (page + thesis) is written up in [267](decisions/267-systematics-index-sources.md). It is not this capture.
 

@@ -52,6 +52,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 - [273 — Outline topic dropdowns](docs/decisions/273-outline-topic-dropdowns.md) (2026-10-19) — Topics, headings, and Calvin book titles start collapsed. A chapter `I.1` nests under book `I`.
 - [272 — Turretin outlines](docs/decisions/272-turretin-outlines.md) (2026-10-19) — P&R vols. 1–3 contents, with the shared boundary page on both questions.
 - [271 — Index OCR checker pass](docs/decisions/271-ocr-index-checker-pass.md) (2026-10-19) — Pass 2 is Sonnet 5.5 on page pointers. Disagreements stay one row. A short page among longer siblings is flagged.
+- [274 — Turretin review gate + agent routing](docs/decisions/274-turretin-review-gate-and-routing.md) (2026-10-19) — `turretin:gate` / review-summary; Composer → Opus → Fable prompts in session-prompts.
 - [270 — Turretin text-layer index parser](docs/decisions/270-turretin-text-layer-parser.md) (2026-10-19) — `parse-turretin-text.ts` on FineReader PDF; gold leaves 1023/1025; review for apocrypha + damaged tokens; no DB insert yet.
 - [269 — Sonnet bake-off on the Turretin gold gate](docs/decisions/269-ocr-sonnet-gold-bakeoff.md) (2026-10-19) — Gold page numbers held. Stay on Sonnet 4.6. Sonnet 5.5 matched every pointer and mislabeled one John column as Matthew.
 
@@ -100,7 +101,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Session prompts (copy-paste) — LIVE only
 
-*Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks.*
+*Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks. **Full fences** (avoid chat split): [docs/session-prompts/](docs/session-prompts/).*
+
+### Library — Turretin text layer (gates → review → import)
+
+**Agents:** Composer 2.5 (gates) → Parker clears review → Opus 5.5 (import) → Fable 5.1 (read-only pre-apply audit). [Workflow + prompts](docs/session-prompts/turretin-text-layer-workflow.md).
 
 ### Contacts / CRM — remaining MCP smoke (owner, ~5 min)
 

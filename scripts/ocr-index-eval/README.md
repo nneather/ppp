@@ -32,7 +32,18 @@ Owner English PDF (outside repo). No OCR:
 npx tsx scripts/ocr-index-eval/parse-turretin-text.ts "/path/to/…-scripture-index.pdf"
 ```
 
-Writes `turretin.lines.txt`, `turretin.review.txt`, `turretin.rows.json` next to the script. To fix a row, add `corrected: …` (and keep `book:`) under its `# p.NNN col N` block and re-run. Ends with a gold-leaf diff for printed pp. 760 / 764 / 766.
+Writes `turretin.lines.txt`, `turretin.review.txt`, `turretin.rows.json` next to the script (gitignored). To fix a row, add `corrected: …` (and keep `book:`) under its `# p.NNN col N` block and re-run. Ends with a gold-leaf diff for printed pp. 760 / 764 / 766.
+
+### Review gate (before DB import)
+
+```bash
+npm run turretin:parse          # or pass PDF path via script default / env
+npm run turretin:review-summary # counts by page / reason
+npm run turretin:gate           # fail until review clear + gold leaves ≥ 99.5%
+npm run turretin:gate -- --parse "/path/to/…-scripture-index.pdf"
+```
+
+Policy + agent routing: [274](../../docs/decisions/274-turretin-review-gate-and-routing.md), [workflow](../../docs/session-prompts/turretin-text-layer-workflow.md).
 
 ## Gold file shape
 

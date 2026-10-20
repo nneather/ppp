@@ -16,7 +16,7 @@
 
 - Text-layer path is the bulk capture source for Turretin ([267](267-systematics-index-sources.md)); no `ocr_scripture_refs`, no rasterize, no cap burn.
 - Column lines must be sorted by `(printedPage, −y)` within each column; naive page-wide y-buckets interleave columns on a shared baseline.
-- Do not insert index rows until `turretin.review.txt` is clear; insert must use `routeIndexRowToVolume` + `stripVolumeFromPageToken` per volume (deferred).
+- Do not insert index rows until **`npm run turretin:gate`** passes ([274](274-turretin-review-gate-and-routing.md)); insert must use `routeIndexRowToVolume` + `stripVolumeFromPageToken` per volume (deferred). Cursor agent order: Composer → Parker review → Opus import → Fable audit — [session-prompts](../session-prompts/turretin-text-layer-workflow.md).
 
 ## Schema changes
 
