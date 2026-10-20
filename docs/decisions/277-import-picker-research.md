@@ -10,7 +10,7 @@
 - Commentary checklist rows lead with series abbreviation (else series name) and volume metadata threaded from `candidatesFromCommentaryHits` / coverage loaders.
 - Checklist drill-in is **client state** inside the dialog. `GET /studies/import-checklist.json` loads one set / prior paper / passage list without reloading the study page. Back returns to the picker and keeps checkbox maps.
 - Set checklists expose a collapsed **Not included** block (exclude overrides). Select all / Clear ignore those keys; checking one attaches it to the study without flipping the set override.
-- Owner **New set** in the dialog (language/custom sections only) and group-header **Save as set** (`saveGroupAsSet`) create a custom set from the paper/sermon without leaving the study.
+- Owner **New set** in the dialog (language/custom sections only) and group-header **Save as set** (`saveGroupAsSet`) create a custom set from the paper/sermon without leaving the study. Save as set opens a dialog: editable set name + multi-select of that group’s sources (not a silent one-click, and not tied to “On this passage”).
 - Paper/sermon `load` no longer resolves `?import=` checklists; workspace still loads light set summaries + create-section options.
 
 ## Decided

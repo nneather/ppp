@@ -574,9 +574,38 @@ export async function createResourceSetAction(
 	};
 }
 
+function parseSaveGroupItems(raw: string | null): CatalogRef[] | null {
+	if (!raw?.trim()) return null;
+	try {
+		const parsed = JSON.parse(raw) as unknown;
+		if (!Array.isArray(parsed)) return null;
+		const refs: CatalogRef[] = [];
+		const seen = new Set<string>();
+		for (const item of parsed) {
+			if (!item || typeof item !== 'object') continue;
+			const row = item as { book_id?: unknown; essay_id?: unknown };
+			const essayId =
+				typeof row.essay_id === 'string' && UUID_RE.test(row.essay_id.trim())
+					? row.essay_id.trim()
+					: null;
+			const bookId =
+				typeof row.book_id === 'string' && UUID_RE.test(row.book_id.trim())
+					? row.book_id.trim()
+					: null;
+			const key = essayId ? `e:${essayId}` : bookId ? `b:${bookId}` : '';
+			if (!key || seen.has(key)) continue;
+			seen.add(key);
+			refs.push({ bookId: essayId ? null : bookId, essayId });
+		}
+		return refs;
+	} catch {
+		return null;
+	}
+}
+
 /**
- * Create a custom set whose include members are the book/essay sources in a
- * study research group. Name defaults to the group name.
+ * Create a custom set from selected book/essay sources in a study research
+ * group. Requires an explicit set name and a multi-select `items` JSON payload.
  */
 export async function saveGroupAsSetAction(
 	supabase: SupabaseClient,
@@ -605,9 +634,23 @@ export async function saveGroupAsSetAction(
 		paper_id: string | null;
 		sermon_id: string | null;
 	};
-	const nameParsed = parseName(trimOrNull(fd.get('name')) ?? group.name, 'Set name');
+	const nameParsed = parseName(trimOrNull(fd.get('name')), 'Set name');
 	if (!nameParsed.ok) {
 		return fail(400, { kind: 'saveGroupAsSet' as const, message: nameParsed.message });
+	}
+
+	const selected = parseSaveGroupItems(trimOrNull(fd.get('items')));
+	if (!selected) {
+		return fail(400, {
+			kind: 'saveGroupAsSet' as const,
+			message: 'Pick at least one source.'
+		});
+	}
+	if (selected.length === 0) {
+		return fail(400, {
+			kind: 'saveGroupAsSet' as const,
+			message: 'Pick at least one source.'
+		});
 	}
 
 	let sourcesQuery = supabase
@@ -622,13 +665,18 @@ export async function saveGroupAsSetAction(
 		console.error('[studies] saveGroupAsSet sources', sourcesRes.error);
 		return fail(500, { kind: 'saveGroupAsSet' as const, message: sourcesRes.error.message });
 	}
-	const refs = catalogRefsFromGroupSources(
-		(sourcesRes.data ?? []) as { book_id: string | null; essay_id: string | null }[]
+	const allowed = new Set(
+		catalogRefsFromGroupSources(
+			(sourcesRes.data ?? []) as { book_id: string | null; essay_id: string | null }[]
+		).map((ref) => (ref.essayId ? `e:${ref.essayId}` : `b:${ref.bookId}`))
+	);
+	const refs = selected.filter((ref) =>
+		allowed.has(ref.essayId ? `e:${ref.essayId}` : `b:${ref.bookId}`)
 	);
 	if (refs.length === 0) {
 		return fail(400, {
 			kind: 'saveGroupAsSet' as const,
-			message: 'This group has no catalog sources to save.'
+			message: 'Selected sources are not in this group.'
 		});
 	}
 

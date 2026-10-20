@@ -614,6 +614,7 @@
 				<div class="mt-5">
 					<PaperGroupHeader
 						group={bucket.group}
+						sources={bucket.sources}
 						count={bucket.sources.length}
 						{isOwner}
 						canMoveUp={groupIndex > 0 && !reorderPending}
