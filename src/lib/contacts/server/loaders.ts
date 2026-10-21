@@ -635,7 +635,7 @@ export async function loadContactsDue(
 	pace: ContactsPaceSummary | null;
 	error: string | null;
 }> {
-	const limit = Math.min(Math.max(opts.limit ?? 25, 1), 100);
+	const limit = Math.min(Math.max(opts.limit ?? 25, 1), 500);
 
 	const contactsRes = await supabase
 		.from('contacts')

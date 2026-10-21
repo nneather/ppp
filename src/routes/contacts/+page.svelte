@@ -25,6 +25,7 @@
 		type ContactsListFilters,
 		type HouseholdRow
 	} from '$lib/types/contacts';
+	import { groupContactsDueByFrequency } from '$lib/contacts/due';
 	import { formatHouseholdAddress } from '$lib/contacts/names';
 	import { contactMatchesQuery, householdMatchesQuery } from '$lib/contacts/search';
 	import {
@@ -67,6 +68,7 @@
 		memberId?: string;
 	};
 	const f = $derived((form ?? null) as FormShape | null);
+	const dueGroups = $derived(groupContactsDueByFrequency(data.dueContacts));
 
 	let searchQ = $state(page.url.searchParams.get('q') ?? '');
 	let lastUrlQ = $state(page.url.searchParams.get('q') ?? '');
@@ -722,37 +724,56 @@
 					</details>
 				{/if}
 				{#if data.dueContacts.length > 0}
-					<ul class="mt-2 divide-y border-t border-border">
-						{#each data.dueContacts as d (d.id)}
-							<li class="flex items-center justify-between gap-2 py-1.5">
-								<div class="min-w-0">
-									<p class="truncate text-sm font-medium">{d.display_name}</p>
-									<p class="truncate text-xs text-muted-foreground">
-										{CONTACT_FREQUENCY_SHORT_LABELS[d.frequency]} · due {formatTouch(d.period_end)}
-										· last {formatTouch(d.last_touched_on)}
-									</p>
-								</div>
-								{#if data.isOwner}
-									<div class="flex shrink-0 gap-1">
-										<form method="POST" action="?/logContactQuick" use:enhance={quickLogEnhance}>
-											<input type="hidden" name="contact_id" value={d.contact_id} />
-											{#if d.household_id}
-												<input type="hidden" name="household_id" value={d.household_id} />
+					<div class="mt-2 space-y-3 border-t border-border pt-2">
+						{#each dueGroups as group (group.frequency)}
+							<section aria-label={group.label}>
+								<p
+									class="flex items-baseline justify-between gap-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+								>
+									<span>{group.label}</span>
+									<span class="font-normal tracking-normal tabular-nums">{group.rows.length}</span>
+								</p>
+								<ul class="divide-y divide-border">
+									{#each group.rows as d (d.id)}
+										<li class="flex items-center justify-between gap-2 py-1.5">
+											<div class="min-w-0">
+												<p class="truncate text-sm font-medium">{d.display_name}</p>
+												<p class="truncate text-xs text-muted-foreground">
+													due {formatTouch(d.period_end)} · last {formatTouch(d.last_touched_on)}
+												</p>
+											</div>
+											{#if data.isOwner}
+												<div class="flex shrink-0 gap-1">
+													<form
+														method="POST"
+														action="?/logContactQuick"
+														use:enhance={quickLogEnhance}
+													>
+														<input type="hidden" name="contact_id" value={d.contact_id} />
+														{#if d.household_id}
+															<input type="hidden" name="household_id" value={d.household_id} />
+														{/if}
+														<Button type="submit" size="sm" variant="secondary" label="Log" />
+													</form>
+													<form
+														method="POST"
+														action="?/skipContactPeriod"
+														use:enhance={quickLogEnhance}
+													>
+														<input type="hidden" name="contact_id" value={d.contact_id} />
+														{#if d.household_id}
+															<input type="hidden" name="household_id" value={d.household_id} />
+														{/if}
+														<Button type="submit" size="sm" variant="outline" label="Skip" />
+													</form>
+												</div>
 											{/if}
-											<Button type="submit" size="sm" variant="secondary" label="Log" />
-										</form>
-										<form method="POST" action="?/skipContactPeriod" use:enhance={quickLogEnhance}>
-											<input type="hidden" name="contact_id" value={d.contact_id} />
-											{#if d.household_id}
-												<input type="hidden" name="household_id" value={d.household_id} />
-											{/if}
-											<Button type="submit" size="sm" variant="outline" label="Skip" />
-										</form>
-									</div>
-								{/if}
-							</li>
+										</li>
+									{/each}
+								</ul>
+							</section>
 						{/each}
-					</ul>
+					</div>
 				{/if}
 				{/if}
 			</details>

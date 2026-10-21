@@ -12,10 +12,15 @@ import {
 	householdNameFromContact,
 	parseFrequency
 } from '$lib/contacts/names';
-import { CONTACT_FREQUENCY_LABELS } from '$lib/types/contacts';
+import {
+	CONTACT_FREQUENCY_LABELS,
+	type ContactDueRow,
+	type ContactFrequency
+} from '$lib/types/contacts';
 import {
 	computePaceSummary,
 	dueFanoutContactIds,
+	groupContactsDueByFrequency,
 	householdEligibleForCardList,
 	isContactCurrentForPeriod,
 	isContactDueForPeriod,
@@ -452,6 +457,36 @@ describe('dueFanoutContactIds (couple Log/Skip contract)', () => {
 		expect(
 			dueFanoutContactIds({ contact_id: 'bob', household_id: null }, members)
 		).toEqual(['bob']);
+	});
+});
+
+describe('groupContactsDueByFrequency', () => {
+	function dueRow(id: string, frequency: ContactFrequency): ContactDueRow {
+		return {
+			id,
+			display_name: id,
+			contact_id: id,
+			household_id: null,
+			household_name: null,
+			frequency,
+			period_key: 'q:2026-Q4',
+			period_end: '2026-12-31',
+			last_touched_on: null,
+			days_overdue: null,
+			days_left: 71,
+			effective_cadence_days: 0
+		};
+	}
+
+	it('puts quarterly above semester above annual and keeps row order', () => {
+		const groups = groupContactsDueByFrequency([
+			dueRow('ann', 'annual'),
+			dueRow('q1', 'quarterly'),
+			dueRow('sem', 'semiannual'),
+			dueRow('q2', 'quarterly')
+		]);
+		expect(groups.map((g) => g.label)).toEqual(['Quarterly', 'Semester', 'Annual']);
+		expect(groups.map((g) => g.rows.map((r) => r.id))).toEqual([['q1', 'q2'], ['sem'], ['ann']]);
 	});
 });
 

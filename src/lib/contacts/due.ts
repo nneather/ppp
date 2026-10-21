@@ -13,12 +13,13 @@ import {
 	touchFulfillsPeriod,
 	type PeriodWindow
 } from '$lib/contacts/period';
-import type {
-	ContactDueRow,
-	ContactFrequency,
-	ContactsPaceSummary,
-	GivingGrade,
-	RelationshipGrade
+import {
+	CONTACT_FREQUENCY_SHORT_LABELS,
+	type ContactDueRow,
+	type ContactFrequency,
+	type ContactsPaceSummary,
+	type GivingGrade,
+	type RelationshipGrade
 } from '$lib/types/contacts';
 
 export type ContactDueCandidate = {
@@ -199,8 +200,43 @@ export function selectContactsDue(
 	});
 
 	if (opts.limit == null) return out;
-	const limit = Math.min(Math.max(opts.limit, 1), 100);
+	const limit = Math.min(Math.max(opts.limit, 1), 500);
 	return out.slice(0, limit);
+}
+
+/** Most frequent first. Due rows are Q/S/A; common and none stay last if they appear. */
+const DUE_FREQUENCY_ORDER: readonly ContactFrequency[] = [
+	'quarterly',
+	'semiannual',
+	'annual',
+	'common',
+	'none'
+];
+
+export type DueFrequencyGroup = {
+	frequency: ContactFrequency;
+	label: string;
+	rows: ContactDueRow[];
+};
+
+/**
+ * Bucket an already-sorted due list by frequency.
+ * Order inside a bucket stays the caller’s order (oldest last meet first).
+ */
+export function groupContactsDueByFrequency(
+	rows: readonly ContactDueRow[]
+): DueFrequencyGroup[] {
+	const buckets = new Map<ContactFrequency, ContactDueRow[]>();
+	for (const row of rows) {
+		const list = buckets.get(row.frequency);
+		if (list) list.push(row);
+		else buckets.set(row.frequency, [row]);
+	}
+	return DUE_FREQUENCY_ORDER.filter((frequency) => buckets.has(frequency)).map((frequency) => ({
+		frequency,
+		label: CONTACT_FREQUENCY_SHORT_LABELS[frequency],
+		rows: buckets.get(frequency) ?? []
+	}));
 }
 
 export type DueFanoutMember = {

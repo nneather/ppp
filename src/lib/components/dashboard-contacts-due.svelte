@@ -3,11 +3,9 @@
 	import { invalidate } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Button } from '$lib/components/ui/button';
+	import { groupContactsDueByFrequency } from '$lib/contacts/due';
 	import { formatYmdMediumChicago } from '$lib/invoicing/chicago-date';
-	import {
-		CONTACT_FREQUENCY_LABELS,
-		type ContactDueRow
-	} from '$lib/types/contacts';
+	import type { ContactDueRow } from '$lib/types/contacts';
 	import { cn } from '$lib/utils';
 
 	let {
@@ -28,6 +26,7 @@
 	const overdueCount = $derived(
 		contacts.filter((c) => c.days_overdue != null && c.days_overdue > 0).length
 	);
+	const groups = $derived(groupContactsDueByFrequency(contacts));
 
 	const dueEnhance: SubmitFunction = () => {
 		return async ({ result, update }) => {
@@ -77,56 +76,64 @@
 			</a>
 		</p>
 	{:else}
-		<ul class="divide-y divide-border">
-			{#each contacts as c (c.id)}
-				<li class="py-2 first:pt-0 last:pb-0">
+		<div class="space-y-4">
+			{#each groups as group (group.frequency)}
+				<section aria-label={group.label}>
 					<p
-						class={cn(
-							'text-xs font-medium tracking-wide uppercase',
-							c.days_overdue != null && c.days_overdue > 0
-								? 'text-destructive'
-								: 'text-muted-foreground'
-						)}
+						class="mb-1 flex items-baseline justify-between gap-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
 					>
-						{dueLabel(c)}
-						<span class="ml-1.5 normal-case tracking-normal">
-							· ends {formatYmdMediumChicago(c.period_end)}
-						</span>
+						<span>{group.label}</span>
+						<span class="font-normal tracking-normal tabular-nums">{group.rows.length}</span>
 					</p>
-					<p class="mt-0.5 text-sm font-medium text-foreground">{c.display_name}</p>
-					<p class="mt-0.5 text-xs text-muted-foreground">
-						{CONTACT_FREQUENCY_LABELS[c.frequency]}
-						{#if c.household_name && c.household_name !== c.display_name}
-							<span aria-hidden="true"> · </span>
-							{c.household_name}
-						{/if}
-					</p>
-					<div class="mt-1.5 flex flex-wrap gap-1.5">
-						<form
-							method="POST"
-							action="/contacts?/logContactQuick"
-							use:enhance={dueEnhance}
-						>
-							<input type="hidden" name="contact_id" value={c.contact_id} />
-							{#if c.household_id}
-								<input type="hidden" name="household_id" value={c.household_id} />
-							{/if}
-							<Button type="submit" size="sm" variant="secondary" label="Log Contact" />
-						</form>
-						<form
-							method="POST"
-							action="/contacts?/skipContactPeriod"
-							use:enhance={dueEnhance}
-						>
-							<input type="hidden" name="contact_id" value={c.contact_id} />
-							{#if c.household_id}
-								<input type="hidden" name="household_id" value={c.household_id} />
-							{/if}
-							<Button type="submit" size="sm" variant="outline" label="Skip" />
-						</form>
-					</div>
-				</li>
+					<ul class="divide-y divide-border">
+						{#each group.rows as c (c.id)}
+							<li class="py-2 first:pt-0 last:pb-0">
+								<p
+									class={cn(
+										'text-xs font-medium tracking-wide uppercase',
+										c.days_overdue != null && c.days_overdue > 0
+											? 'text-destructive'
+											: 'text-muted-foreground'
+									)}
+								>
+									{dueLabel(c)}
+									<span class="ml-1.5 normal-case tracking-normal">
+										· ends {formatYmdMediumChicago(c.period_end)}
+									</span>
+								</p>
+								<p class="mt-0.5 text-sm font-medium text-foreground">{c.display_name}</p>
+								{#if c.household_name && c.household_name !== c.display_name}
+									<p class="mt-0.5 text-xs text-muted-foreground">{c.household_name}</p>
+								{/if}
+								<div class="mt-1.5 flex flex-wrap gap-1.5">
+									<form
+										method="POST"
+										action="/contacts?/logContactQuick"
+										use:enhance={dueEnhance}
+									>
+										<input type="hidden" name="contact_id" value={c.contact_id} />
+										{#if c.household_id}
+											<input type="hidden" name="household_id" value={c.household_id} />
+										{/if}
+										<Button type="submit" size="sm" variant="secondary" label="Log Contact" />
+									</form>
+									<form
+										method="POST"
+										action="/contacts?/skipContactPeriod"
+										use:enhance={dueEnhance}
+									>
+										<input type="hidden" name="contact_id" value={c.contact_id} />
+										{#if c.household_id}
+											<input type="hidden" name="household_id" value={c.household_id} />
+										{/if}
+										<Button type="submit" size="sm" variant="outline" label="Skip" />
+									</form>
+								</div>
+							</li>
+						{/each}
+					</ul>
+				</section>
 			{/each}
-		</ul>
+		</div>
 	{/if}
 </section>

@@ -91,7 +91,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 
 	const dueRes = await loadContactsDue(supabase, {
 		todayYmd,
-		limit: 100
+		limit: 500
 	});
 	const historyRes = await loadPeriodHistory(supabase, { todayYmd });
 
