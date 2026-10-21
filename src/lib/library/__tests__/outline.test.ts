@@ -315,6 +315,34 @@ describe('groupSystematicHits', () => {
 		expect(blocks[0]!.pointers[0]!.verseLabel).toBe('7:1');
 		expect(blocks[0]!.pointers[0]!.pageStart).toBe('100');
 		expect(blocks[0]!.pointers[1]!.display).toBe('II:620 (XV.17 Full Assurance)');
+		expect(blocks[0]!.pointerCount).toBe(2);
+		expect(blocks[0]!.deferred).toBe(false);
+	});
+
+	it('omits pointers but keeps the span and count when the passage is large', () => {
+		const blocks = groupSystematicHits(
+			[
+				systematicHit({
+					refId: 'a',
+					bookId: 'tur',
+					seriesId: 'ser',
+					seriesName: 'Turretin',
+					verseStart: 1
+				}),
+				systematicHit({
+					refId: 'b',
+					bookId: 'tur',
+					seriesId: 'ser',
+					seriesName: 'Turretin',
+					verseStart: 29
+				})
+			],
+			{ omitPointers: true }
+		);
+		expect(blocks[0]!.pointers).toEqual([]);
+		expect(blocks[0]!.pointerCount).toBe(2);
+		expect(blocks[0]!.deferred).toBe(true);
+		expect(blocks[0]!.verseSpan).toBe('7:1–29');
 	});
 });
 

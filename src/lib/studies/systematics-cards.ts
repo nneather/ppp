@@ -23,6 +23,10 @@ export type SystematicCardModel = {
 	meta: string | null;
 	span: string | null;
 	rows: SystematicPassageHit[];
+	hitCount: number;
+	deferred: boolean;
+	seriesId: string | null;
+	bookId: string | null;
 };
 
 function toHit(
@@ -49,7 +53,24 @@ function setCards(
 	dismissed: ReadonlySet<string>,
 	showDismissed: boolean
 ): SystematicCardModel[] {
-	return blocks.flatMap((block) => {
+	return blocks.flatMap((block): SystematicCardModel[] => {
+		const total = block.pointerCount ?? block.pointers.length;
+		if (block.deferred) {
+			if (total === 0) return [];
+			return [
+				{
+					key: block.seriesId ?? block.bookId ?? block.seriesName,
+					title: block.seriesName,
+					meta: block.authorLabel,
+					span: block.verseSpan,
+					rows: [],
+					hitCount: total,
+					deferred: true,
+					seriesId: block.seriesId,
+					bookId: block.bookId ?? null
+				}
+			];
+		}
 		const pointers = visibleSystematicRefs(block.pointers, dismissed, showDismissed);
 		if (pointers.length === 0) return [];
 		return [
@@ -60,7 +81,11 @@ function setCards(
 				span: formatSystematicVerseSpan(pointers),
 				rows: pointers.map((pointer) =>
 					toHit(pointer, pointer.verseLabel, null, null, dismissed)
-				)
+				),
+				hitCount: pointers.length,
+				deferred: false,
+				seriesId: block.seriesId,
+				bookId: block.bookId ?? null
 			}
 		];
 	});
@@ -80,7 +105,11 @@ function verseCards(
 				title: group.verseLabel,
 				meta: null,
 				span: null,
-				rows: visible.map((row) => toHit(row, null, row.seriesName, row.authorLabel, dismissed))
+				rows: visible.map((row) => toHit(row, null, row.seriesName, row.authorLabel, dismissed)),
+				hitCount: visible.length,
+				deferred: false,
+				seriesId: null,
+				bookId: null
 			}
 		];
 	});
@@ -101,7 +130,8 @@ export function dismissedSystematicCount(
 	dismissed: ReadonlySet<string>
 ): number {
 	return blocks.reduce(
-		(count, block) => count + block.pointers.filter((pointer) => dismissed.has(pointer.refId)).length,
+		(count, block) =>
+			count + block.pointers.filter((pointer) => dismissed.has(pointer.refId)).length,
 		0
 	);
 }

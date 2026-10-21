@@ -52,13 +52,10 @@
 		srcQ,
 		bookHits,
 		essayHits,
-		suggestions,
-		importSets,
-		importCreateSections = [],
-		importPapers,
 		sectionCandidateCount = 0,
 		footnotePages = {},
-		systematics = [],
+		systematics,
+		systematicsQuery = null,
 		invalidateKey,
 		form
 	}: {
@@ -73,13 +70,16 @@
 		srcQ: string;
 		bookHits: BookListRow[];
 		essayHits: EssaySearchHit[];
-		suggestions: SetSuggestion[];
-		importSets: ImportSetSection[];
-		importCreateSections?: { id: string; name: string; setKind: 'language' | 'custom' }[];
-		importPapers: { id: string; title: string; passageDisplay: string | null }[];
 		sectionCandidateCount?: number;
 		footnotePages?: Record<string, string>;
-		systematics?: SystematicSetBlock[];
+		systematics: Promise<SystematicSetBlock[]>;
+		systematicsQuery?: {
+			bibleBook: string;
+			chapter: number | null;
+			verse: number | null;
+			chapterEnd: number | null;
+			verseEnd: number | null;
+		} | null;
 		invalidateKey: string;
 		form: FormShape | null;
 	} = $props();
@@ -91,6 +91,27 @@
 	);
 
 	let importOpen = $state(false);
+	let importMeta = $state<{
+		suggestions: SetSuggestion[];
+		importSets: ImportSetSection[];
+		importCreateSections: { id: string; name: string; setKind: 'language' | 'custom' }[];
+		importPapers: { id: string; title: string; passageDisplay: string | null }[];
+	} | null>(null);
+	let importMetaLoading = $state(false);
+
+	$effect(() => {
+		if (!importOpen || importMeta) return;
+		importMetaLoading = true;
+		const params = new URLSearchParams({ parent_kind: parentKind, parent_id: parentId });
+		void fetch(`/studies/import-meta.json?${params}`)
+			.then(async (res) => {
+				if (!res.ok) return;
+				importMeta = (await res.json()) as NonNullable<typeof importMeta>;
+			})
+			.finally(() => {
+				importMetaLoading = false;
+			});
+	});
 	let includeCandidates = $state(false);
 	let sectionByGroup = $state(false);
 	let removedSourceIds = $state<string[]>([]);
@@ -439,22 +460,32 @@
 	<p class="mt-4 text-sm text-destructive" role="alert">{actionError}</p>
 {/if}
 
-{#if systematics.length > 0}
+{#if systematicsQuery}
 	<section class="mt-8">
-		<h2 class="text-sm font-semibold">Systematic theologies</h2>
-		<p class="mt-0.5 text-xs text-muted-foreground">
-			Index hits for this passage, with the verse each one covers. Attach a volume to add it as a source.
-		</p>
-		<div class="mt-3">
-			<SystematicsOnPassage
-				blocks={systematics}
-				{parentField}
-				{parentId}
-				attachedBookIds={sourceRows
-					.filter((s) => s.kind === 'book')
-					.map((s) => s.citation.id)}
-			/>
-		</div>
+		{#await systematics}
+			<h2 class="text-sm font-semibold">Systematic theologies</h2>
+			<p class="mt-2 text-sm text-muted-foreground">Loading index hits…</p>
+		{:then blocks}
+			{#if blocks.length > 0}
+				<h2 class="text-sm font-semibold">Systematic theologies</h2>
+				<p class="mt-0.5 text-xs text-muted-foreground">
+					Index hits for this passage, with the verse each one covers. Attach a volume to add it as a source.
+				</p>
+				<div class="mt-3">
+					<SystematicsOnPassage
+						{blocks}
+						passage={systematicsQuery}
+						{parentField}
+						{parentId}
+						attachedBookIds={sourceRows
+							.filter((s) => s.kind === 'book')
+							.map((s) => s.citation.id)}
+					/>
+				</div>
+			{/if}
+		{:catch}
+			<p class="text-sm text-destructive">Could not load systematic theologies.</p>
+		{/await}
 	</section>
 {/if}
 
@@ -741,11 +772,12 @@
 		{parentField}
 		{passageDisplay}
 		{isOwner}
-		{suggestions}
-		{importSets}
-		{importCreateSections}
-		{importPapers}
+		suggestions={importMeta?.suggestions ?? []}
+		importSets={importMeta?.importSets ?? []}
+		importCreateSections={importMeta?.importCreateSections ?? []}
+		importPapers={importMeta?.importPapers ?? []}
 		{sectionCandidateCount}
+		metaLoading={importMetaLoading && !importMeta}
 		onImported={onImported}
 	/>
 

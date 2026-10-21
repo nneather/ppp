@@ -12,21 +12,27 @@
 		meta = null,
 		span = null,
 		rows,
+		hitCount = rows.length,
+		loading = false,
 		parentField = null,
 		parentId = null,
 		attachedBookIds = [],
 		onDismiss,
-		onRestore
+		onRestore,
+		onOpen
 	}: {
 		title: string;
 		meta?: string | null;
 		span?: string | null;
 		rows: SystematicPassageHit[];
+		hitCount?: number;
+		loading?: boolean;
 		parentField?: 'paper_id' | 'sermon_id' | null;
 		parentId?: string | null;
 		attachedBookIds?: string[];
 		onDismiss?: (refId: string) => void;
 		onRestore?: (refId: string) => void;
+		onOpen?: () => void;
 	} = $props();
 
 	const attached = $derived(new Set(attachedBookIds));
@@ -42,7 +48,13 @@
 	</a>
 {/snippet}
 
-<details class="group rounded-lg border border-border bg-card">
+<details
+	class="group rounded-lg border border-border bg-card"
+	ontoggle={(event) => {
+		const el = event.currentTarget as HTMLDetailsElement;
+		if (el.open) onOpen?.();
+	}}
+>
 	<summary
 		class="flex cursor-pointer list-none items-start gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden"
 	>
@@ -64,10 +76,13 @@
 			{#if span}
 				<span class="block font-medium text-foreground">{span}</span>
 			{/if}
-			<span>{rows.length} {rows.length === 1 ? 'hit' : 'hits'}</span>
+			<span>{hitCount} {hitCount === 1 ? 'hit' : 'hits'}</span>
 		</span>
 	</summary>
 	<ul class="divide-y divide-border/70 border-t border-border">
+		{#if loading && rows.length === 0}
+			<li class="px-4 py-3 text-sm text-muted-foreground">Loading index hits…</li>
+		{/if}
 		{#each rows as row (row.key)}
 			<li class={cn('flex items-start gap-3 px-4 py-3', row.dismissed && 'bg-muted/40')}>
 				<div class="min-w-0 flex-1 text-sm sm:text-xs">

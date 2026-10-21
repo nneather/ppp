@@ -204,13 +204,10 @@
 		srcQ={data.srcQ}
 		bookHits={data.bookHits}
 		essayHits={data.essayHits}
-		suggestions={data.suggestions}
-		importSets={data.importSets}
-		importCreateSections={data.importCreateSections}
-		importPapers={data.importPapers}
 		sectionCandidateCount={data.sectionCandidateCount}
 		footnotePages={data.footnotePages}
 		systematics={data.systematics}
+		systematicsQuery={data.systematicsQuery}
 		invalidateKey={paperKey}
 		form={f}
 	/>

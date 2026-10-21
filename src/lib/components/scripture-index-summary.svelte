@@ -24,7 +24,6 @@
 		counts,
 		countsLoading = false,
 		setVolumeCount = 1,
-		images = [],
 		open = $bindable(false),
 		addOpen = $bindable(false),
 		scope = $bindable<'volume' | 'set'>('volume'),
@@ -39,7 +38,6 @@
 		countsLoading?: boolean;
 		/** Live volumes in the series (1 = no Whole set toggle). */
 		setVolumeCount?: number;
-		images?: ScriptureImageThumb[];
 		open?: boolean;
 		addOpen?: boolean;
 		scope?: ScriptureIndexScope;
@@ -50,6 +48,9 @@
 	} = $props();
 
 	let recordedImagesOpen = $state(false);
+	let recordedImages = $state<ScriptureImageThumb[]>([]);
+	let recordedImagesChecked = $state(false);
+	let recordedImagesLoading = $state(false);
 	let inlineRows = $state<ScriptureIndexRefRow[]>([]);
 	let inlineLoading = $state(false);
 	let inlineToken = 0;
@@ -66,6 +67,37 @@
 	const tallies = $derived(aggregateScriptureCounts(counts, new Set(scopeIds)));
 	const useInline = $derived(shouldUseInlineList(tallies.total));
 	const showSetToggle = $derived(setVolumeCount >= 2);
+
+	$effect(() => {
+		bookId;
+		recordedImages = [];
+		recordedImagesChecked = false;
+		recordedImagesOpen = false;
+	});
+
+	$effect(() => {
+		if (!browser || !recordedImagesOpen || recordedImagesChecked || recordedImagesLoading) return;
+		recordedImagesLoading = true;
+		const id = bookId;
+		void fetch(`/library/books/${id}/scripture-images.json`)
+			.then(async (res) => {
+				if (!res.ok) return [] as ScriptureImageThumb[];
+				const body = (await res.json()) as { images?: ScriptureImageThumb[] };
+				return body.images ?? [];
+			})
+			.then((images) => {
+				if (id !== bookId) return;
+				recordedImages = images;
+				recordedImagesChecked = true;
+				if (images.length === 0) recordedImagesOpen = false;
+			})
+			.catch(() => {
+				recordedImagesChecked = true;
+			})
+			.finally(() => {
+				recordedImagesLoading = false;
+			});
+	});
 
 	// Group inline rows by bible book for the small-book list.
 	const inlineGroups = $derived.by(() => {
@@ -314,7 +346,7 @@
 			</div>
 		{/if}
 
-		{#if open && images.length > 0}
+		{#if open && (!recordedImagesChecked || recordedImages.length > 0)}
 			<details
 				class="mt-4 rounded-lg border border-border/60 bg-muted/20"
 				bind:open={recordedImagesOpen}
@@ -323,7 +355,11 @@
 					class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden"
 				>
 					<Image class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-					See recorded images ({images.length})
+					{recordedImagesLoading
+						? 'Recorded images…'
+						: recordedImages.length > 0
+							? `See recorded images (${recordedImages.length})`
+							: 'Recorded images'}
 					<ChevronDown
 						class={cn(
 							'ml-auto size-4 shrink-0 text-muted-foreground transition-transform duration-200',
@@ -333,7 +369,7 @@
 					/>
 				</summary>
 				<div class="flex flex-wrap gap-2 border-t border-border/40 p-3">
-					{#each images as img (img.source_image_url)}
+					{#each recordedImages as img (img.source_image_url)}
 						<a
 							href={img.source_image_signed_url}
 							target="_blank"

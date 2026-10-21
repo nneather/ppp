@@ -30,9 +30,32 @@ describe('titleSortKey', () => {
 		);
 	});
 
-	it('keeps the displayed title unchanged at call sites (key only)', () => {
-		expect(titleSortKey('The Odyssey')).toBe('odyssey');
-		expect(titleSortKey('Der Römerbrief')).toBe('römerbrief');
+	it('matches library_title_sort_key (leading articles, then lower)', () => {
+		// Keep in lockstep with public.library_title_sort_key in
+		// supabase/migrations/*_books_title_sort_key.sql.
+		function libraryTitleSortKeySql(title: string | null): string {
+			return (title ?? '')
+				.trim()
+				.replace(
+					/^((the|a|an|der|die|das|den|dem|des|ein|eine|einer|eines|einem|einen)\s+)+/i,
+					''
+				)
+				.toLowerCase();
+		}
+		const titles = [
+			null,
+			'',
+			'The Odyssey',
+			'A Greek Grammar',
+			'An Introduction to the New Testament',
+			'Der Römerbrief',
+			'The A Book',
+			'  Die Kirche  ',
+			'BDAG'
+		];
+		for (const title of titles) {
+			expect(titleSortKey(title)).toBe(libraryTitleSortKeySql(title));
+		}
 	});
 });
 

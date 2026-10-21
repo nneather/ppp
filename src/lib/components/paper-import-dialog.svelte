@@ -48,6 +48,7 @@
 		importCreateSections = [],
 		importPapers = [],
 		sectionCandidateCount = 0,
+		metaLoading = false,
 		isOwner = false,
 		onImported
 	}: {
@@ -61,6 +62,7 @@
 		importCreateSections?: CreateSection[];
 		importPapers?: PaperOption[];
 		sectionCandidateCount?: number;
+		metaLoading?: boolean;
 		isOwner?: boolean;
 		onImported?: () => void | Promise<void>;
 	} = $props();
@@ -492,6 +494,9 @@
 				</div>
 			{:else}
 				<div class="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+					{#if metaLoading}
+						<p class="px-2 pb-3 text-sm text-muted-foreground">Loading sources…</p>
+					{/if}
 					{#if sectionCandidateCount > 0 || suggestions.length > 0}
 						<h3 class="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 							Suggested
@@ -588,7 +593,9 @@
 
 					{@render sectionHeader('__prior__', 'Prior papers', importPapers.length)}
 					{#if sectionOpen('__prior__')}
-						{#if importPapers.length === 0}
+						{#if metaLoading}
+							<p class="mt-1 px-2 text-sm text-muted-foreground">Loading papers…</p>
+						{:else if importPapers.length === 0}
 							<p class="mt-1 px-2 text-sm text-muted-foreground">No other active papers.</p>
 						{:else}
 							<ul class="mt-1">

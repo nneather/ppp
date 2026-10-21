@@ -32,6 +32,7 @@
 	import { STUDY_USAGE_LABELS } from '$lib/studies/source-usage';
 	import {
 		LIBRARY_ANCIENT_TEXTS_JSON,
+		LIBRARY_PEOPLE_JSON,
 		LIBRARY_TOPIC_COUNTS_JSON
 	} from '$lib/library/vocab-cache-paths';
 	import {
@@ -67,10 +68,7 @@
 		type ScriptureCountRow,
 		type ScriptureIndexScope
 	} from '$lib/library/scripture-index';
-	import type {
-		ScriptureImageThumb,
-		ScriptureIndexRefRow
-	} from '$lib/library/server/scripture-index-loaders';
+	import type { ScriptureIndexRefRow } from '$lib/library/server/scripture-index-loaders';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import BookEssaysEditor from '$lib/components/book-essays-editor.svelte';
 	import BookRatingScale from '$lib/components/book-rating-scale.svelte';
@@ -95,9 +93,53 @@
 	let bookActionsSheetOpen = $state(false);
 	let personEditOpen = $state(false);
 	let personEditTarget = $state<PersonRow | null>(null);
+	let catalogPeople = $state<PersonRow[]>([]);
+	let catalogCounts = $state<Record<string, number>>({});
+	let catalogPeopleLoaded = $state(false);
+	let catalogCountsLoaded = $state(false);
+	let catalogFlight: Promise<void> | null = null;
 
-	function openPersonEdit(personId: string) {
-		const p = data.people.find((x) => x.id === personId) ?? null;
+	function authorAsPerson(personId: string): PersonRow | null {
+		const author = data.book.authors.find((a) => a.person_id === personId);
+		if (!author) return null;
+		return {
+			id: author.person_id,
+			first_name: author.first_name ?? null,
+			middle_name: author.middle_name ?? null,
+			last_name: author.last_name ?? '',
+			suffix: author.suffix ?? null,
+			aliases: []
+		};
+	}
+
+	function ensureCatalogPeople(withCounts: boolean): Promise<void> {
+		if (catalogPeopleLoaded && (!withCounts || catalogCountsLoaded)) return Promise.resolve();
+		if (catalogFlight) {
+			return catalogFlight.then(() => ensureCatalogPeople(withCounts));
+		}
+		const wantCounts = withCounts && !catalogCountsLoaded;
+		catalogFlight = (async () => {
+			const res = await fetch(wantCounts ? `${LIBRARY_PEOPLE_JSON}?counts=1` : LIBRARY_PEOPLE_JSON);
+			if (!res.ok) return;
+			const body = (await res.json()) as {
+				people?: PersonRow[];
+				personBookCounts?: Record<string, number>;
+			};
+			catalogPeople = body.people ?? [];
+			catalogPeopleLoaded = true;
+			if (body.personBookCounts) {
+				catalogCounts = body.personBookCounts;
+				catalogCountsLoaded = true;
+			}
+		})().finally(() => {
+			catalogFlight = null;
+		});
+		return catalogFlight;
+	}
+
+	async function openPersonEdit(personId: string) {
+		await ensureCatalogPeople(false);
+		const p = catalogPeople.find((x) => x.id === personId) ?? authorAsPerson(personId);
 		if (!p) return;
 		personEditTarget = p;
 		personEditOpen = true;
@@ -424,6 +466,11 @@
 		});
 	});
 
+	$effect(() => {
+		if (!browser || !showEssaysSection) return;
+		void ensureCatalogPeople(true);
+	});
+
 	const essayFormMessage = $derived.by(() => {
 		const f = form as {
 			kind?: string;
@@ -748,7 +795,6 @@
 
 	let scriptureCounts = $state<ScriptureCountRow[]>([]);
 	let scriptureCountsLoading = $state(true);
-	let scriptureImages = $state<ScriptureImageThumb[]>([]);
 	let scriptureScope = $state<ScriptureIndexScope>('volume');
 	let refsOpen = $state(false);
 	let refsOpenSeededForBookId: string | null = null;
@@ -765,16 +811,6 @@
 			})
 			.finally(() => {
 				scriptureCountsLoading = false;
-			});
-	});
-
-	$effect(() => {
-		void data.scriptureImagesPromise
-			.then((imgs) => {
-				scriptureImages = imgs;
-			})
-			.catch(() => {
-				scriptureImages = [];
 			});
 	});
 
@@ -1536,7 +1572,7 @@
 		<PersonEditDialog
 			bind:open={personEditOpen}
 			person={personEditTarget}
-			people={data.people}
+			people={catalogPeople}
 			actionPath="?/updatePerson"
 			onSaved={onPersonEdited}
 		/>
@@ -1837,8 +1873,8 @@
 		<BookEssaysEditor
 			{essays}
 			volumeCitation={citationInput}
-			people={data.people}
-			personBookCounts={data.personBookCounts}
+			people={catalogPeople}
+			personBookCounts={catalogCounts}
 			parentBookId={data.book.id}
 			isOwner={data.isOwner}
 			formMessage={essayFormMessage}
@@ -2109,7 +2145,6 @@
 		counts={scriptureCounts}
 		countsLoading={scriptureCountsLoading}
 		setVolumeCount={setVolumeBooks.length}
-		images={scriptureImages}
 		bind:open={refsOpen}
 		bind:addOpen
 		bind:scope={scriptureScope}

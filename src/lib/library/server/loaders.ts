@@ -561,7 +561,10 @@ function applyBookListFilters(
 	return q;
 }
 
-function mapBookListRowsFromDenorm(data: unknown[]): BookListRow[] {
+function mapBookListRowsFromDenorm(
+	data: unknown[],
+	opts?: { sort?: boolean }
+): BookListRow[] {
 	const rows = (data ?? []).map((raw) => {
 		const r = raw as {
 			id: string;
@@ -605,9 +608,11 @@ function mapBookListRowsFromDenorm(data: unknown[]): BookListRow[] {
 			)
 		} satisfies BookListRow;
 	});
-	rows.sort((a, b) =>
-		titleSortKey(a.title, a.language).localeCompare(titleSortKey(b.title, b.language))
-	);
+	if (opts?.sort !== false) {
+		rows.sort((a, b) =>
+			titleSortKey(a.title, a.language).localeCompare(titleSortKey(b.title, b.language))
+		);
+	}
 	return rows;
 }
 
@@ -801,24 +806,50 @@ export async function loadBookListFiltered(
 		return { books, filteredCount: books.length };
 	}
 
-	// Article-stripped order cannot be expressed in PostgREST `.order('title')`.
-	// Fetch the filtered set, sort with `titleSortKey`, then page. Fine under ~10k.
+	// Article-stripped order is `books.title_sort_key` (see library_title_sort_key).
 	const limit = opts.limit ?? 50;
 	const offset = opts.offset ?? 0;
-	const data = await paginateAll<unknown>(([from, to]) => {
-		let query = supabase.from('books').select(BOOK_LIST_SELECT);
-		query = applyBookListFilters(query, filters, ctx);
-		return query.range(from, to);
-	}, 'loadBookListFiltered:page');
-	const sorted = mapBookListRowsFromDenorm(data);
-	const filteredCount = sorted.length;
-	const books = sorted.slice(offset, offset + limit);
-	return { books, filteredCount };
+	let query = supabase.from('books').select(BOOK_LIST_SELECT, { count: 'exact' });
+	query = applyBookListFilters(query, filters, ctx);
+	const { data, error, count } = await query
+		.order('title_sort_key', { ascending: true })
+		.order('id', { ascending: true })
+		.range(offset, offset + limit - 1);
+	if (error) {
+		console.error('[loadBookListFiltered:page]', error);
+		return { books: [], filteredCount: 0 };
+	}
+	return {
+		books: mapBookListRowsFromDenorm(data ?? [], { sort: false }),
+		filteredCount: count ?? 0
+	};
 }
 
 // ---------------------------------------------------------------------------
 // Essays (Wave 2 Session 2)
 // ---------------------------------------------------------------------------
+
+type AuthorPeopleEmbed = RawPerson & { deleted_at?: string | null };
+
+type AuthorJunctionEmbed = {
+	person_id: string;
+	role: string;
+	sort_order: number;
+	people?: AuthorPeopleEmbed | AuthorPeopleEmbed[] | null;
+};
+
+function assignmentFromEmbeddedAuthor(a: AuthorJunctionEmbed): BookAuthorAssignment {
+	const embedded = asArrayOrSingle(a.people)[0] ?? null;
+	const person =
+		embedded && !embedded.deleted_at ? personRowFromRaw(embedded) : null;
+	const map = new Map<string, PersonRow>();
+	if (person) map.set(person.id, person);
+	return bookAuthorAssignmentFromJunction(a, map);
+}
+
+const AUTHOR_PEOPLE_EMBED = `
+	people ( id, first_name, last_name, middle_name, suffix, aliases, deleted_at )
+`;
 
 type RawEssayRow = {
 	id: string;
@@ -826,16 +857,13 @@ type RawEssayRow = {
 	page_start: string | null;
 	page_end: string | null;
 	created_at: string;
-	essay_authors:
-		| { person_id: string; role: string; sort_order: number }[]
-		| null;
+	essay_authors: AuthorJunctionEmbed[] | null;
 };
 
 /** Live essays for a parent book, with hydrated article-level authors. */
 export async function loadEssaysForBook(
 	supabase: SupabaseClient,
-	bookId: string,
-	people: PersonRow[]
+	bookId: string
 ): Promise<EssayRow[]> {
 	const { data, error } = await supabase
 		.from('essays')
@@ -846,7 +874,7 @@ export async function loadEssaysForBook(
 			page_start,
 			page_end,
 			created_at,
-			essay_authors ( person_id, role, sort_order )
+			essay_authors ( person_id, role, sort_order, ${AUTHOR_PEOPLE_EMBED} )
 		`
 		)
 		.eq('parent_book_id', bookId)
@@ -859,14 +887,13 @@ export async function loadEssaysForBook(
 		return [];
 	}
 
-	const peopleMap = new Map(people.map((p) => [p.id, p]));
 	return (data ?? [])
 		.map((raw) => {
 			const r = raw as unknown as RawEssayRow;
 			const authors: BookAuthorAssignment[] = (r.essay_authors ?? [])
 				.slice()
 				.sort((a, b) => a.sort_order - b.sort_order)
-				.map((a) => bookAuthorAssignmentFromJunction(a, peopleMap));
+				.map((a) => assignmentFromEmbeddedAuthor(a));
 			return {
 				id: r.id,
 				essay_title: r.essay_title,
@@ -1186,20 +1213,10 @@ type RawBookDetail = {
 		include_in_citation?: boolean | null;
 	} | null;
 	publishers: RawPublisherRow | RawPublisherRow[] | null;
-	book_authors:
-		| { person_id: string; role: string; sort_order: number }[]
-		| null;
+	book_authors: AuthorJunctionEmbed[] | null;
 };
 
-export async function loadBookDetail(
-	supabase: SupabaseClient,
-	id: string,
-	people: PersonRow[]
-): Promise<BookDetail | null> {
-	const { data, error } = await supabase
-		.from('books')
-		.select(
-			`
+const BOOK_DETAIL_SELECT = `
 			id,
 			title,
 			subtitle,
@@ -1238,25 +1255,17 @@ export async function loadBookDetail(
 			updated_at,
 			${PUBLISHER_EMBED},
 			series ( id, name, abbreviation, include_in_citation ),
-			book_authors ( person_id, role, sort_order )
-		`
-		)
-		.eq('id', id)
-		.maybeSingle();
+			book_authors ( person_id, role, sort_order, ${AUTHOR_PEOPLE_EMBED} )
+`;
 
-	if (error) {
-		console.error(error);
-		return null;
-	}
-	if (!data) return null;
+function mapBookDetailRow(data: unknown): BookDetail | null {
 	const r = data as unknown as RawBookDetail;
 	if (r.deleted_at) return null;
 
-	const peopleMap = new Map(people.map((p) => [p.id, p]));
 	const authors: BookAuthorAssignment[] = (r.book_authors ?? [])
 		.slice()
 		.sort((a, b) => a.sort_order - b.sort_order)
-		.map((a) => bookAuthorAssignmentFromJunction(a, peopleMap));
+		.map((a) => assignmentFromEmbeddedAuthor(a));
 
 	const pubFields = mapPublisherCitationFields(
 		r.publisher ?? null,
@@ -1311,6 +1320,47 @@ export async function loadBookDetail(
 		created_at: r.created_at,
 		updated_at: r.updated_at
 	};
+}
+
+export async function loadBookDetail(
+	supabase: SupabaseClient,
+	id: string
+): Promise<BookDetail | null> {
+	const { data, error } = await supabase
+		.from('books')
+		.select(BOOK_DETAIL_SELECT)
+		.eq('id', id)
+		.maybeSingle();
+
+	if (error) {
+		console.error(error);
+		return null;
+	}
+	if (!data) return null;
+	return mapBookDetailRow(data);
+}
+
+/** One query per 200 ids. Author names come from the `book_authors → people` embed. */
+export async function loadBooksByIds(
+	supabase: SupabaseClient,
+	ids: string[]
+): Promise<BookDetail[]> {
+	const unique = [...new Set(ids.filter((id) => id.length > 0))];
+	if (unique.length === 0) return [];
+	const out: BookDetail[] = [];
+	for (let i = 0; i < unique.length; i += 200) {
+		const slice = unique.slice(i, i + 200);
+		const { data, error } = await supabase.from('books').select(BOOK_DETAIL_SELECT).in('id', slice);
+		if (error) {
+			console.error('[loadBooksByIds]', error);
+			continue;
+		}
+		for (const raw of data ?? []) {
+			const mapped = mapBookDetailRow(raw);
+			if (mapped) out.push(mapped);
+		}
+	}
+	return out;
 }
 
 const SERIES_SIBLING_CAP = 20;
@@ -2373,17 +2423,10 @@ export async function loadAllTopicCounts(supabase: SupabaseClient): Promise<Topi
 /** Hydrate citation inputs for bibliography builder (`/library/bibliography?ids=…`). */
 export async function loadBookCitationInputs(
 	supabase: SupabaseClient,
-	ids: string[],
-	people: PersonRow[]
+	ids: string[]
 ): Promise<BookCitationInput[]> {
-	const unique = [...new Set(ids.filter((id) => id.length > 0))];
-	if (unique.length === 0) return [];
-	const details = await Promise.all(
-		unique.map((id) => loadBookDetail(supabase, id, people))
-	);
-	return details
-		.filter((d): d is BookDetail => d != null)
-		.map((d) => bookDetailToCitationInput(d));
+	const details = await loadBooksByIds(supabase, ids);
+	return details.map((d) => bookDetailToCitationInput(d));
 }
 
 /** Count needs_review rows in a slice (for dashboard burndown denominators). */

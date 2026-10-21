@@ -6,14 +6,8 @@ import {
 	SYSTEMATIC_THEOLOGY_GENRE
 } from '$lib/library/passage-search-bands';
 import { loadPassageSectionsOverlapping } from '$lib/library/server/loaders';
-import {
-	loadOutlinesForBooks
-} from '$lib/library/server/systematics-loaders';
-import {
-	groupSystematicHits,
-	resolveOutlineForPointer,
-	type SystematicSetBlock
-} from '$lib/library/outline';
+import { systematicBlocksFromRpcRows } from '$lib/library/server/systematics-loaders';
+import type { SystematicSetBlock } from '$lib/library/outline';
 import { titleSortKey } from '$lib/library/title-sort';
 
 function parseIntOrNull(v: string | null): number | null {
@@ -134,7 +128,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const returnTo = parseReturnTo(url.searchParams.get('returnTo'));
 
 	let results: PassageResult[] = [];
-	let systematicsBlocks: SystematicSetBlock[] = [];
+	let systematicsPromise: Promise<SystematicSetBlock[]> = Promise.resolve([]);
 	let queryError: string | null = null;
 
 	if (bible_book) {
@@ -181,90 +175,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			(r) => !(r.book_id && r.book_genre === SYSTEMATIC_THEOLOGY_GENRE)
 		);
 
-		const systematicBookIds = [
-			...new Set(systematicRpc.map((r) => r.book_id!).filter(Boolean))
-		];
-		const outlinesByBook = await loadOutlinesForBooks(supabase, systematicBookIds);
-
-		const authorRes =
-			systematicBookIds.length > 0
-				? await supabase
-						.from('books')
-						.select('id, author_display')
-						.in('id', systematicBookIds)
-						.is('deleted_at', null)
-				: { data: [] as { id: string; author_display: string | null }[], error: null };
-		if (authorRes.error) {
-			console.error('[search-passage] systematic authors', authorRes.error);
-		}
-		const authorByBook = new Map<string, string | null>();
-		for (const b of (authorRes.data ?? []) as {
-			id: string;
-			author_display: string | null;
-		}[]) {
-			authorByBook.set(b.id, b.author_display);
-		}
-
-		const systematicRows: PassageResult[] = systematicRpc.map((r) => {
-			const outlines = r.book_id ? (outlinesByBook.get(r.book_id) ?? []) : [];
-			const outline = resolveOutlineForPointer(outlines, r.page_start, r.page_end);
-			return asResult({
-				source_kind: 'systematic' as const,
-				ref_id: r.ref_id,
-				book_id: r.book_id,
-				essay_id: r.essay_id,
-				book_title: r.book_title,
-				book_subtitle: r.book_subtitle,
-				outline_locator: outline?.locator ?? null,
-				outline_label: outline?.label ?? null,
-				book_genre: r.book_genre,
-				book_volume_number: r.book_volume_number,
-				series_id: r.series_id,
-				series_name: r.series_name,
-				bible_book: r.bible_book,
-				chapter_start: r.chapter_start,
-				verse_start: r.verse_start,
-				chapter_end: r.chapter_end,
-				verse_end: r.verse_end,
-				page_start: r.page_start,
-				page_end: r.page_end,
-				confidence_score: r.confidence_score,
-				needs_review: r.needs_review,
-				review_note: r.review_note,
-				manual_entry: r.manual_entry
-			});
-		});
-
-		systematicsBlocks = groupSystematicHits(
-			systematicRows
-				.filter((r) => r.book_id)
-				.map((r) => ({
-					refId: r.ref_id,
-					bookId: r.book_id!,
-					bookTitle: r.book_title,
-					volumeNumber: r.book_volume_number,
-					seriesId: r.series_id,
-					seriesName: r.series_name,
-					authorLabel: authorByBook.get(r.book_id!) ?? null,
-					bibleBook: r.bible_book,
-					chapterStart: r.chapter_start,
-					verseStart: r.verse_start,
-					chapterEnd: r.chapter_end,
-					verseEnd: r.verse_end,
-					pageStart: r.page_start,
-					pageEnd: r.page_end,
-					outline:
-						r.outline_label || r.outline_locator
-							? {
-									id: '',
-									locator: r.outline_locator,
-									label: r.outline_label ?? '',
-									page_start: 0,
-									page_end: 0
-								}
-							: null
-				}))
-		);
+		systematicsPromise = systematicBlocksFromRpcRows(supabase, systematicRpc, {}, bible_book);
 
 		const indexRows: PassageResult[] = indexRpc.map((r) =>
 			asResult({
@@ -392,10 +303,34 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			)
 			.sort((a, b) => titleSortKey(a.book_title).localeCompare(titleSortKey(b.book_title)));
 
+		const systematicStub: PassageResult[] =
+			systematicRpc.length > 0
+				? [
+						asResult({
+							source_kind: 'systematic',
+							ref_id: 'systematic-pending',
+							book_id: null,
+							essay_id: null,
+							book_title: null,
+							book_subtitle: null,
+							bible_book,
+							chapter_start: null,
+							verse_start: null,
+							chapter_end: null,
+							verse_end: null,
+							page_start: null,
+							page_end: null,
+							confidence_score: null,
+							needs_review: false,
+							review_note: null
+						})
+					]
+				: [];
+
 		results = [
 			...commentaryRows,
 			...sectionRows,
-			...systematicRows,
+			...systematicStub,
 			...coverageRows,
 			...indexRows
 		];
@@ -404,7 +339,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	return {
 		allBibleBookNames,
 		results,
-		systematicsBlocks,
+		systematicsPromise,
 		query: { bible_book, chapter, verse, chapter_end, verse_end },
 		returnTo,
 		queryError

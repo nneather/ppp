@@ -667,6 +667,7 @@ export type Database = {
           shelving_location: string | null
           subtitle: string | null
           title: string | null
+          title_sort_key: string | null
           total_volumes: number | null
           updated_at: string
           volume_number: string | null
@@ -712,6 +713,7 @@ export type Database = {
           shelving_location?: string | null
           subtitle?: string | null
           title?: string | null
+          title_sort_key?: string | null
           total_volumes?: number | null
           updated_at?: string
           volume_number?: string | null
@@ -757,6 +759,7 @@ export type Database = {
           shelving_location?: string | null
           subtitle?: string | null
           title?: string | null
+          title_sort_key?: string | null
           total_volumes?: number | null
           updated_at?: string
           volume_number?: string | null
@@ -3340,6 +3343,7 @@ export type Database = {
           n: number
         }[]
       }
+      library_title_sort_key: { Args: { p_title: string }; Returns: string }
       normalize_publisher_text: { Args: { raw: string }; Returns: string }
       search_scripture_refs: {
         Args: {

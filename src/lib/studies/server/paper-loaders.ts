@@ -1,8 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import {
-	loadBookDetail,
-	loadPeople
-} from '$lib/library/server/loaders';
+import { loadBooksByIds } from '$lib/library/server/loaders';
 import { bookDetailToCitationInput } from '$lib/library/turabian';
 import type { BookAuthorAssignment, BookDetail, PersonRow } from '$lib/types/library';
 import {
@@ -44,7 +41,31 @@ type PaperSourceDb = {
 	created_at: string;
 };
 
-type EssayAuthorDb = { person_id: string; role: string; sort_order: number };
+type EssayAuthorDb = {
+	person_id: string;
+	role: string;
+	sort_order: number;
+	people?:
+		| {
+				id: string;
+				first_name: string | null;
+				middle_name: string | null;
+				last_name: string;
+				suffix: string | null;
+				aliases: string[] | null;
+				deleted_at?: string | null;
+		  }
+		| {
+				id: string;
+				first_name: string | null;
+				middle_name: string | null;
+				last_name: string;
+				suffix: string | null;
+				aliases: string[] | null;
+				deleted_at?: string | null;
+		  }[]
+		| null;
+};
 
 type EssayDb = {
 	id: string;
@@ -65,11 +86,21 @@ function personLongLabel(p: PersonRow): string {
 		.join(' ');
 }
 
-function assignmentFromJunction(
-	a: EssayAuthorDb,
-	peopleMap: Map<string, PersonRow>
-): BookAuthorAssignment {
-	const p = peopleMap.get(a.person_id);
+function personFromEssayAuthor(a: EssayAuthorDb): PersonRow | null {
+	const raw = Array.isArray(a.people) ? a.people[0] : a.people;
+	if (!raw || raw.deleted_at) return null;
+	return {
+		id: raw.id,
+		first_name: raw.first_name,
+		middle_name: raw.middle_name,
+		last_name: raw.last_name,
+		suffix: raw.suffix,
+		aliases: raw.aliases ?? []
+	};
+}
+
+function assignmentFromJunction(a: EssayAuthorDb): BookAuthorAssignment {
+	const p = personFromEssayAuthor(a);
 	return {
 		person_id: a.person_id,
 		person_label: p ? personLongLabel(p) : 'Unknown',
@@ -266,10 +297,9 @@ export type { OrphanPaperSource };
 
 /**
  * Sources with citation-ready inputs, in attach order. Book citation data
- * rides `loadBookDetail` per book (parallel; papers hold tens of sources —
- * documented round-trip exception, see decision 189). Sources whose catalog
- * row was soft-deleted come back as `orphans` so the UI can show and remove
- * them (they still hold the live partial unique / list counts).
+ * is one `books` query for every attached book (and essay parent). Essay
+ * author names come from the `essay_authors → people` embed.
+ * Sources whose catalog row was soft-deleted come back as `orphans`.
  */
 export async function loadStudySourceViews(
 	supabase: SupabaseClient,
@@ -277,7 +307,6 @@ export async function loadStudySourceViews(
 ): Promise<{
 	sources: PaperSourceView[];
 	orphans: OrphanPaperSource[];
-	people: PersonRow[];
 	error: string | null;
 }> {
 	let sourcesQuery = supabase
@@ -289,11 +318,11 @@ export async function loadStudySourceViews(
 		parent.kind === 'paper'
 			? sourcesQuery.eq('paper_id', parent.id)
 			: sourcesQuery.eq('sermon_id', parent.id);
-	const [sourcesRes, people] = await Promise.all([sourcesQuery, loadPeople(supabase)]);
+	const sourcesRes = await sourcesQuery;
 
 	if (sourcesRes.error) {
 		console.error('[papers] loadPaperSourceViews', sourcesRes.error);
-		return { sources: [], orphans: [], people, error: sourcesRes.error.message };
+		return { sources: [], orphans: [], error: sourcesRes.error.message };
 	}
 
 	const rows = (sourcesRes.data ?? []) as PaperSourceDb[];
@@ -303,21 +332,21 @@ export async function loadStudySourceViews(
 		? await supabase
 				.from('essays')
 				.select(
-					'id, essay_title, page_start, page_end, parent_book_id, essay_authors ( person_id, role, sort_order )'
+					`id, essay_title, page_start, page_end, parent_book_id,
+					essay_authors ( person_id, role, sort_order, people ( id, first_name, middle_name, last_name, suffix, aliases, deleted_at ) )`
 				)
 				.in('id', essayIds)
 				.is('deleted_at', null)
 		: { data: [] as unknown[], error: null };
 	if (essaysRes.error) console.error('[papers] source essays', essaysRes.error);
 
-	const peopleMap = new Map(people.map((p) => [p.id, p]));
 	const essayById = new Map<string, { db: EssayDb; authors: BookAuthorAssignment[] }>();
 	for (const raw of (essaysRes.data ?? []) as unknown[]) {
 		const e = raw as EssayDb;
 		const authors = (e.essay_authors ?? [])
 			.slice()
 			.sort((a, b) => a.sort_order - b.sort_order)
-			.map((a) => assignmentFromJunction(a, peopleMap));
+			.map((a) => assignmentFromJunction(a));
 		essayById.set(e.id, { db: e, authors });
 	}
 
@@ -325,18 +354,14 @@ export async function loadStudySourceViews(
 	for (const r of rows) {
 		if (r.book_id) bookIds.add(r.book_id);
 		if (r.essay_id) {
-			const parent = essayById.get(r.essay_id)?.db.parent_book_id;
-			if (parent) bookIds.add(parent);
+			const parentBook = essayById.get(r.essay_id)?.db.parent_book_id;
+			if (parentBook) bookIds.add(parentBook);
 		}
 	}
 
-	const details = await Promise.all(
-		[...bookIds].map((id) => loadBookDetail(supabase, id, people))
-	);
+	const details = await loadBooksByIds(supabase, [...bookIds]);
 	const detailById = new Map<string, BookDetail>();
-	for (const d of details) {
-		if (d) detailById.set(d.id, d);
-	}
+	for (const d of details) detailById.set(d.id, d);
 
 	const sources: PaperSourceView[] = [];
 	const orphans: OrphanPaperSource[] = [];
@@ -392,7 +417,7 @@ export async function loadStudySourceViews(
 		}
 	}
 
-	return { sources, orphans, people, error: null };
+	return { sources, orphans, error: null };
 }
 
 export async function loadPaperSourceViews(
@@ -401,7 +426,6 @@ export async function loadPaperSourceViews(
 ): Promise<{
 	sources: PaperSourceView[];
 	orphans: OrphanPaperSource[];
-	people: PersonRow[];
 	error: string | null;
 }> {
 	return loadStudySourceViews(supabase, { kind: 'paper', id: paperId });

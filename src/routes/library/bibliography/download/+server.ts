@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { loadBookCitationInputs, loadPeople } from '$lib/library/server/loaders';
+import { loadBookCitationInputs } from '$lib/library/server/loaders';
 import { buildBibliographyDocx } from '$lib/library/server/bibliography-docx';
 import { formatBibliographyEntries } from '$lib/library/turabian';
 
@@ -17,8 +17,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		error(400, 'No books selected');
 	}
 
-	const people = await loadPeople(locals.supabase);
-	const books = await loadBookCitationInputs(locals.supabase, ids, people);
+	const books = await loadBookCitationInputs(locals.supabase, ids);
 	const entries = formatBibliographyEntries(books);
 	if (entries.length === 0) {
 		error(400, 'No citable books in selection');

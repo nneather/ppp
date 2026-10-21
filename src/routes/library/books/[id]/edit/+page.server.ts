@@ -32,9 +32,9 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	const { series } = await parent();
 
 	const bibleBooks = await loadBibleBookList(supabase);
-	const people = await loadPeople(supabase);
-	const [book, personBookCounts, publishers] = await Promise.all([
-		loadBookDetail(supabase, id, people),
+	const [people, book, personBookCounts, publishers] = await Promise.all([
+		loadPeople(supabase),
+		loadBookDetail(supabase, id),
 		loadPersonBookCounts(supabase),
 		loadPublishers(supabase)
 	]);

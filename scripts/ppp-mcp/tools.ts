@@ -16,8 +16,7 @@ import {
 } from '../../src/lib/contacts/server/loaders.ts';
 import {
 	loadBookCitationInputs,
-	loadBookListFiltered,
-	loadPeople
+	loadBookListFiltered
 } from '../../src/lib/library/server/loaders.ts';
 import { formatBibliography, formatFootnote } from '../../src/lib/library/turabian/format.ts';
 import {
@@ -334,8 +333,7 @@ export async function getBookCitation(
 	if (!bookId) {
 		return jsonText({ error: 'book_id is required' });
 	}
-	const people = await loadPeople(supabase);
-	const [input] = await loadBookCitationInputs(supabase, [bookId], people);
+	const [input] = await loadBookCitationInputs(supabase, [bookId]);
 	if (!input) {
 		return jsonText({ error: `Book not found: ${bookId}` });
 	}
@@ -481,7 +479,7 @@ export async function listSystematicsForPassage(
 		verse: args.verse ?? null,
 		chapterEnd: args.chapter_end ?? null,
 		verseEnd: args.verse_end ?? null
-	});
+	}, { full: true });
 	return jsonText({
 		bible_book: resolved,
 		chapter: args.chapter ?? null,
@@ -489,7 +487,7 @@ export async function listSystematicsForPassage(
 		chapter_end: args.chapter_end ?? null,
 		verse_end: args.verse_end ?? null,
 		set_count: blocks.length,
-		pointer_count: blocks.reduce((n, b) => n + b.pointers.length, 0),
+		pointer_count: blocks.reduce((n, b) => n + b.pointerCount, 0),
 		sets: blocks.map((b) => ({
 			series_id: b.seriesId,
 			series_name: b.seriesName,

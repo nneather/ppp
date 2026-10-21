@@ -6,14 +6,11 @@ import {
 	loadBookDetail,
 	loadBookTopicsForBook,
 	loadEssaysForBook,
-	loadPeople,
-	loadPersonBookCounts,
 	loadPassageSectionsForBook,
 	loadSeriesSiblingBooks,
 	loadAlsoByAuthorBooks
 } from '$lib/library/server/loaders';
 import {
-	loadScriptureImagesForBook,
 	loadScriptureIndexCounts
 } from '$lib/library/server/scripture-index-loaders';
 import { primaryAuthorPersonIds } from '$lib/library/book-detail-related';
@@ -87,51 +84,31 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 	const supabase = locals.supabase;
 	const { series, bibleBookNames, allBibleBookNames } = await parent();
 
-	const [people, profileRow] = await Promise.all([
-		loadPeople(supabase),
+	const [book, profileRow] = await Promise.all([
+		loadBookDetail(supabase, id),
 		supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
 	]);
-
-	const book = await loadBookDetail(supabase, id, people);
 
 	if (!book) error(404, 'Book not found.');
 
 	const isOwner =
 		((profileRow.data as { role?: string | null } | null)?.role ?? null) === 'owner';
 
-	const essaysEligible =
-		book.work_type === 'reference_work' ||
-		book.work_type === 'edited_volume' ||
-		(book.work_type === 'monograph' && book.genre === 'Commentary' && book.series_id != null);
-
-	// PersonAutocomplete on essays needs live book counts; skip the round-trip
-	// on monographs. Commentary parts still load essays (the section mounts
-	// once rows exist) and reuse the people list already on the page.
-	const personBookCounts = essaysEligible
-		? Object.fromEntries(await loadPersonBookCounts(supabase))
-		: ({} as Record<string, number>);
-
 	const alsoByPersonIds = primaryAuthorPersonIds(book.authors);
+	const setVolumeBooksPromise = book.series_id
+		? loadSetVolumeBooks(supabase, book.series_id)
+		: Promise.resolve([]);
 
 	return {
 		book,
-		people,
-		personBookCounts,
 		series,
 		bibleBookNames,
 		allBibleBookNames,
-		setVolumeBooksPromise: book.series_id
-			? loadSetVolumeBooks(supabase, book.series_id)
-			: Promise.resolve([]),
-		scriptureCountsPromise: (async () => {
-			const volumes = book.series_id
-				? await loadSetVolumeBooks(supabase, book.series_id)
-				: [];
-			const ids =
-				volumes.length > 0 ? volumes.map((v) => v.bookId) : [id];
+		setVolumeBooksPromise,
+		scriptureCountsPromise: setVolumeBooksPromise.then((volumes) => {
+			const ids = volumes.length > 0 ? volumes.map((v) => v.bookId) : [id];
 			return loadScriptureIndexCounts(supabase, ids);
-		})(),
-		scriptureImagesPromise: loadScriptureImagesForBook(supabase, id),
+		}),
 		passageSectionsPromise: loadPassageSectionsForBook(supabase, id),
 		outlineSectionsPromise: loadOutlineSectionsForBook(supabase, id),
 		outlineBookSpansPromise: loadOutlineBookSpans(supabase, id, book.series_id),
@@ -142,9 +119,12 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		bookTopicsPromise: loadBookTopicsForBook(supabase, id),
 		bibleCoveragePromise: loadBibleCoverageForBook(supabase, id),
 		ancientCoveragePromise: loadAncientCoverageForBook(supabase, id),
-		essaysPromise: essaysEligible
-			? loadEssaysForBook(supabase, id, people)
-			: Promise.resolve([]),
+		essaysPromise:
+			book.work_type === 'reference_work' ||
+			book.work_type === 'edited_volume' ||
+			(book.work_type === 'monograph' && book.genre === 'Commentary' && book.series_id != null)
+				? loadEssaysForBook(supabase, id)
+				: Promise.resolve([]),
 		studyUsePromise: loadBookStudyUse(supabase, id)
 	};
 };

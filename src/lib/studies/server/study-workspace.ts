@@ -28,6 +28,7 @@ import {
 } from '$lib/studies/server/paper-loaders';
 import { loadSystematicsForPassage } from '$lib/library/server/systematics-loaders';
 import type { SystematicSetBlock } from '$lib/library/outline';
+import type { SystematicsPassageQuery } from '$lib/library/server/systematics-loaders';
 
 const SOURCE_SEARCH_LIMIT = 8;
 
@@ -38,73 +39,45 @@ export type StudyWorkspace = {
 	srcQ: string;
 	bookHits: BookListRow[];
 	essayHits: EssaySearchHit[];
-	suggestions: SetSuggestion[];
-	importSets: ImportSetSection[];
-	importCreateSections: { id: string; name: string; setKind: 'language' | 'custom' }[];
 	setNames: { id: string; name: string }[];
-	importPapers: { id: string; title: string; passageDisplay: string | null }[];
 	/** Overlapping passage-section books offered on import (commentary coverage omitted). */
 	sectionCandidateCount: number;
 	/** Book id → tightest overlapping section pages, for the footnote box. */
 	footnotePages: Record<string, string>;
+	/** Passage the streamed systematics promise was loaded for. Null when topical. */
+	systematicsQuery: SystematicsPassageQuery | null;
 	/** Systematic theology index hits for the study's primary passage ([252]). */
-	systematics: SystematicSetBlock[];
+	systematics: Promise<SystematicSetBlock[]>;
 	loadError: string | null;
 };
 
-export async function loadStudyWorkspace(
+export type StudyImportMeta = {
+	suggestions: SetSuggestion[];
+	importSets: ImportSetSection[];
+	importCreateSections: { id: string; name: string; setKind: 'language' | 'custom' }[];
+	importPapers: { id: string; title: string; passageDisplay: string | null }[];
+};
+
+/** Import dialog payload. Kept off sermon and paper navigation. */
+export async function loadStudyImportMeta(
 	supabase: SupabaseClient,
 	parent: StudyParent,
-	study: { topical: boolean; passageDisplay: string | null; topic: string | null },
-	_importParam: string | null,
-	srcQ: string
-): Promise<StudyWorkspace> {
-	const [sourcesRes, groupsRes, setRes, createSectionsRes, otherPapersRes, passageRows] =
-		await Promise.all([
-			loadStudySourceViews(supabase, parent),
-			loadStudyGroups(supabase, parent),
-			loadResourceSetSummaries(supabase),
-			loadImportCreateSections(supabase),
-			supabase
-				.from('papers')
-				.select('id, title, passage_display')
-				.is('deleted_at', null)
-				.neq('status', 'archived')
-				.order('created_at', { ascending: false }),
-			loadPrimaryStudyPassages(supabase, parent)
-		]);
-
+	study: { topical: boolean; passageDisplay: string | null; topic: string | null }
+): Promise<StudyImportMeta> {
+	const [setRes, createSectionsRes, otherPapersRes] = await Promise.all([
+		loadResourceSetSummaries(supabase),
+		loadImportCreateSections(supabase),
+		supabase
+			.from('papers')
+			.select('id, title, passage_display')
+			.is('deleted_at', null)
+			.neq('status', 'archived')
+			.order('created_at', { ascending: false })
+	]);
+	if (setRes.error) console.error('[studies] import sets', setRes.error);
+	if (createSectionsRes.error) console.error('[studies] import sections', createSectionsRes.error);
 	if (otherPapersRes.error) console.error('[studies] import papers', otherPapersRes.error);
 
-	let bookHits: BookListRow[] = [];
-	let essayHits: EssaySearchHit[] = [];
-	if (srcQ) {
-		const [booksRes, essays] = await Promise.all([
-			loadBookListFiltered(
-				supabase,
-				sourcesRes.people,
-				{ q: srcQ, includeUnowned: true },
-				{ limit: SOURCE_SEARCH_LIMIT }
-			),
-			loadEssaySearchHits(supabase, srcQ, {
-				limit: SOURCE_SEARCH_LIMIT,
-				includeUnowned: true
-			})
-		]);
-		bookHits = booksRes.books;
-		essayHits = essays;
-	}
-
-	const setSummaries = setRes.sets;
-	const suggestions = suggestResourceSets(
-		{
-			topical: study.topical,
-			passageDisplay: study.passageDisplay,
-			topic: study.topic
-		},
-		setSummaries
-	);
-	const importSets = groupImportSetSections(setSummaries);
 	const importPapers = ((otherPapersRes.data ?? []) as {
 		id: string;
 		title: string;
@@ -117,25 +90,80 @@ export async function loadStudyWorkspace(
 			passageDisplay: paper.passage_display
 		}));
 
+	return {
+		suggestions: suggestResourceSets(
+			{
+				topical: study.topical,
+				passageDisplay: study.passageDisplay,
+				topic: study.topic
+			},
+			setRes.sets
+		),
+		importSets: groupImportSetSections(setRes.sets),
+		importCreateSections: createSectionsRes.sections,
+		importPapers
+	};
+}
+
+export async function loadStudyWorkspace(
+	supabase: SupabaseClient,
+	parent: StudyParent,
+	study: { topical: boolean; passageDisplay: string | null; topic: string | null },
+	_importParam: string | null,
+	srcQ: string
+): Promise<StudyWorkspace> {
+	const [sourcesRes, groupsRes, setNamesRes, passageRows] = await Promise.all([
+		loadStudySourceViews(supabase, parent),
+		loadStudyGroups(supabase, parent),
+		supabase
+			.from('resource_sets')
+			.select('id, name')
+			.is('deleted_at', null)
+			.order('name', { ascending: true }),
+		loadPrimaryStudyPassages(supabase, parent)
+	]);
+
+	if (setNamesRes.error) console.error('[studies] set names', setNamesRes.error);
+
+	let bookHits: BookListRow[] = [];
+	let essayHits: EssaySearchHit[] = [];
+	if (srcQ) {
+		const [booksRes, essays] = await Promise.all([
+			loadBookListFiltered(
+				supabase,
+				[],
+				{ q: srcQ, includeUnowned: true },
+				{ limit: SOURCE_SEARCH_LIMIT }
+			),
+			loadEssaySearchHits(supabase, srcQ, {
+				limit: SOURCE_SEARCH_LIMIT,
+				includeUnowned: true
+			})
+		]);
+		bookHits = booksRes.books;
+		essayHits = essays;
+	}
+
 	const ranges = studyPassageRanges(study.passageDisplay, passageRows);
 	const primaryRange = ranges[0] ?? null;
-	const [sectionOverlap, systematics] = await Promise.all([
-		loadOverlappingPassageSections(supabase, ranges),
-		primaryRange
-			? loadSystematicsForPassage(supabase, {
-					bibleBook: primaryRange.bibleBook,
-					chapter: primaryRange.chapter,
-					verse: primaryRange.verse,
-					chapterEnd: primaryRange.chapterEnd,
-					verseEnd: primaryRange.verseEnd
-				})
-			: Promise.resolve([] as SystematicSetBlock[])
-	]);
+	const sectionOverlap = await loadOverlappingPassageSections(supabase, ranges);
 	const sectionCandidates = passageSectionImportCandidates(
 		sectionOverlap.sections,
 		sectionOverlap.coverages
 	);
 	const footnotePages = footnotePagesByBook(sectionOverlap.sections);
+	const systematicsQuery: SystematicsPassageQuery | null = primaryRange
+		? {
+				bibleBook: primaryRange.bibleBook,
+				chapter: primaryRange.chapter,
+				verse: primaryRange.verse,
+				chapterEnd: primaryRange.chapterEnd,
+				verseEnd: primaryRange.verseEnd
+			}
+		: null;
+	const systematics = systematicsQuery
+		? loadSystematicsForPassage(supabase, systematicsQuery)
+		: Promise.resolve([] as SystematicSetBlock[]);
 
 	return {
 		sources: sourcesRes.sources,
@@ -144,15 +172,14 @@ export async function loadStudyWorkspace(
 		srcQ,
 		bookHits,
 		essayHits,
-		suggestions,
-		importSets,
-		importCreateSections: createSectionsRes.sections,
-		setNames: setSummaries.map((set) => ({ id: set.id, name: set.name })),
-		importPapers,
+		setNames: ((setNamesRes.data ?? []) as { id: string; name: string }[]).map((set) => ({
+			id: set.id,
+			name: set.name
+		})),
 		sectionCandidateCount: sectionCandidates.length,
 		footnotePages,
+		systematicsQuery,
 		systematics,
-		loadError:
-			sourcesRes.error ?? groupsRes.error ?? setRes.error ?? createSectionsRes.error
+		loadError: sourcesRes.error ?? groupsRes.error
 	};
 }

@@ -262,6 +262,12 @@ export type SystematicSetBlock = {
 	/** Tight span of every pointer in the set, e.g. `7:1–29`. */
 	verseSpan: string;
 	pointers: SystematicPointer[];
+	/** Hit count. Equals `pointers.length` when every pointer was sent. */
+	pointerCount: number;
+	/** Pointers were omitted because the passage has too many hits. */
+	deferred?: boolean;
+	/** Lone book (no series) so a deferred card can refetch one volume. */
+	bookId?: string | null;
 };
 
 /** One index hit flattened for the by-verse view, with its set name. */
@@ -451,7 +457,10 @@ export function formatSystematicPointerDisplay(input: {
  * Group systematic-theology index hits by series (or lone book title).
  * Pointers inside a set read down the passage, then by volume and page.
  */
-export function groupSystematicHits(hits: SystematicHitInput[]): SystematicSetBlock[] {
+export function groupSystematicHits(
+	hits: SystematicHitInput[],
+	opts?: { omitPointers?: boolean }
+): SystematicSetBlock[] {
 	const byKey = new Map<string, SystematicHitInput[]>();
 	for (const h of hits) {
 		const key = h.seriesId ?? `book:${h.bookId}`;
@@ -483,7 +492,10 @@ export function groupSystematicHits(hits: SystematicHitInput[]): SystematicSetBl
 			seriesName,
 			authorLabel: first.authorLabel,
 			verseSpan: formatSystematicVerseSpan(pointers),
-			pointers
+			pointers: opts?.omitPointers ? [] : pointers,
+			pointerCount: pointers.length,
+			deferred: opts?.omitPointers === true,
+			bookId: first.seriesId ? null : first.bookId
 		});
 	}
 

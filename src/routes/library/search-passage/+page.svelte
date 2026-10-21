@@ -262,14 +262,35 @@
 					<h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 						{band.label}
 						<span class="ml-1 font-normal tabular-nums">
-							({band.band === 'systematic'
-								? data.systematicsBlocks.reduce((n, b) => n + b.pointers.length, 0)
-								: band.rows.length})
+							{#if band.band === 'systematic'}
+								{#await data.systematicsPromise}
+									…
+								{:then blocks}
+									({blocks.reduce((n, b) => n + b.pointerCount, 0)})
+								{/await}
+							{:else}
+								({band.rows.length})
+							{/if}
 						</span>
 					</h3>
 					{#if band.band === 'systematic'}
 						<div class="mt-2">
-							<SystematicsOnPassage blocks={data.systematicsBlocks} />
+							{#await data.systematicsPromise}
+								<p class="text-sm text-muted-foreground">Loading systematic theologies…</p>
+							{:then blocks}
+								<SystematicsOnPassage
+									{blocks}
+									passage={{
+										bibleBook: data.query.bible_book ?? '',
+										chapter: data.query.chapter,
+										verse: data.query.verse,
+										chapterEnd: data.query.chapter_end,
+										verseEnd: data.query.verse_end
+									}}
+								/>
+							{:catch}
+								<p class="text-sm text-destructive">Could not load systematic theologies.</p>
+							{/await}
 						</div>
 					{:else}
 						<ul class="mt-2 flex flex-col gap-3 sm:gap-2">

@@ -49,13 +49,111 @@ type OutlineDbRow = {
 
 const SYSTEMATIC_GENRE = 'Systematic Theology';
 
+/** Above this, sermon and passage search send set summaries and load pointers on expand. */
+export const SYSTEMATICS_INLINE_HIT_LIMIT = 150;
+
+export type SystematicsLoadOptions = {
+	/** Return every pointer even when the passage is over the inline limit. */
+	full?: boolean;
+	seriesId?: string | null;
+	bookId?: string | null;
+};
+
+/**
+ * Turn already-fetched systematic RPC rows into set blocks.
+ * Shared by passage search (which already ran the RPC) and `loadSystematicsForPassage`.
+ */
+export async function systematicBlocksFromRpcRows(
+	supabase: SupabaseClient,
+	rows: RefRpcRow[],
+	opts: SystematicsLoadOptions = {},
+	fallbackBibleBook = ''
+): Promise<SystematicSetBlock[]> {
+	let systematicRows = rows.filter((r) => r.book_id && r.book_genre === SYSTEMATIC_GENRE);
+	if (opts.seriesId) {
+		systematicRows = systematicRows.filter((r) => r.series_id === opts.seriesId);
+	}
+	if (opts.bookId) {
+		systematicRows = systematicRows.filter((r) => r.book_id === opts.bookId);
+	}
+	if (systematicRows.length === 0) return [];
+
+	const narrowed = Boolean(opts.seriesId || opts.bookId);
+	const defer =
+		!opts.full && !narrowed && systematicRows.length > SYSTEMATICS_INLINE_HIT_LIMIT;
+
+	const bookIds = [...new Set(systematicRows.map((r) => r.book_id!))];
+	const authorsRes = await supabase
+		.from('books')
+		.select('id, author_display')
+		.in('id', bookIds)
+		.is('deleted_at', null);
+	if (authorsRes.error) console.error('[systematics] authors', authorsRes.error);
+
+	const authorByBook = new Map<string, string | null>();
+	for (const b of (authorsRes.data ?? []) as { id: string; author_display: string | null }[]) {
+		authorByBook.set(b.id, b.author_display);
+	}
+
+	const outlinesByBook = new Map<string, OutlineSectionInput[]>();
+	if (!defer) {
+		const outlineRes = await supabase
+			.from('book_outline_sections')
+			.select('id, book_id, parent_id, sort_order, locator, label, page_start, page_end')
+			.in('book_id', bookIds)
+			.is('deleted_at', null)
+			.order('sort_order', { ascending: true });
+		if (outlineRes.error) console.error('[systematics] outlines', outlineRes.error);
+		for (const raw of (outlineRes.data ?? []) as OutlineDbRow[]) {
+			const list = outlinesByBook.get(raw.book_id) ?? [];
+			list.push({
+				id: raw.id,
+				book_id: raw.book_id,
+				parent_id: raw.parent_id,
+				sort_order: raw.sort_order,
+				locator: raw.locator,
+				label: raw.label,
+				page_start: raw.page_start,
+				page_end: raw.page_end
+			});
+			outlinesByBook.set(raw.book_id, list);
+		}
+	}
+
+	const hits = systematicRows.map((r) => {
+		const bookId = r.book_id!;
+		const outlines = outlinesByBook.get(bookId) ?? [];
+		const outline = defer ? null : resolveOutlineForPointer(outlines, r.page_start, r.page_end);
+		return {
+			refId: r.ref_id,
+			bookId,
+			bookTitle: r.book_title,
+			volumeNumber: r.book_volume_number,
+			seriesId: r.series_id,
+			seriesName: r.series_name,
+			authorLabel: authorByBook.get(bookId) ?? r.author_display ?? null,
+			bibleBook: r.bible_book?.trim() || fallbackBibleBook,
+			chapterStart: r.chapter_start,
+			verseStart: r.verse_start,
+			chapterEnd: r.chapter_end,
+			verseEnd: r.verse_end,
+			pageStart: r.page_start,
+			pageEnd: r.page_end,
+			outline
+		};
+	});
+
+	return groupSystematicHits(hits, { omitPointers: defer });
+}
+
 /**
  * Load systematic-theology index hits for a passage, join outline labels, and
  * group by set. Shared by /library/search-passage, sermon workspace, and MCP.
  */
 export async function loadSystematicsForPassage(
 	supabase: SupabaseClient,
-	query: SystematicsPassageQuery
+	query: SystematicsPassageQuery,
+	opts: SystematicsLoadOptions = {}
 ): Promise<SystematicSetBlock[]> {
 	const { data, error } = await supabase.rpc('search_scripture_refs', {
 		p_bible_book: query.bibleBook,
@@ -70,79 +168,8 @@ export async function loadSystematicsForPassage(
 		return [];
 	}
 
-	const systematicRows = ((data ?? []) as RefRpcRow[]).filter(
-		(r) => r.book_id && r.book_genre === SYSTEMATIC_GENRE
-	);
-	if (systematicRows.length === 0) return [];
-
-	const bookIds = [...new Set(systematicRows.map((r) => r.book_id!))];
-
-	const [outlineRes, authorsRes] = await Promise.all([
-		supabase
-			.from('book_outline_sections')
-			.select('id, book_id, parent_id, sort_order, locator, label, page_start, page_end')
-			.in('book_id', bookIds)
-			.is('deleted_at', null)
-			.order('sort_order', { ascending: true }),
-		supabase
-			.from('books')
-			.select('id, author_display')
-			.in('id', bookIds)
-			.is('deleted_at', null)
-	]);
-
-	if (outlineRes.error) {
-		console.error('[systematics] outlines', outlineRes.error);
-	}
-	if (authorsRes.error) {
-		console.error('[systematics] authors', authorsRes.error);
-	}
-
-	const outlinesByBook = new Map<string, OutlineSectionInput[]>();
-	for (const raw of (outlineRes.data ?? []) as OutlineDbRow[]) {
-		const list = outlinesByBook.get(raw.book_id) ?? [];
-		list.push({
-			id: raw.id,
-			book_id: raw.book_id,
-			parent_id: raw.parent_id,
-			sort_order: raw.sort_order,
-			locator: raw.locator,
-			label: raw.label,
-			page_start: raw.page_start,
-			page_end: raw.page_end
-		});
-		outlinesByBook.set(raw.book_id, list);
-	}
-
-	const authorByBook = new Map<string, string | null>();
-	for (const b of (authorsRes.data ?? []) as { id: string; author_display: string | null }[]) {
-		authorByBook.set(b.id, b.author_display);
-	}
-
-	const hits = systematicRows.map((r) => {
-		const bookId = r.book_id!;
-		const outlines = outlinesByBook.get(bookId) ?? [];
-		const outline = resolveOutlineForPointer(outlines, r.page_start, r.page_end);
-		return {
-			refId: r.ref_id,
-			bookId,
-			bookTitle: r.book_title,
-			volumeNumber: r.book_volume_number,
-			seriesId: r.series_id,
-			seriesName: r.series_name,
-			authorLabel: authorByBook.get(bookId) ?? null,
-			bibleBook: r.bible_book?.trim() || query.bibleBook,
-			chapterStart: r.chapter_start,
-			verseStart: r.verse_start,
-			chapterEnd: r.chapter_end,
-			verseEnd: r.verse_end,
-			pageStart: r.page_start,
-			pageEnd: r.page_end,
-			outline
-		};
-	});
-
-	return groupSystematicHits(hits);
+	const rows = (data ?? []) as RefRpcRow[];
+	return systematicBlocksFromRpcRows(supabase, rows, opts, query.bibleBook);
 }
 
 /**
