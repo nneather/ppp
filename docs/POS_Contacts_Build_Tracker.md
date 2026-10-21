@@ -260,9 +260,9 @@ Parked from [178](decisions/178-contacts-session-1.md) + [180](decisions/180-con
 - [x] **Mobile `/dashboard`** — Contacts glance tile (count + never-logged hint); opens `/contacts`
 - [x] **After Log Contact** — due strip refreshes (`depends('app:contacts:list')`); contact drops off when still inside cadence
 - [ ] **C2 (optional)** — put a household with only retired members on Christmas cards; settings roster hides it and shows “N retired-only … hidden”; un-retire restores without re-add
-- [ ] **MCP client reload** — restart/`Reload` `ppp` MCP; tools include `list_contacts_due` + `search_contacts` (not stub)
-- [ ] **MCP smoke (manual)** — `list_contacts_due` returns the seeded due row; `search_contacts` with a known name returns card fields (email/phone/household/address when set)
+- [x] **MCP client reload** — restart/`Reload` `ppp` MCP; tools include `list_contacts_due` + `search_contacts` (not stub)
+- [x] **MCP smoke (manual)** — `list_contacts_due` returns the seeded due row; `search_contacts` with a known name returns card fields (email/phone/household/address when set)
 
 **Out of scope for this smoke:** mailing-list send; viewer write path (solo-waivered).
 
-_Last smoked: 2026-07-25 (owner) — UI cleared; MCP still open_
+_Last smoked: 2026-10-21 (owner) — MCP `list_contacts_due` and `search_contacts` confirmed ([291](decisions/291-contacts-mcp-smoke.md)). C2 still open._

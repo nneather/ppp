@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-21 — Library home header keeps the title on one line when the Now rail is open ([290](docs/decisions/290-library-header-wrap.md)).
+**Last updated:** 2026-10-21 — Contacts MCP smoke confirmed: `list_contacts_due` and `search_contacts` ([291](docs/decisions/291-contacts-mcp-smoke.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [291 — Contacts MCP smoke](docs/decisions/291-contacts-mcp-smoke.md) (2026-10-21) — Owner confirmed `list_contacts_due` and `search_contacts` after a client reload. C2 retired-only Christmas-card check stays open.
 - [290 — Library header wrap](docs/decisions/290-library-header-wrap.md) (2026-10-21) — Title and “Showing …” stay readable beside the Now rail. Action buttons wrap instead of squeezing the heading to one letter per line.
 - [289 — Due lists group by frequency](docs/decisions/289-due-group-by-frequency.md) (2026-10-21) — Due this period and the home Due to meet panel list Quarterly, then Semester, then Annual. Inside a group, the longest since a meet stays first.
 - [288 — Hit rate starts January 1, 2027](docs/decisions/288-hit-rate-epoch-2027.md) (2026-10-21) — Catalog-entry dates stay stored. Used-in starts 2027-01-01 for those books. A real earlier date, including a later year backfill, is the window.
 - [287 — Queue: paper and acquired_on](docs/decisions/287-queue-paper-and-acquired-on.md) (2026-10-21) — St. Louis publication edit is done as a queue item; papers get loaded as they happen. Catalog-entry `acquired_on` is enough for the rest of the library.
-- [286 — Library and sermon performance](docs/decisions/286-library-sermon-perf.md) (2026-10-21) — List pages on `title_sort_key`. Sermon and paper loads skip the people table and stream systematics. Over 150 hits, a set is a summary until it opens.
 
 ---
 
@@ -101,17 +101,6 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ## Session prompts (copy-paste) — LIVE only
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks. **Full fences** (avoid chat split): [docs/session-prompts/](docs/session-prompts/).*
-
-### Contacts / CRM — remaining MCP smoke (owner, ~5 min)
-
-```
-Session: contacts — MCP smoke leftover
-Tracker: docs/POS_Contacts_Build_Tracker.md › Owner smoke Session 2 MCP rows
-Do:
- - [ ] Reload ppp MCP client
- - [ ] list_contacts_due returns a due row; search_contacts returns card fields for a known name
- - [ ] Tick MCP rows + Last smoked note on tracker
-```
 
 ### Library — ISBN prefill: Google Books cross-check — from [151](docs/decisions/151-book-metadata-source-strategy.md)
 
@@ -202,7 +191,6 @@ Acceptance:
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
 1. **Calvin shelf photos** — Turretin index is fully imported, including the 51 apocrypha rows ([282](docs/decisions/282-apocrypha-vocab-impl.md)). Next capture is Calvin ([262](docs/decisions/262-calvin-index-capture-rules.md)). Do not start van Mastricht or Bavinck.
-2. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 
 ### Next / parallel
 5b. **Systematics capture** — Calvin Battles shelf photos ([262](docs/decisions/262-calvin-index-capture-rules.md)). After Calvin: van Mastricht, then Bavinck; sources in [267](docs/decisions/267-systematics-index-sources.md) and [docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md).
