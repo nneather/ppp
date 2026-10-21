@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-21 — Due-this-period lists group Quarterly, then Semester, then Annual ([289](docs/decisions/289-due-group-by-frequency.md)).
+**Last updated:** 2026-10-21 — Library home header keeps the title on one line when the Now rail is open ([290](docs/decisions/290-library-header-wrap.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [290 — Library header wrap](docs/decisions/290-library-header-wrap.md) (2026-10-21) — Title and “Showing …” stay readable beside the Now rail. Action buttons wrap instead of squeezing the heading to one letter per line.
 - [289 — Due lists group by frequency](docs/decisions/289-due-group-by-frequency.md) (2026-10-21) — Due this period and the home Due to meet panel list Quarterly, then Semester, then Annual. Inside a group, the longest since a meet stays first.
 - [288 — Hit rate starts January 1, 2027](docs/decisions/288-hit-rate-epoch-2027.md) (2026-10-21) — Catalog-entry dates stay stored. Used-in starts 2027-01-01 for those books. A real earlier date, including a later year backfill, is the window.
 - [287 — Queue: paper and acquired_on](docs/decisions/287-queue-paper-and-acquired-on.md) (2026-10-21) — St. Louis publication edit is done as a queue item; papers get loaded as they happen. Catalog-entry `acquired_on` is enough for the rest of the library.
 - [286 — Library and sermon performance](docs/decisions/286-library-sermon-perf.md) (2026-10-21) — List pages on `title_sort_key`. Sermon and paper loads skip the people table and stream systematics. Over 150 hits, a set is a summary until it opens.
-- [285 — Systematics dismiss](docs/decisions/285-systematics-dismiss.md) (2026-10-20) — Attach and Dismiss sit in a fixed column. Dismissed hits stay hidden per sermon or paper until Show dismissed.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Library and sermon performance [286](docs/decisions/286-library-sermon-perf.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **787/787** (2026-10-21). `title_sort_key` pushed to hosted ppp. Edge functions not redeployed.
+**Repo gate:** Library header wrap [290](docs/decisions/290-library-header-wrap.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **788/788** (2026-10-21). No schema change.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
