@@ -205,7 +205,6 @@ Acceptance:
 2. **Owner — remaining `acquired_on` dates** — ISBN matches from the Amazon order export are applied ([283](docs/decisions/283-amazon-acquired-on.md), 196 rows). Still the catalog-entry date: books with no Amazon ISBN hit, plus two title-only suggestions (Building a Vision for Your Life, Additional Notes on Exodus).
 3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
-5. **~/brain monday-protocol** — update skill field docs for [184](docs/decisions/184-mcp-monday-protocol-finetune.md) payload shapes.
 
 ### Next / parallel
 5b. **Systematics capture** — Calvin Battles shelf photos ([262](docs/decisions/262-calvin-index-capture-rules.md)). After Calvin: van Mastricht, then Bavinck; sources in [267](docs/decisions/267-systematics-index-sources.md) and [docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md).
