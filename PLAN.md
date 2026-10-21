@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-21 — Library list pages in Postgres, and sermon/paper loads no longer wait on the people table or the full systematic index ([286](docs/decisions/286-library-sermon-perf.md)).
+**Last updated:** 2026-10-21 — Catalog-dated books start their Used-in window on 2027-01-01. Earlier years are a later backfill ([288](docs/decisions/288-hit-rate-epoch-2027.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [288 — Hit rate starts January 1, 2027](docs/decisions/288-hit-rate-epoch-2027.md) (2026-10-21) — Catalog-entry dates stay stored. Used-in starts 2027-01-01 for those books. A real earlier date, including a later year backfill, is the window.
+- [287 — Queue: paper and acquired_on](docs/decisions/287-queue-paper-and-acquired-on.md) (2026-10-21) — St. Louis publication edit is done as a queue item; papers get loaded as they happen. Catalog-entry `acquired_on` is enough for the rest of the library.
 - [286 — Library and sermon performance](docs/decisions/286-library-sermon-perf.md) (2026-10-21) — List pages on `title_sort_key`. Sermon and paper loads skip the people table and stream systematics. Over 150 hits, a set is a summary until it opens.
 - [285 — Systematics dismiss](docs/decisions/285-systematics-dismiss.md) (2026-10-20) — Attach and Dismiss sit in a fixed column. Dismissed hits stay hidden per sermon or paper until Show dismissed.
 - [284 — Sermon systematics verse sort](docs/decisions/284-sermon-systematics-verse-sort.md) (2026-10-20) — Verse on each index hit; sets start collapsed; sort by systematic or by verse. Same block on papers and passage search.
-- [283 — Amazon acquired_on](docs/decisions/283-amazon-acquired-on.md) (2026-10-20) — Items CSV matcher. Applied 196 ISBN order dates; title hits left alone. A second dry-run would write 0.
-- [282 — Apocrypha vocab implementation](docs/decisions/282-apocrypha-vocab-impl.md) (2026-10-20) — Testament `AP`, 18 NRSV books at sort 67–84, 66-book spine unchanged. 51 Turretin rows inserted (I 38 / II 9 / III 4). Counts RPC paged past the 1000-row cap.
 
 ---
 
@@ -202,9 +202,7 @@ Acceptance:
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
 1. **Calvin shelf photos** — Turretin index is fully imported, including the 51 apocrypha rows ([282](docs/decisions/282-apocrypha-vocab-impl.md)). Next capture is Calvin ([262](docs/decisions/262-calvin-index-capture-rules.md)). Do not start van Mastricht or Bavinck.
-2. **Owner — remaining `acquired_on` dates** — ISBN matches from the Amazon order export are applied ([283](docs/decisions/283-amazon-acquired-on.md), 196 rows). Still the catalog-entry date: books with no Amazon ISBN hit, plus two title-only suggestions (Building a Vision for Your Life, Additional Notes on Exodus).
-3. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
-4. **Owner — paper for the St. Louis publication edit** — use `/studies/papers` ([189](docs/decisions/189-classwork-papers-session-1.md), [190](docs/decisions/190-classwork-papers-session-2.md)).
+2. **Owner — Contacts MCP smoke leftover** — reload `ppp` after [212](docs/decisions/212-contacts-due-integrity.md); tick tracker MCP rows.
 
 ### Next / parallel
 5b. **Systematics capture** — Calvin Battles shelf photos ([262](docs/decisions/262-calvin-index-capture-rules.md)). After Calvin: van Mastricht, then Bavinck; sources in [267](docs/decisions/267-systematics-index-sources.md) and [docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md).
@@ -223,6 +221,7 @@ Acceptance:
 16. **Classwork — Canvas re-pull** ([216](docs/decisions/216-canvas-classwork-import.md)) — weeks 1–3 as drops/adds and professor due dates settle: `npm run classwork:canvas-import` then `--apply`. Mint a new token if the ~1 mo life lapses.
 
 ### Deferred / someday (pointer only — detail in the cited decision doc)
+- **Hit-rate epoch** — next time Used-in is touched, catalog-default books start 2027-01-01. A hand backfill of an earlier year extends that one book ([288](docs/decisions/288-hit-rate-epoch-2027.md)).
 - **Study attachments** — handwritten sermon/paper scans, audio (links first), `.docx` on `/studies` detail; `study_attachments` + `studies-attachments` bucket, two sessions ([258](docs/decisions/258-study-attachments-parked.md)).
 - **PWA branded icons** ([057](docs/decisions/057-pwa-consistency.md)) — replace placeholder squares with a monogram set.
 - **Contacts Christmas Has-address seed** ([211](docs/decisions/211-contacts-module-review.md)) — November; list exists, import did not fill it.
