@@ -3,7 +3,10 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
 	formatSystematicPointerDisplay,
+	formatSystematicVerseLabel,
+	formatSystematicVerseSpan,
 	groupSystematicHits,
+	groupSystematicPointersByVerse,
 	buildOutlineTree,
 	pageNumberFromText,
 	parseOutlineTsv,
@@ -11,7 +14,8 @@ import {
 	resolveOutlineForPointer,
 	resolveOutlineLabel,
 	outlineSpansAcrossVolumes,
-	type OutlineSectionInput
+	type OutlineSectionInput,
+	type SystematicHitInput
 } from '../outline';
 import {
 	expandPrintedSectionRange,
@@ -178,10 +182,102 @@ describe('formatSystematicPointerDisplay', () => {
 	});
 });
 
+function systematicHit(
+	partial: Partial<SystematicHitInput> & Pick<SystematicHitInput, 'refId' | 'bookId'>
+): SystematicHitInput {
+	return {
+		bookTitle: null,
+		volumeNumber: null,
+		seriesId: null,
+		seriesName: null,
+		authorLabel: null,
+		pageStart: null,
+		pageEnd: null,
+		outline: null,
+		bibleBook: 'Ecclesiastes',
+		chapterStart: 7,
+		verseStart: null,
+		chapterEnd: null,
+		verseEnd: null,
+		...partial
+	};
+}
+
+describe('formatSystematicVerseLabel', () => {
+	it('formats a single verse, a same-chapter range, a chapter, and a cross-chapter range', () => {
+		expect(
+			formatSystematicVerseLabel({
+				bibleBook: 'Ecclesiastes',
+				chapterStart: 7,
+				verseStart: 14,
+				chapterEnd: null,
+				verseEnd: null
+			})
+		).toBe('7:14');
+		expect(
+			formatSystematicVerseLabel({
+				bibleBook: 'Ecclesiastes',
+				chapterStart: 7,
+				verseStart: 1,
+				chapterEnd: 7,
+				verseEnd: 6
+			})
+		).toBe('7:1–6');
+		expect(
+			formatSystematicVerseLabel({
+				bibleBook: 'Ecclesiastes',
+				chapterStart: 7,
+				verseStart: null,
+				chapterEnd: null,
+				verseEnd: null
+			})
+		).toBe('7');
+		expect(
+			formatSystematicVerseLabel({
+				bibleBook: 'Ecclesiastes',
+				chapterStart: 7,
+				verseStart: 29,
+				chapterEnd: 8,
+				verseEnd: 1
+			})
+		).toBe('7:29–8:1');
+	});
+});
+
+describe('formatSystematicVerseSpan', () => {
+	it('spans the earliest start through the latest end', () => {
+		expect(
+			formatSystematicVerseSpan([
+				{
+					bibleBook: 'Ecclesiastes',
+					chapterStart: 7,
+					verseStart: 14,
+					chapterEnd: null,
+					verseEnd: null
+				},
+				{
+					bibleBook: 'Ecclesiastes',
+					chapterStart: 7,
+					verseStart: 1,
+					chapterEnd: null,
+					verseEnd: null
+				},
+				{
+					bibleBook: 'Ecclesiastes',
+					chapterStart: 7,
+					verseStart: 29,
+					chapterEnd: null,
+					verseEnd: null
+				}
+			])
+		).toBe('7:1–29');
+	});
+});
+
 describe('groupSystematicHits', () => {
-	it('groups by series and sorts by volume then page', () => {
+	it('groups by series and sorts by verse, then volume, then page', () => {
 		const blocks = groupSystematicHits([
-			{
+			systematicHit({
 				refId: 'r2',
 				bookId: 'tur-2',
 				bookTitle: 'Institutes of Elenctic Theology',
@@ -191,6 +287,7 @@ describe('groupSystematicHits', () => {
 				authorLabel: 'Francis Turretin',
 				pageStart: '620',
 				pageEnd: null,
+				verseStart: 14,
 				outline: {
 					id: 'o1',
 					locator: 'XV.17',
@@ -198,25 +295,69 @@ describe('groupSystematicHits', () => {
 					page_start: 610,
 					page_end: 630
 				}
-			},
-			{
+			}),
+			systematicHit({
 				refId: 'r1',
 				bookId: 'tur-2',
 				bookTitle: 'Institutes of Elenctic Theology',
-				volumeNumber: 'II',
+				volumeNumber: 'III',
 				seriesId: 'ser-tur',
 				seriesName: 'Institutes of Elenctic Theology (Turretin)',
 				authorLabel: 'Francis Turretin',
 				pageStart: '100',
-				pageEnd: null,
-				outline: null
-			}
+				verseStart: 1
+			})
 		]);
 
 		expect(blocks).toHaveLength(1);
 		expect(blocks[0]!.seriesName).toContain('Turretin');
+		expect(blocks[0]!.verseSpan).toBe('7:1–14');
+		expect(blocks[0]!.pointers[0]!.verseLabel).toBe('7:1');
 		expect(blocks[0]!.pointers[0]!.pageStart).toBe('100');
 		expect(blocks[0]!.pointers[1]!.display).toBe('II:620 (XV.17 Full Assurance)');
+	});
+});
+
+describe('groupSystematicPointersByVerse', () => {
+	it('orders chapter, single verse, range, then later verse', () => {
+		const blocks = groupSystematicHits([
+			systematicHit({
+				refId: 'late',
+				bookId: 'tur',
+				seriesId: 'tur',
+				seriesName: 'Turretin',
+				verseStart: 14
+			}),
+			systematicHit({
+				refId: 'range',
+				bookId: 'cal',
+				seriesId: 'cal',
+				seriesName: 'Calvin',
+				verseStart: 1,
+				chapterEnd: 7,
+				verseEnd: 6
+			}),
+			systematicHit({
+				refId: 'chapter',
+				bookId: 'bav',
+				seriesId: 'bav',
+				seriesName: 'Bavinck'
+			}),
+			systematicHit({
+				refId: 'one',
+				bookId: 'hod',
+				seriesId: 'hod',
+				seriesName: 'Hodge',
+				verseStart: 1
+			})
+		]);
+
+		expect(groupSystematicPointersByVerse(blocks).map((group) => group.verseLabel)).toEqual([
+			'7',
+			'7:1',
+			'7:1–6',
+			'7:14'
+		]);
 	});
 });
 

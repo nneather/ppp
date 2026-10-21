@@ -26,6 +26,11 @@ type RefRpcRow = {
 	book_volume_number: string | null;
 	series_id: string | null;
 	series_name: string | null;
+	bible_book: string | null;
+	chapter_start: number | null;
+	verse_start: number | null;
+	chapter_end: number | null;
+	verse_end: number | null;
 	page_start: string;
 	page_end: string | null;
 	author_display?: string | null;
@@ -126,6 +131,11 @@ export async function loadSystematicsForPassage(
 			seriesId: r.series_id,
 			seriesName: r.series_name,
 			authorLabel: authorByBook.get(bookId) ?? null,
+			bibleBook: r.bible_book?.trim() || query.bibleBook,
+			chapterStart: r.chapter_start,
+			verseStart: r.verse_start,
+			chapterEnd: r.chapter_end,
+			verseEnd: r.verse_end,
 			pageStart: r.page_start,
 			pageEnd: r.page_end,
 			outline

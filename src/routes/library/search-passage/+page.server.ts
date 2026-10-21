@@ -246,6 +246,11 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 					seriesId: r.series_id,
 					seriesName: r.series_name,
 					authorLabel: authorByBook.get(r.book_id!) ?? null,
+					bibleBook: r.bible_book,
+					chapterStart: r.chapter_start,
+					verseStart: r.verse_start,
+					chapterEnd: r.chapter_end,
+					verseEnd: r.verse_end,
 					pageStart: r.page_start,
 					pageEnd: r.page_end,
 					outline:

@@ -218,7 +218,16 @@ export function resolveOutlineForPointer(
 	return resolveOutlineLabel(sections, page);
 }
 
-export type SystematicHitInput = {
+/** Biblical range on a systematic index hit. Book name is omitted from the label. */
+export type SystematicVerseBounds = {
+	bibleBook: string;
+	chapterStart: number | null;
+	verseStart: number | null;
+	chapterEnd: number | null;
+	verseEnd: number | null;
+};
+
+export type SystematicHitInput = SystematicVerseBounds & {
 	refId: string;
 	bookId: string;
 	bookTitle: string | null;
@@ -231,7 +240,7 @@ export type SystematicHitInput = {
 	outline: OutlineResolve | null;
 };
 
-export type SystematicPointer = {
+export type SystematicPointer = SystematicVerseBounds & {
 	refId: string;
 	bookId: string;
 	volume: string | null;
@@ -239,6 +248,10 @@ export type SystematicPointer = {
 	pageEnd: string | null;
 	locator: string | null;
 	label: string | null;
+	/** Compact range: `7:14`, `7:1–6`, `7`, `7:29–8:1`. */
+	verseLabel: string;
+	/** Start verse, then end verse. Whole-book hits sort first. */
+	verseSort: number;
 	display: string;
 };
 
@@ -246,7 +259,22 @@ export type SystematicSetBlock = {
 	seriesId: string | null;
 	seriesName: string;
 	authorLabel: string | null;
+	/** Tight span of every pointer in the set, e.g. `7:1–29`. */
+	verseSpan: string;
 	pointers: SystematicPointer[];
+};
+
+/** One index hit flattened for the by-verse view, with its set name. */
+export type SystematicVerseRow = SystematicPointer & {
+	seriesId: string | null;
+	seriesName: string;
+	authorLabel: string | null;
+};
+
+export type SystematicVerseGroup = {
+	verseLabel: string;
+	verseSort: number;
+	rows: SystematicVerseRow[];
 };
 
 function pointerOrderKey(pageStart: string | null, pageEnd: string | null): number {
@@ -279,6 +307,119 @@ function volumeSortKey(v: string | null): number {
 	return 5000 + t.charCodeAt(0);
 }
 
+function verseStartAbs(input: SystematicVerseBounds): number {
+	if (input.chapterStart == null) return 0;
+	return input.chapterStart * 1000 + (input.verseStart ?? 0);
+}
+
+function verseEndAbs(input: SystematicVerseBounds): number {
+	if (input.chapterStart == null) return 999_999;
+	const endChapter = input.chapterEnd ?? input.chapterStart;
+	if (input.verseStart == null && input.verseEnd == null) {
+		return endChapter * 1000 + 999;
+	}
+	const endVerse = input.verseEnd ?? input.verseStart ?? 999;
+	return endChapter * 1000 + endVerse;
+}
+
+/** Start verse, then end verse. Whole-book hits sort first. */
+export function systematicVerseSortKey(input: SystematicVerseBounds): number {
+	return verseStartAbs(input) * 1_000_000 + verseEndAbs(input);
+}
+
+/**
+ * Compact passage label without the book name.
+ * `7:14`, `7:1–6`, `7`, `7–8`, `7:29–8:1`. A whole-book hit uses the book name.
+ */
+export function formatSystematicVerseLabel(input: SystematicVerseBounds): string {
+	const cs = input.chapterStart;
+	const vs = input.verseStart;
+	const ce = input.chapterEnd;
+	const ve = input.verseEnd;
+	if (cs == null) {
+		const book = input.bibleBook.trim();
+		return book || 'whole book';
+	}
+	const sameChapter = ce == null || ce === cs;
+	if (sameChapter) {
+		if (vs == null) return String(cs);
+		if (ve == null || ve === vs) return `${cs}:${vs}`;
+		return `${cs}:${vs}–${ve}`;
+	}
+	const start = vs != null ? `${cs}:${vs}` : String(cs);
+	const end = ve != null ? `${ce}:${ve}` : String(ce);
+	return `${start}–${end}`;
+}
+
+/** Tight span covering every bound: `7:1` and `7:29` → `7:1–29`. */
+export function formatSystematicVerseSpan(items: SystematicVerseBounds[]): string {
+	const first = items[0];
+	if (!first) return '';
+	let minStart = verseStartAbs(first);
+	let maxEnd = verseEndAbs(first);
+	let book = first.bibleBook;
+	for (const item of items) {
+		const start = verseStartAbs(item);
+		const end = verseEndAbs(item);
+		if (start < minStart) minStart = start;
+		if (end > maxEnd) maxEnd = end;
+		if (!book.trim() && item.bibleBook.trim()) book = item.bibleBook;
+	}
+	if (minStart === 0) {
+		return formatSystematicVerseLabel({
+			bibleBook: book,
+			chapterStart: null,
+			verseStart: null,
+			chapterEnd: null,
+			verseEnd: null
+		});
+	}
+	const chapterStart = Math.floor(minStart / 1000);
+	const startVerse = minStart % 1000;
+	const chapterEnd = Math.floor(maxEnd / 1000);
+	const endVerse = maxEnd % 1000;
+	return formatSystematicVerseLabel({
+		bibleBook: book,
+		chapterStart,
+		verseStart: startVerse === 0 ? null : startVerse,
+		chapterEnd,
+		verseEnd: endVerse === 999 ? null : endVerse
+	});
+}
+
+function pointerFromHit(h: SystematicHitInput): SystematicPointer {
+	const bounds: SystematicVerseBounds = {
+		bibleBook: h.bibleBook,
+		chapterStart: h.chapterStart,
+		verseStart: h.verseStart,
+		chapterEnd: h.chapterEnd,
+		verseEnd: h.verseEnd
+	};
+	const pageStart = h.pageStart?.trim() || '?';
+	const pageEnd = h.pageEnd?.trim() || null;
+	const locator = h.outline?.locator ?? null;
+	const label = h.outline?.label ?? null;
+	return {
+		refId: h.refId,
+		bookId: h.bookId,
+		volume: h.volumeNumber,
+		pageStart,
+		pageEnd,
+		locator,
+		label,
+		...bounds,
+		verseLabel: formatSystematicVerseLabel(bounds),
+		verseSort: systematicVerseSortKey(bounds),
+		display: formatSystematicPointerDisplay({
+			volume: h.volumeNumber,
+			pageStart,
+			pageEnd,
+			locator,
+			label
+		})
+	};
+}
+
 /** Format one pointer line: `2:620 (XV.17 Full Assurance)`, `III.2.12–14 (Faith)`, or `p. 136 (Repentance)`. */
 export function formatSystematicPointerDisplay(input: {
 	volume: string | null;
@@ -307,8 +448,8 @@ export function formatSystematicPointerDisplay(input: {
 }
 
 /**
- * Group systematic-theology index hits by series (or lone book title), ordered
- * by volume then page.
+ * Group systematic-theology index hits by series (or lone book title).
+ * Pointers inside a set read down the passage, then by volume and page.
  */
 export function groupSystematicHits(hits: SystematicHitInput[]): SystematicSetBlock[] {
 	const byKey = new Map<string, SystematicHitInput[]>();
@@ -322,6 +463,8 @@ export function groupSystematicHits(hits: SystematicHitInput[]): SystematicSetBl
 	const blocks: SystematicSetBlock[] = [];
 	for (const [, list] of byKey) {
 		list.sort((a, b) => {
+			const verse = systematicVerseSortKey(a) - systematicVerseSortKey(b);
+			if (verse !== 0) return verse;
 			const va = volumeSortKey(a.volumeNumber);
 			const vb = volumeSortKey(b.volumeNumber);
 			if (va !== vb) return va - vb;
@@ -333,38 +476,57 @@ export function groupSystematicHits(hits: SystematicHitInput[]): SystematicSetBl
 			first.seriesName?.trim() ||
 			first.bookTitle?.trim() ||
 			'Systematic theology';
+		const pointers = list.map((h) => pointerFromHit(h));
 
 		blocks.push({
 			seriesId: first.seriesId,
 			seriesName,
 			authorLabel: first.authorLabel,
-			pointers: list.map((h) => {
-				const pageStart = h.pageStart?.trim() || '?';
-				const pageEnd = h.pageEnd?.trim() || null;
-				const locator = h.outline?.locator ?? null;
-				const label = h.outline?.label ?? null;
-				return {
-					refId: h.refId,
-					bookId: h.bookId,
-					volume: h.volumeNumber,
-					pageStart,
-					pageEnd,
-					locator,
-					label,
-					display: formatSystematicPointerDisplay({
-						volume: h.volumeNumber,
-						pageStart,
-						pageEnd,
-						locator,
-						label
-					})
-				};
-			})
+			verseSpan: formatSystematicVerseSpan(pointers),
+			pointers
 		});
 	}
 
 	blocks.sort((a, b) => a.seriesName.localeCompare(b.seriesName));
 	return blocks;
+}
+
+/**
+ * Regroup set blocks by the biblical verse each hit covers.
+ * Groups run down the passage; rows inside a verse are alphabetical by set.
+ */
+export function groupSystematicPointersByVerse(
+	blocks: SystematicSetBlock[]
+): SystematicVerseGroup[] {
+	const byLabel = new Map<string, SystematicVerseRow[]>();
+	for (const block of blocks) {
+		for (const pointer of block.pointers) {
+			const row: SystematicVerseRow = {
+				...pointer,
+				seriesId: block.seriesId,
+				seriesName: block.seriesName,
+				authorLabel: block.authorLabel
+			};
+			const list = byLabel.get(pointer.verseLabel) ?? [];
+			list.push(row);
+			byLabel.set(pointer.verseLabel, list);
+		}
+	}
+
+	const groups: SystematicVerseGroup[] = [];
+	for (const [verseLabel, rows] of byLabel) {
+		rows.sort(
+			(a, b) =>
+				a.seriesName.localeCompare(b.seriesName) || a.display.localeCompare(b.display)
+		);
+		groups.push({
+			verseLabel,
+			verseSort: rows.reduce((min, row) => Math.min(min, row.verseSort), rows[0]!.verseSort),
+			rows
+		});
+	}
+	groups.sort((a, b) => a.verseSort - b.verseSort || a.verseLabel.localeCompare(b.verseLabel));
+	return groups;
 }
 
 const BOOK_LEVEL_LOCATOR = /^(?:X|IX|VIII|VII|VI|V|IV|III|II|I)$/i;

@@ -501,7 +501,8 @@ export async function listSystematicsForPassage(
 				page_end: p.pageEnd,
 				locator: p.locator,
 				label: p.label,
-				display: p.display
+				display: p.display,
+				verse_label: p.verseLabel
 			}))
 		}))
 	});
