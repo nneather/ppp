@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-20 — Sermon systematics show the verse, collapse, and sort by verse or set ([284](docs/decisions/284-sermon-systematics-verse-sort.md)).
+**Last updated:** 2026-10-20 — Systematic hits have a fixed Attach / Dismiss column; dismissed hits stay hidden until Show dismissed ([285](docs/decisions/285-systematics-dismiss.md)).
 
 **How to use this file — read this first:**
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Import picker is a research tool (collapsed sections, series leads, checklist off page load, Not included / New set / Save as set — [277](docs/decisions/277-import-picker-research.md)). New paper opens that paper. Sets polish shipped. Systematic theologies show the verse, start collapsed, and sort by verse or set ([284](docs/decisions/284-sermon-systematics-verse-sort.md)). |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Import picker is a research tool (collapsed sections, series leads, checklist off page load, Not included / New set / Save as set — [277](docs/decisions/277-import-picker-research.md)). New paper opens that paper. Sets polish shipped. Systematic theologies show the verse and sort by verse or set; dismissed hits stay hidden ([285](docs/decisions/285-systematics-dismiss.md)). |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [285 — Systematics dismiss](docs/decisions/285-systematics-dismiss.md) (2026-10-20) — Attach and Dismiss sit in a fixed column. Dismissed hits stay hidden per sermon or paper until Show dismissed.
 - [284 — Sermon systematics verse sort](docs/decisions/284-sermon-systematics-verse-sort.md) (2026-10-20) — Verse on each index hit; sets start collapsed; sort by systematic or by verse. Same block on papers and passage search.
 - [283 — Amazon acquired_on](docs/decisions/283-amazon-acquired-on.md) (2026-10-20) — Items CSV matcher. Applied 196 ISBN order dates; title hits left alone. A second dry-run would write 0.
 - [282 — Apocrypha vocab implementation](docs/decisions/282-apocrypha-vocab-impl.md) (2026-10-20) — Testament `AP`, 18 NRSV books at sort 67–84, 66-book spine unchanged. 51 Turretin rows inserted (I 38 / II 9 / III 4). Counts RPC paged past the 1000-row cap.
 - [281 — Apocrypha vocab](docs/decisions/281-apocrypha-vocab.md) (2026-10-20) — Design lock: testament `AP`, 18 NRSV books at sort 67–84, `BIBLE_BOOK_NAMES` stays 66.
-- [280 — Scripture index on book detail](docs/decisions/280-scripture-index-book-detail.md) (2026-10-20) — Counts RPC; summary + per-Bible-book dialog; manage page with bulk delete/flag; volume-default scope.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Sermon systematics verse sort [284](docs/decisions/284-sermon-systematics-verse-sort.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **783/783** (2026-10-20). Edge functions not redeployed.
+**Repo gate:** Systematics dismiss [285](docs/decisions/285-systematics-dismiss.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **786/786** (2026-10-20). Edge functions not redeployed.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

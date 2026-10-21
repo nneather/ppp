@@ -1,8 +1,15 @@
 <script lang="ts">
-	import SystematicPassageCard, {
-		type SystematicPassageHit
-	} from '$lib/components/systematic-passage-card.svelte';
-	import { groupSystematicPointersByVerse, type SystematicSetBlock } from '$lib/library/outline';
+	import { browser } from '$app/environment';
+	import SystematicPassageCard from '$lib/components/systematic-passage-card.svelte';
+	import type { SystematicSetBlock } from '$lib/library/outline';
+	import {
+		dismissedSystematicCount,
+		systematicDisplayCards
+	} from '$lib/studies/systematics-cards';
+	import {
+		loadDismissedSystematicRefs,
+		saveDismissedSystematicRefs
+	} from '$lib/studies/systematics-dismiss';
 	import { cn } from '$lib/utils.js';
 
 	let {
@@ -19,45 +26,38 @@
 	} = $props();
 
 	let sort = $state<'systematic' | 'verse'>('systematic');
-	const verseGroups = $derived(groupSystematicPointersByVerse(blocks));
+	let showDismissed = $state(false);
+	let dismissed = $state<Set<string>>(new Set());
 
-	const cards = $derived(
-		sort === 'systematic'
-			? blocks.map((block) => ({
-					key: block.seriesId ?? block.seriesName,
-					title: block.seriesName,
-					meta: block.authorLabel,
-					span: block.verseSpan,
-					rows: block.pointers.map(
-						(p): SystematicPassageHit => ({
-							key: p.refId,
-							bookId: p.bookId,
-							refId: p.refId,
-							display: p.display,
-							verseLabel: p.verseLabel,
-							seriesName: null,
-							authorLabel: null
-						})
-					)
-				}))
-			: verseGroups.map((group) => ({
-					key: group.verseLabel,
-					title: group.verseLabel,
-					meta: null,
-					span: null,
-					rows: group.rows.map(
-						(row): SystematicPassageHit => ({
-							key: row.refId,
-							bookId: row.bookId,
-							refId: row.refId,
-							display: row.display,
-							verseLabel: null,
-							seriesName: row.seriesName,
-							authorLabel: row.authorLabel
-						})
-					)
-				}))
-	);
+	$effect(() => {
+		const id = parentId;
+		showDismissed = false;
+		if (!browser || !id) {
+			dismissed = new Set();
+			return;
+		}
+		dismissed = loadDismissedSystematicRefs(id);
+	});
+
+	function persist(next: Set<string>) {
+		dismissed = next;
+		if (browser && parentId) saveDismissedSystematicRefs(parentId, next);
+	}
+
+	function dismissRef(refId: string) {
+		const next = new Set(dismissed);
+		next.add(refId);
+		persist(next);
+	}
+
+	function restoreRef(refId: string) {
+		const next = new Set(dismissed);
+		next.delete(refId);
+		persist(next);
+	}
+
+	const dismissedCount = $derived(dismissedSystematicCount(blocks, dismissed));
+	const cards = $derived(systematicDisplayCards(blocks, sort, dismissed, showDismissed));
 
 	const sorts = [
 		{ id: 'systematic' as const, label: 'By systematic' },
@@ -68,40 +68,58 @@
 {#if blocks.length === 0}
 	<p class="text-sm text-muted-foreground">No systematic theology index hits for this passage.</p>
 {:else}
-	<div
-		class="mb-3 flex w-fit rounded-lg border border-border bg-muted/40 p-0.5"
-		role="group"
-		aria-label="Sort systematic theologies"
-	>
-		{#each sorts as option (option.id)}
+	<div class="mb-3 flex flex-wrap items-center gap-2">
+		<div
+			class="flex w-fit rounded-lg border border-border bg-muted/40 p-0.5"
+			role="group"
+			aria-label="Sort systematic theologies"
+		>
+			{#each sorts as option (option.id)}
+				<button
+					type="button"
+					class={cn(
+						'min-h-9 rounded-md px-3 text-xs font-medium transition-colors',
+						sort === option.id
+							? 'bg-background text-foreground shadow-sm'
+							: 'text-muted-foreground hover:text-foreground'
+					)}
+					aria-pressed={sort === option.id}
+					onclick={() => (sort = option.id)}
+				>
+					{option.label}
+				</button>
+			{/each}
+		</div>
+		{#if dismissedCount > 0}
 			<button
 				type="button"
-				class={cn(
-					'min-h-9 rounded-md px-3 text-xs font-medium transition-colors',
-					sort === option.id
-						? 'bg-background text-foreground shadow-sm'
-						: 'text-muted-foreground hover:text-foreground'
-				)}
-				aria-pressed={sort === option.id}
-				onclick={() => (sort = option.id)}
+				class="min-h-9 rounded-md px-2 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+				aria-pressed={showDismissed}
+				onclick={() => (showDismissed = !showDismissed)}
 			>
-				{option.label}
+				{showDismissed ? 'Hide dismissed' : `Show dismissed (${dismissedCount})`}
 			</button>
-		{/each}
+		{/if}
 	</div>
-	<ul class="flex flex-col gap-2">
-		{#each cards as card (card.key)}
-			<li>
-				<SystematicPassageCard
-					title={card.title}
-					meta={card.meta}
-					span={card.span}
-					rows={card.rows}
-					{parentField}
-					{parentId}
-					{attachedBookIds}
-				/>
-			</li>
-		{/each}
-	</ul>
+	{#if cards.length === 0}
+		<p class="text-sm text-muted-foreground">All hits dismissed.</p>
+	{:else}
+		<ul class="flex flex-col gap-2">
+			{#each cards as card (card.key)}
+				<li>
+					<SystematicPassageCard
+						title={card.title}
+						meta={card.meta}
+						span={card.span}
+						rows={card.rows}
+						{parentField}
+						{parentId}
+						{attachedBookIds}
+						onDismiss={dismissRef}
+						onRestore={restoreRef}
+					/>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 {/if}

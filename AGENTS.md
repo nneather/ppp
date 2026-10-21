@@ -210,6 +210,7 @@ End-of-session deliverables:
  - `src/lib/studies/paper-display.ts` — passage leads the title when `passage_display` is set.
  - `src/lib/studies/study-parent.ts` — paper XOR sermon parent for shared source actions.
  - `src/lib/studies/hit-rate.ts` — expository, primary passage, on or after `books.acquired_on`; essay use counts as the parent book; unit tests `__tests__/hit-rate.test.ts`.
+ - `src/lib/studies/systematics-dismiss.ts` — localStorage dismiss set for systematic hits on one sermon or paper; hidden until Show dismissed ([285](docs/decisions/285-systematics-dismiss.md)); unit tests `__tests__/systematics-dismiss.test.ts`.
  - `src/lib/studies/default-attach.ts` — include-only members for sermon auto-attach (excludes and reference-only members omitted); unit tests `__tests__/default-attach.test.ts`.
   - `src/lib/studies/server/resource-set-loaders.ts` — list + detail. Bible-book rules resolve Commentary coverage (collapse). Genre/topic rules match books. Detail rows include a short author line (`authorLabelsForRefs`). Documented extra round trips (same class as by-book). `loadResourceSetSummaries` (id, name, kind, rules; no member resolution) feeds the import picker. `loadResourceSetMoveTargets` for the set-detail Move menu.
   - `src/lib/studies/server/resource-set-actions.ts` — batched include / exclude (not included) / dismiss (remove) + move-to-set + `createResourceSetAction` (`setId`) + `saveGroupAsSetAction` ([277](docs/decisions/277-import-picker-research.md)).

@@ -1,17 +1,11 @@
 <script lang="ts">
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import { Button } from '$lib/components/ui/button';
 	import type { SystematicPointer } from '$lib/library/outline';
+	import type { SystematicPassageHit } from '$lib/studies/systematics-cards';
 	import { cn } from '$lib/utils.js';
 
-	export type SystematicPassageHit = {
-		key: string;
-		bookId: string;
-		refId: string;
-		display: string;
-		verseLabel: string | null;
-		seriesName: string | null;
-		authorLabel: string | null;
-	};
+	export type { SystematicPassageHit };
 
 	let {
 		title,
@@ -20,7 +14,9 @@
 		rows,
 		parentField = null,
 		parentId = null,
-		attachedBookIds = []
+		attachedBookIds = [],
+		onDismiss,
+		onRestore
 	}: {
 		title: string;
 		meta?: string | null;
@@ -29,30 +25,13 @@
 		parentField?: 'paper_id' | 'sermon_id' | null;
 		parentId?: string | null;
 		attachedBookIds?: string[];
+		onDismiss?: (refId: string) => void;
+		onRestore?: (refId: string) => void;
 	} = $props();
 
 	const attached = $derived(new Set(attachedBookIds));
 	const canAttach = $derived(Boolean(parentField && parentId));
 </script>
-
-{#snippet attach(bookId: string)}
-	{#if canAttach}
-		{#if attached.has(bookId)}
-			<span class="shrink-0 text-xs text-muted-foreground">Attached</span>
-		{:else}
-			<form method="POST" action="?/addPaperSource" class="shrink-0">
-				<input type="hidden" name={parentField!} value={parentId!} />
-				<input type="hidden" name="book_id" value={bookId} />
-				<button
-					type="submit"
-					class="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-				>
-					Attach
-				</button>
-			</form>
-		{/if}
-	{/if}
-{/snippet}
 
 {#snippet locator(p: Pick<SystematicPointer, 'bookId' | 'refId' | 'display'>)}
 	<a
@@ -88,26 +67,61 @@
 			<span>{rows.length} {rows.length === 1 ? 'hit' : 'hits'}</span>
 		</span>
 	</summary>
-	<ul class="space-y-1.5 border-t border-border px-4 py-3">
+	<ul class="divide-y divide-border/70 border-t border-border">
 		{#each rows as row (row.key)}
-			<li class="flex flex-wrap items-baseline justify-between gap-2 text-sm sm:text-xs">
-				<span class="min-w-0">
+			<li class={cn('flex items-start gap-3 px-4 py-3', row.dismissed && 'bg-muted/40')}>
+				<div class="min-w-0 flex-1 text-sm sm:text-xs">
 					{#if row.seriesName}
-						<span class="block">
+						<p>
 							<span class="font-medium text-foreground">{row.seriesName}</span>
 							{#if row.authorLabel}
 								<span class="text-muted-foreground"> · {row.authorLabel}</span>
 							{/if}
-						</span>
+						</p>
 					{/if}
-					<span class="flex min-w-0 items-baseline gap-2">
+					<p class="flex min-w-0 items-baseline gap-2">
 						{#if row.verseLabel}
 							<span class="shrink-0 tabular-nums text-muted-foreground">{row.verseLabel}</span>
 						{/if}
 						{@render locator(row)}
-					</span>
-				</span>
-				{@render attach(row.bookId)}
+					</p>
+				</div>
+				<div class="flex w-24 shrink-0 flex-col gap-1">
+					{#if canAttach}
+						{#if attached.has(row.bookId)}
+							<span
+								class="inline-flex h-7 items-center justify-center rounded-md border border-border text-xs text-muted-foreground"
+							>
+								Attached
+							</span>
+						{:else}
+							<form method="POST" action="?/addPaperSource" class="w-full">
+								<input type="hidden" name={parentField!} value={parentId!} />
+								<input type="hidden" name="book_id" value={row.bookId} />
+								<Button type="submit" variant="outline" size="sm" class="w-full" label="Attach" />
+							</form>
+						{/if}
+					{/if}
+					{#if row.dismissed}
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							class="w-full"
+							label="Restore"
+							onclick={() => onRestore?.(row.refId)}
+						/>
+					{:else}
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							class="w-full"
+							label="Dismiss"
+							onclick={() => onDismiss?.(row.refId)}
+						/>
+					{/if}
+				</div>
 			</li>
 		{/each}
 	</ul>
