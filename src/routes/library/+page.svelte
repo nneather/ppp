@@ -792,7 +792,7 @@
 {/snippet}
 
 {#snippet libraryListActions()}
-	<div class="hidden md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
+	<div class="hidden w-max max-w-full md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
 		<Button variant="outline" href="/library/search-passage">
 			<Search class="size-4" /> Search passage
 		</Button>

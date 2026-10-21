@@ -1386,7 +1386,7 @@
 {/snippet}
 
 {#snippet bookDetailActions()}
-	<div class="hidden md:flex md:flex-wrap md:gap-2">
+	<div class="hidden w-max max-w-full md:flex md:flex-wrap md:gap-2">
 		<Button variant="outline" href={`/library/books/${data.book.id}/edit`} hotkey="e">
 			<Pencil class="size-4" /> <HotkeyLabel label="Edit" mnemonic="e" />
 		</Button>

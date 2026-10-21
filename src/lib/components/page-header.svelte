@@ -44,23 +44,21 @@
 
 	<div
 		class={cn(
-			'flex w-full min-w-0 flex-col gap-3 md:flex-row md:items-start md:justify-between',
+			'flex w-full min-w-0 flex-col gap-3 md:flex-row md:flex-wrap md:items-start md:justify-between',
 			back ? 'mt-4' : ''
 		)}
 	>
-		<div class="min-w-0 flex-1">
+		<!-- min width keeps a short title intact. The content column is the viewport
+		     minus the sidebar and Now rail, so nowrap action buttons used to shrink
+		     this block to a few characters (hyphens then split "Library" per letter). -->
+		<div class="w-full min-w-0 md:w-auto md:min-w-48 md:flex-1">
 			{#if eyebrow}
 				<div class="flex flex-wrap items-center gap-2 text-muted-foreground">
 					{@render eyebrow()}
 				</div>
 			{/if}
 
-			<div
-				class={cn(
-					'flex min-w-0 items-center gap-2',
-					eyebrow ? 'mt-1' : lead ? '' : ''
-				)}
-			>
+			<div class={cn('flex min-w-0 items-center gap-2', eyebrow ? 'mt-1' : '')}>
 				{#if lead}
 					<div class="shrink-0 text-muted-foreground">
 						{@render lead()}
@@ -68,7 +66,7 @@
 				{/if}
 				<div class="min-w-0 flex-1">
 					<h1
-						class="text-2xl font-semibold tracking-tight text-foreground break-words hyphens-auto leading-tight sm:text-3xl"
+						class="text-2xl font-semibold tracking-tight text-foreground break-words leading-tight sm:text-3xl"
 					>
 						{#if titlePlaceholder}
 							<span class="italic text-muted-foreground">{title}</span>
@@ -84,20 +82,20 @@
 					{/if}
 				</div>
 			</div>
-
-			{#if meta}
-				<div class="mt-2 min-w-0">
-					{@render meta()}
-				</div>
-			{/if}
 		</div>
 
 		{#if actions}
 			<div
-				class="flex w-full shrink-0 flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-start md:justify-end"
+				class="flex w-full min-w-0 max-w-full flex-col gap-2 md:ml-auto md:w-auto md:flex-row md:flex-wrap md:items-start md:justify-end"
 			>
 				{@render actions()}
 			</div>
 		{/if}
 	</div>
+
+	{#if meta}
+		<div class="mt-2 min-w-0">
+			{@render meta()}
+		</div>
+	{/if}
 </header>
