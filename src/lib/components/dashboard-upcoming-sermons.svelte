@@ -13,23 +13,21 @@
 </script>
 
 <section
-	class="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm md:p-5"
+	class="overflow-hidden rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm md:p-5"
 	aria-labelledby="upcoming-sermons-heading"
 >
-	<div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+	<a
+		href="/studies/sermons"
+		class="-mx-4 -mt-4 mb-3 flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4 pb-2 outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:-mx-5 md:-mt-5 md:px-5 md:pt-5"
+	>
 		<h2
 			id="upcoming-sermons-heading"
 			class="text-sm font-semibold tracking-tight text-foreground"
 		>
 			Upcoming sermons
 		</h2>
-		<a
-			href="/studies/sermons"
-			class="text-sm font-medium text-primary underline-offset-4 hover:underline"
-		>
-			All sermons
-		</a>
-	</div>
+		<span class="text-sm font-medium text-primary underline-offset-4">All sermons</span>
+	</a>
 
 	{#if sermons.length === 0}
 		<p class="text-sm text-muted-foreground">
@@ -43,8 +41,8 @@
 			{#each sermons as sermon (sermon.id)}
 				<li class="py-2.5 first:pt-0 last:pb-0">
 					<a
-						href="/studies/sermons"
-						class="block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						href="/studies/sermons/{sermon.id}"
+						class="block rounded-md outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
 					>
 						<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
 							{formatYmdMediumChicago(sermon.preached_on)}

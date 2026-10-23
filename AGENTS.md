@@ -198,7 +198,7 @@ End-of-session deliverables:
  - `src/lib/sermons/venue-context.ts` — `parseContextType` / `contextTypeForVenue` (venue type → sermon context auto-fill — [217](docs/decisions/217-sermon-venues-context-type.md)); unit tests `__tests__/venue-context.test.ts`.
  - `src/lib/sermons/venue-logistics.ts` — hymnal preset, clock parse/display, `formatVenueLogistics`, form parse for service start / drive minutes / leave-by / notes ([241](docs/decisions/241-sermon-venue-logistics.md)); unit tests `__tests__/venue-logistics.test.ts`.
   - `src/lib/sermons/by-book.ts` — pure canon spine, sort/filter, commentary collapse (`collapseCommentaryHits`), URL helpers for `/studies/by-book`; unit tests `__tests__/by-book.test.ts`.
-  - `src/lib/sermons/server/loaders.ts` — `loadSermons` (incl. `bible_book` filter), `loadUpcomingSermons` (dashboard — [132](docs/decisions/132-desktop-home-dashboard.md)), `loadSermonVenues`, `loadByBookStats`, `parseSermonListFilters` / `parseByBookListFilters`.
+  - `src/lib/sermons/server/loaders.ts` — `loadSermons` (incl. `bible_book` filter), `loadUpcomingSermons` (dashboard next 3 — header → list, row → sermon — [293](docs/decisions/293-dashboard-upcoming-sermons.md); studies overview still 5), `loadSermonVenues`, `loadByBookStats`, `parseSermonListFilters` / `parseByBookListFilters`.
   - `src/lib/sermons/server/actions.ts` — sermon + venue CRUD; passage sync; venue soft-delete blocked when live sermons reference.
   - Routes: `/studies/sermons` (list + Sheet; 308 from `/sermons`), `/studies/by-book` (commentary × sermon spine; 308 from `/sermons/by-book`), `/settings/sermons/venues`. Library hook: deep-link to `/library/search-passage`.
   - Audit: `_SERMONS_TABLES`; soft-delete revert for venues/sermons/passages.

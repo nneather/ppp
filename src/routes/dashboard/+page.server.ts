@@ -112,7 +112,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 		locals.perf.measure('db', () => loadProjectTree(supabase)),
 		locals.perf.measure('db', () => loadLatestHealth(supabase)),
 		locals.perf.measure('db', () => loadDashboardNowTasks(supabase, { todayYmd: today })),
-		locals.perf.measure('db', () => loadUpcomingSermons(supabase, { todayYmd: today, limit: 5 })),
+		locals.perf.measure('db', () => loadUpcomingSermons(supabase, { todayYmd: today, limit: 3 })),
 		locals.perf.measure('db', () => loadFollowedSportsGlance(supabase)),
 		locals.perf.measure('db', () =>
 			loadDueSoonAssignments(supabase, { todayYmd: today, horizonDays: 14 })
