@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-23 — Sermon detail is commentaries, then systematic theologies, then sources ([294](docs/decisions/294-sermon-commentary-shelf.md)).
+**Last updated:** 2026-10-23 — NICOT Ecclesiastes is Longman’s 2026 2nd ed. ([295](docs/decisions/295-library-nicot-ecclesiastes.md)). Sermon detail is commentaries, then systematic theologies, then sources ([294](docs/decisions/294-sermon-commentary-shelf.md)).
 
 **How to use this file — read this first:**
 
@@ -49,12 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [295 — NICOT Ecclesiastes, 2nd ed.](docs/decisions/295-library-nicot-ecclesiastes.md) (2026-10-23) — Longman, Eerdmans 2026, ISBN `9780802879059`. Coverage is Ecclesiastes, so it sits on Commentaries: Ecclesiastes with no member row.
 - [294 — Sermon commentary shelf](docs/decisions/294-sermon-commentary-shelf.md) (2026-10-23) — Sermon detail is commentaries (By book rows), then systematic theologies, then sources. Topical sermons put commentaries under the systematic hits and can add another Bible book’s shelf.
 - [293 — Dashboard upcoming sermons](docs/decisions/293-dashboard-upcoming-sermons.md) (2026-10-23) — Home panel shows the next three. The header opens the sermon list; a row opens that sermon.
 - [292 — Mobile tab is Studies](docs/decisions/292-mobile-tab-studies.md) (2026-10-23) — Phone bottom bar ends with Studies. Classwork stays on the desktop sidebar and the dashboard glance.
 - [291 — Contacts MCP smoke](docs/decisions/291-contacts-mcp-smoke.md) (2026-10-21) — Owner confirmed `list_contacts_due` and `search_contacts` after a client reload. C2 retired-only Christmas-card check stays open.
-- [290 — Library header wrap](docs/decisions/290-library-header-wrap.md) (2026-10-21) — Title and “Showing …” stay readable beside the Now rail. Action buttons wrap instead of squeezing the heading to one letter per line.
-
 ---
 
 ## Session handoff
@@ -85,7 +84,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Sermon commentary shelf [294](docs/decisions/294-sermon-commentary-shelf.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **790/790** (2026-10-23). No schema change.
+**Repo gate:** Sermon commentary shelf [294](docs/decisions/294-sermon-commentary-shelf.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **790/790** (2026-10-23). NICOT Ecclesiastes [295](docs/decisions/295-library-nicot-ecclesiastes.md) is DML only; check/test not re-run.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
