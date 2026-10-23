@@ -227,6 +227,7 @@ Per-user defaults on `profiles` until a separate table is justified ([000](decis
 | Roster current | ✅ 2026-09-17 | Emerald check beside Q/S/A names already met or skipped this period — [230](decisions/230-contacts-roster-current-check.md) |
 | Default grouping | ✅ 2026-09-26 | Group / then **Set default** on `profiles.contacts_default_sort`; jump chips + quieter roster lines — [231](decisions/231-contacts-default-grouping.md) |
 | Due groups | ✅ 2026-10-21 | Due this period + dashboard Due to meet group Quarterly, then Semester, then Annual — [289](decisions/289-due-group-by-frequency.md) |
+| Due nudge | ✅ 2026-10-23 | Due this period up/down left of Log steps Quarterly ↔ Semester ↔ Annual — [296](decisions/296-due-frequency-nudge.md) |
 | — | note | Decision number **174** was taken by a parallel library session ([174-everlasting-man-original-1925](decisions/174-everlasting-man-original-1925.md)) — Session 0 record is **[175](decisions/175-contacts-session-0.md)**, not 174. |
 | — | backlog | Mailing-list send pipeline (Resend campaigns + unsubscribe) — designed-for, not built ([139](decisions/139-lightweight-crm-fall-priority.md)). |
 | — | backlog | Optional FK contact → library person or invoicing client — only if owner asks. |

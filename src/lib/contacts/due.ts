@@ -213,6 +213,47 @@ const DUE_FREQUENCY_ORDER: readonly ContactFrequency[] = [
 	'none'
 ];
 
+/** Meet-more-often → meet-less-often. Up steps toward Quarterly; down toward Annual. */
+const SCHEDULED_LADDER = ['quarterly', 'semiannual', 'annual'] as const;
+export type ScheduledContactFrequency = (typeof SCHEDULED_LADDER)[number];
+export type FrequencyNudgeDirection = 'up' | 'down';
+
+/**
+ * One step on the due-list ladder.
+ * Quarterly has no up; Annual has no down. Common and none do not step.
+ */
+export function stepScheduledFrequency(
+	frequency: ContactFrequency,
+	direction: FrequencyNudgeDirection
+): ScheduledContactFrequency | null {
+	if (!isScheduledFrequency(frequency)) return null;
+	const index = SCHEDULED_LADDER.indexOf(frequency);
+	const next = direction === 'up' ? index - 1 : index + 1;
+	return SCHEDULED_LADDER[next] ?? null;
+}
+
+/**
+ * Who a due-row up/down writes.
+ * A household moves every fan-out member still on the row’s frequency.
+ * A solo row moves that contact. No step (already Quarterly or Annual) → none.
+ */
+export function frequencyNudgeContactIds(
+	posted: {
+		contact_id: string;
+		household_id: string | null;
+		frequency: ContactFrequency;
+	},
+	members: readonly DueFanoutMember[],
+	direction: FrequencyNudgeDirection
+): string[] {
+	if (!stepScheduledFrequency(posted.frequency, direction)) return [];
+	if (!posted.household_id) return [posted.contact_id];
+	return dueFanoutContactIds(
+		{ contact_id: posted.contact_id, household_id: posted.household_id },
+		members
+	).filter((id) => members.find((m) => m.id === id)?.frequency === posted.frequency);
+}
+
 export type DueFrequencyGroup = {
 	frequency: ContactFrequency;
 	label: string;

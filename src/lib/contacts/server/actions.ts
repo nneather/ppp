@@ -1,7 +1,12 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
-import { dueFanoutContactIds, householdEligibleForCardList } from '$lib/contacts/due';
+import {
+	dueFanoutContactIds,
+	frequencyNudgeContactIds,
+	householdEligibleForCardList,
+	stepScheduledFrequency
+} from '$lib/contacts/due';
 import {
 	listMemberToColumns,
 	validateListMemberXor,
@@ -1635,6 +1640,129 @@ export async function skipContactPeriodAction(
 	}
 
 	return { kind: 'skipContactPeriod' as const, success: true as const, contactId };
+}
+
+/**
+ * Due-row up/down: one step on Quarterly → Semester → Annual.
+ * Household rows move every fan-out member still on that frequency.
+ */
+export async function nudgeContactFrequencyAction(supabase: SupabaseClient, fd: FormData) {
+	const contactId = trimOrNull(fd.get('contact_id'));
+	if (!contactId || !UUID_RE.test(contactId)) {
+		return fail(400, { kind: 'nudgeContactFrequency' as const, message: 'Invalid contact.' });
+	}
+
+	const direction = trimOrNull(fd.get('direction'));
+	if (direction !== 'up' && direction !== 'down') {
+		return fail(400, {
+			kind: 'nudgeContactFrequency' as const,
+			contactId,
+			message: 'Choose up or down.'
+		});
+	}
+
+	const { data: contact, error: loadErr } = await supabase
+		.from('contacts')
+		.select('id, frequency, status, household_id')
+		.eq('id', contactId)
+		.is('deleted_at', null)
+		.maybeSingle();
+
+	if (loadErr || !contact) {
+		return fail(404, {
+			kind: 'nudgeContactFrequency' as const,
+			contactId,
+			message: loadErr?.message ?? 'Contact not found.'
+		});
+	}
+
+	const row = contact as {
+		status: string;
+		frequency: string;
+		household_id: string | null;
+	};
+	if (!isContactStatus(row.status) || row.status !== 'active') {
+		return fail(400, {
+			kind: 'nudgeContactFrequency' as const,
+			contactId,
+			message: 'Only active contacts can change frequency here.'
+		});
+	}
+	if (!isContactFrequency(row.frequency) || !isScheduledFrequency(row.frequency)) {
+		return fail(400, {
+			kind: 'nudgeContactFrequency' as const,
+			contactId,
+			message: 'Only quarterly, semester, or annual contacts can change frequency here.'
+		});
+	}
+
+	const next = stepScheduledFrequency(row.frequency, direction);
+	if (!next) {
+		return fail(400, {
+			kind: 'nudgeContactFrequency' as const,
+			contactId,
+			message: direction === 'up' ? 'Already at quarterly.' : 'Already at annual.'
+		});
+	}
+
+	const householdIdRaw = trimOrNull(fd.get('household_id'));
+	const householdId =
+		householdIdRaw && UUID_RE.test(householdIdRaw) && householdIdRaw === row.household_id
+			? householdIdRaw
+			: null;
+
+	let ids = [contactId];
+	if (householdId) {
+		const { members, error: memErr } = await loadHouseholdFanoutMembers(supabase, householdId);
+		if (memErr) {
+			return fail(500, {
+				kind: 'nudgeContactFrequency' as const,
+				contactId,
+				message: memErr
+			});
+		}
+		ids = frequencyNudgeContactIds(
+			{ contact_id: contactId, household_id: householdId, frequency: row.frequency },
+			members,
+			direction
+		);
+	}
+
+	if (ids.length === 0) {
+		return fail(400, {
+			kind: 'nudgeContactFrequency' as const,
+			contactId,
+			message: 'No one at this frequency to update.'
+		});
+	}
+
+	const { error: updErr } = await supabase
+		.from('contacts')
+		.update({
+			frequency: next,
+			no_reminders: false,
+			cadence_days: null
+		} as never)
+		.in('id', ids)
+		.eq('frequency', row.frequency)
+		.eq('status', 'active')
+		.is('deleted_at', null);
+
+	if (updErr) {
+		console.error('[contacts] nudgeContactFrequency', updErr);
+		return fail(500, {
+			kind: 'nudgeContactFrequency' as const,
+			contactId,
+			message: updErr.message
+		});
+	}
+
+	return {
+		kind: 'nudgeContactFrequency' as const,
+		success: true as const,
+		contactId,
+		frequency: next
+	};
 }
 
 /** Clone an ad-hoc list (memberships) under a new name. */

@@ -20,7 +20,9 @@ import {
 import {
 	computePaceSummary,
 	dueFanoutContactIds,
+	frequencyNudgeContactIds,
 	groupContactsDueByFrequency,
+	stepScheduledFrequency,
 	householdEligibleForCardList,
 	isContactCurrentForPeriod,
 	isContactDueForPeriod,
@@ -456,6 +458,103 @@ describe('dueFanoutContactIds (couple Log/Skip contract)', () => {
 	it('returns the posted contact when no household', () => {
 		expect(
 			dueFanoutContactIds({ contact_id: 'bob', household_id: null }, members)
+		).toEqual(['bob']);
+	});
+});
+
+describe('stepScheduledFrequency', () => {
+	it('steps quarterly down to semester and stops at the top', () => {
+		expect(stepScheduledFrequency('quarterly', 'down')).toBe('semiannual');
+		expect(stepScheduledFrequency('quarterly', 'up')).toBeNull();
+	});
+
+	it('steps semester both ways', () => {
+		expect(stepScheduledFrequency('semiannual', 'up')).toBe('quarterly');
+		expect(stepScheduledFrequency('semiannual', 'down')).toBe('annual');
+	});
+
+	it('steps annual up to semester and stops at the bottom', () => {
+		expect(stepScheduledFrequency('annual', 'up')).toBe('semiannual');
+		expect(stepScheduledFrequency('annual', 'down')).toBeNull();
+	});
+
+	it('does not step common or none', () => {
+		expect(stepScheduledFrequency('common', 'up')).toBeNull();
+		expect(stepScheduledFrequency('none', 'down')).toBeNull();
+	});
+});
+
+describe('frequencyNudgeContactIds', () => {
+	const members = [
+		{
+			id: 'alice',
+			household_id: 'hh1',
+			status: 'active' as const,
+			frequency: 'quarterly' as const
+		},
+		{
+			id: 'adam',
+			household_id: 'hh1',
+			status: 'active' as const,
+			frequency: 'annual' as const
+		},
+		{
+			id: 'amy',
+			household_id: 'hh1',
+			status: 'active' as const,
+			frequency: 'quarterly' as const
+		},
+		{
+			id: 'common',
+			household_id: 'hh1',
+			status: 'active' as const,
+			frequency: 'common' as const
+		},
+		{
+			id: 'retired',
+			household_id: 'hh1',
+			status: 'retired' as const,
+			frequency: 'quarterly' as const
+		}
+	];
+
+	it('moves household members who share the row frequency', () => {
+		expect(
+			frequencyNudgeContactIds(
+				{ contact_id: 'alice', household_id: 'hh1', frequency: 'quarterly' },
+				members,
+				'down'
+			).sort()
+		).toEqual(['alice', 'amy']);
+	});
+
+	it('leaves a spouse on a different frequency', () => {
+		expect(
+			frequencyNudgeContactIds(
+				{ contact_id: 'adam', household_id: 'hh1', frequency: 'annual' },
+				members,
+				'up'
+			)
+		).toEqual(['adam']);
+	});
+
+	it('returns nobody when that category cannot step', () => {
+		expect(
+			frequencyNudgeContactIds(
+				{ contact_id: 'alice', household_id: 'hh1', frequency: 'quarterly' },
+				members,
+				'up'
+			)
+		).toEqual([]);
+	});
+
+	it('moves a solo contact', () => {
+		expect(
+			frequencyNudgeContactIds(
+				{ contact_id: 'bob', household_id: null, frequency: 'semiannual' },
+				members,
+				'down'
+			)
 		).toEqual(['bob']);
 	});
 });

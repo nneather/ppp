@@ -11,6 +11,7 @@ import {
 	createHouseholdChildAction,
 	logContactDetailedAction,
 	logContactQuickAction,
+	nudgeContactFrequencyAction,
 	logHouseholdTouchAction,
 	logListCardsAction,
 	skipContactPeriodAction,
@@ -343,6 +344,12 @@ export const actions: Actions = {
 		if (!user)
 			return fail(401, { kind: 'skipContactPeriod' as const, message: 'Unauthorized' });
 		return skipContactPeriodAction(locals.supabase, user.id, await request.formData());
+	},
+	nudgeContactFrequency: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'nudgeContactFrequency' as const, message: 'Unauthorized' });
+		return nudgeContactFrequencyAction(locals.supabase, await request.formData());
 	},
 	cloneContactList: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

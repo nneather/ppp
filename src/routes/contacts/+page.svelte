@@ -19,13 +19,14 @@
 		CONTACT_SORT_KEYS,
 		CONTACT_STATUS_LABELS,
 		HOUSEHOLD_SORT_KEYS,
+		type ContactFrequency,
 		type ContactListFilter,
 		type ContactListRow,
 		type ContactSortKey,
 		type ContactsListFilters,
 		type HouseholdRow
 	} from '$lib/types/contacts';
-	import { groupContactsDueByFrequency } from '$lib/contacts/due';
+	import { groupContactsDueByFrequency, stepScheduledFrequency } from '$lib/contacts/due';
 	import { formatHouseholdAddress } from '$lib/contacts/names';
 	import { contactMatchesQuery, householdMatchesQuery } from '$lib/contacts/search';
 	import {
@@ -43,6 +44,8 @@
 		uniqueGroupHeaders
 	} from '$lib/contacts/sort';
 	import { cn } from '$lib/utils';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import Home from '@lucide/svelte/icons/home';
 	import List from '@lucide/svelte/icons/list';
@@ -66,6 +69,7 @@
 		householdId?: string;
 		listId?: string;
 		memberId?: string;
+		frequency?: ContactFrequency;
 	};
 	const f = $derived((form ?? null) as FormShape | null);
 	const dueGroups = $derived(groupContactsDueByFrequency(data.dueContacts));
@@ -126,6 +130,12 @@
 		return null;
 	});
 
+	const nudgeError = $derived.by(() => {
+		if (!f || f.success === true) return null;
+		if (f.kind === 'nudgeContactFrequency') return f.message ?? null;
+		return null;
+	});
+
 	const flashOk = $derived.by(() => {
 		if (!f || f.success !== true) return null;
 		if (f.kind === 'logContactQuick' || f.kind === 'logContactDetailed') return 'Contact logged.';
@@ -134,6 +144,9 @@
 			return 'Cards logged (does not clear due-to-meet).';
 		}
 		if (f.kind === 'skipContactPeriod') return 'Skipped for this period.';
+		if (f.kind === 'nudgeContactFrequency' && f.frequency) {
+			return `Frequency set to ${CONTACT_FREQUENCY_SHORT_LABELS[f.frequency]}.`;
+		}
 		if (f.kind === 'setContactsDefaultSort') return 'Default grouping saved.';
 		if (f.kind === 'importSheet') {
 			const r = f as FormShape & {
@@ -603,6 +616,9 @@
 	{#if deleteError}
 		<p class="mt-3 text-sm text-destructive" role="alert">{deleteError}</p>
 	{/if}
+	{#if nudgeError}
+		<p class="mt-3 text-sm text-destructive" role="alert">{nudgeError}</p>
+	{/if}
 
 	<div class="mt-4 flex gap-1 overflow-x-auto border-b border-border sm:gap-2">
 		<button
@@ -735,6 +751,8 @@
 								</p>
 								<ul class="divide-y divide-border">
 									{#each group.rows as d (d.id)}
+										{@const upTo = stepScheduledFrequency(d.frequency, 'up')}
+										{@const downTo = stepScheduledFrequency(d.frequency, 'down')}
 										<li class="flex items-center justify-between gap-2 py-1.5">
 											<div class="min-w-0">
 												<p class="truncate text-sm font-medium">{d.display_name}</p>
@@ -743,7 +761,51 @@
 												</p>
 											</div>
 											{#if data.isOwner}
-												<div class="flex shrink-0 gap-1">
+												<div class="flex shrink-0 items-center gap-1">
+													{#if upTo}
+														<form
+															method="POST"
+															action="?/nudgeContactFrequency"
+															use:enhance={quickLogEnhance}
+														>
+															<input type="hidden" name="contact_id" value={d.contact_id} />
+															{#if d.household_id}
+																<input type="hidden" name="household_id" value={d.household_id} />
+															{/if}
+															<input type="hidden" name="direction" value="up" />
+															<Button
+																type="submit"
+																size="icon-sm"
+																variant="outline"
+																aria-label={`Increase to ${CONTACT_FREQUENCY_SHORT_LABELS[upTo]}`}
+																title={`Increase to ${CONTACT_FREQUENCY_SHORT_LABELS[upTo]}`}
+															>
+																<ChevronUp class="size-4" />
+															</Button>
+														</form>
+													{/if}
+													{#if downTo}
+														<form
+															method="POST"
+															action="?/nudgeContactFrequency"
+															use:enhance={quickLogEnhance}
+														>
+															<input type="hidden" name="contact_id" value={d.contact_id} />
+															{#if d.household_id}
+																<input type="hidden" name="household_id" value={d.household_id} />
+															{/if}
+															<input type="hidden" name="direction" value="down" />
+															<Button
+																type="submit"
+																size="icon-sm"
+																variant="outline"
+																aria-label={`Decrease to ${CONTACT_FREQUENCY_SHORT_LABELS[downTo]}`}
+																title={`Decrease to ${CONTACT_FREQUENCY_SHORT_LABELS[downTo]}`}
+															>
+																<ChevronDown class="size-4" />
+															</Button>
+														</form>
+													{/if}
 													<form
 														method="POST"
 														action="?/logContactQuick"
