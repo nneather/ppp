@@ -4,12 +4,12 @@ Sources and the choice of which one to use: [267](decisions/267-systematics-inde
 
 ## Order
 
-1. **Calvin** — *Institutes* (Battles / McNeill). **Shelf photos.** Section locators (`1.13.7`, including ranges), saved on the volume whose outline owns that chapter ([262](decisions/262-calvin-index-capture-rules.md)). A short outline and verified refs are already on volume 2.
+1. **Calvin** — *Institutes* (Battles / McNeill). **Imported** from the Logos export of Index I ([297](decisions/297-calvin-index-import.md)): 6,672 section locators, volume 1 gets I.1–III.19, volume 2 gets III.20–IV.20. Re-run with `npm run calvin:import -- --docx <file>`.
 2. **Turretin** — *Institutes of Elenctic Theology* (P&R, 3 vols). **Parker’s English PDF**, tracked outside this repo. Same owner scan as the gold leaves. See the square-up below.
 3. **van Mastricht** — *Theoretical-Practical Theology* (RHB). Not chosen. Working theory is the Latin *index capitum* (each chapter already names its opening passage). Chapter-opening texts are `book_passage_sections`.
 4. **Bavinck** — *Reformed Dogmatics* (Baker, 4 vols). Not chosen. Working theory is the Dutch 4th-edition register (volume + page → § via that PDF’s table of contents).
 
-Do one set per session. Do not start van Mastricht or Bavinck while Turretin or Calvin is in progress.
+Do one set per session. Calvin and Turretin indexes are in. Do not start Bavinck while van Mastricht is in progress.
 
 ## Turretin square-up
 

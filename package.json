@@ -42,7 +42,8 @@
 		"turretin:parse": "tsx scripts/ocr-index-eval/parse-turretin-text.ts",
 		"turretin:review-summary": "tsx scripts/ocr-index-eval/turretin-review-summary.ts",
 		"turretin:gate": "tsx scripts/ocr-index-eval/turretin-gate.ts",
-		"turretin:import": "tsx scripts/ocr-index-eval/import-turretin-index.ts"
+		"turretin:import": "tsx scripts/ocr-index-eval/import-turretin-index.ts",
+		"calvin:import": "dotenv -e .env -e .env.local -- tsx scripts/ocr-index-eval/import-calvin-index.ts"
 	},
 	"devDependencies": {
 		"@fontsource-variable/geist": "^5.2.8",

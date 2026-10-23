@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-23 — Due this period can step a person up or down one meet frequency ([296](docs/decisions/296-due-frequency-nudge.md)).
+**Last updated:** 2026-10-23 — Calvin’s Battles scripture index is imported (6,672 section locators) ([297](docs/decisions/297-calvin-index-import.md)).
 
 **How to use this file — read this first:**
 
@@ -34,7 +34,7 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2. Passage sections live. **Turretin scripture index imported** (11,129 rows). List pages on `title_sort_key` ([286](docs/decisions/286-library-sermon-perf.md)). **Open:** Calvin shelf photos; August shelf QA — Madison. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2. Passage sections live. **Turretin and Calvin scripture indexes imported.** List pages on `title_sort_key` ([286](docs/decisions/286-library-sermon-perf.md)). **Open:** van Mastricht source; August shelf QA — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. Dashboard panel is the next three; header → list, row → sermon ([293](docs/decisions/293-dashboard-upcoming-sermons.md)). |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [297 — Calvin scripture index](docs/decisions/297-calvin-index-import.md) (2026-10-23) — McNeill’s biblical index is on the two Battles volumes (6,672 locators). The seven practice rows are retired.
 - [296 — Due frequency nudge](docs/decisions/296-due-frequency-nudge.md) (2026-10-23) — Due this period has up/down left of Log. Up meets more often; down meets less often. Quarterly has no up; Annual has no down.
 - [295 — NICOT Ecclesiastes, 2nd ed.](docs/decisions/295-library-nicot-ecclesiastes.md) (2026-10-23) — Longman, Eerdmans 2026, ISBN `9780802879059`. Coverage is Ecclesiastes, so it sits on Commentaries: Ecclesiastes with no member row.
 - [294 — Sermon commentary shelf](docs/decisions/294-sermon-commentary-shelf.md) (2026-10-23) — Sermon detail is commentaries (By book rows), then systematic theologies, then sources. Topical sermons put commentaries under the systematic hits and can add another Bible book’s shelf.
 - [293 — Dashboard upcoming sermons](docs/decisions/293-dashboard-upcoming-sermons.md) (2026-10-23) — Home panel shows the next three. The header opens the sermon list; a row opens that sermon.
-- [292 — Mobile tab is Studies](docs/decisions/292-mobile-tab-studies.md) (2026-10-23) — Phone bottom bar ends with Studies. Classwork stays on the desktop sidebar and the dashboard glance.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Due frequency nudge [296](docs/decisions/296-due-frequency-nudge.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **814/814** (2026-10-23). No schema change.
+**Repo gate:** Calvin scripture index [297](docs/decisions/297-calvin-index-import.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **815/815** (2026-10-23). No schema change.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -190,10 +190,10 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **Calvin shelf photos** — Turretin index is fully imported, including the 51 apocrypha rows ([282](docs/decisions/282-apocrypha-vocab-impl.md)). Next capture is Calvin ([262](docs/decisions/262-calvin-index-capture-rules.md)). Do not start van Mastricht or Bavinck.
+1. **van Mastricht source** — Calvin’s scripture index is imported ([297](docs/decisions/297-calvin-index-import.md)). van Mastricht is next and still not chosen ([267](docs/decisions/267-systematics-index-sources.md)). Do not start Bavinck.
 
 ### Next / parallel
-5b. **Systematics capture** — Calvin Battles shelf photos ([262](docs/decisions/262-calvin-index-capture-rules.md)). After Calvin: van Mastricht, then Bavinck; sources in [267](docs/decisions/267-systematics-index-sources.md) and [docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md).
+5b. **Systematics capture** — Calvin index imported ([297](docs/decisions/297-calvin-index-import.md)). Next is van Mastricht, then Bavinck; sources in [267](docs/decisions/267-systematics-index-sources.md) and [docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md).
 6. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
 7. **Security hardening (051 R2)** — open medium findings; prompt above.
 8. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).
