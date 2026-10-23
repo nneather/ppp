@@ -387,6 +387,109 @@ describe('groupSystematicPointersByVerse', () => {
 			'7:14'
 		]);
 	});
+
+	it('orders one verse Calvin, Bavinck, van Mastricht, Turretin, Leiden, then volume and page', () => {
+		const verse = { verseStart: 14 };
+		const blocks = groupSystematicHits([
+			systematicHit({
+				refId: 'tur-ii-late',
+				bookId: 'tur-2',
+				seriesId: 'tur',
+				seriesName: 'Institutes of Elenctic Theology (Turretin)',
+				authorLabel: 'Francis Turretin',
+				volumeNumber: 'II',
+				pageStart: '134',
+				...verse
+			}),
+			systematicHit({
+				refId: 'lei',
+				bookId: 'lei',
+				seriesId: 'lei',
+				seriesName: 'Synopsis of a Purer Theology',
+				authorLabel: 'Johannes Polyander',
+				volumeNumber: '1',
+				pageStart: '40',
+				...verse
+			}),
+			systematicHit({
+				refId: 'tur-ii-early',
+				bookId: 'tur-2',
+				seriesId: 'tur',
+				seriesName: 'Institutes of Elenctic Theology (Turretin)',
+				authorLabel: 'Francis Turretin',
+				volumeNumber: 'II',
+				pageStart: '50',
+				...verse
+			}),
+			systematicHit({
+				refId: 'mas',
+				bookId: 'mas',
+				seriesId: 'mas',
+				seriesName: 'Theoretical-Practical Theology (Van Mastricht)',
+				authorLabel: 'Petrus van Mastricht',
+				volumeNumber: '2',
+				pageStart: '249',
+				...verse
+			}),
+			systematicHit({
+				refId: 'hod',
+				bookId: 'hod',
+				seriesId: 'hod',
+				seriesName: 'Systematic Theology (Hodge)',
+				authorLabel: 'Charles Hodge',
+				volumeNumber: '2',
+				pageStart: '10',
+				...verse
+			}),
+			systematicHit({
+				refId: 'bav',
+				bookId: 'bav',
+				seriesId: 'bav',
+				seriesName: 'Reformed Dogmatics (Bavinck)',
+				authorLabel: 'Herman Bavinck',
+				volumeNumber: '4',
+				pageStart: '136',
+				...verse
+			}),
+			systematicHit({
+				refId: 'tur-i',
+				bookId: 'tur-1',
+				seriesId: 'tur',
+				seriesName: 'Institutes of Elenctic Theology (Turretin)',
+				authorLabel: 'Francis Turretin',
+				volumeNumber: 'I',
+				pageStart: '233',
+				...verse
+			}),
+			systematicHit({
+				refId: 'cal',
+				bookId: 'cal',
+				seriesId: 'cal',
+				seriesName: 'Institutes of the Christian Religion (McNeill/Battles)',
+				authorLabel: 'John Calvin',
+				volumeNumber: '1',
+				pageStart: 'III.2.12',
+				...verse
+			})
+		]);
+
+		const rows = groupSystematicPointersByVerse(blocks).find(
+			(group) => group.verseLabel === '7:14'
+		)!.rows;
+		expect(rows.map((row) => row.refId)).toEqual([
+			'cal',
+			'bav',
+			'mas',
+			'tur-i',
+			'tur-ii-early',
+			'tur-ii-late',
+			'lei',
+			'hod'
+		]);
+		expect(
+			rows.filter((row) => row.seriesName.includes('Turretin')).map((row) => row.display)
+		).toEqual(['I:233', 'II:50', 'II:134']);
+	});
 });
 
 describe('section-pointer edge copy', () => {

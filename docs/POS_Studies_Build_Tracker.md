@@ -1,6 +1,6 @@
 # Personal Operations System — Studies Module Build Tracker
 
-_Last updated: 2026-10-23 | Module: Studies | Sermon detail order: commentaries, systematic theologies, sources ([294](decisions/294-sermon-commentary-shelf.md))_
+_Last updated: 2026-10-23 | Module: Studies | By verse reads Calvin, Bavinck, van Mastricht, Turretin, Leiden, then volume and page ([301](decisions/301-systematics-verse-reading-order.md))_
 
 **Read before any session:** [docs/MODULE_KICKOFF_PLAYBOOK.md](MODULE_KICKOFF_PLAYBOOK.md), [243](decisions/243-studies-session-0.md), papers retro [188](decisions/188-classwork-research-papers-session-0.md) / [189](decisions/189-classwork-papers-session-1.md) / [190](decisions/190-classwork-papers-session-2.md), sermons [090](decisions/090-sermons-session-0.md) / [095](decisions/095-sermons-by-book-stats.md). Brainstorm: [brainstorms/2026-10-19-papers-research-tool.md](../brainstorms/2026-10-19-papers-research-tool.md).
 

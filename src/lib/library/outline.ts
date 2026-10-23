@@ -313,6 +313,37 @@ function volumeSortKey(v: string | null): number {
 	return 5000 + t.charCodeAt(0);
 }
 
+/**
+ * Reading order under a verse. Matched on series name or author so a set
+ * with no hit on that verse is simply absent.
+ * Unknown systematics sort after these, alphabetically.
+ */
+function systematicReadingRank(seriesName: string, authorLabel: string | null): number {
+	const hay = `${seriesName} ${authorLabel ?? ''}`.toLowerCase();
+	if (hay.includes('calvin')) return 0;
+	if (hay.includes('bavinck')) return 1;
+	if (hay.includes('mastricht')) return 2;
+	if (hay.includes('turretin')) return 3;
+	if (hay.includes('synopsis') || hay.includes('leiden') || hay.includes('purer theology')) {
+		return 4;
+	}
+	return 100;
+}
+
+function compareVerseRows(a: SystematicVerseRow, b: SystematicVerseRow): number {
+	const rank =
+		systematicReadingRank(a.seriesName, a.authorLabel) -
+		systematicReadingRank(b.seriesName, b.authorLabel);
+	if (rank !== 0) return rank;
+	const name = a.seriesName.localeCompare(b.seriesName);
+	if (name !== 0) return name;
+	const volume = volumeSortKey(a.volume) - volumeSortKey(b.volume);
+	if (volume !== 0) return volume;
+	const page = pointerOrderKey(a.pageStart, a.pageEnd) - pointerOrderKey(b.pageStart, b.pageEnd);
+	if (page !== 0) return page;
+	return a.display.localeCompare(b.display);
+}
+
 function verseStartAbs(input: SystematicVerseBounds): number {
 	if (input.chapterStart == null) return 0;
 	return input.chapterStart * 1000 + (input.verseStart ?? 0);
@@ -505,7 +536,8 @@ export function groupSystematicHits(
 
 /**
  * Regroup set blocks by the biblical verse each hit covers.
- * Groups run down the passage; rows inside a verse are alphabetical by set.
+ * Groups run down the passage. Rows inside a verse follow the reading order
+ * (Calvin, Bavinck, van Mastricht, Turretin, Leiden), then volume and page.
  */
 export function groupSystematicPointersByVerse(
 	blocks: SystematicSetBlock[]
@@ -527,10 +559,7 @@ export function groupSystematicPointersByVerse(
 
 	const groups: SystematicVerseGroup[] = [];
 	for (const [verseLabel, rows] of byLabel) {
-		rows.sort(
-			(a, b) =>
-				a.seriesName.localeCompare(b.seriesName) || a.display.localeCompare(b.display)
-		);
+		rows.sort(compareVerseRows);
 		groups.push({
 			verseLabel,
 			verseSort: rows.reduce((min, row) => Math.min(min, row.verseSort), rows[0]!.verseSort),
