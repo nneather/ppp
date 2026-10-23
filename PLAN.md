@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-21 — Contacts MCP smoke confirmed: `list_contacts_due` and `search_contacts` ([291](docs/decisions/291-contacts-mcp-smoke.md)).
+**Last updated:** 2026-10-23 — Mobile tab bar last slot is Studies ([292](docs/decisions/292-mobile-tab-studies.md)).
 
 **How to use this file — read this first:**
 
@@ -38,8 +38,8 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Import metadata loads when the dialog opens. Systematics stream, and passages over 150 hits are set summaries until expanded ([286](docs/decisions/286-library-sermon-perf.md)). Dismissed hits stay hidden ([285](docs/decisions/285-systematics-dismiss.md)). |
-| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. **Mobile tab bar last slot** ([292](docs/decisions/292-mobile-tab-studies.md)). Import metadata loads when the dialog opens. Systematics stream, and passages over 150 hits are set summaries until expanded ([286](docs/decisions/286-library-sermon-perf.md)). Dismissed hits stay hidden ([285](docs/decisions/285-systematics-dismiss.md)). |
+| Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. Phone: desktop sidebar + dashboard glance ([292](docs/decisions/292-mobile-tab-studies.md)). |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Due lists group Quarterly → Semester → Annual ([289](docs/decisions/289-due-group-by-frequency.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [292 — Mobile tab is Studies](docs/decisions/292-mobile-tab-studies.md) (2026-10-23) — Phone bottom bar ends with Studies. Classwork stays on the desktop sidebar and the dashboard glance.
 - [291 — Contacts MCP smoke](docs/decisions/291-contacts-mcp-smoke.md) (2026-10-21) — Owner confirmed `list_contacts_due` and `search_contacts` after a client reload. C2 retired-only Christmas-card check stays open.
 - [290 — Library header wrap](docs/decisions/290-library-header-wrap.md) (2026-10-21) — Title and “Showing …” stay readable beside the Now rail. Action buttons wrap instead of squeezing the heading to one letter per line.
 - [289 — Due lists group by frequency](docs/decisions/289-due-group-by-frequency.md) (2026-10-21) — Due this period and the home Due to meet panel list Quarterly, then Semester, then Annual. Inside a group, the longest since a meet stays first.
 - [288 — Hit rate starts January 1, 2027](docs/decisions/288-hit-rate-epoch-2027.md) (2026-10-21) — Catalog-entry dates stay stored. Used-in starts 2027-01-01 for those books. A real earlier date, including a later year backfill, is the window.
-- [287 — Queue: paper and acquired_on](docs/decisions/287-queue-paper-and-acquired-on.md) (2026-10-21) — St. Louis publication edit is done as a queue item; papers get loaded as they happen. Catalog-entry `acquired_on` is enough for the rest of the library.
 
 ---
 

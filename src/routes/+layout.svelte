@@ -49,13 +49,13 @@
 		{ href: '/settings', label: 'Settings', icon: Settings }
 	] as const;
 
-	/** Mobile tab bar — Sermons + Projects + Contacts stay desktop-sidebar only. */
+	/** Mobile tab bar — Classwork + Projects + Contacts stay desktop-sidebar only. */
 	const mobileNavItems = [
 		{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/tasks', label: 'Tasks', icon: ListTodo },
 		{ href: '/invoicing', label: 'Invoicing', icon: Receipt },
 		{ href: '/library', label: 'Library', icon: BookOpen },
-		{ href: '/classwork', label: 'Classwork', icon: GraduationCap }
+		{ href: '/studies', label: 'Studies', icon: Mic }
 	] as const;
 
 	const pathname = $derived(page.url.pathname);
