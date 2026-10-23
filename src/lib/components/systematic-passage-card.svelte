@@ -16,7 +16,9 @@
 		loading = false,
 		parentField = null,
 		parentId = null,
-		attachedBookIds = [],
+		usingRefIds = [],
+		onAttach,
+		onDetach,
 		onDismiss,
 		onRestore,
 		onOpen
@@ -29,13 +31,16 @@
 		loading?: boolean;
 		parentField?: 'paper_id' | 'sermon_id' | null;
 		parentId?: string | null;
-		attachedBookIds?: string[];
+		/** Scripture-reference ids marked in use on this study. */
+		usingRefIds?: string[];
+		onAttach?: (refId: string) => void;
+		onDetach?: (refId: string) => void;
 		onDismiss?: (refId: string) => void;
 		onRestore?: (refId: string) => void;
 		onOpen?: () => void;
 	} = $props();
 
-	const attached = $derived(new Set(attachedBookIds));
+	const using = $derived(new Set(usingRefIds));
 	const canAttach = $derived(Boolean(parentField && parentId));
 </script>
 
@@ -84,7 +89,13 @@
 			<li class="px-4 py-3 text-sm text-muted-foreground">Loading index hits…</li>
 		{/if}
 		{#each rows as row (row.key)}
-			<li class={cn('flex items-start gap-3 px-4 py-3', row.dismissed && 'bg-muted/40')}>
+			<li
+				class={cn(
+					'flex items-start gap-3 px-4 py-3',
+					row.dismissed && 'bg-muted/40',
+					!row.dismissed && using.has(row.refId) && 'bg-primary/5'
+				)}
+			>
 				<div class="min-w-0 flex-1 text-sm sm:text-xs">
 					{#if row.seriesName}
 						<p>
@@ -103,18 +114,27 @@
 				</div>
 				<div class="flex w-24 shrink-0 flex-col gap-1">
 					{#if canAttach}
-						{#if attached.has(row.bookId)}
-							<span
-								class="inline-flex h-7 items-center justify-center rounded-md border border-border text-xs text-muted-foreground"
-							>
-								Attached
-							</span>
+						{#if using.has(row.refId)}
+							<Button
+								type="button"
+								variant="secondary"
+								size="sm"
+								class="w-full"
+								label="Attached"
+								aria-pressed={true}
+								title="Remove"
+								onclick={() => onDetach?.(row.refId)}
+							/>
 						{:else}
-							<form method="POST" action="?/addPaperSource" class="w-full">
-								<input type="hidden" name={parentField!} value={parentId!} />
-								<input type="hidden" name="book_id" value={row.bookId} />
-								<Button type="submit" variant="outline" size="sm" class="w-full" label="Attach" />
-							</form>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								class="w-full"
+								label="Attach"
+								aria-pressed={false}
+								onclick={() => onAttach?.(row.refId)}
+							/>
 						{/if}
 					{/if}
 					{#if row.dismissed}

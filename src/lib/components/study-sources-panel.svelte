@@ -506,7 +506,7 @@
 				{#if blocks.length > 0}
 					<h2 class="text-sm font-semibold">Systematic theologies</h2>
 					<p class="mt-0.5 text-xs text-muted-foreground">
-						Index hits for this passage, with the verse each one covers. Attach a volume to add it as a source.
+						Index hits for this passage, with the verse each one covers. Attach marks the hits you are using.
 					</p>
 					<div class="mt-3">
 						<SystematicsOnPassage
@@ -514,7 +514,6 @@
 							passage={systematicsQuery}
 							{parentField}
 							{parentId}
-							attachedBookIds={attachedBookIds}
 						/>
 					</div>
 				{/if}

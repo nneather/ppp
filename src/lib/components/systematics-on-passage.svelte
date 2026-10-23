@@ -11,14 +11,17 @@
 		loadDismissedSystematicRefs,
 		saveDismissedSystematicRefs
 	} from '$lib/studies/systematics-dismiss';
+	import {
+		loadUsingSystematicRefs,
+		saveUsingSystematicRefs
+	} from '$lib/studies/systematics-using';
 	import { cn } from '$lib/utils.js';
 
 	let {
 		blocks,
 		passage = null,
 		parentField = null,
-		parentId = null,
-		attachedBookIds = []
+		parentId = null
 	}: {
 		blocks: SystematicSetBlock[];
 		passage?: {
@@ -28,15 +31,15 @@
 			chapterEnd: number | null;
 			verseEnd: number | null;
 		} | null;
-		/** When set with parentId, show Attach → `?/addPaperSource`. */
+		/** When set with parentId, Attach marks that one hit in use on this study. */
 		parentField?: 'paper_id' | 'sermon_id' | null;
 		parentId?: string | null;
-		attachedBookIds?: string[];
 	} = $props();
 
 	let sort = $state<'systematic' | 'verse'>('systematic');
 	let showDismissed = $state(false);
 	let dismissed = $state<Set<string>>(new Set());
+	let using = $state<Set<string>>(new Set());
 	let loadedBlocks = $state<SystematicSetBlock[] | null>(null);
 	let loadingKey = $state<string | null>(null);
 
@@ -53,9 +56,11 @@
 		showDismissed = false;
 		if (!browser || !id) {
 			dismissed = new Set();
+			using = new Set();
 			return;
 		}
 		dismissed = loadDismissedSystematicRefs(id);
+		using = loadUsingSystematicRefs(id);
 	});
 
 	function persist(next: Set<string>) {
@@ -73,6 +78,23 @@
 		const next = new Set(dismissed);
 		next.delete(refId);
 		persist(next);
+	}
+
+	function persistUsing(next: Set<string>) {
+		using = next;
+		if (browser && parentId) saveUsingSystematicRefs(parentId, next);
+	}
+
+	function attachRef(refId: string) {
+		const next = new Set(using);
+		next.add(refId);
+		persistUsing(next);
+	}
+
+	function detachRef(refId: string) {
+		const next = new Set(using);
+		next.delete(refId);
+		persistUsing(next);
 	}
 
 	async function loadPointers(card: SystematicCardModel | null, full: boolean) {
@@ -173,7 +195,9 @@
 						loading={loadingKey === card.key || (sort === 'verse' && loadingKey === '__all__')}
 						{parentField}
 						{parentId}
-						{attachedBookIds}
+						usingRefIds={[...using]}
+						onAttach={attachRef}
+						onDetach={detachRef}
 						onDismiss={dismissRef}
 						onRestore={restoreRef}
 						onOpen={() => {

@@ -165,3 +165,4 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 - [x] Import sources is a large dialog with authors / abbreviations ([276](decisions/276-import-sources-detail-dialog.md)).
 - [x] Import picker research UX: collapsed sections, series leads, checklist JSON, Not included / New set / Save as set ([277](decisions/277-import-picker-research.md)).
 - [x] Commentary standing: park on the book or essay (Matthew Henry seeded). Active counts exclude parked rows. A sermon can hide one locally ([303](decisions/303-commentary-shelf-standing.md)).
+- [x] Attach on a systematic hit marks that hit only. It does not add the volume or reload the sermon ([302](decisions/302-systematic-hit-attach.md)).

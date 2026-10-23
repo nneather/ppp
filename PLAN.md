@@ -50,10 +50,10 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
 - [303 — Commentary shelf standing](docs/decisions/303-commentary-shelf-standing.md) (2026-10-23) — Park a commentary in Postgres (Matthew Henry starts parked). Counts are the active set. A sermon can also hide one for that sermon only.
+- [302 — Systematic hit attach](docs/decisions/302-systematic-hit-attach.md) (2026-10-23) — Attach marks that one index hit as in use. It does not attach the volume, and the sermon stays put. Click Attached to clear it.
 - [301 — Systematics verse reading order](docs/decisions/301-systematics-verse-reading-order.md) (2026-10-23) — Under a verse: Calvin, Bavinck, van Mastricht, Turretin, Leiden, and only the sets that hit that verse. Inside a set, volume then page (`I:233` before `II:134`).
 - [300 — Sports navigation](docs/decisions/300-sports-navigation.md) (2026-10-23) — `/sports` is Scores, Standings, or Teams. Standings and Teams pick a conference (college football: subdivision, then conference). Scores stay on followed teams, grouped by day.
 - [299 — Sermon commentaries collapsed](docs/decisions/299-sermon-commentaries-collapsed.md) (2026-10-23) — Each Bible book on a sermon is a closed card (name + count). Open it for the shelf and Attach. A book just added starts open.
-- [297 — Calvin scripture index](docs/decisions/297-calvin-index-import.md) (2026-10-23) — McNeill’s biblical index is on the two Battles volumes (6,672 locators). The seven practice rows are retired.
 
 ---
 
