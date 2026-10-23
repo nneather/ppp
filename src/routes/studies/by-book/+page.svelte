@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import CommentaryShelfHit from '$lib/components/commentary-shelf-hit.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
@@ -14,10 +15,10 @@
 		byBookFiltersToSearchParams,
 		defaultSortDir,
 		librarySearchPassageHref,
+		partitionCommentaryHits,
 		sermonsListByBookHref
 	} from '$lib/sermons/by-book';
 	import { formatYmdMediumChicago } from '$lib/invoicing/chicago-date';
-	import { formatHitRate } from '$lib/studies/hit-rate';
 	import { cn } from '$lib/utils';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -62,23 +63,17 @@
 		expandedBook = bibleBook;
 		alsoOpenFor = null;
 	}
-
-	function ratingLabel(rating: number | null): string {
-		if (rating == null) return '—';
-		return `${rating}★`;
-	}
 </script>
 
 <svelte:head>
 	<title>Sermons by book — ppp</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 pb-tabbar">
+<div class="mx-auto max-w-3xl px-4 py-6 pb-tabbar md:px-6 md:py-8">
 	<PageHeader
 		title="Sermons"
 		subtitle="Bible-book spine — sermons, papers, and commentaries on the shelf."
-	>
-	</PageHeader>
+	></PageHeader>
 
 	{#if data.loadError}
 		<p class="mt-4 text-sm text-destructive" role="alert">{data.loadError}</p>
@@ -86,7 +81,9 @@
 
 	<p class="mt-4 text-sm text-muted-foreground">
 		{data.summary.sermonTotal} sermon{data.summary.sermonTotal === 1 ? '' : 's'}
-		· {data.summary.commentaryTotal} commentar{data.summary.commentaryTotal === 1 ? 'y' : 'ies'}
+		· {data.summary.commentaryTotal} active commentar{data.summary.commentaryTotal === 1
+			? 'y'
+			: 'ies'}
 		· {data.summary.fourStarTotal} at 4★+
 	</p>
 
@@ -200,8 +197,8 @@
 							{row.bibleBook}
 						</span>
 						<span
-							class="flex shrink-0 items-center gap-2.5 text-xs tabular-nums text-muted-foreground"
-							aria-label={`${row.latestSermonOn ? `Latest sermon ${formatYmdMediumChicago(row.latestSermonOn)}, ` : ''}${row.paperCount} papers, ${row.commentaryCount} commentaries${row.fourStarCount > 0 ? `, ${row.fourStarCount} at 4 stars or higher` : ''}`}
+							class="flex shrink-0 items-center gap-2.5 text-xs text-muted-foreground tabular-nums"
+							aria-label={`${row.latestSermonOn ? `Latest sermon ${formatYmdMediumChicago(row.latestSermonOn)}, ` : ''}${row.paperCount} papers, ${row.commentaryCount} active commentaries${row.fourStarCount > 0 ? `, ${row.fourStarCount} at 4 stars or higher` : ''}`}
 						>
 							{#if row.latestSermonOn}
 								<time
@@ -268,65 +265,43 @@
 				</div>
 
 				{#if open}
+					{@const shelf = partitionCommentaryHits(row.commentaries)}
 					<div class="border-t border-border bg-muted/20 px-3 py-2.5">
 						{#if row.commentaries.length === 0}
 							<p class="text-xs text-muted-foreground">No commentaries tagged for this book.</p>
 						{:else}
-							<p class="text-xs font-medium text-muted-foreground">Commentaries</p>
-							<ul class="mt-1 space-y-0.5">
-								{#each row.commentaries as hit (`${hit.kind}-${hit.essayId ?? hit.bookId}`)}
-									<li>
-										<a
-											href={hit.href}
-											class="flex items-start gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60"
-										>
-											<span class="min-w-0 flex-1">
-												<span class="block truncate font-medium tracking-tight"
-													>{hit.title}</span
-												>
-												{#if hit.authorShort}
-													<span class="mt-0.5 block truncate text-xs text-muted-foreground"
-														>{hit.authorShort}</span
-													>
-												{/if}
-											</span>
-											<span
-												class="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs tabular-nums text-muted-foreground"
-												aria-label={[
-													hit.seriesLabel ? `Series ${hit.seriesLabel}` : null,
-													hit.rating != null ? `Rated ${hit.rating} stars` : 'Unrated'
-												]
-													.filter(Boolean)
-													.join(', ')}
-											>
-												{#if hit.seriesLabel}
-													<span
-														class="max-w-[7.5rem] truncate font-medium text-muted-foreground"
-														title={hit.seriesLabel}>{hit.seriesLabel}</span
-													>
-												{/if}
-												<span class="inline-flex items-center gap-0.5">
-													{#if hit.rating != null}
-														<Star
-															class="size-3 fill-amber-500 text-amber-600 dark:text-amber-400"
-															aria-hidden="true"
-														/>
-													{/if}
-													{ratingLabel(hit.rating)}
-												</span>
-												{#if hit.hitRate}
-													<span
-														class="font-medium text-foreground"
-														title="Consulted or cited in expository studies on this book since the commentary was acquired"
-													>
-														{formatHitRate(hit.hitRate)}
-													</span>
-												{/if}
-											</span>
-										</a>
-									</li>
-								{/each}
-							</ul>
+							{#if shelf.active.length > 0}
+								<p class="text-xs font-medium text-muted-foreground">
+									{shelf.parked.length > 0 ? 'Active' : 'Commentaries'}
+								</p>
+								<ul class="mt-1 space-y-0.5">
+									{#each shelf.active as hit (`${hit.kind}-${hit.essayId ?? hit.bookId}`)}
+										<li>
+											<CommentaryShelfHit {hit} isOwner={data.isOwner} />
+										</li>
+									{/each}
+								</ul>
+							{/if}
+							{#if shelf.parked.length > 0}
+								<details class="group mt-2">
+									<summary
+										class="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-muted-foreground [&::-webkit-details-marker]:hidden"
+									>
+										<ChevronDown
+											class="size-3.5 transition-transform group-open:rotate-180"
+											aria-hidden="true"
+										/>
+										Dismissed ({shelf.parked.length})
+									</summary>
+									<ul class="mt-1 space-y-0.5">
+										{#each shelf.parked as hit (`${hit.kind}-${hit.essayId ?? hit.bookId}`)}
+											<li class="rounded-md bg-muted/40">
+												<CommentaryShelfHit {hit} isOwner={data.isOwner} />
+											</li>
+										{/each}
+									</ul>
+								</details>
+							{/if}
 						{/if}
 
 						{#if row.alsoOnShelf.length > 0}
@@ -359,14 +334,13 @@
 													<span class="block truncate font-medium tracking-tight">
 														{hit.title}{#if hit.kind === 'essay'}
 															<span
-																class="ml-1 text-[10px] font-normal uppercase tracking-wide text-muted-foreground"
+																class="ml-1 text-[10px] font-normal tracking-wide text-muted-foreground uppercase"
 																>essay</span
 															>
 														{/if}
 													</span>
 													{#if hit.authorShort}
-														<span
-															class="mt-0.5 block truncate text-xs text-muted-foreground"
+														<span class="mt-0.5 block truncate text-xs text-muted-foreground"
 															>{hit.authorShort}</span
 														>
 													{/if}

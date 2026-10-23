@@ -6,6 +6,7 @@ import {
 	emptyByBookRows,
 	filterByBookRows,
 	parseByBookListFilters,
+	partitionCommentaryHits,
 	sortByBookRows,
 	sortShelfHits,
 	summarizeByBookRows
@@ -408,6 +409,7 @@ type CovBookEmbed = {
 	title: string | null;
 	genre: string | null;
 	rating: number | null;
+	shelf_dismissed: boolean;
 	deleted_at: string | null;
 	series_id: string | null;
 	series: CovSeriesEmbed | CovSeriesEmbed[] | null;
@@ -428,6 +430,7 @@ type CovEssayEmbed = {
 	essay_title: string;
 	deleted_at: string | null;
 	parent_book_id: string;
+	shelf_dismissed: boolean;
 	books: CovEssayParentEmbed | CovEssayParentEmbed[] | null;
 };
 
@@ -559,6 +562,7 @@ export async function loadByBookStats(
 				title,
 				genre,
 				rating,
+				shelf_dismissed,
 				deleted_at,
 				series_id,
 				series ( id, name, abbreviation, deleted_at )
@@ -568,6 +572,7 @@ export async function loadByBookStats(
 				essay_title,
 				deleted_at,
 				parent_book_id,
+				shelf_dismissed,
 				books!essays_parent_book_id_fkey (
 					id,
 					title,
@@ -712,7 +717,10 @@ export async function loadByBookStats(
 				authorKey,
 				rating: parent.rating,
 				genre: parent.genre,
-				href: `/library/books/${parent.id}#essay-${essay.id}`
+				href: `/library/books/${parent.id}#essay-${essay.id}`,
+				shelfDismissed: essay.shelf_dismissed,
+				memberBookIds: [parent.id],
+				memberEssayIds: [essay.id]
 			};
 			// Signed commentary essays (ESVEC, NIB) belong with Commentaries; other
 			// essay coverage (reference parents, etc.) stays under Also on the shelf.
@@ -746,7 +754,10 @@ export async function loadByBookStats(
 			authorKey,
 			rating: book.rating,
 			genre: book.genre,
-			href: `/library/books/${book.id}`
+			href: `/library/books/${book.id}`,
+			shelfDismissed: book.shelf_dismissed,
+			memberBookIds: [book.id],
+			memberEssayIds: []
 		};
 
 		if (book.genre === 'Commentary') {
@@ -766,13 +777,14 @@ export async function loadByBookStats(
 		const commentaries = sortShelfHits(
 			collapseCommentaryHits(commentariesByBook.get(row.bibleBook) ?? [])
 		);
+		const { active } = partitionCommentaryHits(commentaries);
 		const alsoOnShelf = sortShelfHits(alsoByBook.get(row.bibleBook) ?? []);
-		const fourStarCount = commentaries.filter((h) => h.rating != null && h.rating >= 4).length;
+		const fourStarCount = active.filter((h) => h.rating != null && h.rating >= 4).length;
 		return {
 			...row,
 			sermonCount,
 			latestSermonOn: latestSermonOnByBook.get(row.bibleBook) ?? null,
-			commentaryCount: commentaries.length,
+			commentaryCount: active.length,
 			fourStarCount,
 			commentaries,
 			alsoOnShelf,

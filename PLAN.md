@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-23 — Phone dashboard order is Project status, Tasks, Library, Upcoming sermons, Contacts, Classwork, Sports, then Invoicing ([298](docs/decisions/298-dashboard-phone-order.md)).
+**Last updated:** 2026-10-23 — Attach on a systematic hit marks that hit only ([302](docs/decisions/302-systematic-hit-attach.md)). Commentaries can be parked ([303](docs/decisions/303-commentary-shelf-standing.md)).
 
 **How to use this file — read this first:**
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | ✅ Session 1 scoreboard + **GHA ESPN sync** every 10m ([220](docs/decisions/220-sports-sync-github-actions.md)); scoreboard fetches **one day at a time** ([228](docs/decisions/228-sports-espn-scoreboard-date-range.md)); GHA script is package-free so `npx tsx` works ([227](docs/decisions/227-sports-sync-gha-dotenv.md)); CFB follow list is FBS–NAIA ([221](docs/decisions/221-sports-cfb-beyond-fbs.md)); standings are **division tables** with real W-L ([224](docs/decisions/224-sports-standings-divisions.md)). Hobby cron is backup only. |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. Dashboard panel is the next three; header → list, row → sermon ([293](docs/decisions/293-dashboard-upcoming-sermons.md)). |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Sermon detail is commentaries, then systematic theologies, then sources; topical sermons add shelves under the systematic hits ([294](docs/decisions/294-sermon-commentary-shelf.md)). Phone tab is Studies ([292](docs/decisions/292-mobile-tab-studies.md)). |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Sermon detail is commentaries (collapsed per Bible book; parked ones stay out of the count), then systematic theologies, then sources. Attach on a systematic hit marks that hit only. By verse reads Calvin, Bavinck, van Mastricht, Turretin, Leiden, then volume and page. Phone tab is Studies. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. Phone: desktop sidebar + dashboard glance ([292](docs/decisions/292-mobile-tab-studies.md)). |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Due lists group Quarterly → Semester → Annual, with up/down to step one frequency ([296](docs/decisions/296-due-frequency-nudge.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
-- [298 — Dashboard phone order](docs/decisions/298-dashboard-phone-order.md) (2026-10-23) — Phone home is Project status, Tasks, Library, Upcoming sermons, Contacts, Classwork, Sports, then Invoicing. Desktop stays two columns.
+- [303 — Commentary shelf standing](docs/decisions/303-commentary-shelf-standing.md) (2026-10-23) — Park a commentary in Postgres (Matthew Henry starts parked). Counts are the active set. A sermon can also hide one for that sermon only.
+- [301 — Systematics verse reading order](docs/decisions/301-systematics-verse-reading-order.md) (2026-10-23) — Under a verse: Calvin, Bavinck, van Mastricht, Turretin, Leiden, and only the sets that hit that verse. Inside a set, volume then page (`I:233` before `II:134`).
+- [300 — Sports navigation](docs/decisions/300-sports-navigation.md) (2026-10-23) — `/sports` is Scores, Standings, or Teams. Standings and Teams pick a conference (college football: subdivision, then conference). Scores stay on followed teams, grouped by day.
+- [299 — Sermon commentaries collapsed](docs/decisions/299-sermon-commentaries-collapsed.md) (2026-10-23) — Each Bible book on a sermon is a closed card (name + count). Open it for the shelf and Attach. A book just added starts open.
 - [297 — Calvin scripture index](docs/decisions/297-calvin-index-import.md) (2026-10-23) — McNeill’s biblical index is on the two Battles volumes (6,672 locators). The seven practice rows are retired.
-- [296 — Due frequency nudge](docs/decisions/296-due-frequency-nudge.md) (2026-10-23) — Due this period has up/down left of Log. Up meets more often; down meets less often. Quarterly has no up; Annual has no down.
-- [295 — NICOT Ecclesiastes, 2nd ed.](docs/decisions/295-library-nicot-ecclesiastes.md) (2026-10-23) — Longman, Eerdmans 2026, ISBN `9780802879059`. Coverage is Ecclesiastes, so it sits on Commentaries: Ecclesiastes with no member row.
-- [294 — Sermon commentary shelf](docs/decisions/294-sermon-commentary-shelf.md) (2026-10-23) — Sermon detail is commentaries (By book rows), then systematic theologies, then sources. Topical sermons put commentaries under the systematic hits and can add another Bible book’s shelf.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Dashboard phone order [298](docs/decisions/298-dashboard-phone-order.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **815/815** (2026-10-23). No schema change.
+**Repo gate:** Commentary shelf standing [303](docs/decisions/303-commentary-shelf-standing.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **836/836** (2026-10-23). Migration `20261023222235_commentary_shelf_dismissed.sql` applied.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

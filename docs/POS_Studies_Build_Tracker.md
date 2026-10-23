@@ -164,3 +164,4 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 - [x] New paper on `/studies/papers` opens that paper ([275](decisions/275-new-paper-opens-detail.md)).
 - [x] Import sources is a large dialog with authors / abbreviations ([276](decisions/276-import-sources-detail-dialog.md)).
 - [x] Import picker research UX: collapsed sections, series leads, checklist JSON, Not included / New set / Save as set ([277](decisions/277-import-picker-research.md)).
+- [x] Commentary standing: park on the book or essay (Matthew Henry seeded). Active counts exclude parked rows. A sermon can hide one locally ([303](decisions/303-commentary-shelf-standing.md)).

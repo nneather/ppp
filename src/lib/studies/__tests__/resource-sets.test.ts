@@ -277,6 +277,9 @@ describe('candidatesFromCommentaryHits', () => {
 			rating: null,
 			genre: 'Commentary',
 			href: `/library/books/${title}`,
+			shelfDismissed: false,
+			memberBookIds: [title],
+			memberEssayIds: [],
 			createdAt
 		});
 		const out = candidatesFromCommentaryHits([
@@ -302,6 +305,9 @@ describe('candidatesFromCommentaryHits', () => {
 			rating: null,
 			genre: 'Commentary',
 			href: '/library/books/b1',
+			shelfDismissed: false,
+			memberBookIds: ['b1'],
+			memberEssayIds: [],
 			createdAt: '2020-01-01T00:00:00Z',
 			volumeNumber: '1'
 		};

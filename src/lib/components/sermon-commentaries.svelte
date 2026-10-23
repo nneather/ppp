@@ -1,17 +1,21 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { enhance } from '$app/forms';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import CommentaryShelfHit from '$lib/components/commentary-shelf-hit.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { BIBLE_BOOK_NAMES } from '$lib/library/bible-book-names';
+	import {
+		commentaryDismissKey,
+		loadDismissedCommentaries,
+		saveDismissedCommentaries
+	} from '$lib/sermons/commentary-dismiss';
 	import {
 		loadCommentaryBooks,
 		saveCommentaryBooks,
 		uniqueBibleBooks
 	} from '$lib/sermons/commentary-books';
-	import { formatHitRate } from '$lib/studies/hit-rate';
-	import type { SermonCommentaryShelf } from '$lib/types/sermons';
-	import Star from '@lucide/svelte/icons/star';
+	import { partitionCommentaryHits } from '$lib/sermons/by-book';
+	import type { ByBookShelfHit, SermonCommentaryShelf } from '$lib/types/sermons';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
 	let {
 		shelves,
@@ -36,10 +40,13 @@
 
 	let bookToAdd = $state('');
 	let extraShelves = $state<SermonCommentaryShelf[]>([]);
+	/** Shelves the user just added start open. Passage shelves stay closed. */
+	let preferOpen = $state<Set<string>>(new Set());
 	let addError = $state<string | null>(null);
 	let loading = $state(false);
-	let pendingKey = $state<string | null>(null);
 	let hydrateGen = 0;
+	let showDismissed = $state(false);
+	let hiddenKeys = $state<Set<string>>(new Set());
 
 	const attachedBooks = $derived(new Set(attachedBookIds));
 	const attachedEssays = $derived(new Set(attachedEssayIds));
@@ -57,6 +64,41 @@
 		const stored = loadCommentaryBooks(id).filter((book) => !present.has(book));
 		void hydrate(stored);
 	});
+
+	$effect(() => {
+		const id = parentId;
+		showDismissed = false;
+		if (!browser || !id) {
+			hiddenKeys = new Set();
+			return;
+		}
+		hiddenKeys = loadDismissedCommentaries(id);
+	});
+
+	function persistHidden(next: Set<string>) {
+		hiddenKeys = next;
+		if (browser && parentId) saveDismissedCommentaries(parentId, next);
+	}
+
+	function dismissLocal(hit: ByBookShelfHit) {
+		const next = new Set(hiddenKeys);
+		next.add(commentaryDismissKey(hit));
+		persistHidden(next);
+	}
+
+	function restoreLocal(hit: ByBookShelfHit) {
+		const next = new Set(hiddenKeys);
+		next.delete(commentaryDismissKey(hit));
+		persistHidden(next);
+	}
+
+	function locallyDismissed(hit: ByBookShelfHit): boolean {
+		return hiddenKeys.has(commentaryDismissKey(hit));
+	}
+
+	function rowConcealed(hit: ByBookShelfHit): boolean {
+		return hit.shelfDismissed || locallyDismissed(hit);
+	}
 
 	async function fetchShelf(bibleBook: string): Promise<SermonCommentaryShelf | null> {
 		const params = new URLSearchParams({ bible_book: bibleBook });
@@ -79,7 +121,8 @@
 			const loaded = await Promise.all(books.map((book) => fetchShelf(book)));
 			if (gen !== hydrateGen) return;
 			const shelvesLoaded = loaded.filter((shelf): shelf is SermonCommentaryShelf => shelf != null);
-			if (shelvesLoaded.length !== books.length) addError = 'Could not load every commentary shelf.';
+			if (shelvesLoaded.length !== books.length)
+				addError = 'Could not load every commentary shelf.';
 			extraShelves = shelvesLoaded;
 		} finally {
 			if (gen === hydrateGen) loading = false;
@@ -89,13 +132,24 @@
 	function addBook() {
 		const book = uniqueBibleBooks([bookToAdd])[0];
 		if (!book || shownBooks.has(book)) return;
-		const next = uniqueBibleBooks([
-			...extraShelves.map((shelf) => shelf.bibleBook),
-			book
-		]);
+		const next = uniqueBibleBooks([...extraShelves.map((shelf) => shelf.bibleBook), book]);
 		saveCommentaryBooks(parentId, next);
+		preferOpen = new Set([...preferOpen, book]);
 		bookToAdd = '';
 		void hydrate(next);
+	}
+
+	/** Uncontrolled `<details>` keeps the user's toggle. This only opens a shelf on first mount. */
+	function openIfPreferred(node: HTMLDetailsElement, bibleBook: string) {
+		if (preferOpen.has(bibleBook)) node.open = true;
+	}
+
+	function shelfCountLabel(active: number, parked: number): string {
+		if (active === 1) return '1 commentary';
+		if (active > 1) return `${active} commentaries`;
+		if (parked === 1) return '1 dismissed';
+		if (parked > 1) return `${parked} dismissed`;
+		return 'No commentaries';
 	}
 
 	function removeBook(bibleBook: string) {
@@ -109,29 +163,32 @@
 		return attachedBooks.has(hit.bookId);
 	}
 
-	function ratingLabel(rating: number | null): string {
-		if (rating == null) return '—';
-		return `${rating}★`;
-	}
-
-	const attachEnhance: SubmitFunction = ({ formData }) => {
-		pendingKey = String(formData.get('essay_id') || formData.get('book_id') || '');
-		return async ({ result, update }) => {
-			pendingKey = null;
-			await update({ invalidateAll: false, reset: false });
-			if (result.type === 'success') await onAttached();
-		};
-	};
-
 	const lead = $derived(
 		mode === 'add'
 			? 'Add a Bible book, then attach the commentaries that apply.'
 			: 'Same shelf as By book. Attach a volume to add it as a source.'
 	);
+
+	const concealedCount = $derived(
+		displayShelves.reduce(
+			(count, shelf) => count + shelf.commentaries.filter((hit) => rowConcealed(hit)).length,
+			0
+		)
+	);
 </script>
 
 <h2 class="text-sm font-semibold">Commentaries</h2>
 <p class="mt-0.5 text-xs text-muted-foreground">{lead}</p>
+{#if concealedCount > 0}
+	<button
+		type="button"
+		class="mt-2 min-h-9 rounded-md px-1 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+		aria-pressed={showDismissed}
+		onclick={() => (showDismissed = !showDismissed)}
+	>
+		{showDismissed ? 'Hide dismissed' : `Show dismissed (${concealedCount})`}
+	</button>
+{/if}
 
 {#if mode === 'add' && isOwner}
 	<form
@@ -151,7 +208,13 @@
 				<option value={name} disabled={shownBooks.has(name)}>{name}</option>
 			{/each}
 		</select>
-		<Button type="submit" variant="outline" size="sm" label="Add" disabled={!bookToAdd || loading} />
+		<Button
+			type="submit"
+			variant="outline"
+			size="sm"
+			label="Add"
+			disabled={!bookToAdd || loading}
+		/>
 	</form>
 {/if}
 
@@ -168,102 +231,68 @@
 	<p class="mt-3 text-sm text-muted-foreground">No commentary shelves yet.</p>
 {/if}
 
-{#each displayShelves as shelf (shelf.bibleBook)}
-	<div class="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
-		<div class="flex items-center justify-between gap-2">
-			<p class="text-xs font-medium text-muted-foreground">{shelf.bibleBook}</p>
-			{#if mode === 'add' && isOwner && !passageBooks.has(shelf.bibleBook)}
-				<button
-					type="button"
-					class="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-					onclick={() => removeBook(shelf.bibleBook)}
+{#if displayShelves.length > 0}
+	<div class="mt-3 flex flex-col gap-2">
+		{#each displayShelves as shelf (shelf.bibleBook)}
+			{@const parts = partitionCommentaryHits(shelf.commentaries)}
+			{@const visible = shelf.commentaries.filter((hit) => showDismissed || !rowConcealed(hit))}
+			<details
+				class="group rounded-lg border border-border bg-card"
+				use:openIfPreferred={shelf.bibleBook}
+			>
+				<summary
+					class="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden"
 				>
-					Remove
-				</button>
-			{/if}
-		</div>
-		{#if shelf.commentaries.length === 0}
-			<p class="mt-1 text-xs text-muted-foreground">No commentaries tagged for this book.</p>
-		{:else}
-			<ul class="mt-1 space-y-0.5">
-				{#each shelf.commentaries as hit (`${hit.kind}-${hit.essayId ?? hit.bookId}`)}
-					<li class="flex items-start gap-2">
-						<a
-							href={hit.href}
-							class="flex min-w-0 flex-1 items-start gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60"
+					<ChevronDown
+						class="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+						aria-hidden="true"
+					/>
+					<span class="min-w-0 flex-1 truncate text-sm font-medium tracking-tight">
+						{shelf.bibleBook}
+					</span>
+					<span class="shrink-0 text-xs text-muted-foreground tabular-nums">
+						{shelfCountLabel(parts.active.length, parts.parked.length)}
+					</span>
+					{#if mode === 'add' && isOwner && !passageBooks.has(shelf.bibleBook)}
+						<button
+							type="button"
+							class="shrink-0 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+							onclick={(event) => {
+								event.preventDefault();
+								event.stopPropagation();
+								removeBook(shelf.bibleBook);
+							}}
 						>
-							<span class="min-w-0 flex-1">
-								<span class="block truncate font-medium tracking-tight">{hit.title}</span>
-								{#if hit.authorShort}
-									<span class="mt-0.5 block truncate text-xs text-muted-foreground">{hit.authorShort}</span>
-								{/if}
-							</span>
-							<span
-								class="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs tabular-nums text-muted-foreground"
-								aria-label={[
-									hit.seriesLabel ? `Series ${hit.seriesLabel}` : null,
-									hit.rating != null ? `Rated ${hit.rating} stars` : 'Unrated',
-									hit.hitRate ? `Hit rate ${formatHitRate(hit.hitRate)}` : null
-								]
-									.filter(Boolean)
-									.join(', ')}
-							>
-								{#if hit.seriesLabel}
-									<span class="max-w-[7.5rem] truncate font-medium" title={hit.seriesLabel}
-										>{hit.seriesLabel}</span
-									>
-								{/if}
-								<span class="inline-flex items-center gap-0.5">
-									{#if hit.rating != null}
-										<Star
-											class="size-3 fill-amber-500 text-amber-600 dark:text-amber-400"
-											aria-hidden="true"
-										/>
-									{/if}
-									{ratingLabel(hit.rating)}
-								</span>
-								{#if hit.hitRate}
-									<span
-										class="font-medium text-foreground"
-										title="Consulted or cited in expository studies on this book since the commentary was acquired"
-									>
-										{formatHitRate(hit.hitRate)}
-									</span>
-								{/if}
-							</span>
-						</a>
-						{#if isOwner}
-							<div class="w-24 shrink-0 pt-1">
-								{#if isAttached(hit)}
-									<span
-										class="inline-flex h-7 w-full items-center justify-center rounded-md border border-border text-xs text-muted-foreground"
-									>
-										Attached
-									</span>
-								{:else}
-									{@const rowKey = hit.essayId ?? hit.bookId}
-									<form method="POST" action="?/addPaperSource" use:enhance={attachEnhance} class="w-full">
-										<input type="hidden" name={parentField} value={parentId} />
-										{#if hit.kind === 'essay' && hit.essayId}
-											<input type="hidden" name="essay_id" value={hit.essayId} />
-										{:else}
-											<input type="hidden" name="book_id" value={hit.bookId} />
-										{/if}
-										<Button
-											type="submit"
-											variant="outline"
-											size="sm"
-											class="w-full"
-											label="Attach"
-											disabled={pendingKey === rowKey}
-										/>
-									</form>
-								{/if}
-							</div>
-						{/if}
-					</li>
-				{/each}
-			</ul>
-		{/if}
+							Remove
+						</button>
+					{/if}
+				</summary>
+				<div class="border-t border-border px-3 py-2.5">
+					{#if shelf.commentaries.length === 0}
+						<p class="text-xs text-muted-foreground">No commentaries tagged for this book.</p>
+					{:else if visible.length === 0}
+						<p class="text-xs text-muted-foreground">Dismissed. Show dismissed to attach one.</p>
+					{:else}
+						<ul class="space-y-0.5">
+							{#each visible as hit (`${hit.kind}-${hit.essayId ?? hit.bookId}`)}
+								<li class={rowConcealed(hit) ? 'rounded-md bg-muted/40' : ''}>
+									<CommentaryShelfHit
+										{hit}
+										{isOwner}
+										{parentField}
+										{parentId}
+										attached={isAttached(hit)}
+										locallyDismissed={locallyDismissed(hit)}
+										{onAttached}
+										onDismissLocal={() => dismissLocal(hit)}
+										onRestoreLocal={() => restoreLocal(hit)}
+									/>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			</details>
+		{/each}
 	</div>
-{/each}
+{/if}

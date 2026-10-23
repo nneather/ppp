@@ -664,6 +664,7 @@ export type Database = {
           reprint_year: number | null
           search_vector: unknown
           series_id: string | null
+          shelf_dismissed: boolean
           shelving_location: string | null
           subtitle: string | null
           title: string | null
@@ -710,6 +711,7 @@ export type Database = {
           reprint_year?: number | null
           search_vector?: unknown
           series_id?: string | null
+          shelf_dismissed?: boolean
           shelving_location?: string | null
           subtitle?: string | null
           title?: string | null
@@ -756,6 +758,7 @@ export type Database = {
           reprint_year?: number | null
           search_vector?: unknown
           series_id?: string | null
+          shelf_dismissed?: boolean
           shelving_location?: string | null
           subtitle?: string | null
           title?: string | null
@@ -1299,6 +1302,7 @@ export type Database = {
           page_end: string | null
           page_start: string | null
           parent_book_id: string
+          shelf_dismissed: boolean
           updated_at: string
         }
         Insert: {
@@ -1310,6 +1314,7 @@ export type Database = {
           page_end?: string | null
           page_start?: string | null
           parent_book_id: string
+          shelf_dismissed?: boolean
           updated_at?: string
         }
         Update: {
@@ -1321,6 +1326,7 @@ export type Database = {
           page_end?: string | null
           page_start?: string | null
           parent_book_id?: string
+          shelf_dismissed?: boolean
           updated_at?: string
         }
         Relationships: [

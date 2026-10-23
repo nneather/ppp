@@ -83,6 +83,45 @@ export function preferEssayHitsOverParentBooks(hits: ByBookShelfHit[]): ByBookSh
 	return hits.filter((hit) => !(hit.kind === 'book' && parentsWithEssay.has(hit.bookId)));
 }
 
+function memberBookIdsOf(hit: ByBookShelfHit): string[] {
+	return hit.memberBookIds.length > 0 ? hit.memberBookIds : [hit.bookId];
+}
+
+function memberEssayIdsOf(hit: ByBookShelfHit): string[] {
+	if (hit.memberEssayIds.length > 0) return hit.memberEssayIds;
+	return hit.essayId ? [hit.essayId] : [];
+}
+
+function unionIds(members: ByBookShelfHit[], pick: (hit: ByBookShelfHit) => string[]): string[] {
+	const seen = new Set<string>();
+	const out: string[] = [];
+	for (const member of members) {
+		for (const id of pick(member)) {
+			if (seen.has(id)) continue;
+			seen.add(id);
+			out.push(id);
+		}
+	}
+	return out;
+}
+
+/** One shelf row, with every volume/essay id and parked only when all members are. */
+function finishCollapsed(
+	members: ByBookShelfHit[],
+	preferred: ByBookShelfHit,
+	title: string,
+	rating: number | null
+): ByBookShelfHit {
+	return {
+		...preferred,
+		title,
+		rating,
+		shelfDismissed: members.every((member) => member.shelfDismissed),
+		memberBookIds: unionIds(members, memberBookIdsOf),
+		memberEssayIds: unionIds(members, memberEssayIdsOf)
+	};
+}
+
 export function collapseCommentaryHits(hits: ByBookShelfHit[]): ByBookShelfHit[] {
 	const groups = new Map<string, ByBookShelfHit[]>();
 	for (const hit of preferEssayHitsOverParentBooks(hits)) {
@@ -95,7 +134,8 @@ export function collapseCommentaryHits(hits: ByBookShelfHit[]): ByBookShelfHit[]
 	const collapsed: ByBookShelfHit[] = [];
 	for (const members of groups.values()) {
 		if (members.length === 1) {
-			collapsed.push(members[0]!);
+			const only = members[0]!;
+			collapsed.push(finishCollapsed(members, only, only.title, only.rating));
 			continue;
 		}
 		let preferred = members[0]!;
@@ -117,13 +157,30 @@ export function collapseCommentaryHits(hits: ByBookShelfHit[]): ByBookShelfHit[]
 			if (m.rating == null) continue;
 			if (maxRating == null || m.rating > maxRating) maxRating = m.rating;
 		}
-		collapsed.push({
-			...preferred,
-			title: titles.length > 0 ? titles.join('; ') : preferred.title,
-			rating: maxRating
-		});
+		collapsed.push(
+			finishCollapsed(
+				members,
+				preferred,
+				titles.length > 0 ? titles.join('; ') : preferred.title,
+				maxRating
+			)
+		);
 	}
 	return collapsed;
+}
+
+/** Active rows count. Parked rows stay on the hit list for the Dismissed disclosure. */
+export function partitionCommentaryHits(hits: ByBookShelfHit[]): {
+	active: ByBookShelfHit[];
+	parked: ByBookShelfHit[];
+} {
+	const active: ByBookShelfHit[] = [];
+	const parked: ByBookShelfHit[] = [];
+	for (const hit of hits) {
+		if (hit.shelfDismissed) parked.push(hit);
+		else active.push(hit);
+	}
+	return { active, parked };
 }
 
 /** Header totals from the full (unfiltered) canon spine + distinct sermon count. */
@@ -132,6 +189,7 @@ export function summarizeByBookRows(rows: ByBookRow[], sermonTotal: number): ByB
 	const fourStarBookIds = new Set<string>();
 	for (const row of rows) {
 		for (const c of row.commentaries) {
+			if (c.shelfDismissed) continue;
 			commentaryBookIds.add(c.bookId);
 			if (c.rating != null && c.rating >= 4) fourStarBookIds.add(c.bookId);
 		}

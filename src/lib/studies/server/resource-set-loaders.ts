@@ -42,6 +42,7 @@ type BookEmbed = {
 	title: string | null;
 	genre: string | null;
 	rating: number | null;
+	shelf_dismissed: boolean;
 	deleted_at: string | null;
 	series_id: string | null;
 	volume_number: string | null;
@@ -67,6 +68,7 @@ type EssayEmbed = {
 	essay_title: string;
 	deleted_at: string | null;
 	parent_book_id: string;
+	shelf_dismissed: boolean;
 	created_at: string;
 	books: BookEmbed | BookEmbed[] | null;
 };
@@ -162,13 +164,27 @@ function authorKey(rows: { person_id: string; role: string }[]): string {
 	return ids.join('|');
 }
 
-function emptyHit(partial: Omit<ByBookShelfHit, 'authorShort' | 'seriesLabel' | 'href' | 'authorKey'> & {
-	authorKey: string | null;
-}): ByBookShelfHit & { createdAt: string | null } {
+function emptyHit(
+	partial: Omit<
+		ByBookShelfHit,
+		| 'authorShort'
+		| 'seriesLabel'
+		| 'href'
+		| 'authorKey'
+		| 'memberBookIds'
+		| 'memberEssayIds'
+		| 'shelfDismissed'
+	> & {
+		authorKey: string | null;
+		shelfDismissed: boolean;
+	}
+): ByBookShelfHit & { createdAt: string | null } {
 	return {
 		...partial,
 		authorShort: null,
 		seriesLabel: null,
+		memberBookIds: [partial.bookId],
+		memberEssayIds: partial.kind === 'essay' && partial.essayId ? [partial.essayId] : [],
 		href: partial.kind === 'essay' && partial.essayId
 			? `/library/books/${partial.bookId}#essay-${partial.essayId}`
 			: `/library/books/${partial.bookId}`,
@@ -191,11 +207,11 @@ async function commentaryCandidatesByBook(
 			book_id,
 			essay_id,
 			books (
-				id, title, genre, rating, deleted_at, series_id, volume_number, created_at,
+				id, title, genre, rating, shelf_dismissed, deleted_at, series_id, volume_number, created_at,
 				series ( id, name, abbreviation, deleted_at )
 			),
 			essays (
-				id, essay_title, deleted_at, parent_book_id, created_at,
+				id, essay_title, deleted_at, parent_book_id, shelf_dismissed, created_at,
 				books!essays_parent_book_id_fkey (
 					id, title, genre, rating, deleted_at, series_id, volume_number, created_at,
 					series ( id, name, abbreviation, deleted_at )
@@ -271,7 +287,8 @@ async function commentaryCandidatesByBook(
 					seriesId,
 					authorKey: authorKey(authorsByEssay.get(essay.id) ?? []) || null,
 					rating: parent.rating,
-					genre: parent.genre
+					genre: parent.genre,
+					shelfDismissed: essay.shelf_dismissed
 				}),
 				seriesLabel,
 				createdAt: essay.created_at,
@@ -297,7 +314,8 @@ async function commentaryCandidatesByBook(
 				seriesId,
 				authorKey: authorKey(authorsByBook.get(book.id) ?? []) || null,
 				rating: book.rating,
-				genre: book.genre
+				genre: book.genre,
+				shelfDismissed: book.shelf_dismissed
 			}),
 			seriesLabel,
 			createdAt: book.created_at,
@@ -309,7 +327,10 @@ async function commentaryCandidatesByBook(
 	}
 
 	for (const [bibleBook, hits] of hitsByBook) {
-		out.set(bibleBook, candidatesFromCommentaryHits(hits));
+		out.set(
+			bibleBook,
+			candidatesFromCommentaryHits(hits.filter((hit) => !hit.shelfDismissed))
+		);
 	}
 	return out;
 }

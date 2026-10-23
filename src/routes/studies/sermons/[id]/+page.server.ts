@@ -22,6 +22,10 @@ import {
 } from '$lib/studies/server/paper-actions';
 import { loadStudyWorkspace } from '$lib/studies/server/study-workspace';
 import {
+	setCommentaryRatingAction,
+	setCommentaryShelfAction
+} from '$lib/sermons/server/commentary-shelf-actions';
+import {
 	createResourceSetAction,
 	removeSetMemberAction,
 	restoreSetMemberAction,
@@ -84,6 +88,16 @@ export const actions: Actions = {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'createVenue' as const, message: 'Unauthorized' });
 		return createVenueAction(locals.supabase, user.id, await request.formData());
+	},
+	setCommentaryRating: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'setCommentaryRating' as const, message: 'Unauthorized' });
+		return setCommentaryRatingAction(locals.supabase, user.id, await request.formData());
+	},
+	setCommentaryShelf: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'setCommentaryShelf' as const, message: 'Unauthorized' });
+		return setCommentaryShelfAction(locals.supabase, user.id, await request.formData());
 	},
 	addPaperSource: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

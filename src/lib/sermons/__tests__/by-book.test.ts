@@ -30,7 +30,12 @@ function hit(partial: Partial<ByBookShelfHit> & { title: string }): ByBookShelfH
 			partial.href ??
 			(partial.kind === 'essay' && partial.essayId
 				? `/library/books/${partial.bookId ?? 'b1'}#essay-${partial.essayId}`
-				: `/library/books/${partial.bookId ?? 'b1'}`)
+				: `/library/books/${partial.bookId ?? 'b1'}`),
+		shelfDismissed: partial.shelfDismissed ?? false,
+		memberBookIds: partial.memberBookIds ?? [partial.bookId ?? 'b1'],
+		memberEssayIds:
+			partial.memberEssayIds ??
+			(partial.kind === 'essay' && partial.essayId ? [partial.essayId] : [])
 	};
 }
 
@@ -205,6 +210,47 @@ describe('collapseCommentaryHits', () => {
 		]);
 		expect(collapsed).toHaveLength(2);
 	});
+
+	it('keeps every volume id and stays active until all members are parked', () => {
+		const mixed = collapseCommentaryHits([
+			hit({
+				title: 'Genesis 1-15',
+				bookId: 'w1',
+				seriesId: wbc,
+				authorKey: wenhamId,
+				shelfDismissed: true
+			}),
+			hit({
+				title: 'Genesis 16-50',
+				bookId: 'w2',
+				seriesId: wbc,
+				authorKey: wenhamId,
+				shelfDismissed: false
+			})
+		]);
+		expect(mixed).toHaveLength(1);
+		expect(mixed[0]?.shelfDismissed).toBe(false);
+		expect(mixed[0]?.memberBookIds).toEqual(['w1', 'w2']);
+
+		const parked = collapseCommentaryHits([
+			hit({
+				title: 'Genesis 1-15',
+				bookId: 'w1',
+				seriesId: wbc,
+				authorKey: wenhamId,
+				shelfDismissed: true
+			}),
+			hit({
+				title: 'Genesis 16-50',
+				bookId: 'w2',
+				seriesId: wbc,
+				authorKey: wenhamId,
+				shelfDismissed: true
+			})
+		]);
+		expect(parked[0]?.shelfDismissed).toBe(true);
+		expect(parked[0]?.memberBookIds).toEqual(['w1', 'w2']);
+	});
 });
 
 describe('filter + sort', () => {
@@ -249,20 +295,19 @@ describe('filter + sort', () => {
 	});
 
 	it('filters OT / has sermons / has 4★+', () => {
-		expect(filterByBookRows(rows, baseFilters({ testament: 'ot' })).every((r) => r.testament === 'ot'))
-			.toBe(true);
-		expect(filterByBookRows(rows, baseFilters({ hasSermons: true })).map((r) => r.bibleBook)).toEqual(
-			['Genesis', 'Romans']
-		);
+		expect(
+			filterByBookRows(rows, baseFilters({ testament: 'ot' })).every((r) => r.testament === 'ot')
+		).toBe(true);
+		expect(
+			filterByBookRows(rows, baseFilters({ hasSermons: true })).map((r) => r.bibleBook)
+		).toEqual(['Genesis', 'Romans']);
 		expect(
 			filterByBookRows(rows, baseFilters({ hasFourStar: true })).map((r) => r.bibleBook)
 		).toEqual(['Genesis']);
 	});
 
 	it('sorts metrics bidirectionally with canon tiebreak', () => {
-		const subset = rows.filter((r) =>
-			['Genesis', 'Matthew', 'Romans'].includes(r.bibleBook)
-		);
+		const subset = rows.filter((r) => ['Genesis', 'Matthew', 'Romans'].includes(r.bibleBook));
 		const most = sortByBookRows(subset, 'sermons', 'desc');
 		expect(most.map((r) => r.bibleBook)).toEqual(['Romans', 'Genesis', 'Matthew']);
 		const least = sortByBookRows(subset, 'sermons', 'asc');
@@ -301,9 +346,9 @@ describe('URL filters', () => {
 	it('defaults metric sort dir to desc and canon to asc', () => {
 		expect(defaultSortDir('canon')).toBe('asc');
 		expect(defaultSortDir('four_star')).toBe('desc');
-		expect(parseByBookListFilters(new URL('https://x/sermons/by-book?sort=commentaries')).sortDir).toBe(
-			'desc'
-		);
+		expect(
+			parseByBookListFilters(new URL('https://x/sermons/by-book?sort=commentaries')).sortDir
+		).toBe('desc');
 	});
 });
 
@@ -327,6 +372,30 @@ describe('summarizeByBookRows', () => {
 		const s = summarizeByBookRows(rows, 12);
 		expect(s.sermonTotal).toBe(12);
 		expect(s.commentaryTotal).toBe(2);
+		expect(s.fourStarTotal).toBe(1);
+	});
+
+	it('leaves parked commentaries out of the active and four-star totals', () => {
+		const rows = emptyByBookRows().map((r) => {
+			if (r.bibleBook === 'Genesis') {
+				return {
+					...r,
+					commentaries: [
+						hit({ title: 'Wenham', rating: 5, bookId: 'w' }),
+						hit({ title: 'Henry', rating: 5, bookId: 'h', shelfDismissed: true })
+					]
+				};
+			}
+			if (r.bibleBook === 'Psalms') {
+				return {
+					...r,
+					commentaries: [hit({ title: 'Henry', rating: 5, bookId: 'h2', shelfDismissed: true })]
+				};
+			}
+			return r;
+		});
+		const s = summarizeByBookRows(rows, 0);
+		expect(s.commentaryTotal).toBe(1);
 		expect(s.fourStarTotal).toBe(1);
 	});
 });

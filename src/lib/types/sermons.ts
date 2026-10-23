@@ -149,6 +149,12 @@ export type ByBookShelfHit = {
 	rating: number | null;
 	genre: string | null;
 	href: string;
+	/** Parked in Postgres. Active counts ignore the hit when this is true. */
+	shelfDismissed: boolean;
+	/** Every volume in a collapsed set. Rating writes these book ids. */
+	memberBookIds: string[];
+	/** Essay rows in a collapsed set. Dismiss-by-default writes these, not the parent book. */
+	memberEssayIds: string[];
 	/** Consulted or cited over expository primary-passage opportunities since acquired_on. */
 	hitRate?: { used: number; opportunities: number } | null;
 };

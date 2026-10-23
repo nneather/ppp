@@ -27,6 +27,7 @@ type BookEmbed = {
 	title: string | null;
 	genre: string | null;
 	rating: number | null;
+	shelf_dismissed: boolean;
 	deleted_at: string | null;
 	series_id: string | null;
 	series: SeriesEmbed | SeriesEmbed[] | null;
@@ -37,6 +38,7 @@ type EssayEmbed = {
 	essay_title: string;
 	deleted_at: string | null;
 	parent_book_id: string;
+	shelf_dismissed: boolean;
 	books: BookEmbed | BookEmbed[] | null;
 };
 
@@ -125,11 +127,11 @@ export async function loadCommentaryShelves(
 			book_id,
 			essay_id,
 			books (
-				id, title, genre, rating, deleted_at, series_id,
+				id, title, genre, rating, shelf_dismissed, deleted_at, series_id,
 				series ( id, name, abbreviation, deleted_at )
 			),
 			essays (
-				id, essay_title, deleted_at, parent_book_id,
+				id, essay_title, deleted_at, parent_book_id, shelf_dismissed,
 				books!essays_parent_book_id_fkey (
 					id, title, genre, rating, deleted_at, series_id,
 					series ( id, name, abbreviation, deleted_at )
@@ -226,7 +228,10 @@ export async function loadCommentaryShelves(
 				authorKey: authorKey(authorsByEssay.get(essay.id) ?? []) || null,
 				rating: parent.rating,
 				genre: parent.genre,
-				href: `/library/books/${parent.id}#essay-${essay.id}`
+				href: `/library/books/${parent.id}#essay-${essay.id}`,
+				shelfDismissed: essay.shelf_dismissed,
+				memberBookIds: [parent.id],
+				memberEssayIds: [essay.id]
 			};
 			const list = hitsByBook.get(row.bible_book) ?? [];
 			list.push(hit);
@@ -249,7 +254,10 @@ export async function loadCommentaryShelves(
 			authorKey: authorKey(junctions) || null,
 			rating: book.rating,
 			genre: book.genre,
-			href: `/library/books/${book.id}`
+			href: `/library/books/${book.id}`,
+			shelfDismissed: book.shelf_dismissed,
+			memberBookIds: [book.id],
+			memberEssayIds: []
 		};
 		const list = hitsByBook.get(row.bible_book) ?? [];
 		list.push(hit);
