@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-23 — Calvin’s Battles scripture index is imported (6,672 section locators) ([297](docs/decisions/297-calvin-index-import.md)).
+**Last updated:** 2026-10-23 — Phone dashboard order is Project status, Tasks, Library, Upcoming sermons, Contacts, Classwork, Sports, then Invoicing ([298](docs/decisions/298-dashboard-phone-order.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [298 — Dashboard phone order](docs/decisions/298-dashboard-phone-order.md) (2026-10-23) — Phone home is Project status, Tasks, Library, Upcoming sermons, Contacts, Classwork, Sports, then Invoicing. Desktop stays two columns.
 - [297 — Calvin scripture index](docs/decisions/297-calvin-index-import.md) (2026-10-23) — McNeill’s biblical index is on the two Battles volumes (6,672 locators). The seven practice rows are retired.
 - [296 — Due frequency nudge](docs/decisions/296-due-frequency-nudge.md) (2026-10-23) — Due this period has up/down left of Log. Up meets more often; down meets less often. Quarterly has no up; Annual has no down.
 - [295 — NICOT Ecclesiastes, 2nd ed.](docs/decisions/295-library-nicot-ecclesiastes.md) (2026-10-23) — Longman, Eerdmans 2026, ISBN `9780802879059`. Coverage is Ecclesiastes, so it sits on Commentaries: Ecclesiastes with no member row.
 - [294 — Sermon commentary shelf](docs/decisions/294-sermon-commentary-shelf.md) (2026-10-23) — Sermon detail is commentaries (By book rows), then systematic theologies, then sources. Topical sermons put commentaries under the systematic hits and can add another Bible book’s shelf.
-- [293 — Dashboard upcoming sermons](docs/decisions/293-dashboard-upcoming-sermons.md) (2026-10-23) — Home panel shows the next three. The header opens the sermon list; a row opens that sermon.
 
 ---
 
@@ -61,7 +61,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Projects (use weekly):**
 - `/projects` — inline tree + weekly check-in (`depends('app:projects:tree')`), optional **progress tracking** per check-in (value / of / note — [048](docs/decisions/048-projects-checkin-progress.md)).
-- `/dashboard` — desktop two-column home (status + modules + upcoming sermons; Due soon + Due to meet); **Now tasks** are the persistent **right** pane on `md+`, collapsible ([206](docs/decisions/206-outlook-right-now-pane.md)); mobile glance tiles for Tasks + Classwork + Contacts ([132](docs/decisions/132-desktop-home-dashboard.md), [161](docs/decisions/161-classwork-session-2.md), [180](docs/decisions/180-contacts-session-2.md)).
+- `/dashboard` — desktop two-column home (status, Invoicing beside Library, sermons, sports; Due soon + Due to meet); **Now tasks** are the persistent **right** pane on `md+`, collapsible ([206](docs/decisions/206-outlook-right-now-pane.md)). Phone stack: Project status, Tasks, Library, Upcoming sermons, Contacts, Classwork, Sports, Invoicing ([298](docs/decisions/298-dashboard-phone-order.md)).
 - `/tasks` — MYN zones (Critical / Opportunity / OTH), FRESH sort, defer/promote; `?project=` / `?view=` / `?all=1` ([128](docs/decisions/128-myn-fall-polish.md)). Legacy `/projects/tasks` 308-redirects here.
 - `/settings/projects` — default New Task project + named saved views.
 - Edit project Sheet — metadata + **links** (edit mode only).
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Calvin scripture index [297](docs/decisions/297-calvin-index-import.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **815/815** (2026-10-23). No schema change.
+**Repo gate:** Dashboard phone order [298](docs/decisions/298-dashboard-phone-order.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **815/815** (2026-10-23). No schema change.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
