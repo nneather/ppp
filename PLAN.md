@@ -190,7 +190,7 @@ Acceptance:
 ## Next up
 
 ### Do now (fall — [138](docs/decisions/138-fall-semester-priorities.md) / [139](docs/decisions/139-lightweight-crm-fall-priority.md))
-1. **van Mastricht source** — Calvin’s scripture index is imported ([297](docs/decisions/297-calvin-index-import.md)). van Mastricht is next and still not chosen ([267](docs/decisions/267-systematics-index-sources.md)). Do not start Bavinck.
+1. **Calvin review list** — 103 flagged index rows (Prefatory Address, plus Acts 14:16–17) in [docs/calvin-index-needs-review.md](docs/calvin-index-needs-review.md). van Mastricht is still not chosen ([267](docs/decisions/267-systematics-index-sources.md)). Do not start Bavinck.
 
 ### Next / parallel
 5b. **Systematics capture** — Calvin index imported ([297](docs/decisions/297-calvin-index-import.md)). Next is van Mastricht, then Bavinck; sources in [267](docs/decisions/267-systematics-index-sources.md) and [docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md).

@@ -34,6 +34,7 @@
 ## Open questions surfaced
 
 - The index key defines French 1560 (`VG`) and Latin 1559 (`VL`), and this export almost never uses them as locators. If the printed volume has those cites, they are not in the file.
+- The 103 `needs_review` rows are listed in [docs/calvin-index-needs-review.md](../calvin-index-needs-review.md) for a shelf pass.
 - van Mastricht’s source is still not chosen ([267](267-systematics-index-sources.md)).
 
 ## Surprises (read these before the next session)
