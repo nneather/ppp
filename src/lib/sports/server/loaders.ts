@@ -8,14 +8,22 @@ import {
 	type SportsGameRow,
 	type SportsLeague,
 	type SportsStandingRow,
-	type SportsTeamRow
+	type SportsTeamRow,
+	type SportsView
 } from '$lib/types/sports';
 
+export type SportsFollowedKey = {
+	league: SportsLeague;
+	espn_team_id: string;
+};
+
 export type SportsPageData = {
+	view: SportsView;
 	league: SportsLeague | 'all';
 	games: SportsGameRow[];
 	standings: SportsStandingRow[];
 	teams: SportsTeamRow[];
+	followed: SportsFollowedKey[];
 	followedCount: number;
 	isOwner: boolean;
 	lastSyncedAt: string | null;
@@ -29,6 +37,11 @@ function isLeague(v: string | null): v is SportsLeague {
 export function parseSportsLeagueParam(raw: string | null): SportsLeague | 'all' {
 	if (!raw || raw === 'all') return 'all';
 	return isLeague(raw) ? raw : 'all';
+}
+
+export function parseSportsView(raw: string | null): SportsView {
+	if (raw === 'standings' || raw === 'teams') return raw;
+	return 'scores';
 }
 
 function mapGame(row: Record<string, unknown>): SportsGameRow {
@@ -77,6 +90,8 @@ function mapStanding(row: Record<string, unknown>): SportsStandingRow {
 		espn_team_id: String(row.espn_team_id),
 		team_name: String(row.team_name),
 		group_name: (row.group_name as string | null) ?? null,
+		subdivision: (row.subdivision as string | null) ?? null,
+		conference: (row.conference as string | null) ?? null,
 		wins: Number(row.wins ?? 0),
 		losses: Number(row.losses ?? 0),
 		ties: (row.ties as number | null) ?? null,
@@ -88,130 +103,165 @@ function mapStanding(row: Record<string, unknown>): SportsStandingRow {
 	};
 }
 
+const TEAM_COLUMNS =
+	'id, league, sport, espn_team_id, display_name, abbreviation, logo_url, color, is_followed';
+const GAME_COLUMNS =
+	'id, league, espn_event_id, start_time, state, status_detail, period, display_clock, home_espn_team_id, home_name, home_score, home_record, away_espn_team_id, away_name, away_score, away_record, broadcast, venue, synced_at';
+const STANDING_COLUMNS =
+	'id, league, season_year, espn_team_id, team_name, group_name, subdivision, conference, wins, losses, ties, win_percent, games_behind, streak, rank, synced_at';
+
+function blankPage(
+	opts: { league: SportsLeague | 'all'; isOwner: boolean; view: SportsView },
+	loadError: string | null
+): SportsPageData {
+	return {
+		view: opts.view,
+		league: opts.league,
+		games: [],
+		standings: [],
+		teams: [],
+		followed: [],
+		followedCount: 0,
+		isOwner: opts.isOwner,
+		lastSyncedAt: null,
+		loadError
+	};
+}
+
+function latestSyncedAt(isos: string[]): string | null {
+	let last: string | null = null;
+	for (const iso of isos) {
+		if (!last || iso > last) last = iso;
+	}
+	return last;
+}
+
+function mapFollowed(rows: { league: string; espn_team_id: string }[]): SportsFollowedKey[] {
+	return rows.map((r) => ({
+		league: r.league as SportsLeague,
+		espn_team_id: String(r.espn_team_id)
+	}));
+}
+
 export async function loadSportsPage(
 	supabase: SupabaseClient,
-	opts: { league: SportsLeague | 'all'; isOwner: boolean }
+	opts: { league: SportsLeague | 'all'; isOwner: boolean; view: SportsView }
 ): Promise<SportsPageData> {
 	const league = opts.league;
+	const view = opts.view;
+
+	let followedQ = supabase
+		.from('sports_teams')
+		.select('league, espn_team_id')
+		.eq('is_followed', true)
+		.is('deleted_at', null);
+	if (league !== 'all') followedQ = followedQ.eq('league', league);
+
+	if (view === 'scores') {
+		const today = ymdInChicago();
+		const gamesFrom = addDaysYmd(today, -2) ?? today;
+		const gamesTo = addDaysYmd(today, 8) ?? today;
+		let gamesQ = supabase
+			.from('sports_games')
+			.select(GAME_COLUMNS)
+			.is('deleted_at', null)
+			.gte('start_time', `${gamesFrom}T00:00:00`)
+			.lt('start_time', `${gamesTo}T00:00:00`)
+			.order('start_time', { ascending: true })
+			.limit(400);
+		if (league !== 'all') gamesQ = gamesQ.eq('league', league);
+
+		const [followedRes, gamesRes] = await Promise.all([followedQ, gamesQ]);
+		if (followedRes.error || gamesRes.error) {
+			return blankPage(
+				opts,
+				followedRes.error?.message ?? gamesRes.error?.message ?? 'Load failed'
+			);
+		}
+		const followed = mapFollowed(followedRes.data ?? []);
+		const followedKeys = new Set(followed.map((t) => leagueTeamKey(t.league, t.espn_team_id)));
+		const loadedGames = (gamesRes.data ?? []).map((r) => mapGame(r as Record<string, unknown>));
+		let games = loadedGames;
+		if (followed.length > 0) {
+			games = games.filter(
+				(g) =>
+					(g.home_espn_team_id != null &&
+						followedKeys.has(leagueTeamKey(g.league, g.home_espn_team_id))) ||
+					(g.away_espn_team_id != null &&
+						followedKeys.has(leagueTeamKey(g.league, g.away_espn_team_id)))
+			);
+		} else {
+			games = games.filter((g) => g.league === 'nfl' || g.league === 'mlb');
+		}
+		return {
+			...blankPage(opts, null),
+			games,
+			followed,
+			followedCount: followed.length,
+			lastSyncedAt: latestSyncedAt(loadedGames.map((g) => g.synced_at))
+		};
+	}
+
+	if (view === 'standings') {
+		let standingsQ = supabase
+			.from('sports_standings')
+			.select(STANDING_COLUMNS)
+			.is('deleted_at', null)
+			.order('team_name')
+			.limit(1200);
+		if (league !== 'all') standingsQ = standingsQ.eq('league', league);
+
+		const [followedRes, standingsRes] = await Promise.all([followedQ, standingsQ]);
+		if (followedRes.error || standingsRes.error) {
+			return blankPage(
+				opts,
+				followedRes.error?.message ?? standingsRes.error?.message ?? 'Load failed'
+			);
+		}
+		const followed = mapFollowed(followedRes.data ?? []);
+		const standings = (standingsRes.data ?? [])
+			.map((r) => mapStanding(r as Record<string, unknown>))
+			.sort(compareStandingRows);
+		return {
+			...blankPage(opts, null),
+			standings,
+			followed,
+			followedCount: followed.length,
+			lastSyncedAt: latestSyncedAt(standings.map((s) => s.synced_at))
+		};
+	}
 
 	let teamsQ = supabase
 		.from('sports_teams')
-		.select(
-			'id, league, sport, espn_team_id, display_name, abbreviation, logo_url, color, is_followed'
-		)
+		.select(TEAM_COLUMNS)
 		.is('deleted_at', null)
 		.order('display_name');
 	if (league !== 'all') teamsQ = teamsQ.eq('league', league);
 
-	const teamsRes = await teamsQ;
-	if (teamsRes.error) {
-		return {
-			league,
-			games: [],
-			standings: [],
-			teams: [],
-			followedCount: 0,
-			isOwner: opts.isOwner,
-			lastSyncedAt: null,
-			loadError: teamsRes.error.message
-		};
-	}
-	const teams = (teamsRes.data ?? []).map((r) => mapTeam(r as Record<string, unknown>));
-	const followed = teams.filter((t) => t.is_followed);
-	const followedCount = followed.length;
-	const followedKeys = new Set(followed.map((t) => leagueTeamKey(t.league, t.espn_team_id)));
-	const followedGroups = new Set<string>();
-
-	const today = ymdInChicago();
-	const gamesFrom = addDaysYmd(today, -2) ?? today;
-	const gamesTo = addDaysYmd(today, 8) ?? today;
-
-	let gamesQ = supabase
-		.from('sports_games')
-		.select(
-			'id, league, espn_event_id, start_time, state, status_detail, period, display_clock, home_espn_team_id, home_name, home_score, home_record, away_espn_team_id, away_name, away_score, away_record, broadcast, venue, synced_at'
-		)
-		.is('deleted_at', null)
-		.gte('start_time', `${gamesFrom}T00:00:00`)
-		.lt('start_time', `${gamesTo}T00:00:00`)
-		.order('start_time', { ascending: true })
-		.limit(400);
-	if (league !== 'all') gamesQ = gamesQ.eq('league', league);
-
 	let standingsQ = supabase
 		.from('sports_standings')
-		.select(
-			'id, league, season_year, espn_team_id, team_name, group_name, wins, losses, ties, win_percent, games_behind, streak, rank, synced_at'
-		)
+		.select(STANDING_COLUMNS)
 		.is('deleted_at', null)
-		.order('rank', { ascending: true, nullsFirst: false })
+		.order('team_name')
 		.limit(1200);
 	if (league !== 'all') standingsQ = standingsQ.eq('league', league);
 
-	const [gamesRes, standingsRes] = await Promise.all([gamesQ, standingsQ]);
-	if (gamesRes.error || standingsRes.error) {
-		return {
-			league,
-			games: [],
-			standings: [],
-			teams,
-			followedCount,
-			isOwner: opts.isOwner,
-			lastSyncedAt: null,
-			loadError: gamesRes.error?.message ?? standingsRes.error?.message ?? 'Load failed'
-		};
+	const [teamsRes, standingsRes] = await Promise.all([teamsQ, standingsQ]);
+	if (teamsRes.error || standingsRes.error) {
+		return blankPage(opts, teamsRes.error?.message ?? standingsRes.error?.message ?? 'Load failed');
 	}
-
-	let games = (gamesRes.data ?? []).map((r) => mapGame(r as Record<string, unknown>));
-	let standings = (standingsRes.data ?? []).map((r) => mapStanding(r as Record<string, unknown>));
-
-	let lastSyncedAt: string | null = null;
-	for (const g of games) {
-		if (!lastSyncedAt || g.synced_at > lastSyncedAt) lastSyncedAt = g.synced_at;
-	}
-	for (const s of standings) {
-		if (!lastSyncedAt || s.synced_at > lastSyncedAt) lastSyncedAt = s.synced_at;
-	}
-
-	if (followedCount > 0) {
-		games = games.filter(
-			(g) =>
-				(g.home_espn_team_id != null &&
-					followedKeys.has(leagueTeamKey(g.league, g.home_espn_team_id))) ||
-				(g.away_espn_team_id != null &&
-					followedKeys.has(leagueTeamKey(g.league, g.away_espn_team_id)))
-		);
-		for (const s of standings) {
-			if (followedKeys.has(leagueTeamKey(s.league, s.espn_team_id)) && s.group_name) {
-				followedGroups.add(`${s.league}:${s.group_name}`);
-			}
-		}
-		if (followedGroups.size > 0) {
-			standings = standings.filter(
-				(s) => s.group_name != null && followedGroups.has(`${s.league}:${s.group_name}`)
-			);
-		} else {
-			standings = standings.filter((s) =>
-				followedKeys.has(leagueTeamKey(s.league, s.espn_team_id))
-			);
-		}
-	} else {
-		// No follows yet — hide the CFB wall; show NFL + MLB only.
-		games = games.filter((g) => g.league === 'nfl' || g.league === 'mlb');
-		standings = standings.filter((s) => s.league === 'nfl' || s.league === 'mlb');
-	}
-
-	standings = [...standings].sort(compareStandingRows);
-
+	const teams = (teamsRes.data ?? []).map((r) => mapTeam(r as Record<string, unknown>));
+	const followed = teams
+		.filter((t) => t.is_followed)
+		.map((t) => ({ league: t.league, espn_team_id: t.espn_team_id }));
+	const standings = (standingsRes.data ?? []).map((r) => mapStanding(r as Record<string, unknown>));
 	return {
-		league,
-		games,
-		standings,
+		...blankPage(opts, null),
 		teams,
-		followedCount,
-		isOwner: opts.isOwner,
-		lastSyncedAt,
-		loadError: null
+		standings,
+		followed,
+		followedCount: followed.length,
+		lastSyncedAt: latestSyncedAt(standings.map((s) => s.synced_at))
 	};
 }
 

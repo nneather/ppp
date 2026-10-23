@@ -1,35 +1,52 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto, invalidate, replaceState } from '$app/navigation';
+	import { page } from '$app/state';
 	import PageHeader from '$lib/components/page-header.svelte';
+	import SportsOrgSelects from '$lib/components/sports-org-selects.svelte';
+	import SportsScoreList from '$lib/components/sports-score-list.svelte';
+	import SportsStandingsTable from '$lib/components/sports-standings-table.svelte';
+	import SportsTeamList from '$lib/components/sports-team-list.svelte';
+	import SportsViewToggle from '$lib/components/sports-view-toggle.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import {
-		SPORTS_LEAGUE_LABELS,
-		SPORTS_LEAGUES,
-		type SportsGameRow,
-		type SportsLeague,
-		type SportsStandingRow,
-		type SportsTeamRow
-	} from '$lib/types/sports';
+		compareStandingRows,
+		filterTeamsForOrg,
+		parseOrgLeagueParam,
+		resolveSportsOrg,
+		standingsInOrg,
+		type SportsOrgSelectId
+	} from '$lib/sports/standings';
+	import type { SyncNowResult, ToggleFollowedResult } from '$lib/sports/server/actions';
+	import { SPORTS_LEAGUE_LABELS, SPORTS_LEAGUES, type SportsLeague } from '$lib/types/sports';
 	import { cn } from '$lib/utils';
-	import Star from '@lucide/svelte/icons/star';
-	import type { ToggleFollowedResult, SyncNowResult } from '$lib/sports/server/actions';
-	import { compareStandingRows, groupStandings } from '$lib/sports/standings';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
 	let teamQuery = $state('');
+	let syncing = $state(false);
 
 	const league = $derived(data.league);
-	const games = $derived(data.games as SportsGameRow[]);
-	const standings = $derived(data.standings as SportsStandingRow[]);
-	const teams = $derived(data.teams as SportsTeamRow[]);
+	const view = $derived(data.view);
 	const isOwner = $derived(data.isOwner);
 	const followedCount = $derived(data.followedCount);
 	const lastSyncedAt = $derived(data.lastSyncedAt);
-	let syncing = $state(false);
+
+	const org = $derived(
+		resolveSportsOrg(data.standings, {
+			league,
+			orgLeague: parseOrgLeagueParam(page.url.searchParams.get('org')),
+			sub: page.url.searchParams.get('sub'),
+			conf: page.url.searchParams.get('conf'),
+			div: page.url.searchParams.get('div'),
+			followed: data.followed
+		})
+	);
+	const tableRows = $derived(standingsInOrg(data.standings, org).sort(compareStandingRows));
+	const visibleTeams = $derived(filterTeamsForOrg(data.teams, data.standings, org, teamQuery));
+	const searching = $derived(teamQuery.trim().length > 0);
 
 	function formatSynced(iso: string): string {
 		try {
@@ -45,53 +62,31 @@
 		}
 	}
 
-	const liveGames = $derived(games.filter((g) => g.state === 'in'));
-	const upcomingGames = $derived(games.filter((g) => g.state === 'pre'));
-	const finalGames = $derived([...games.filter((g) => g.state === 'post')].reverse());
-
-	const filteredTeams = $derived.by(() => {
-		const q = teamQuery.trim().toLowerCase();
-		if (!q) return teams;
-		return teams.filter(
-			(t) =>
-				t.display_name.toLowerCase().includes(q) ||
-				(t.abbreviation?.toLowerCase().includes(q) ?? false)
-		);
-	});
-
-	const standingsByGroup = $derived.by(() => {
-		const groups = groupStandings(standings);
-		for (const [, rows] of groups) {
-			rows.sort(compareStandingRows);
-		}
-		return groups;
-	});
-
 	function setLeague(next: SportsLeague | 'all') {
-		const url = next === 'all' ? '/sports' : `/sports?league=${encodeURIComponent(next)}`;
-		void goto(url, { keepFocus: true, noScroll: true });
+		const url = new URL(page.url);
+		if (next === 'all') url.searchParams.delete('league');
+		else url.searchParams.set('league', next);
+		url.searchParams.delete('org');
+		url.searchParams.delete('sub');
+		url.searchParams.delete('conf');
+		url.searchParams.delete('div');
+		void goto(`${url.pathname}${url.search}`, { keepFocus: true, noScroll: true });
 	}
 
-	function scoreLine(g: SportsGameRow): string {
-		const away = g.away_name ?? 'Away';
-		const home = g.home_name ?? 'Home';
-		if (g.state === 'pre') return `${away} @ ${home}`;
-		return `${away} ${g.away_score ?? 0} @ ${home} ${g.home_score ?? 0}`;
-	}
-
-	function formatStart(iso: string): string {
-		try {
-			return new Intl.DateTimeFormat('en-US', {
-				timeZone: 'America/Chicago',
-				weekday: 'short',
-				month: 'short',
-				day: 'numeric',
-				hour: 'numeric',
-				minute: '2-digit'
-			}).format(new Date(iso));
-		} catch {
-			return iso;
+	function writeOrg(patch: Record<string, string | null>) {
+		const url = new URL(page.url);
+		for (const [key, value] of Object.entries(patch)) {
+			if (value) url.searchParams.set(key, value);
+			else url.searchParams.delete(key);
 		}
+		replaceState(`${url.pathname}${url.search}`, {});
+	}
+
+	function onOrgChange(id: SportsOrgSelectId, value: string) {
+		if (id === 'league') writeOrg({ org: value, sub: null, conf: null, div: null });
+		else if (id === 'subdivision') writeOrg({ sub: value, conf: null, div: null });
+		else if (id === 'conference') writeOrg({ conf: value, div: null });
+		else writeOrg({ div: value });
 	}
 
 	const formMsg = $derived.by(() => {
@@ -194,209 +189,60 @@
 		{/each}
 	</div>
 
-	<p class="mt-3 text-xs text-muted-foreground">
-		{#if followedCount === 0}
-			No followed teams yet — showing NFL + MLB. Star teams below to personalize.
-		{:else}
-			Showing games involving {followedCount} followed team{followedCount === 1 ? '' : 's'}.
-		{/if}
-	</p>
+	<div class="mt-4">
+		<SportsViewToggle {view} />
+	</div>
 
-	<section class="mt-8 space-y-6">
-		{#if liveGames.length > 0}
-			<div>
-				<h2 class="text-sm font-semibold tracking-tight text-foreground">Live</h2>
-				<ul class="mt-2 space-y-2">
-					{#each liveGames as g (g.id)}
-						<li class="rounded-xl border border-border bg-card p-3 shadow-sm">
-							<div class="flex items-start justify-between gap-3">
-								<div class="min-w-0">
-									<p class="font-medium text-foreground">{scoreLine(g)}</p>
-									<p class="mt-0.5 text-xs text-muted-foreground">
-										{g.status_detail ?? 'In progress'}
-										{#if g.display_clock}
-											· {g.display_clock}
-										{/if}
-										{#if g.broadcast}
-											· {g.broadcast}
-										{/if}
-									</p>
-								</div>
-								<span
-									class="shrink-0 rounded-full bg-red-600/15 px-2 py-0.5 text-xs font-semibold text-red-700 dark:text-red-400"
-									>LIVE</span
-								>
-							</div>
-						</li>
-					{/each}
-				</ul>
-			</div>
-		{/if}
-
-		<div>
-			<h2 class="text-sm font-semibold tracking-tight text-foreground">Upcoming</h2>
-			{#if upcomingGames.length === 0}
-				<p class="mt-2 text-sm text-muted-foreground">No upcoming games in range.</p>
+	{#if view === 'scores'}
+		<p class="mt-3 text-xs text-muted-foreground">
+			{#if followedCount === 0}
+				No followed teams yet — showing NFL + MLB. Star teams on the Teams tab to personalize.
 			{:else}
-				<ul class="mt-2 space-y-2">
-					{#each upcomingGames as g (g.id)}
-						<li class="rounded-xl border border-border bg-card p-3 shadow-sm">
-							<p class="font-medium text-foreground">{scoreLine(g)}</p>
-							<p class="mt-0.5 text-xs text-muted-foreground">
-								{formatStart(g.start_time)}
-								{#if g.broadcast}
-									· {g.broadcast}
-								{/if}
-								{#if g.venue}
-									· {g.venue}
-								{/if}
-							</p>
-						</li>
-					{/each}
-				</ul>
+				Showing games involving {followedCount} followed team{followedCount === 1 ? '' : 's'}.
 			{/if}
-		</div>
-
-		<div>
-			<h2 class="text-sm font-semibold tracking-tight text-foreground">Final</h2>
-			{#if finalGames.length === 0}
-				<p class="mt-2 text-sm text-muted-foreground">No recent finals.</p>
-			{:else}
-				<ul class="mt-2 space-y-2">
-					{#each finalGames as g (g.id)}
-						<li class="rounded-xl border border-border bg-card/80 p-3">
-							<p class="font-medium text-foreground">{scoreLine(g)}</p>
-							<p class="mt-0.5 text-xs text-muted-foreground">
-								{g.status_detail ?? 'Final'}
-								{#if g.broadcast}
-									· {g.broadcast}
-								{/if}
-							</p>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</div>
-	</section>
-
-	<section class="mt-10">
-		<h2 class="text-sm font-semibold tracking-tight text-foreground">Standings</h2>
-		{#if standingsByGroup.length === 0}
-			<p class="mt-2 text-sm text-muted-foreground">
-				{#if isOwner && teams.length === 0}
-					No standings yet — refresh scores to pull teams and records.
-				{:else}
-					No standings yet.
-				{/if}
-			</p>
-		{:else}
-			<div class="mt-3 space-y-4">
-				{#each standingsByGroup as [group, rows] (group)}
-					<div class="overflow-hidden rounded-xl border border-border">
-						<div
-							class="bg-muted/40 px-3 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-						>
-							{group}
-						</div>
-						<table class="w-full text-sm">
-							<thead class="text-left text-xs text-muted-foreground">
-								<tr class="border-b border-border">
-									<th class="px-3 py-1.5 font-medium">#</th>
-									<th class="px-3 py-1.5 font-medium">Team</th>
-									<th class="px-3 py-1.5 font-medium">W</th>
-									<th class="px-3 py-1.5 font-medium">L</th>
-									<th class="px-3 py-1.5 font-medium">GB</th>
-									<th class="px-3 py-1.5 font-medium">Strk</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-border">
-								{#each rows as s, i (s.id)}
-									<tr>
-										<td class="px-3 py-1.5 tabular-nums text-muted-foreground">{i + 1}</td>
-										<td class="px-3 py-1.5">{s.team_name}</td>
-										<td class="px-3 py-1.5 tabular-nums">{s.wins}</td>
-										<td class="px-3 py-1.5 tabular-nums">{s.losses}</td>
-										<td class="px-3 py-1.5 tabular-nums text-muted-foreground">
-											{s.games_behind == null || s.games_behind === 0 ? '—' : s.games_behind}
-										</td>
-										<td class="px-3 py-1.5 tabular-nums text-muted-foreground"
-											>{s.streak ?? '—'}</td
-										>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				{/each}
-			</div>
-		{/if}
-	</section>
-
-	<section class="mt-10">
-		<div class="flex flex-wrap items-end justify-between gap-3">
-			<h2 class="text-sm font-semibold tracking-tight text-foreground">Teams</h2>
-			{#if league === 'college-football' || teams.length > 40}
-				<div class="w-full max-w-xs">
-					<label class="sr-only" for="sports-team-search">Search teams</label>
-					<Input id="sports-team-search" placeholder="Search teams…" bind:value={teamQuery} />
-				</div>
-			{/if}
-		</div>
-		{#if league === 'all' || league === 'college-football'}
-			<p class="mt-1 text-xs text-muted-foreground">
-				College football includes FBS, FCS, Division II, Division III, and NAIA.
-			</p>
-		{/if}
-		{#if !isOwner}
-			<p class="mt-2 text-xs text-muted-foreground">Only the owner can follow teams.</p>
-		{/if}
-		<ul class="mt-3 divide-y divide-border rounded-xl border border-border">
-			{#each filteredTeams as t (t.id)}
-				<li class="flex items-center gap-3 px-3 py-2">
-					{#if t.logo_url}
-						<img src={t.logo_url} alt="" class="size-7 shrink-0 object-contain" />
+		</p>
+		<section class="mt-8">
+			<SportsScoreList games={data.games} showLeague={league === 'all'} />
+		</section>
+	{:else if view === 'standings'}
+		<section class="mt-6 space-y-4">
+			<SportsOrgSelects selects={org.selects} onChange={onOrgChange} />
+			{#if org.subdivision === 'naia' && org.conference == null}
+				<p class="text-sm text-muted-foreground">
+					ESPN has no NAIA standings table. Search for a school on the Teams tab.
+				</p>
+			{:else if tableRows.length === 0}
+				<p class="text-sm text-muted-foreground">
+					{#if isOwner && lastSyncedAt == null}
+						No standings yet — refresh scores to pull teams and records.
 					{:else}
-						<span class="size-7 shrink-0 rounded-full bg-muted"></span>
+						No standings in this group.
 					{/if}
-					<div class="min-w-0 flex-1">
-						<p class="truncate text-sm font-medium text-foreground">{t.display_name}</p>
-						<p class="text-xs text-muted-foreground">
-							{SPORTS_LEAGUE_LABELS[t.league]}
-							{#if t.abbreviation}
-								· {t.abbreviation}
-							{/if}
-						</p>
-					</div>
-					{#if isOwner}
-						<form
-							method="POST"
-							action="?/toggleFollowed"
-							use:enhance={() => {
-								return async ({ update }) => {
-									await update({ reset: false });
-									await invalidate('app:sports:list');
-								};
-							}}
-						>
-							<input type="hidden" name="team_id" value={t.id} />
-							<input type="hidden" name="is_followed" value={t.is_followed ? 'false' : 'true'} />
-							<Button
-								type="submit"
-								variant="ghost"
-								size="icon-sm"
-								aria-label={t.is_followed ? 'Unfollow team' : 'Follow team'}
-								class={t.is_followed ? 'text-amber-500' : 'text-muted-foreground'}
-							>
-								<Star class={cn('size-4', t.is_followed && 'fill-current')} />
-							</Button>
-						</form>
-					{:else if t.is_followed}
-						<Star class="size-4 fill-current text-amber-500" />
-					{/if}
-				</li>
+				</p>
 			{:else}
-				<li class="px-3 py-4 text-sm text-muted-foreground">No teams match.</li>
-			{/each}
-		</ul>
-	</section>
+				<SportsStandingsTable title={org.division ?? 'Standings'} rows={tableRows} />
+			{/if}
+		</section>
+	{:else}
+		<section class="mt-6 space-y-4">
+			<SportsOrgSelects selects={org.selects} onChange={onOrgChange} />
+			<div class="w-full max-w-xs">
+				<label class="sr-only" for="sports-team-search">Search teams</label>
+				<Input id="sports-team-search" placeholder="Search teams…" bind:value={teamQuery} />
+			</div>
+			{#if searching}
+				<p class="text-xs text-muted-foreground">
+					Searching all {SPORTS_LEAGUE_LABELS[org.league]}.
+				</p>
+			{:else if org.subdivision === 'naia' && org.conference == null}
+				<p class="text-xs text-muted-foreground">
+					ESPN has no NAIA standings. Search to find a school.
+				</p>
+			{/if}
+			{#if !isOwner}
+				<p class="text-xs text-muted-foreground">Only the owner can follow teams.</p>
+			{/if}
+			<SportsTeamList teams={visibleTeams} {isOwner} />
+		</section>
+	{/if}
 </div>

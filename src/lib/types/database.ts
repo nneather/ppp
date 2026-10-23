@@ -2943,6 +2943,7 @@ export type Database = {
       }
       sports_standings: {
         Row: {
+          conference: string | null
           created_at: string
           deleted_at: string | null
           espn_team_id: string
@@ -2954,6 +2955,7 @@ export type Database = {
           rank: number | null
           season_year: number
           streak: string | null
+          subdivision: string | null
           synced_at: string
           team_name: string
           ties: number | null
@@ -2962,6 +2964,7 @@ export type Database = {
           wins: number
         }
         Insert: {
+          conference?: string | null
           created_at?: string
           deleted_at?: string | null
           espn_team_id: string
@@ -2973,6 +2976,7 @@ export type Database = {
           rank?: number | null
           season_year: number
           streak?: string | null
+          subdivision?: string | null
           synced_at?: string
           team_name: string
           ties?: number | null
@@ -2981,6 +2985,7 @@ export type Database = {
           wins?: number
         }
         Update: {
+          conference?: string | null
           created_at?: string
           deleted_at?: string | null
           espn_team_id?: string
@@ -2992,6 +2997,7 @@ export type Database = {
           rank?: number | null
           season_year?: number
           streak?: string | null
+          subdivision?: string | null
           synced_at?: string
           team_name?: string
           ties?: number | null

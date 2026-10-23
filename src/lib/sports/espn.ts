@@ -5,7 +5,13 @@
  * (site.api often 403s), and every field access is defensive.
  * Scoreboard `dates=` must be a single YYYYMMDD — hyphenated ranges 400 ([228]).
  */
-import { LEAGUE_SPORT, type GameState, type SportsLeague, type SportsSport } from '../types/sports';
+import {
+	LEAGUE_SPORT,
+	type CfbSubdivision,
+	type GameState,
+	type SportsLeague,
+	type SportsSport
+} from '../types/sports';
 
 export const ESPN_USER_AGENT = 'ppp-sports-sync/1.0';
 
@@ -61,6 +67,8 @@ export type NormalizedStanding = {
 	espn_team_id: string;
 	team_name: string;
 	group_name: string | null;
+	subdivision: string | null;
+	conference: string | null;
 	wins: number;
 	losses: number;
 	ties: number | null;
@@ -139,6 +147,40 @@ export function ymdCompactChicago(instant: Date = new Date()): string {
  * Ouachita (D-II) and NAIA entirely. Fetch each bucket and merge.
  */
 export const CFB_SCOREBOARD_GROUPS = ['80', '81', '57', '58', '186'] as const;
+
+/** Standings `group=` id → stored subdivision. Root node names differ (`FBS` vs `NCAA Division II`). */
+export const CFB_GROUP_SUBDIVISION: Record<
+	(typeof CFB_SCOREBOARD_GROUPS)[number],
+	CfbSubdivision
+> = {
+	'80': 'fbs',
+	'81': 'fcs',
+	'57': 'd2',
+	'58': 'd3',
+	'186': 'naia'
+};
+
+export function standingSubdivisionForGroup(group: string | null): CfbSubdivision | null {
+	if (group == null) return null;
+	if ((CFB_SCOREBOARD_GROUPS as readonly string[]).includes(group)) {
+		return CFB_GROUP_SUBDIVISION[group as (typeof CFB_SCOREBOARD_GROUPS)[number]];
+	}
+	return null;
+}
+
+/**
+ * Leaf name stays `group_name`. Conference is the parent when the path is
+ * three or more names (NFL → AFC → AFC East; D-II → Northern Sun → North).
+ * A two-name path (FBS → American Conference) is the conference itself.
+ */
+export function standingOrgFromPath(path: string[]): {
+	groupName: string | null;
+	conference: string | null;
+} {
+	const leaf = path.length > 0 ? path[path.length - 1]! : null;
+	const conference = path.length >= 3 ? path[path.length - 2]! : leaf;
+	return { groupName: leaf, conference };
+}
 
 export const CFB_TEAMS_PAGE_SIZE = 500;
 const CFB_TEAMS_MAX_PAGES = 10;
@@ -420,6 +462,8 @@ function standingFromEntry(
 	league: SportsLeague,
 	seasonYear: number,
 	groupName: string | null,
+	conference: string | null,
+	subdivision: string | null,
 	entry: Record<string, unknown>
 ): NormalizedStanding | null {
 	const team = isRecord(entry.team) ? entry.team : {};
@@ -443,6 +487,8 @@ function standingFromEntry(
 		espn_team_id: espnId,
 		team_name: teamName,
 		group_name: groupName,
+		subdivision,
+		conference,
 		wins,
 		losses,
 		ties,
@@ -460,7 +506,8 @@ function standingFromEntry(
 export function normalizeStandings(
 	league: SportsLeague,
 	seasonYear: number,
-	payload: unknown
+	payload: unknown,
+	subdivision: string | null = null
 ): NormalizedStanding[] {
 	if (!isRecord(payload)) return [];
 	const out: NormalizedStanding[] = [];
@@ -480,10 +527,17 @@ export function normalizeStandings(
 		const entries =
 			isRecord(standings) && Array.isArray(standings.entries) ? standings.entries : null;
 		if (!entries) return;
-		const groupName = path.length > 0 ? path[path.length - 1]! : name;
+		const org = standingOrgFromPath(path.length > 0 ? path : name ? [name] : []);
 		for (const entry of entries) {
 			if (!isRecord(entry)) continue;
-			const row = standingFromEntry(league, seasonYear, groupName, entry);
+			const row = standingFromEntry(
+				league,
+				seasonYear,
+				org.groupName,
+				org.conference,
+				subdivision,
+				entry
+			);
 			if (!row) continue;
 			const key = `${row.league}:${row.season_year}:${row.espn_team_id}`;
 			if (seen.has(key)) continue;
@@ -595,7 +649,12 @@ export async function fetchStandings(
 			const qs = standingsQueryString(seasonYear, group);
 			const path = `/apis/v2/sports/${cfg.sport}/${cfg.espnLeague}/standings?${qs}`;
 			const json = await espnFetchJson(path);
-			return normalizeStandings(cfg.league, seasonYear, json);
+			return normalizeStandings(
+				cfg.league,
+				seasonYear,
+				json,
+				standingSubdivisionForGroup(group)
+			);
 		})
 	);
 	const byKey = new Map<string, NormalizedStanding>();

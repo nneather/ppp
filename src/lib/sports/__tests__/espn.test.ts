@@ -5,6 +5,7 @@ import {
 	normalizeScoreboard,
 	normalizeStandings,
 	normalizeTeams,
+	standingSubdivisionForGroup,
 	parseOverallRecord,
 	pickBroadcast,
 	scoreboardDateList,
@@ -244,6 +245,8 @@ describe('normalizeStandings', () => {
 			espn_team_id: '12',
 			team_name: 'Chiefs',
 			group_name: 'West',
+			conference: 'AFC',
+			subdivision: null,
 			wins: 1,
 			losses: 0,
 			rank: 1,
@@ -325,7 +328,102 @@ describe('normalizeStandings', () => {
 				]
 			}
 		});
-		expect(rows[0]).toMatchObject({ rank: null, streak: null });
+		expect(rows[0]).toMatchObject({ rank: null, streak: null, conference: 'AFC East' });
+	});
+
+	it('stores the NFL conference above the division leaf', () => {
+		const rows = normalizeStandings('nfl', 2026, {
+			name: 'National Football League',
+			children: [
+				{
+					name: 'American Football Conference',
+					children: [
+						{
+							name: 'AFC East',
+							standings: {
+								entries: [
+									{
+										team: { id: '2', displayName: 'Bills' },
+										stats: [
+											{ name: 'wins', value: 4 },
+											{ name: 'losses', value: 1 }
+										]
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		});
+		expect(rows[0]).toMatchObject({
+			group_name: 'AFC East',
+			conference: 'American Football Conference',
+			subdivision: null
+		});
+	});
+
+	it('stores the CFB subdivision from the fetch group, and the conference as the leaf', () => {
+		const rows = normalizeStandings(
+			'college-football',
+			2026,
+			{
+				name: 'FBS',
+				children: [
+					{
+						name: 'American Conference',
+						standings: {
+							entries: [
+								{
+									team: { id: '2636', displayName: 'UTSA' },
+									stats: [{ name: 'overall', displayValue: '1-0' }]
+								}
+							]
+						}
+					}
+				]
+			},
+			standingSubdivisionForGroup('80')
+		);
+		expect(rows[0]).toMatchObject({
+			group_name: 'American Conference',
+			conference: 'American Conference',
+			subdivision: 'fbs'
+		});
+	});
+
+	it('keeps the D-II conference when a leaf is a division', () => {
+		const rows = normalizeStandings(
+			'college-football',
+			2026,
+			{
+				name: 'NCAA Division II',
+				children: [
+					{
+						name: 'Northern Sun',
+						children: [
+							{
+								name: 'Northern Sun - North',
+								standings: {
+									entries: [
+										{
+											team: { id: '1', displayName: 'Bemidji State' },
+											stats: [{ name: 'overall', displayValue: '3-1' }]
+										}
+									]
+								}
+							}
+						]
+					}
+				]
+			},
+			standingSubdivisionForGroup('57')
+		);
+		expect(rows[0]).toMatchObject({
+			group_name: 'Northern Sun - North',
+			conference: 'Northern Sun',
+			subdivision: 'd2'
+		});
 	});
 });
 
@@ -376,6 +474,10 @@ describe('compareStandingRows / groupStandings', () => {
 describe('CFB coverage groups', () => {
 	it('covers FBS, FCS, D-II, D-III, and NAIA', () => {
 		expect(CFB_SCOREBOARD_GROUPS).toEqual(['80', '81', '57', '58', '186']);
+		expect(standingSubdivisionForGroup('80')).toBe('fbs');
+		expect(standingSubdivisionForGroup('57')).toBe('d2');
+		expect(standingSubdivisionForGroup('186')).toBe('naia');
+		expect(standingSubdivisionForGroup(null)).toBeNull();
 		expect(scoreboardDaysAhead('college-football')).toBe(6);
 		expect(scoreboardDaysAhead('nfl')).toBe(1);
 	});

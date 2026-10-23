@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { syncNowAction, toggleFollowedAction } from '$lib/sports/server/actions';
-import { loadSportsPage, parseSportsLeagueParam } from '$lib/sports/server/loaders';
+import { loadSportsPage, parseSportsLeagueParam, parseSportsView } from '$lib/sports/server/loaders';
 
 export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const { user } = await locals.safeGetSession();
@@ -10,13 +10,14 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	depends('app:sports:list');
 
 	const league = parseSportsLeagueParam(url.searchParams.get('league'));
+	const view = parseSportsView(url.searchParams.get('view'));
 	const supabase = locals.supabase;
 
 	const profileRes = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
 	if (profileRes.error) console.error('[sports] profile', profileRes.error);
 	const isOwner = (profileRes.data?.role as string | null) === 'owner';
 
-	return loadSportsPage(supabase, { league, isOwner });
+	return loadSportsPage(supabase, { league, isOwner, view });
 };
 
 export const actions: Actions = {

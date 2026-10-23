@@ -9,6 +9,22 @@ export const SPORTS_LEAGUE_LABELS: Record<SportsLeague, string> = {
 	'college-football': 'College football'
 };
 
+/** ESPN college-football standings buckets. Order is the dropdown order. */
+export const CFB_SUBDIVISIONS = ['fbs', 'fcs', 'd2', 'd3', 'naia'] as const;
+export type CfbSubdivision = (typeof CFB_SUBDIVISIONS)[number];
+
+export const CFB_SUBDIVISION_LABELS: Record<CfbSubdivision, string> = {
+	fbs: 'FBS',
+	fcs: 'FCS',
+	d2: 'Division II',
+	d3: 'Division III',
+	naia: 'NAIA'
+};
+
+export function isCfbSubdivision(v: string | null | undefined): v is CfbSubdivision {
+	return v != null && (CFB_SUBDIVISIONS as readonly string[]).includes(v);
+}
+
 export type SportsSport = 'football' | 'baseball';
 
 export const LEAGUE_SPORT: Record<SportsLeague, SportsSport> = {
@@ -16,6 +32,9 @@ export const LEAGUE_SPORT: Record<SportsLeague, SportsSport> = {
 	mlb: 'baseball',
 	'college-football': 'football'
 };
+
+export const SPORTS_VIEWS = ['scores', 'standings', 'teams'] as const;
+export type SportsView = (typeof SPORTS_VIEWS)[number];
 
 export const GAME_STATES = ['pre', 'in', 'post'] as const;
 export type GameState = (typeof GAME_STATES)[number];
@@ -61,6 +80,10 @@ export type SportsStandingRow = {
 	espn_team_id: string;
 	team_name: string;
 	group_name: string | null;
+	/** CFB bucket. Null for NFL/MLB and until the next standings sync. */
+	subdivision: string | null;
+	/** Parent of `group_name` when the ESPN tree is deeper than the leaf. */
+	conference: string | null;
 	wins: number;
 	losses: number;
 	ties: number | null;

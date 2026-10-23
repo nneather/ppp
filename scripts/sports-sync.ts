@@ -80,6 +80,8 @@ function standingRows(standings: NormalizedStanding[]) {
 		espn_team_id: s.espn_team_id,
 		team_name: s.team_name,
 		group_name: s.group_name,
+		subdivision: s.subdivision,
+		conference: s.conference,
 		wins: s.wins,
 		losses: s.losses,
 		ties: s.ties,
