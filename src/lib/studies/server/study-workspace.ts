@@ -29,6 +29,9 @@ import {
 import { loadSystematicsForPassage } from '$lib/library/server/systematics-loaders';
 import type { SystematicSetBlock } from '$lib/library/outline';
 import type { SystematicsPassageQuery } from '$lib/library/server/systematics-loaders';
+import { uniqueBibleBooks } from '$lib/sermons/commentary-books';
+import { loadCommentaryShelves } from '$lib/sermons/server/commentary-shelf';
+import type { SermonCommentaryShelf } from '$lib/types/sermons';
 
 const SOURCE_SEARCH_LIMIT = 8;
 
@@ -48,6 +51,11 @@ export type StudyWorkspace = {
 	systematicsQuery: SystematicsPassageQuery | null;
 	/** Systematic theology index hits for the study's primary passage ([252]). */
 	systematics: Promise<SystematicSetBlock[]>;
+	/**
+	 * Commentary shelves for the sermon's primary Bible books.
+	 * Papers resolve empty. Streamed so the shelf does not block the page.
+	 */
+	commentaryShelves: Promise<{ shelves: SermonCommentaryShelf[]; error: string | null }>;
 	loadError: string | null;
 };
 
@@ -164,6 +172,13 @@ export async function loadStudyWorkspace(
 	const systematics = systematicsQuery
 		? loadSystematicsForPassage(supabase, systematicsQuery)
 		: Promise.resolve([] as SystematicSetBlock[]);
+	const commentaryShelves =
+		parent.kind === 'sermon'
+			? loadCommentaryShelves(
+					supabase,
+					uniqueBibleBooks(ranges.map((range) => range.bibleBook))
+				)
+			: Promise.resolve({ shelves: [] as SermonCommentaryShelf[], error: null });
 
 	return {
 		sources: sourcesRes.sources,
@@ -180,6 +195,7 @@ export async function loadStudyWorkspace(
 		footnotePages,
 		systematicsQuery,
 		systematics,
+		commentaryShelves,
 		loadError: sourcesRes.error ?? groupsRes.error
 	};
 }

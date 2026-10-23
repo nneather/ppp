@@ -7,6 +7,7 @@
 	import PaperSourceRow from '$lib/components/paper-source-row.svelte';
 	import PaperAddSourcePanel from '$lib/components/paper-add-source-panel.svelte';
 	import PaperGroupHeader from '$lib/components/paper-group-header.svelte';
+	import SermonCommentaries from '$lib/components/sermon-commentaries.svelte';
 	import SystematicsOnPassage from '$lib/components/systematics-on-passage.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import type { SystematicSetBlock } from '$lib/library/outline';
@@ -33,6 +34,7 @@
 	import { includeInCompiledBibliography } from '$lib/studies/source-usage';
 	import { copyCitationToClipboard } from '$lib/library/turabian';
 	import type { BookListRow, EssaySearchHit } from '$lib/types/library';
+	import type { SermonCommentaryShelf } from '$lib/types/sermons';
 	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
 	import Download from '@lucide/svelte/icons/download';
 	import FolderInput from '@lucide/svelte/icons/folder-input';
@@ -56,6 +58,8 @@
 		footnotePages = {},
 		systematics,
 		systematicsQuery = null,
+		topical = false,
+		commentaryShelves = undefined,
 		invalidateKey,
 		form
 	}: {
@@ -73,6 +77,9 @@
 		sectionCandidateCount?: number;
 		footnotePages?: Record<string, string>;
 		systematics: Promise<SystematicSetBlock[]>;
+		/** Sermon only. Topical shelves sit under systematic theologies. */
+		topical?: boolean;
+		commentaryShelves?: Promise<{ shelves: SermonCommentaryShelf[]; error: string | null }>;
 		systematicsQuery?: {
 			bibleBook: string;
 			chapter: number | null;
@@ -460,33 +467,70 @@
 	<p class="mt-4 text-sm text-destructive" role="alert">{actionError}</p>
 {/if}
 
-{#if systematicsQuery}
-	<section class="mt-8">
-		{#await systematics}
-			<h2 class="text-sm font-semibold">Systematic theologies</h2>
-			<p class="mt-2 text-sm text-muted-foreground">Loading index hits…</p>
-		{:then blocks}
-			{#if blocks.length > 0}
-				<h2 class="text-sm font-semibold">Systematic theologies</h2>
-				<p class="mt-0.5 text-xs text-muted-foreground">
-					Index hits for this passage, with the verse each one covers. Attach a volume to add it as a source.
-				</p>
-				<div class="mt-3">
-					<SystematicsOnPassage
-						{blocks}
-						passage={systematicsQuery}
+{#snippet commentariesSection()}
+	{#if parentKind === 'sermon' && commentaryShelves}
+		<section class="mt-8">
+			{#await commentaryShelves}
+				<h2 class="text-sm font-semibold">Commentaries</h2>
+				<p class="mt-2 text-sm text-muted-foreground">Loading the shelf…</p>
+			{:then result}
+				{#if result.error}
+					<h2 class="text-sm font-semibold">Commentaries</h2>
+					<p class="mt-2 text-sm text-destructive" role="alert">{result.error}</p>
+				{:else}
+					<SermonCommentaries
+						shelves={result.shelves}
+						mode={topical ? 'add' : 'passage'}
 						{parentField}
 						{parentId}
-						attachedBookIds={sourceRows
-							.filter((s) => s.kind === 'book')
-							.map((s) => s.citation.id)}
+						{isOwner}
+						{attachedBookIds}
+						{attachedEssayIds}
+						onAttached={refresh}
 					/>
-				</div>
-			{/if}
-		{:catch}
-			<p class="text-sm text-destructive">Could not load systematic theologies.</p>
-		{/await}
-	</section>
+				{/if}
+			{:catch}
+				<p class="text-sm text-destructive">Could not load commentaries.</p>
+			{/await}
+		</section>
+	{/if}
+{/snippet}
+
+{#snippet systematicsSection()}
+	{#if systematicsQuery}
+		<section class="mt-8">
+			{#await systematics}
+				<h2 class="text-sm font-semibold">Systematic theologies</h2>
+				<p class="mt-2 text-sm text-muted-foreground">Loading index hits…</p>
+			{:then blocks}
+				{#if blocks.length > 0}
+					<h2 class="text-sm font-semibold">Systematic theologies</h2>
+					<p class="mt-0.5 text-xs text-muted-foreground">
+						Index hits for this passage, with the verse each one covers. Attach a volume to add it as a source.
+					</p>
+					<div class="mt-3">
+						<SystematicsOnPassage
+							{blocks}
+							passage={systematicsQuery}
+							{parentField}
+							{parentId}
+							attachedBookIds={attachedBookIds}
+						/>
+					</div>
+				{/if}
+			{:catch}
+				<p class="text-sm text-destructive">Could not load systematic theologies.</p>
+			{/await}
+		</section>
+	{/if}
+{/snippet}
+
+{#if parentKind === 'sermon' && !topical}
+	{@render commentariesSection()}
+{/if}
+{@render systematicsSection()}
+{#if parentKind === 'sermon' && topical}
+	{@render commentariesSection()}
 {/if}
 
 <section class="mt-8">

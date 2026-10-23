@@ -132,6 +132,8 @@
 		footnotePages={data.footnotePages}
 		systematics={data.systematics}
 		systematicsQuery={data.systematicsQuery}
+		topical={data.sermon.topical}
+		commentaryShelves={data.commentaryShelves}
 		invalidateKey={sermonKey}
 		form={f}
 	/>

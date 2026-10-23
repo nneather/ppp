@@ -153,6 +153,12 @@ export type ByBookShelfHit = {
 	hitRate?: { used: number; opportunities: number } | null;
 };
 
+/** One Bible book's commentary shelf, same rows as By book. */
+export type SermonCommentaryShelf = {
+	bibleBook: string;
+	commentaries: ByBookShelfHit[];
+};
+
 export type ByBookRow = {
 	bibleBook: string;
 	canonIndex: number;
