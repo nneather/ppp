@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-24 — Commentary lists show owned volumes only ([308](docs/decisions/308-commentary-lists-owned.md)). Docx paper imports follow the studies-import-paper skill ([307](docs/decisions/307-studies-import-paper-skill.md)).
+**Last updated:** 2026-10-24 — Five archived OT papers are in Studies with their bibliographies ([309](docs/decisions/309-ot-exegesis-papers.md)). Commentary lists show owned volumes only ([308](docs/decisions/308-commentary-lists-owned.md)).
 
 **How to use this file — read this first:**
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | Scores, Standings, and Teams. Standings and the follow list use conference dropdowns; college football is subdivision then conference ([300](docs/decisions/300-sports-navigation.md)). |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. Dashboard panel is the next three; header → list, row → sermon ([293](docs/decisions/293-dashboard-upcoming-sermons.md)). |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Commentary shelves, By book, and Commentaries sets list owned volumes only; parked stays a separate filter, and not-owned works stay on papers that already cite them. Sermon detail is commentaries, then systematic theologies, then sources. Phone tab is Studies. |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Five archived OT papers are in with their bibliographies ([309](docs/decisions/309-ot-exegesis-papers.md)). Commentary lists show owned volumes only. Phone tab is Studies. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. Phone: desktop sidebar + dashboard glance ([292](docs/decisions/292-mobile-tab-studies.md)). |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Due lists group Quarterly → Semester → Annual, with up/down to step one frequency ([296](docs/decisions/296-due-frequency-nudge.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [309 — Five archived OT papers](docs/decisions/309-ot-exegesis-papers.md) (2026-10-24) — Proverbs 31, Genesis 22, a Deuteronomy word study, Exodus 23, and 1 Kings 12 are archived with bibliographies cited. Lovell is owned. Two journal articles are book stubs.
 - [308 — Commentary lists show owned volumes](docs/decisions/308-commentary-lists-owned.md) (2026-10-24) — Sermon shelf, By book, and Commentaries sets omit not-owned volumes. An essay follows the parent book. Papers that already cite those volumes keep them.
 - [307 — Studies import-paper skill](docs/decisions/307-studies-import-paper-skill.md) (2026-10-24) — A docx paper becomes a Studies paper with its bibliography cited. Missing books wait for an owned / not-owned answer.
 - [306 — Inheritance paper and bibliography](docs/decisions/306-inheritance-paper-bibliography.md) (2026-10-24) — NT305 Colossians 1:12 paper is published in *Presbyterion* 51.2 (Fall 2025): 121–126. All 14 bibliography entries are cited. Works not on the shelf are not-owned records.
 - [305 — Sermon commentary rating stays put](docs/decisions/305-sermon-commentary-rating-stay.md) (2026-10-23) — Stars on a sermon save without reloading the page. The shelf keeps its order until the next load.
-- [304 — Sermon commentary rows on a phone](docs/decisions/304-sermon-commentary-mobile.md) (2026-10-23) — The series leads. Author and title are the next line. Stars, Attach, and Dismiss share the line under that. Desktop still leads with the title.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Owned commentary lists [308](docs/decisions/308-commentary-lists-owned.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **841/841** (2026-10-24).
+**Repo gate:** OT paper import [309](docs/decisions/309-ot-exegesis-papers.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **841/841** (2026-10-24). DML only.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -209,6 +209,7 @@ Acceptance:
 16. **Classwork — Canvas re-pull** ([216](docs/decisions/216-canvas-classwork-import.md)) — weeks 1–3 as drops/adds and professor due dates settle: `npm run classwork:canvas-import` then `--apply`. Mint a new token if the ~1 mo life lapses.
 
 ### Deferred / someday (pointer only — detail in the cited decision doc)
+- **Journal articles as sources** — book stubs cannot format a journal citation. Prompt in [309](docs/decisions/309-ot-exegesis-papers.md).
 - **Hit-rate epoch** — next time Used-in is touched, catalog-default books start 2027-01-01. A hand backfill of an earlier year extends that one book ([288](docs/decisions/288-hit-rate-epoch-2027.md)).
 - **Study attachments** — handwritten sermon/paper scans, audio (links first), `.docx` on `/studies` detail; `study_attachments` + `studies-attachments` bucket, two sessions ([258](docs/decisions/258-study-attachments-parked.md)).
 - **PWA branded icons** ([057](docs/decisions/057-pwa-consistency.md)) — replace placeholder squares with a monogram set.
