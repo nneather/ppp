@@ -349,6 +349,12 @@ export async function softDeleteSermonAction(supabase: SupabaseClient, fd: FormD
 		.eq('sermon_id', sermonId)
 		.is('deleted_at', null);
 
+	await supabase
+		.from('study_notes')
+		.update({ deleted_at: now } as never)
+		.eq('sermon_id', sermonId)
+		.is('deleted_at', null);
+
 	return { kind: 'softDeleteSermon' as const, success: true as const, sermonId };
 }
 

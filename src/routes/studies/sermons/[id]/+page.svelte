@@ -4,11 +4,13 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import SermonFormSheet from '$lib/components/sermon-form-sheet.svelte';
+	import StudyNotesPanel from '$lib/components/study-notes-panel.svelte';
 	import StudySourcesPanel from '$lib/components/study-sources-panel.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { formatYmdMediumChicago } from '$lib/invoicing/chicago-date';
+	import { parsePassageDisplay } from '$lib/sermons/passage-parse';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import type { PageProps } from './$types';
@@ -21,6 +23,11 @@
 	const sermonKey = $derived(`app:sermons:sermon:${data.sermon.id}`);
 	const title = $derived(
 		data.sermon.passage_display?.trim() || data.sermon.topic?.trim() || 'Sermon'
+	);
+
+	let readingSourceId = $state<string | null>(null);
+	const primaryBibleBook = $derived(
+		parsePassageDisplay(data.sermon.passage_display ?? '')[0]?.bible_book ?? null
 	);
 
 	let sheetOpen = $state(false);
@@ -111,10 +118,23 @@
 
 	{#if data.sermon.notes}
 		<div class="mt-4 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
-			<p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
+			<p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sermon notes</p>
 			<p class="mt-1 text-sm whitespace-pre-wrap">{data.sermon.notes}</p>
 		</div>
 	{/if}
+
+	<StudyNotesPanel
+		parentKind="sermon"
+		parentId={data.sermon.id}
+		sources={data.sources}
+		notes={data.notes}
+		isOwner={data.isOwner}
+		{primaryBibleBook}
+		bind:readingSourceId
+		invalidateKey={sermonKey}
+		form={f}
+		onChanged={refresh}
+	/>
 
 	<StudySourcesPanel
 		parentKind="sermon"
@@ -134,6 +154,9 @@
 		systematicsQuery={data.systematicsQuery}
 		topical={data.sermon.topical}
 		commentaryShelves={data.commentaryShelves}
+		notes={data.notes}
+		{readingSourceId}
+		onReadingNow={(sourceId) => (readingSourceId = sourceId)}
 		invalidateKey={sermonKey}
 		form={f}
 	/>

@@ -4,6 +4,7 @@ import { normalizeTitleKey } from '$lib/library/not-owned-queue';
 import { findOrCreatePerson, parseTypedName } from '$lib/library/server/people-actions';
 import { PAPER_STATUSES, type PaperStatus } from '$lib/types/classwork';
 import { sourcesForDefaultAttach } from '$lib/studies/default-attach';
+import { findLivePaperDuplicate } from '$lib/studies/server/paper-duplicate';
 import { parseStudyUsage, type StudyUsage } from '$lib/studies/source-usage';
 import type { StudyParent } from '$lib/studies/study-parent';
 import { loadResourceSetDetail } from '$lib/studies/server/resource-set-loaders';
@@ -109,6 +110,26 @@ export async function createPaperAction(supabase: SupabaseClient, userId: string
 		return fail(400, { kind: 'createPaper' as const, message: 'Invalid status.' });
 	}
 
+	const passageDisplay = trimOrNull(fd.get('passage_display'));
+	if (trimOrNull(fd.get('confirm_duplicate')) !== 'yes') {
+		const dup = await findLivePaperDuplicate(supabase, { title, passageDisplay });
+		if (dup.error) {
+			return fail(500, { kind: 'createPaper' as const, message: dup.error });
+		}
+		if (dup.duplicate) {
+			const message =
+				dup.duplicate.reason === 'title'
+					? `A paper already uses this title: “${dup.duplicate.title}”.`
+					: `A paper already covers this passage: “${dup.duplicate.title}”.`;
+			return fail(409, {
+				kind: 'createPaper' as const,
+				needsConfirm: true,
+				duplicateOf: dup.duplicate.id,
+				message
+			});
+		}
+	}
+
 	const assignment_id = trimOrNull(fd.get('assignment_id'));
 	let course_id = trimOrNull(fd.get('course_id'));
 	let due_date = trimOrNull(fd.get('due_date'));
@@ -138,7 +159,7 @@ export async function createPaperAction(supabase: SupabaseClient, userId: string
 			assignment_id,
 			due_date,
 			topic: trimOrNull(fd.get('topic')),
-			passage_display: trimOrNull(fd.get('passage_display')),
+			passage_display: passageDisplay,
 			topical: parseTopical(fd),
 			notes: trimOrNull(fd.get('notes')),
 			created_by: userId
@@ -230,6 +251,16 @@ export async function softDeletePaperAction(supabase: SupabaseClient, fd: FormDa
 	}
 
 	const now = new Date().toISOString();
+
+	const { error: noteErr } = await supabase
+		.from('study_notes')
+		.update({ deleted_at: now } as never)
+		.eq('paper_id', paperId)
+		.is('deleted_at', null);
+	if (noteErr) {
+		console.error('[papers] softDeletePaper notes', noteErr);
+		return fail(500, { kind: 'softDeletePaper' as const, paperId, message: noteErr.message });
+	}
 
 	const { error: srcErr } = await supabase
 		.from('study_sources')

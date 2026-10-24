@@ -21,6 +21,8 @@ import {
 	loadResourceSetSummaries
 } from '$lib/studies/server/resource-set-loaders';
 import type { StudyParent } from '$lib/studies/study-parent';
+import type { StudyNoteView } from '$lib/studies/study-note';
+import { loadStudyNotes } from '$lib/studies/server/note-loaders';
 import type { BookListRow, EssaySearchHit } from '$lib/types/library';
 import {
 	loadStudyGroups,
@@ -56,6 +58,7 @@ export type StudyWorkspace = {
 	 * Papers resolve empty. Streamed so the shelf does not block the page.
 	 */
 	commentaryShelves: Promise<{ shelves: SermonCommentaryShelf[]; error: string | null }>;
+	notes: StudyNoteView[];
 	loadError: string | null;
 };
 
@@ -120,7 +123,7 @@ export async function loadStudyWorkspace(
 	_importParam: string | null,
 	srcQ: string
 ): Promise<StudyWorkspace> {
-	const [sourcesRes, groupsRes, setNamesRes, passageRows] = await Promise.all([
+	const [sourcesRes, groupsRes, setNamesRes, passageRows, notesRes] = await Promise.all([
 		loadStudySourceViews(supabase, parent),
 		loadStudyGroups(supabase, parent),
 		supabase
@@ -128,7 +131,8 @@ export async function loadStudyWorkspace(
 			.select('id, name')
 			.is('deleted_at', null)
 			.order('name', { ascending: true }),
-		loadPrimaryStudyPassages(supabase, parent)
+		loadPrimaryStudyPassages(supabase, parent),
+		loadStudyNotes(supabase, parent)
 	]);
 
 	if (setNamesRes.error) console.error('[studies] set names', setNamesRes.error);
@@ -196,6 +200,7 @@ export async function loadStudyWorkspace(
 		systematicsQuery,
 		systematics,
 		commentaryShelves,
-		loadError: sourcesRes.error ?? groupsRes.error
+		notes: notesRes.notes,
+		loadError: sourcesRes.error ?? groupsRes.error ?? notesRes.error
 	};
 }

@@ -20,6 +20,7 @@
 		message?: string;
 		success?: boolean;
 		paperId?: string;
+		needsConfirm?: boolean;
 	};
 	const f = $derived((form ?? null) as FormShape | null);
 
@@ -29,6 +30,7 @@
 
 	const sheetError = $derived.by(() => {
 		if (!f || f.success === true) return null;
+		if (f.needsConfirm) return null;
 		if (f.kind === 'createPaper' || f.kind === 'updatePaper') return f.message ?? null;
 		return null;
 	});

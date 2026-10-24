@@ -18,6 +18,7 @@ import {
 	updatePaperSourceNotesAction
 } from '$lib/studies/server/paper-actions';
 import { loadPaperDetail } from '$lib/studies/server/paper-loaders';
+import { runStudyNoteAction } from '$lib/studies/server/note-route';
 import { loadStudyWorkspace } from '$lib/studies/server/study-workspace';
 import {
 	createResourceSetAction,
@@ -185,5 +186,10 @@ export const actions: Actions = {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'saveGroupAsSet' as const, message: 'Unauthorized' });
 		return saveGroupAsSetAction(locals.supabase, user.id, await request.formData());
-	}
+	},
+	createStudyNote: (event) => runStudyNoteAction('createStudyNote', event),
+	updateStudyNote: (event) => runStudyNoteAction('updateStudyNote', event),
+	softDeleteStudyNote: (event) => runStudyNoteAction('softDeleteStudyNote', event),
+	attachStudyNoteSource: (event) => runStudyNoteAction('attachStudyNoteSource', event),
+	markSourceCited: (event) => runStudyNoteAction('markSourceCited', event)
 };

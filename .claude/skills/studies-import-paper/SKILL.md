@@ -19,6 +19,15 @@ From the title page: full title, passage, course code, title-page date, and publ
 
 `pandoc` may be missing. `textutil -convert txt -stdout file.docx` works on this Mac.
 
+## Stop if this paper already exists
+
+Before inserting, list live papers (`deleted_at` is null). Stop and ask when:
+
+- the normalized titles match, or one long title (24+ characters, articles and punctuation stripped) is a prefix of the other, or
+- the primary passage is the same Bible book and chapter (and the same starting verse when both name one).
+
+Use the existing paper. Do not insert a second row. Proverbs 31 was the case this guards.
+
 ## Paper row
 
 | He says | `papers.status` |

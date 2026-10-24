@@ -3166,6 +3166,96 @@ export type Database = {
         }
         Relationships: []
       }
+      study_notes: {
+        Row: {
+          bible_book: string | null
+          body: string
+          chapter: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          page: string | null
+          paper_id: string | null
+          passage_display: string | null
+          sermon_id: string | null
+          source_id: string | null
+          updated_at: string
+          verse_end: number | null
+          verse_start: number | null
+        }
+        Insert: {
+          bible_book?: string | null
+          body: string
+          chapter?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          page?: string | null
+          paper_id?: string | null
+          passage_display?: string | null
+          sermon_id?: string | null
+          source_id?: string | null
+          updated_at?: string
+          verse_end?: number | null
+          verse_start?: number | null
+        }
+        Update: {
+          bible_book?: string | null
+          body?: string
+          chapter?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          page?: string | null
+          paper_id?: string | null
+          passage_display?: string | null
+          sermon_id?: string | null
+          source_id?: string | null
+          updated_at?: string
+          verse_end?: number | null
+          verse_start?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_notes_bible_book_fkey"
+            columns: ["bible_book"]
+            isOneToOne: false
+            referencedRelation: "bible_books"
+            referencedColumns: ["name"]
+          },
+          {
+            foreignKeyName: "study_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_notes_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_notes_sermon_id_fkey"
+            columns: ["sermon_id"]
+            isOneToOne: false
+            referencedRelation: "sermons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_notes_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "study_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       study_research_groups: {
         Row: {
           created_at: string

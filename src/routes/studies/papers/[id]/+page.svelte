@@ -4,11 +4,13 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import PaperFormSheet from '$lib/components/paper-form-sheet.svelte';
+	import StudyNotesPanel from '$lib/components/study-notes-panel.svelte';
 	import StudySourcesPanel from '$lib/components/study-sources-panel.svelte';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { paperDisplayLead } from '$lib/studies/paper-display';
+	import { parsePassageDisplay } from '$lib/sermons/passage-parse';
 	import { PAPER_STATUS_LABELS, type PaperStatus } from '$lib/types/classwork';
 	import { cn } from '$lib/utils';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -25,6 +27,11 @@
 	const f = $derived((form ?? null) as FormShape | null);
 
 	const paperKey = $derived(`app:classwork:paper:${data.paper.id}`);
+
+	let readingSourceId = $state<string | null>(null);
+	const primaryBibleBook = $derived(
+		parsePassageDisplay(data.paper.passage_display ?? '')[0]?.bible_book ?? null
+	);
 
 	let sheetOpen = $state(false);
 	let statusOverride = $state<PaperStatus | null>(null);
@@ -187,10 +194,23 @@
 
 	{#if data.paper.notes}
 		<div class="mt-4 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
-			<p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
+			<p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Paper notes</p>
 			<p class="mt-1 text-sm whitespace-pre-wrap">{data.paper.notes}</p>
 		</div>
 	{/if}
+
+	<StudyNotesPanel
+		parentKind="paper"
+		parentId={data.paper.id}
+		sources={sources}
+		notes={data.notes}
+		isOwner={data.isOwner}
+		{primaryBibleBook}
+		bind:readingSourceId
+		invalidateKey={paperKey}
+		form={f}
+		onChanged={refresh}
+	/>
 
 	<StudySourcesPanel
 		parentKind="paper"
@@ -208,6 +228,9 @@
 		footnotePages={data.footnotePages}
 		systematics={data.systematics}
 		systematicsQuery={data.systematicsQuery}
+		notes={data.notes}
+		{readingSourceId}
+		onReadingNow={(sourceId) => (readingSourceId = sourceId)}
 		invalidateKey={paperKey}
 		form={f}
 	/>

@@ -17,6 +17,8 @@
 	} from '$lib/studies/source-citation';
 	import { nextStudyUsage, STUDY_USAGE_LABELS } from '$lib/studies/source-usage';
 	import { untrack } from 'svelte';
+	import StudyNoteRow from '$lib/components/study-note-row.svelte';
+	import type { StudyNoteView } from '$lib/studies/study-note';
 	import NotebookPen from '@lucide/svelte/icons/notebook-pen';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
@@ -29,7 +31,10 @@
 		onRemoveFromSet,
 		originSetId = null,
 		footnotePage = '',
-		onSaved
+		onSaved,
+		notes = [],
+		readingNow = false,
+		onReadingNow
 	}: {
 		source: PaperSourceView;
 		/** Live research groups — when non-empty, owners get a group selector. */
@@ -43,7 +48,12 @@
 		onRemove?: (source: PaperSourceView) => void;
 		onRemoveFromSet?: (source: PaperSourceView, setId: string) => void;
 		onSaved?: () => void | Promise<void>;
+		notes?: StudyNoteView[];
+		readingNow?: boolean;
+		onReadingNow?: () => void;
 	} = $props();
+
+	let notesOpen = $state(false);
 
 	let page = $state(untrack(() => footnotePage));
 	let pageTouched = $state(false);
@@ -156,6 +166,18 @@
 				</Badge>
 				{#if notOwned}
 					<Badge variant="secondary" class="px-1.5 py-0 text-[10px]">Not owned</Badge>
+				{/if}
+				{#if isOwner && onReadingNow}
+					<button
+						type="button"
+						class="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide hover:bg-muted/70 {readingNow
+							? 'border-foreground text-foreground'
+							: 'text-muted-foreground'}"
+						aria-pressed={readingNow}
+						onclick={onReadingNow}
+					>
+						{readingNow ? 'Reading now' : 'Reading'}
+					</button>
 				{/if}
 				{#if isOwner}
 					<form method="POST" action="?/setPaperSourceUsage" use:enhance={usageEnhance}>
@@ -308,5 +330,29 @@
 		<p class="mt-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-xs whitespace-pre-wrap text-muted-foreground">
 			{source.notes}
 		</p>
+	{/if}
+
+	{#if notes.length > 0}
+		<button
+			type="button"
+			class="mt-2 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+			onclick={() => (notesOpen = !notesOpen)}
+		>
+			{notesOpen ? 'Hide' : 'Show'} {notes.length} {notes.length === 1 ? 'note' : 'notes'}
+		</button>
+		{#if notesOpen}
+			<ul class="mt-2 space-y-2">
+				{#each notes as note (note.id)}
+					<StudyNoteRow
+						{note}
+						{source}
+						{isOwner}
+						showSource={false}
+						onChanged={onSaved}
+						onCopied={onCopied}
+					/>
+				{/each}
+			</ul>
+		{/if}
 	{/if}
 </li>

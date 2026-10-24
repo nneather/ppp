@@ -42,6 +42,7 @@
 
 	let sheetSide: 'right' | 'bottom' = $state('bottom');
 	let pending = $state(false);
+	let duplicateWarning = $state<string | null>(null);
 
 	let title = $state('');
 	let status = $state<PaperStatus>('researching');
@@ -117,13 +118,22 @@
 
 	$effect(() => {
 		if (!open) return;
-		untrack(() => seedFromPaper());
+		untrack(() => {
+			seedFromPaper();
+			duplicateWarning = null;
+		});
 	});
 
 	const onSubmit: SubmitFunction = () => {
 		pending = true;
 		return async ({ result, update }) => {
 			pending = false;
+			if (result.type === 'failure') {
+				const data = result.data as { needsConfirm?: boolean; message?: string } | undefined;
+				duplicateWarning = data?.needsConfirm ? (data.message ?? 'A similar paper already exists.') : null;
+			} else {
+				duplicateWarning = null;
+			}
 			// Create redirects to the new paper. `update` follows that.
 			if (result.type === 'redirect') open = false;
 			await update({ reset: false });
@@ -155,7 +165,14 @@
 				<input type="hidden" name="paper_id" value={paper.id} />
 			{/if}
 
-			{#if errorMessage}
+			{#if duplicateWarning}
+				<p
+					class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+					role="status"
+				>
+					{duplicateWarning} Create another anyway?
+				</p>
+			{:else if errorMessage}
 				<p
 					class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
 					role="alert"
@@ -323,12 +340,22 @@
 					label="Cancel"
 					onclick={() => (open = false)}
 				/>
-				<Button
-					type="submit"
-					hotkey={mode === 'create' ? 's' : 'u'}
-					label={pending ? 'Saving…' : mode === 'create' ? 'Save paper' : 'Update paper'}
-					disabled={pending || !title.trim()}
-				/>
+				{#if mode === 'create' && duplicateWarning}
+					<input type="hidden" name="confirm_duplicate" value="yes" />
+					<Button
+						type="submit"
+						hotkey="s"
+						label={pending ? 'Saving…' : 'Create anyway'}
+						disabled={pending || !title.trim()}
+					/>
+				{:else}
+					<Button
+						type="submit"
+						hotkey={mode === 'create' ? 's' : 'u'}
+						label={pending ? 'Saving…' : mode === 'create' ? 'Save paper' : 'Update paper'}
+						disabled={pending || !title.trim()}
+					/>
+				{/if}
 			</div>
 		</form>
 	</Sheet.Content>

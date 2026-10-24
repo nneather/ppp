@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidate } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import PaperImportDialog from '$lib/components/paper-import-dialog.svelte';
 	import PaperSourceRow from '$lib/components/paper-source-row.svelte';
 	import PaperAddSourcePanel from '$lib/components/paper-add-source-panel.svelte';
@@ -33,6 +33,7 @@
 	} from '$lib/studies/paper-sources';
 	import { includeInCompiledBibliography } from '$lib/studies/source-usage';
 	import { copyCitationToClipboard } from '$lib/library/turabian';
+	import type { StudyNoteView } from '$lib/studies/study-note';
 	import type { BookListRow, EssaySearchHit } from '$lib/types/library';
 	import type { SermonCommentaryShelf } from '$lib/types/sermons';
 	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
@@ -60,6 +61,9 @@
 		systematicsQuery = null,
 		topical = false,
 		commentaryShelves = undefined,
+		notes = [],
+		readingSourceId = null,
+		onReadingNow,
 		invalidateKey,
 		form
 	}: {
@@ -87,6 +91,9 @@
 			chapterEnd: number | null;
 			verseEnd: number | null;
 		} | null;
+		notes?: StudyNoteView[];
+		readingSourceId?: string | null;
+		onReadingNow?: (sourceId: string | null) => void;
 		invalidateKey: string;
 		form: FormShape | null;
 	} = $props();
@@ -399,6 +406,18 @@
 	}
 
 	const totalSourceCount = $derived(sources.length + orphanSources.length);
+	const workingCount = $derived(sources.filter((source) => source.usage === 'consulted').length);
+	const citedCount = $derived(sources.filter((source) => source.usage === 'cited').length);
+	const notYetCount = $derived(sources.filter((source) => source.usage === 'candidate').length);
+	let sourcesOpen = $state(true);
+	// Reseed when the study changes. A note added on this visit leaves the list open.
+	$effect(() => {
+		const id = parentId;
+		untrack(() => {
+			sourcesOpen = notes.length === 0;
+		});
+		void id;
+	});
 	const buckets = $derived(groupPaperSources(sources, groups));
 
 	const newGroupEnhance: SubmitFunction = () => {
@@ -581,6 +600,21 @@
 		heading. Unsigned reference articles stay out.
 	</p>
 
+	{#if notes.length > 0}
+		<button
+			type="button"
+			class="mt-3 text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+			aria-expanded={sourcesOpen}
+			onclick={() => (sourcesOpen = !sourcesOpen)}
+		>
+			{sourcesOpen ? 'Hide sources' : 'Show sources'}
+			<span class="text-foreground">
+				· Working {workingCount} · Cited {citedCount} · Not yet {notYetCount}
+			</span>
+		</button>
+	{/if}
+
+	{#if sourcesOpen}
 	{#if isOwner}
 		<div class="mt-4">
 			<PaperAddSourcePanel
@@ -651,6 +685,10 @@
 			originSetId={source.kind === 'article' ? null : originSetId(source)}
 			footnotePage={source.kind === 'book' ? (footnotePages[source.citation.id] ?? '') : ''}
 			onSaved={refresh}
+			notes={notes.filter((note) => note.sourceId === source.sourceId)}
+			readingNow={readingSourceId === source.sourceId}
+			onReadingNow={() =>
+				onReadingNow?.(readingSourceId === source.sourceId ? null : source.sourceId)}
 		/>
 	{/snippet}
 
@@ -746,6 +784,7 @@
 				</li>
 			{/each}
 		</ul>
+	{/if}
 	{/if}
 </section>
 
