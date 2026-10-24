@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-23 — Phone commentary rows lead with the series ([304](docs/decisions/304-sermon-commentary-mobile.md)). Commentaries can be parked ([303](docs/decisions/303-commentary-shelf-standing.md)).
+**Last updated:** 2026-10-23 — Sermon commentary stars save without reloading ([305](docs/decisions/305-sermon-commentary-rating-stay.md)). Phone rows lead with the series ([304](docs/decisions/304-sermon-commentary-mobile.md)).
 
 **How to use this file — read this first:**
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | Scores, Standings, and Teams. Standings and the follow list use conference dropdowns; college football is subdivision then conference ([300](docs/decisions/300-sports-navigation.md)). |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. Dashboard panel is the next three; header → list, row → sermon ([293](docs/decisions/293-dashboard-upcoming-sermons.md)). |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Sermon detail is commentaries (collapsed per Bible book; parked ones stay out of the count; phone rows lead with the series), then systematic theologies, then sources. Attach on a systematic hit marks that hit only. By verse reads Calvin, Bavinck, van Mastricht, Turretin, Leiden, then volume and page. Phone tab is Studies. |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Sermon detail is commentaries (collapsed per Bible book; parked ones stay out of the count; phone rows lead with the series; stars save without reloading), then systematic theologies, then sources. Attach on a systematic hit marks that hit only. By verse reads Calvin, Bavinck, van Mastricht, Turretin, Leiden, then volume and page. Phone tab is Studies. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. Phone: desktop sidebar + dashboard glance ([292](docs/decisions/292-mobile-tab-studies.md)). |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Due lists group Quarterly → Semester → Annual, with up/down to step one frequency ([296](docs/decisions/296-due-frequency-nudge.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [305 — Sermon commentary rating stays put](docs/decisions/305-sermon-commentary-rating-stay.md) (2026-10-23) — Stars on a sermon save without reloading the page. The shelf keeps its order until the next load.
 - [304 — Sermon commentary rows on a phone](docs/decisions/304-sermon-commentary-mobile.md) (2026-10-23) — The series leads. Author and title are the next line. Stars, Attach, and Dismiss share the line under that. Desktop still leads with the title.
 - [303 — Commentary shelf standing](docs/decisions/303-commentary-shelf-standing.md) (2026-10-23) — Park a commentary in Postgres (Matthew Henry starts parked). Counts are the active set. A sermon can also hide one for that sermon only.
 - [302 — Systematic hit attach](docs/decisions/302-systematic-hit-attach.md) (2026-10-23) — Attach marks that one index hit as in use. It does not attach the volume, and the sermon stays put. Click Attached to clear it.
 - [301 — Systematics verse reading order](docs/decisions/301-systematics-verse-reading-order.md) (2026-10-23) — Under a verse: Calvin, Bavinck, van Mastricht, Turretin, Leiden, and only the sets that hit that verse. Inside a set, volume then page (`I:233` before `II:134`).
-- [300 — Sports navigation](docs/decisions/300-sports-navigation.md) (2026-10-23) — `/sports` is Scores, Standings, or Teams. Standings and Teams pick a conference (college football: subdivision, then conference). Scores stay on followed teams, grouped by day.
 
 ---
 

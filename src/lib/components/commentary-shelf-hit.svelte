@@ -70,9 +70,12 @@
 
 	const ratingEnhance: SubmitFunction = () => {
 		ratingPending = true;
+		// Sermon shelf stays put. Stars already show the new rating.
+		// The rated-high order is applied the next time the shelf loads.
+		const stayPut = canAttach;
 		return async ({ result, update }) => {
 			ratingPending = false;
-			await update({ invalidateAll: true, reset: false });
+			await update({ invalidateAll: !stayPut, reset: false });
 			if (result.type !== 'success') shownRating = hit.rating;
 		};
 	};
@@ -123,7 +126,7 @@
 			class="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs text-muted-foreground tabular-nums"
 			aria-label={[
 				hit.seriesLabel ? `Series ${hit.seriesLabel}` : null,
-				hit.rating != null ? `Rated ${hit.rating} stars` : 'Unrated',
+				shownRating != null ? `Rated ${shownRating} stars` : 'Unrated',
 				hit.hitRate ? `Hit rate ${formatHitRate(hit.hitRate)}` : null
 			]
 				.filter(Boolean)
