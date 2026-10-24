@@ -11,6 +11,7 @@ import {
 	sortShelfHits,
 	summarizeByBookRows
 } from '$lib/sermons/by-book';
+import { ownedCommentaryBook, ownedCommentaryEssay } from '$lib/sermons/commentary-owned';
 import { librarySearchHref } from '$lib/sermons/passage-parse';
 import { hitRateKey } from '$lib/studies/hit-rate';
 import {
@@ -410,6 +411,7 @@ type CovBookEmbed = {
 	genre: string | null;
 	rating: number | null;
 	shelf_dismissed: boolean;
+	owned: boolean;
 	deleted_at: string | null;
 	series_id: string | null;
 	series: CovSeriesEmbed | CovSeriesEmbed[] | null;
@@ -420,6 +422,7 @@ type CovEssayParentEmbed = {
 	title: string | null;
 	genre: string | null;
 	rating: number | null;
+	owned: boolean;
 	deleted_at: string | null;
 	series_id: string | null;
 	series: CovSeriesEmbed | CovSeriesEmbed[] | null;
@@ -563,6 +566,7 @@ export async function loadByBookStats(
 				genre,
 				rating,
 				shelf_dismissed,
+				owned,
 				deleted_at,
 				series_id,
 				series ( id, name, abbreviation, deleted_at )
@@ -578,6 +582,7 @@ export async function loadByBookStats(
 					title,
 					genre,
 					rating,
+					owned,
 					deleted_at,
 					series_id,
 					series ( id, name, abbreviation, deleted_at )
@@ -722,9 +727,10 @@ export async function loadByBookStats(
 				memberBookIds: [parent.id],
 				memberEssayIds: [essay.id]
 			};
-			// Signed commentary essays (ESVEC, NIB) belong with Commentaries; other
-			// essay coverage (reference parents, etc.) stays under Also on the shelf.
+			// Signed commentary essays (ESVEC, NIB) belong with Commentaries when the
+			// parent volume is owned. Other essay coverage stays under Also on the shelf.
 			if (parent.genre === 'Commentary') {
+				if (!ownedCommentaryEssay(parent)) continue;
 				const list = commentariesByBook.get(c.bible_book) ?? [];
 				list.push(hit);
 				commentariesByBook.set(c.bible_book, list);
@@ -760,7 +766,9 @@ export async function loadByBookStats(
 			memberEssayIds: []
 		};
 
+		// Not-owned commentaries are omitted. Other genres stay under Also on the shelf.
 		if (book.genre === 'Commentary') {
+			if (!ownedCommentaryBook(book)) continue;
 			const list = commentariesByBook.get(c.bible_book) ?? [];
 			list.push(hit);
 			commentariesByBook.set(c.bible_book, list);

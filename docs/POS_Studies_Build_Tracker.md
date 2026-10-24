@@ -169,4 +169,5 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 - [x] Ranking a commentary on a sermon saves the stars without reloading. The shelf re-sorts on the next load ([305](decisions/305-sermon-commentary-rating-stay.md)).
 - [x] NT305 “Our Share of the Inheritance” (Colossians 1:12) is published, with the bibliography cited and not-owned works added ([306](decisions/306-inheritance-paper-bibliography.md)).
 - [x] Docx paper import skill: match the shelf (including `&` / `and`), ask which missing books are owned, then cite the bibliography ([307](decisions/307-studies-import-paper-skill.md)).
+- [x] Commentary lists (sermon shelf, By book counts, Commentaries sets) omit not-owned volumes. Papers that already cite them keep those rows ([308](decisions/308-commentary-lists-owned.md)).
 - [x] Attach on a systematic hit marks that hit only. It does not add the volume or reload the sermon ([302](decisions/302-systematic-hit-attach.md)).

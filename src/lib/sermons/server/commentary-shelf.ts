@@ -5,6 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { authorsLabelForBook } from '$lib/library/authors-label';
 import { uniqueBibleBooks } from '$lib/sermons/commentary-books';
+import { ownedCommentaryBook, ownedCommentaryEssay } from '$lib/sermons/commentary-owned';
 import { collapseCommentaryHits, sortShelfHits } from '$lib/sermons/by-book';
 import { hitRateKey } from '$lib/studies/hit-rate';
 import {
@@ -28,6 +29,7 @@ type BookEmbed = {
 	genre: string | null;
 	rating: number | null;
 	shelf_dismissed: boolean;
+	owned: boolean;
 	deleted_at: string | null;
 	series_id: string | null;
 	series: SeriesEmbed | SeriesEmbed[] | null;
@@ -127,13 +129,13 @@ export async function loadCommentaryShelves(
 			book_id,
 			essay_id,
 			books (
-				id, title, genre, rating, shelf_dismissed, deleted_at, series_id,
+				id, title, genre, rating, shelf_dismissed, owned, deleted_at, series_id,
 				series ( id, name, abbreviation, deleted_at )
 			),
 			essays (
 				id, essay_title, deleted_at, parent_book_id, shelf_dismissed,
 				books!essays_parent_book_id_fkey (
-					id, title, genre, rating, deleted_at, series_id,
+					id, title, genre, rating, owned, deleted_at, series_id,
 					series ( id, name, abbreviation, deleted_at )
 				)
 			)
@@ -151,12 +153,26 @@ export async function loadCommentaryShelves(
 	for (const row of rows) {
 		if (!books.includes(row.bible_book)) continue;
 		const book = oneEmbed(row.books);
-		if (book && !book.deleted_at && book.genre === 'Commentary' && row.book_id && !row.essay_id) {
+		if (
+			book &&
+			!book.deleted_at &&
+			book.genre === 'Commentary' &&
+			ownedCommentaryBook(book) &&
+			row.book_id &&
+			!row.essay_id
+		) {
 			bookIds.add(book.id);
 		}
 		const essay = oneEmbed(row.essays);
 		const parent = essay ? oneEmbed(essay.books) : null;
-		if (essay && !essay.deleted_at && parent && !parent.deleted_at && parent.genre === 'Commentary') {
+		if (
+			essay &&
+			!essay.deleted_at &&
+			parent &&
+			!parent.deleted_at &&
+			parent.genre === 'Commentary' &&
+			ownedCommentaryEssay(parent)
+		) {
 			essayIds.add(essay.id);
 			bookIds.add(parent.id);
 		}
@@ -215,7 +231,14 @@ export async function loadCommentaryShelves(
 		if (!books.includes(row.bible_book)) continue;
 		const essay = oneEmbed(row.essays);
 		const parent = essay ? oneEmbed(essay.books) : null;
-		if (essay && !essay.deleted_at && parent && !parent.deleted_at && parent.genre === 'Commentary') {
+		if (
+			essay &&
+			!essay.deleted_at &&
+			parent &&
+			!parent.deleted_at &&
+			parent.genre === 'Commentary' &&
+			ownedCommentaryEssay(parent)
+		) {
 			const { seriesId, seriesLabel } = seriesLabelFromEmbed(parent.series_id, parent.series);
 			const hit: ByBookShelfHit = {
 				kind: 'essay',
@@ -240,7 +263,16 @@ export async function loadCommentaryShelves(
 		}
 
 		const book = oneEmbed(row.books);
-		if (!book || book.deleted_at || book.genre !== 'Commentary' || !row.book_id || row.essay_id) continue;
+		if (
+			!book ||
+			book.deleted_at ||
+			book.genre !== 'Commentary' ||
+			!ownedCommentaryBook(book) ||
+			!row.book_id ||
+			row.essay_id
+		) {
+			continue;
+		}
 		const junctions = authorsByBook.get(book.id) ?? [];
 		const { seriesId, seriesLabel } = seriesLabelFromEmbed(book.series_id, book.series);
 		const hit: ByBookShelfHit = {

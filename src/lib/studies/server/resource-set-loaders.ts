@@ -6,6 +6,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { authorsLabelForBook } from '$lib/library/authors-label';
+import { ownedCommentaryBook, ownedCommentaryEssay } from '$lib/sermons/commentary-owned';
 import type { PersonRow } from '$lib/types/library';
 import type { ByBookShelfHit } from '$lib/types/sermons';
 import {
@@ -43,6 +44,7 @@ type BookEmbed = {
 	genre: string | null;
 	rating: number | null;
 	shelf_dismissed: boolean;
+	owned: boolean;
 	deleted_at: string | null;
 	series_id: string | null;
 	volume_number: string | null;
@@ -207,13 +209,13 @@ async function commentaryCandidatesByBook(
 			book_id,
 			essay_id,
 			books (
-				id, title, genre, rating, shelf_dismissed, deleted_at, series_id, volume_number, created_at,
+				id, title, genre, rating, shelf_dismissed, owned, deleted_at, series_id, volume_number, created_at,
 				series ( id, name, abbreviation, deleted_at )
 			),
 			essays (
 				id, essay_title, deleted_at, parent_book_id, shelf_dismissed, created_at,
 				books!essays_parent_book_id_fkey (
-					id, title, genre, rating, deleted_at, series_id, volume_number, created_at,
+					id, title, genre, rating, owned, deleted_at, series_id, volume_number, created_at,
 					series ( id, name, abbreviation, deleted_at )
 				)
 			)
@@ -231,12 +233,25 @@ async function commentaryCandidatesByBook(
 	const essayIds = new Set<string>();
 	for (const row of rows) {
 		const book = oneEmbed(row.books);
-		if (book && !book.deleted_at && book.genre === 'Commentary' && row.book_id) {
+		if (
+			book &&
+			!book.deleted_at &&
+			book.genre === 'Commentary' &&
+			ownedCommentaryBook(book) &&
+			row.book_id
+		) {
 			bookIds.add(book.id);
 		}
 		const essay = oneEmbed(row.essays);
 		const parent = essay ? oneEmbed(essay.books) : null;
-		if (essay && !essay.deleted_at && parent && !parent.deleted_at && parent.genre === 'Commentary') {
+		if (
+			essay &&
+			!essay.deleted_at &&
+			parent &&
+			!parent.deleted_at &&
+			parent.genre === 'Commentary' &&
+			ownedCommentaryEssay(parent)
+		) {
 			essayIds.add(essay.id);
 			bookIds.add(parent.id);
 		}
@@ -276,7 +291,14 @@ async function commentaryCandidatesByBook(
 	for (const row of rows) {
 		const essay = oneEmbed(row.essays);
 		const parent = essay ? oneEmbed(essay.books) : null;
-		if (essay && !essay.deleted_at && parent && !parent.deleted_at && parent.genre === 'Commentary') {
+		if (
+			essay &&
+			!essay.deleted_at &&
+			parent &&
+			!parent.deleted_at &&
+			parent.genre === 'Commentary' &&
+			ownedCommentaryEssay(parent)
+		) {
 			const { seriesId, seriesLabel } = seriesLabelFromEmbed(parent.series_id, parent.series);
 			const hit: ByBookShelfHit & { createdAt: string | null; volumeNumber?: string | null } = {
 				...emptyHit({
@@ -301,7 +323,14 @@ async function commentaryCandidatesByBook(
 		}
 
 		const book = oneEmbed(row.books);
-		if (!book || book.deleted_at || book.genre !== 'Commentary' || !row.book_id || row.essay_id) {
+		if (
+			!book ||
+			book.deleted_at ||
+			book.genre !== 'Commentary' ||
+			!ownedCommentaryBook(book) ||
+			!row.book_id ||
+			row.essay_id
+		) {
 			continue;
 		}
 		const { seriesId, seriesLabel } = seriesLabelFromEmbed(book.series_id, book.series);
