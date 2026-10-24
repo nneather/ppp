@@ -548,6 +548,7 @@ export async function listSermonsForBibleBook(
 export {
 	getStudySources,
 	listStudies,
+	searchStudyNotes,
 	suggestSources
 } from './studies.ts';
 
@@ -567,7 +568,8 @@ export const TOOL_NAMES = [
 	'list_sermons_for_bible_book',
 	'list_studies',
 	'get_study_sources',
-	'suggest_sources'
+	'suggest_sources',
+	'search_study_notes'
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];

@@ -28,6 +28,7 @@ import {
 	listWeekTasks,
 	searchContactsTool,
 	searchLibrary,
+	searchStudyNotes,
 	suggestSources
 } from './tools.ts';
 
@@ -311,6 +312,22 @@ server.registerTool(
 	async (args) => {
 		const { supabase } = await getPppMcpClient();
 		return suggestSources(supabase, args);
+	}
+);
+
+server.registerTool(
+	'search_study_notes',
+	{
+		description:
+			'Search reading notes on papers and sermons by the note text. Returns the study, page, verse, and body. Read-only. Does not include a notes search page in the app.',
+		inputSchema: {
+			query: z.string().describe('Words from the note, at least two characters.'),
+			limit: z.number().int().min(1).max(40).optional().describe('Max notes. Default 20.')
+		}
+	},
+	async (args) => {
+		const { supabase } = await getPppMcpClient();
+		return searchStudyNotes(supabase, args);
 	}
 );
 

@@ -17,8 +17,8 @@ const CONTENT_SECURITY_POLICY = [
 	"style-src 'self' 'unsafe-inline'",
 	`img-src 'self' data: blob: ${supabaseOrigin} https://a.espncdn.com`,
 	"font-src 'self' data:",
-	// openlibrary.org — browser ISBN prefill (`fetchOpenLibraryPrefill`); blocked → Safari "Load failed"
-	`connect-src 'self' ${supabaseOrigin} ${supabaseWsOrigin} https://openlibrary.org`,
+	// openlibrary.org — browser ISBN prefill; api.crossref.org — journal DOI prefill
+	`connect-src 'self' ${supabaseOrigin} ${supabaseWsOrigin} https://openlibrary.org https://api.crossref.org`,
 	"media-src 'self' blob:",
 	"worker-src 'self' blob:"
 ].join('; ');

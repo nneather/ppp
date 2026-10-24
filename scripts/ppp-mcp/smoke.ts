@@ -23,6 +23,7 @@ import {
 	listWeekTasks,
 	searchContactsTool,
 	searchLibrary,
+	searchStudyNotes,
 	suggestSources,
 	TOOL_NAMES,
 	type ToolName
@@ -85,6 +86,8 @@ async function runTool(name: ToolName): Promise<unknown> {
 			return listSermonsForBibleBook(supabase, { bible_book: 'Mark' });
 		case 'list_studies':
 			return listStudies(supabase, { limit: 5 });
+		case 'search_study_notes':
+			return searchStudyNotes(supabase, { query: 'the', limit: 5 });
 		case 'get_study_sources':
 		case 'suggest_sources': {
 			const listed = await listStudies(supabase, { limit: 5, include_published: true });

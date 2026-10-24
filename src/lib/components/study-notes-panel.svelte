@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { tick, untrack } from 'svelte';
+	import StudyAddSourceSheet from '$lib/components/study-add-source-sheet.svelte';
 	import StudyNoteRow from '$lib/components/study-note-row.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
@@ -11,6 +12,7 @@
 		type InterpretedNote
 	} from '$lib/studies/note-capture';
 	import { paperSourceTitle, type PaperSourceView } from '$lib/studies/paper-sources';
+	import { formatStudyNotesCopy } from '$lib/studies/notes-copy';
 	import { loadReadingNow, readingNowPage, saveReadingNow } from '$lib/studies/reading-now';
 	import type { StudyNoteView } from '$lib/studies/study-note';
 
@@ -45,6 +47,8 @@
 	let ambiguity = $state<InterpretedNote | null>(null);
 	let copyToast = $state<string | null>(null);
 	let formEl = $state<HTMLFormElement | null>(null);
+	let addOpen = $state(false);
+	let groupByVerse = $state(false);
 
 	let sourceId = $state('');
 	let page = $state('');
@@ -152,6 +156,55 @@
 		};
 	};
 
+	const verseGroups = $derived.by(() => {
+		const map = new Map<string, StudyNoteView[]>();
+		for (const note of notes) {
+			const key = note.passageDisplay ?? '';
+			const list = map.get(key) ?? [];
+			list.push(note);
+			map.set(key, list);
+		}
+		return [...map.entries()]
+			.map(([key, rows]) => ({ key: key || 'none', label: key || 'No verse', notes: rows }))
+			.sort((a, b) => {
+				if (a.key === 'none') return 1;
+				if (b.key === 'none') return -1;
+				return a.label.localeCompare(b.label);
+			});
+	});
+
+	function sourceLabel(id: string | null): string | null {
+		if (!id) return null;
+		const last = shortName(id);
+		const source = sourceFor(id);
+		const title = source ? paperSourceTitle(source) : null;
+		if (last && title) return `${last}, ${title}`;
+		return title ?? last;
+	}
+
+	async function copyNotes() {
+		const text = formatStudyNotesCopy(
+			notes.map((note) => ({
+				sourceKey: note.sourceId ?? '',
+				sourceLabel: sourceLabel(note.sourceId),
+				page: note.page,
+				passageDisplay: note.passageDisplay,
+				body: note.body,
+				createdAt: note.createdAt
+			}))
+		);
+		if (!text.trim()) {
+			flash('No notes to copy');
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(text);
+			flash('Notes copied');
+		} catch (e) {
+			flash(e instanceof Error ? e.message : 'Copy failed');
+		}
+	}
+
 	function flash(message: string) {
 		copyToast = message;
 		setTimeout(() => {
@@ -161,12 +214,41 @@
 </script>
 
 <section class="mt-6">
-	<div class="flex items-baseline justify-between gap-3">
+	<div class="flex flex-wrap items-baseline justify-between gap-3">
 		<h2 class="text-sm font-semibold">Notes</h2>
-		{#if copyToast}
-			<p class="text-xs text-muted-foreground" role="status">{copyToast}</p>
-		{/if}
+		<div class="flex flex-wrap items-center gap-2">
+			{#if copyToast}
+				<p class="text-xs text-muted-foreground" role="status">{copyToast}</p>
+			{/if}
+			{#if notes.length > 0}
+				<button
+					type="button"
+					class="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+					onclick={() => (groupByVerse = !groupByVerse)}
+				>
+					{groupByVerse ? 'Newest' : 'By verse'}
+				</button>
+				<button
+					type="button"
+					class="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+					onclick={copyNotes}
+				>
+					Copy notes
+				</button>
+			{/if}
+			{#if isOwner}
+				<button
+					type="button"
+					class="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+					onclick={() => (addOpen = true)}
+				>
+					Add source
+				</button>
+			{/if}
+		</div>
 	</div>
+
+	<StudyAddSourceSheet bind:open={addOpen} {parentKind} {parentId} onSaved={onChanged} />
 
 	{#if isOwner}
 		<form method="POST" action="?/createStudyNote" use:enhance={onSubmit} bind:this={formEl} class="mt-3">
@@ -238,6 +320,23 @@
 		<p class="mt-4 text-sm text-muted-foreground">
 			Notes land here. Tap Reading on a source, then type a page and a line.
 		</p>
+	{:else if groupByVerse}
+		{#each verseGroups as group (group.key)}
+			<h3 class="mt-4 text-xs font-medium text-muted-foreground">{group.label}</h3>
+			<ul class="mt-2 space-y-2">
+				{#each group.notes as note (note.id)}
+					<StudyNoteRow
+						{note}
+						shortName={shortName(note.sourceId)}
+						source={sourceFor(note.sourceId)}
+						{isOwner}
+						{attachChoices}
+						onChanged={onChanged}
+						onCopied={flash}
+					/>
+				{/each}
+			</ul>
+		{/each}
 	{:else}
 		<ul class="mt-4 space-y-2">
 			{#each notes as note (note.id)}

@@ -1,5 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizeIsbnDigits } from '$lib/library/isbn';
+import { splitAuthorString } from '$lib/library/match';
 import { normalizeTitleKey } from '$lib/library/not-owned-queue';
 import { findOrCreatePerson, parseTypedName } from '$lib/library/server/people-actions';
 import { PAPER_STATUSES, type PaperStatus } from '$lib/types/classwork';
@@ -893,6 +895,7 @@ export async function createNotOwnedSourceAction(
 		}
 		year = parsed;
 	}
+	const isbn = normalizeIsbnDigits(trimOrNull(fd.get('isbn')) ?? '');
 
 	const parentOk = await assertStudyLive(supabase, parent);
 	if (!parentOk.ok) {
@@ -941,6 +944,7 @@ export async function createNotOwnedSourceAction(
 				work_type: 'monograph',
 				copy_count: 1,
 				year,
+				isbn,
 				created_by: userId
 			} as never)
 			.select('id')
@@ -995,6 +999,177 @@ export async function createNotOwnedSourceAction(
 		success: true as const,
 		...ids,
 		bookId,
+		sourceId: attached.sourceId,
+		alreadyExisted
+	};
+}
+
+function parseYear(raw: string | null): number | null | 'invalid' {
+	if (!raw) return null;
+	const parsed = Number.parseInt(raw, 10);
+	if (!Number.isFinite(parsed) || parsed < 1000 || parsed > 2100) return 'invalid';
+	return parsed;
+}
+
+/**
+ * Create a journal article (or attach one that already has this DOI) as a
+ * candidate source. The sheet always shows the prefill before this runs.
+ */
+export async function createJournalArticleSourceAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const parent = readStudyParent(fd);
+	if (!parent) {
+		return fail(400, { kind: 'createJournalArticleSource' as const, message: 'Invalid study.' });
+	}
+	const ids = parentIds(parent);
+	const title = trimOrNull(fd.get('title'));
+	const journalTitle = trimOrNull(fd.get('journal_title'));
+	if (!title || !journalTitle) {
+		return fail(400, {
+			kind: 'createJournalArticleSource' as const,
+			...ids,
+			message: 'Title and journal are required.'
+		});
+	}
+	const year = parseYear(trimOrNull(fd.get('year')));
+	if (year === 'invalid') {
+		return fail(400, {
+			kind: 'createJournalArticleSource' as const,
+			...ids,
+			message: 'Invalid year.'
+		});
+	}
+	const doi = trimOrNull(fd.get('doi'))?.toLowerCase() ?? null;
+	const parentOk = await assertStudyLive(supabase, parent);
+	if (!parentOk.ok) {
+		return fail(400, {
+			kind: 'createJournalArticleSource' as const,
+			...ids,
+			message: parentOk.message
+		});
+	}
+
+	let articleId: string | null = null;
+	let alreadyExisted = false;
+	if (doi) {
+		const { data, error } = await supabase
+			.from('journal_articles')
+			.select('id, doi')
+			.ilike('doi', doi)
+			.is('deleted_at', null)
+			.limit(1);
+		if (error) {
+			console.error('[papers] createJournalArticleSource doi', error);
+			return fail(500, {
+				kind: 'createJournalArticleSource' as const,
+				...ids,
+				message: error.message
+			});
+		}
+		const row = (data ?? [])[0] as { id: string } | undefined;
+		if (row) {
+			articleId = row.id;
+			alreadyExisted = true;
+		}
+	}
+	if (!articleId) {
+		const { data: existing, error: existErr } = await supabase
+			.from('journal_articles')
+			.select('id, title, journal_title')
+			.is('deleted_at', null)
+			.limit(2000);
+		if (existErr) {
+			console.error('[papers] createJournalArticleSource existing', existErr);
+			return fail(500, {
+				kind: 'createJournalArticleSource' as const,
+				...ids,
+				message: existErr.message
+			});
+		}
+		const titleKey = normalizeTitleKey(title);
+		const journalKey = normalizeTitleKey(journalTitle);
+		const match = (existing ?? []).find((row) => {
+			const item = row as { id: string; title: string; journal_title: string };
+			return (
+				normalizeTitleKey(item.title) === titleKey &&
+				normalizeTitleKey(item.journal_title) === journalKey
+			);
+		}) as { id: string } | undefined;
+		if (match) {
+			articleId = match.id;
+			alreadyExisted = true;
+		}
+	}
+
+	if (!articleId) {
+		const { data: inserted, error: insErr } = await supabase
+			.from('journal_articles')
+			.insert({
+				title,
+				journal_title: journalTitle,
+				volume: trimOrNull(fd.get('volume')),
+				issue: trimOrNull(fd.get('issue')),
+				year,
+				page_start: trimOrNull(fd.get('page_start')),
+				page_end: trimOrNull(fd.get('page_end')),
+				doi,
+				created_by: userId
+			} as never)
+			.select('id')
+			.single();
+		if (insErr || !inserted) {
+			console.error('[papers] createJournalArticleSource insert', insErr);
+			return fail(500, {
+				kind: 'createJournalArticleSource' as const,
+				...ids,
+				message: insErr?.message ?? 'Could not create the article.'
+			});
+		}
+		articleId = (inserted as { id: string }).id;
+		const authors = splitAuthorString(trimOrNull(fd.get('authors')) ?? '');
+		let sort = 0;
+		for (const author of authors) {
+			const parsed = parseTypedName(author);
+			if (!parsed) continue;
+			try {
+				const { personId } = await findOrCreatePerson(supabase, parsed, userId);
+				const { error: authErr } = await supabase.from('journal_article_authors').insert({
+					article_id: articleId,
+					person_id: personId,
+					role: 'author',
+					sort_order: sort,
+					created_by: userId
+				} as never);
+				if (authErr) console.error('[papers] createJournalArticleSource author', authErr);
+				else sort += 1;
+			} catch (e) {
+				console.error('[papers] createJournalArticleSource person', e);
+			}
+		}
+	}
+
+	const attached = await attachSource(supabase, userId, parent, {
+		book_id: null,
+		essay_id: null,
+		article_id: articleId
+	});
+	if (!attached.ok) {
+		return fail(400, {
+			kind: 'createJournalArticleSource' as const,
+			...ids,
+			message: alreadyExisted
+				? `That article is already in the catalog and ${attached.message.toLowerCase()}`
+				: attached.message
+		});
+	}
+	return {
+		kind: 'createJournalArticleSource' as const,
+		success: true as const,
+		...ids,
+		articleId,
 		sourceId: attached.sourceId,
 		alreadyExisted
 	};

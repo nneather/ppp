@@ -689,6 +689,7 @@
 			readingNow={readingSourceId === source.sourceId}
 			onReadingNow={() =>
 				onReadingNow?.(readingSourceId === source.sourceId ? null : source.sourceId)}
+			studyId={parentId}
 		/>
 	{/snippet}
 

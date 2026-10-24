@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	addPaperSourceAction,
+	createJournalArticleSourceAction,
 	createNotOwnedSourceAction,
 	createPaperGroupAction,
 	importPaperSourcesAction,
@@ -115,6 +116,13 @@ export const actions: Actions = {
 			return fail(401, { kind: 'createNotOwnedSource' as const, message: 'Unauthorized' });
 		}
 		return createNotOwnedSourceAction(locals.supabase, user.id, await request.formData());
+	},
+	createJournalArticleSource: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) {
+			return fail(401, { kind: 'createJournalArticleSource' as const, message: 'Unauthorized' });
+		}
+		return createJournalArticleSourceAction(locals.supabase, user.id, await request.formData());
 	},
 	createPaperGroup: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

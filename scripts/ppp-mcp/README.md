@@ -33,7 +33,8 @@ The server loads `.env` then `.env.local` from the repo root. Prefer **not** put
 | `list_commentaries_for_bible_book` | `/sermons/by-book` commentaries |
 | `list_systematics_for_passage` | Systematic theology index hits + TOC labels for a passage |
 | `list_sermons_for_bible_book` | Sermons touching a Bible book |
-| `list_studies` | Papers in progress + upcoming sermons. `include_published` / `include_archived` widen papers. |
+| `list_studies` | Papers in progress + upcoming sermons. Each row includes `last_note_at` and `days_since_note`. `include_published` / `include_archived` widen papers. |
+| `search_study_notes` | Reading notes whose body matches a query. Study label, page, verse, and body. |
 | `get_study_sources` | Sources on a paper or sermon (id, title, or passage), with flat and sectioned bibliography text |
 | `suggest_sources` | Resource-set suggestions plus overlapping passage-section books (`passage_sections`; read-only; does not attach) |
 

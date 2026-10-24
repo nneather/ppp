@@ -18,6 +18,7 @@
 	import { nextStudyUsage, STUDY_USAGE_LABELS } from '$lib/studies/source-usage';
 	import { untrack } from 'svelte';
 	import StudyNoteRow from '$lib/components/study-note-row.svelte';
+	import StudyOtherNotes from '$lib/components/study-other-notes.svelte';
 	import type { StudyNoteView } from '$lib/studies/study-note';
 	import NotebookPen from '@lucide/svelte/icons/notebook-pen';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -34,7 +35,8 @@
 		onSaved,
 		notes = [],
 		readingNow = false,
-		onReadingNow
+		onReadingNow,
+		studyId
 	}: {
 		source: PaperSourceView;
 		/** Live research groups — when non-empty, owners get a group selector. */
@@ -51,7 +53,10 @@
 		notes?: StudyNoteView[];
 		readingNow?: boolean;
 		onReadingNow?: () => void;
+		studyId: string;
 	} = $props();
+
+	let citeFormEl = $state<HTMLFormElement | null>(null);
 
 	let notesOpen = $state(false);
 
@@ -90,7 +95,7 @@
 		source.kind === 'book' ? !source.owned : source.kind === 'essay' ? !source.parentOwned : false
 	);
 
-	async function copy(formatted: CitationFormatted, label: string) {
+	async function copy(formatted: CitationFormatted, label: string, markCited = false) {
 		if (!formatted.plain) {
 			onCopied?.(`No ${label.toLowerCase()} for this source`);
 			return;
@@ -98,10 +103,17 @@
 		try {
 			await copyCitationToClipboard(formatted);
 			onCopied?.(`${label} copied`);
+			if (markCited && isOwner) citeFormEl?.requestSubmit();
 		} catch (e) {
 			onCopied?.(e instanceof Error ? e.message : 'Copy failed');
 		}
 	}
+
+	const citedEnhance: SubmitFunction = () => {
+		return async ({ result }) => {
+			if (result.type === 'success') await onSaved?.();
+		};
+	};
 
 	function startEditNotes() {
 		notesDraft = source.notes ?? '';
@@ -248,14 +260,14 @@
 			<button
 				type="button"
 				class="px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-				onclick={() => copy(footnote, 'Footnote')}
+				onclick={() => copy(footnote, 'Footnote', true)}
 			>
 				Footnote
 			</button>
 			<button
 				type="button"
 				class="border-l border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-				onclick={() => copy(shortForm, 'Short form')}
+				onclick={() => copy(shortForm, 'Short form', true)}
 			>
 				Short
 			</button>
@@ -331,6 +343,17 @@
 			{source.notes}
 		</p>
 	{/if}
+
+	<StudyOtherNotes
+		bookId={source.kind === 'book' ? source.citation.id : null}
+		essayId={source.kind === 'essay' ? source.essayId : null}
+		articleId={source.kind === 'article' ? source.articleId : null}
+		excludeStudyId={studyId}
+	/>
+
+	<form method="POST" action="?/markSourceCited" use:enhance={citedEnhance} bind:this={citeFormEl} class="hidden">
+		<input type="hidden" name="source_id" value={source.sourceId} />
+	</form>
 
 	{#if notes.length > 0}
 		<button

@@ -38,6 +38,7 @@ import {
 	loadStudySourceViews
 } from '../../src/lib/studies/server/paper-loaders.ts';
 import { loadResourceSetSummaries } from '../../src/lib/studies/server/resource-set-loaders.ts';
+import { searchStudyNotes as searchStudyNoteRows } from '../../src/lib/studies/server/note-loaders.ts';
 import type { StudyParent } from '../../src/lib/studies/study-parent.ts';
 import type { PaperStatus } from '../../src/lib/types/classwork.ts';
 import type { Database } from '../../src/lib/types/database.ts';
@@ -206,14 +207,19 @@ export async function listStudies(
 		...(active?.papers.filter((paper) => statuses.has(paper.status)) ?? []),
 		...(archived?.papers ?? [])
 	].slice(0, limit);
+	const sermons = sermonsRes?.sermons ?? [];
+	const lastNotes = await lastNoteAt(supabase, {
+		paperIds: papers.map((paper) => paper.id),
+		sermonIds: sermons.map((sermon) => sermon.id)
+	});
 
 	return jsonText({
 		todayYmd,
 		error: active?.error ?? archived?.error ?? sermonsRes?.error ?? null,
 		paper_count: papers.length,
-		sermon_count: sermonsRes?.sermons.length ?? 0,
-		papers: papers.map((paper) => summarize(fromPaper(paper))),
-		sermons: (sermonsRes?.sermons ?? []).map((sermon) => ({
+		sermon_count: sermons.length,
+		papers: papers.map((paper) => withLastNote(summarize(fromPaper(paper)), lastNotes.get(paper.id) ?? null, todayYmd)),
+		sermons: sermons.map((sermon) => withLastNote({
 			id: sermon.id,
 			kind: 'sermon' as const,
 			label: studyLabel({
@@ -229,6 +235,88 @@ export async function listStudies(
 			venue_name: sermon.venue_name,
 			venue_logistics: sermon.venue_logistics,
 			href: `/studies/sermons/${sermon.id}`
+		}, lastNotes.get(sermon.id) ?? null, todayYmd))
+	});
+}
+
+function chicagoYmd(iso: string): string {
+	return new Intl.DateTimeFormat('en-CA', {
+		timeZone: 'America/Chicago',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	}).format(new Date(iso));
+}
+
+function daysSince(noteYmd: string, todayYmd: string): number {
+	const ms = Date.parse(`${todayYmd}T00:00:00Z`) - Date.parse(`${noteYmd}T00:00:00Z`);
+	return Math.round(ms / 86_400_000);
+}
+
+function withLastNote<T extends object>(row: T, lastNoteAt: string | null, todayYmd: string) {
+	return {
+		...row,
+		last_note_at: lastNoteAt,
+		days_since_note: lastNoteAt ? daysSince(chicagoYmd(lastNoteAt), todayYmd) : null
+	};
+}
+
+async function lastNoteAt(
+	supabase: Sb,
+	ids: { paperIds: string[]; sermonIds: string[] }
+): Promise<Map<string, string>> {
+	const latest = new Map<string, string>();
+	const fold = (rows: { parentId: string | null; created_at: string }[]) => {
+		for (const row of rows) {
+			if (!row.parentId) continue;
+			const prev = latest.get(row.parentId);
+			if (!prev || row.created_at > prev) latest.set(row.parentId, row.created_at);
+		}
+	};
+	if (ids.paperIds.length > 0) {
+		const { data } = await supabase
+			.from('study_notes')
+			.select('paper_id, created_at')
+			.in('paper_id', ids.paperIds)
+			.is('deleted_at', null);
+		fold(
+			((data ?? []) as { paper_id: string | null; created_at: string }[]).map((row) => ({
+				parentId: row.paper_id,
+				created_at: row.created_at
+			}))
+		);
+	}
+	if (ids.sermonIds.length > 0) {
+		const { data } = await supabase
+			.from('study_notes')
+			.select('sermon_id, created_at')
+			.in('sermon_id', ids.sermonIds)
+			.is('deleted_at', null);
+		fold(
+			((data ?? []) as { sermon_id: string | null; created_at: string }[]).map((row) => ({
+				parentId: row.sermon_id,
+				created_at: row.created_at
+			}))
+		);
+	}
+	return latest;
+}
+
+export async function searchStudyNotes(supabase: Sb, args: { query?: string; limit?: number }) {
+	const result = await searchStudyNoteRows(supabase, args.query ?? '', args.limit ?? 20);
+	return jsonText({
+		error: result.error,
+		count: result.notes.length,
+		notes: result.notes.map((note) => ({
+			id: note.id,
+			body: note.body,
+			page: note.page,
+			passage_display: note.passageDisplay,
+			created_at: note.createdAt,
+			study_kind: note.studyKind,
+			study_id: note.studyId,
+			study_label: note.studyLabel,
+			href: note.studyKind === 'paper' ? `/studies/papers/${note.studyId}` : `/studies/sermons/${note.studyId}`
 		}))
 	});
 }
