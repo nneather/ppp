@@ -35,6 +35,7 @@ type PaperSourceDb = {
 	group_id: string | null;
 	book_id: string | null;
 	essay_id: string | null;
+	article_id: string | null;
 	notes: string | null;
 	usage: string;
 	sort_order: number;
@@ -74,6 +75,19 @@ type EssayDb = {
 	page_end: string | null;
 	parent_book_id: string;
 	essay_authors: EssayAuthorDb[] | null;
+};
+
+type ArticleDb = {
+	id: string;
+	title: string;
+	journal_title: string;
+	volume: string | null;
+	issue: string | null;
+	year: number | null;
+	page_start: string | null;
+	page_end: string | null;
+	doi: string | null;
+	journal_article_authors: EssayAuthorDb[] | null;
 };
 
 function asPaperStatus(v: string): PaperStatus | null {
@@ -311,7 +325,7 @@ export async function loadStudySourceViews(
 }> {
 	let sourcesQuery = supabase
 		.from('study_sources')
-		.select('id, group_id, book_id, essay_id, notes, usage, sort_order, created_at')
+		.select('id, group_id, book_id, essay_id, article_id, notes, usage, sort_order, created_at')
 		.is('deleted_at', null)
 		.order('created_at', { ascending: true });
 	sourcesQuery =
@@ -327,18 +341,32 @@ export async function loadStudySourceViews(
 
 	const rows = (sourcesRes.data ?? []) as PaperSourceDb[];
 	const essayIds = rows.map((r) => r.essay_id).filter((v): v is string => !!v);
+	const articleIds = rows.map((r) => r.article_id).filter((v): v is string => !!v);
 
-	const essaysRes = essayIds.length
-		? await supabase
-				.from('essays')
-				.select(
-					`id, essay_title, page_start, page_end, parent_book_id,
-					essay_authors ( person_id, role, sort_order, people ( id, first_name, middle_name, last_name, suffix, aliases, deleted_at ) )`
-				)
-				.in('id', essayIds)
-				.is('deleted_at', null)
-		: { data: [] as unknown[], error: null };
+	const [essaysRes, articlesRes] = await Promise.all([
+		essayIds.length
+			? supabase
+					.from('essays')
+					.select(
+						`id, essay_title, page_start, page_end, parent_book_id,
+						essay_authors ( person_id, role, sort_order, people ( id, first_name, middle_name, last_name, suffix, aliases, deleted_at ) )`
+					)
+					.in('id', essayIds)
+					.is('deleted_at', null)
+			: Promise.resolve({ data: [] as unknown[], error: null }),
+		articleIds.length
+			? supabase
+					.from('journal_articles')
+					.select(
+						`id, title, journal_title, volume, issue, year, page_start, page_end, doi,
+						journal_article_authors ( person_id, role, sort_order, people ( id, first_name, middle_name, last_name, suffix, aliases, deleted_at ) )`
+					)
+					.in('id', articleIds)
+					.is('deleted_at', null)
+			: Promise.resolve({ data: [] as unknown[], error: null })
+	]);
 	if (essaysRes.error) console.error('[papers] source essays', essaysRes.error);
+	if (articlesRes.error) console.error('[papers] source articles', articlesRes.error);
 
 	const essayById = new Map<string, { db: EssayDb; authors: BookAuthorAssignment[] }>();
 	for (const raw of (essaysRes.data ?? []) as unknown[]) {
@@ -363,9 +391,47 @@ export async function loadStudySourceViews(
 	const detailById = new Map<string, BookDetail>();
 	for (const d of details) detailById.set(d.id, d);
 
+	const articleById = new Map<string, { db: ArticleDb; authors: BookAuthorAssignment[] }>();
+	for (const raw of (articlesRes.data ?? []) as unknown[]) {
+		const article = raw as ArticleDb;
+		const authors = (article.journal_article_authors ?? [])
+			.slice()
+			.sort((a, b) => a.sort_order - b.sort_order)
+			.map((a) => assignmentFromJunction(a));
+		articleById.set(article.id, { db: article, authors });
+	}
+
 	const sources: PaperSourceView[] = [];
 	const orphans: OrphanPaperSource[] = [];
 	for (const r of rows) {
+		if (r.article_id) {
+			const article = articleById.get(r.article_id);
+			if (!article) {
+				orphans.push({ sourceId: r.id, kind: 'article', notes: r.notes });
+				continue;
+			}
+			sources.push({
+				kind: 'article',
+				sourceId: r.id,
+				groupId: r.group_id,
+				usage: parseStudyUsage(r.usage),
+				notes: r.notes,
+				articleId: r.article_id,
+				article: {
+					title: article.db.title,
+					journal_title: article.db.journal_title,
+					volume: article.db.volume,
+					issue: article.db.issue,
+					year: article.db.year,
+					page_start: article.db.page_start,
+					page_end: article.db.page_end,
+					doi: article.db.doi,
+					authors: article.authors
+				},
+				authorsLabel: authorsLabel(article.authors)
+			});
+			continue;
+		}
 		if (r.book_id) {
 			const detail = detailById.get(r.book_id);
 			if (!detail) {

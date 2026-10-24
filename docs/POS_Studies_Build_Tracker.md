@@ -1,6 +1,6 @@
 # Personal Operations System — Studies Module Build Tracker
 
-_Last updated: 2026-10-24 | Module: Studies | Docx paper imports use the studies-import-paper skill ([307](decisions/307-studies-import-paper-skill.md)). NT305 inheritance paper is published with its bibliography ([306](decisions/306-inheritance-paper-bibliography.md))._
+_Last updated: 2026-10-24 | Module: Studies | Journal articles are catalog rows, not book stubs ([310](decisions/310-journal-articles.md)). Docx paper imports use the studies-import-paper skill ([307](decisions/307-studies-import-paper-skill.md))._
 
 **Read before any session:** [docs/MODULE_KICKOFF_PLAYBOOK.md](MODULE_KICKOFF_PLAYBOOK.md), [243](decisions/243-studies-session-0.md), papers retro [188](decisions/188-classwork-research-papers-session-0.md) / [189](decisions/189-classwork-papers-session-1.md) / [190](decisions/190-classwork-papers-session-2.md), sermons [090](decisions/090-sermons-session-0.md) / [095](decisions/095-sermons-by-book-stats.md). Brainstorm: [brainstorms/2026-10-19-papers-research-tool.md](../brainstorms/2026-10-19-papers-research-tool.md).
 
@@ -168,7 +168,8 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 - [x] Phone commentary rows lead with the series. Stars and Attach / Dismiss share the next line ([304](decisions/304-sermon-commentary-mobile.md)).
 - [x] Ranking a commentary on a sermon saves the stars without reloading. The shelf re-sorts on the next load ([305](decisions/305-sermon-commentary-rating-stay.md)).
 - [x] NT305 “Our Share of the Inheritance” (Colossians 1:12) is published, with the bibliography cited and not-owned works added ([306](decisions/306-inheritance-paper-bibliography.md)).
-- [x] Five archived OT papers (Proverbs 31, Genesis 22, Deuteronomy word study, Exodus 23, 1 Kings 12) with bibliographies cited. Lovell owned. Journal articles are book stubs ([309](decisions/309-ot-exegesis-papers.md)).
+- [x] Five archived OT papers (Proverbs 31, Genesis 22, Deuteronomy word study, Exodus 23, 1 Kings 12) with bibliographies cited. Lovell owned. Journal articles were book stubs ([309](decisions/309-ot-exegesis-papers.md)); they are articles now ([310](decisions/310-journal-articles.md)).
+- [x] Journal articles are `journal_articles`, cited with `study_sources.article_id`. Denton, Buchem, and Fox moved off book stubs. Compiled bibliography and `.docx` use the article form ([310](decisions/310-journal-articles.md)).
 - [x] Docx paper import skill: match the shelf (including `&` / `and`), ask which missing books are owned, then cite the bibliography ([307](decisions/307-studies-import-paper-skill.md)).
 - [x] Commentary lists (sermon shelf, By book counts, Commentaries sets) omit not-owned volumes. Papers that already cite them keep those rows ([308](decisions/308-commentary-lists-owned.md)).
 - [x] Attach on a systematic hit marks that hit only. It does not add the volume or reload the sermon ([302](decisions/302-systematic-hit-attach.md)).

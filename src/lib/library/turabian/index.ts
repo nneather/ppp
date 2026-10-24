@@ -24,6 +24,14 @@ export {
 	type EssayCitationInput,
 	type EssayFormatOptions
 } from './article';
+export {
+	elideJournalPageEnd,
+	formatJournalArticleBibliography,
+	formatJournalArticleFootnote,
+	formatJournalPageRange,
+	type JournalArticleCitationInput,
+	type JournalArticleFormatOptions
+} from './journal';
 export { isUnsignedLexiconVolume, UNSIGNED_LEXICON_ABBREVS } from './lexicon';
 export { normalizeCitationText } from './text-normalize';
 export {

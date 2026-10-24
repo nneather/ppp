@@ -48,6 +48,8 @@ export type SetSuggestion = {
 export type ImportCandidate = {
 	bookId: string | null;
 	essayId: string | null;
+	/** Journal article. Not a set member; prior-paper import can still copy it. */
+	articleId?: string | null;
 	title: string;
 	notes: string | null;
 	/** Checklist subtitle. Not stored on the study source. */
@@ -305,7 +307,12 @@ export function importGroupName(kind: 'set' | 'paper', name: string): string {
 	return trimmed;
 }
 
-export function catalogKey(bookId: string | null, essayId: string | null): string {
+export function catalogKey(
+	bookId: string | null,
+	essayId: string | null,
+	articleId?: string | null
+): string {
+	if (articleId) return `a:${articleId}`;
 	if (essayId) return `e:${essayId}`;
 	if (bookId) return `b:${bookId}`;
 	return '';
@@ -314,15 +321,21 @@ export function catalogKey(bookId: string | null, essayId: string | null): strin
 export function buildImportChecklist(
 	candidates: ImportCandidate[],
 	attachedBookIds: readonly string[],
-	attachedEssayIds: readonly string[]
+	attachedEssayIds: readonly string[],
+	attachedArticleIds: readonly string[] = []
 ): ImportChecklistRow[] {
 	const books = new Set(attachedBookIds);
 	const essays = new Set(attachedEssayIds);
+	const articles = new Set(attachedArticleIds);
 	const rows: ImportChecklistRow[] = [];
 	for (const c of candidates) {
-		const key = catalogKey(c.bookId, c.essayId);
+		const key = catalogKey(c.bookId, c.essayId, c.articleId);
 		if (!key) continue;
-		const attached = c.essayId ? essays.has(c.essayId) : !!c.bookId && books.has(c.bookId);
+		const attached = c.articleId
+			? articles.has(c.articleId)
+			: c.essayId
+				? essays.has(c.essayId)
+				: !!c.bookId && books.has(c.bookId);
 		rows.push({ ...c, key, attached });
 	}
 	return rows;

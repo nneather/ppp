@@ -9,6 +9,7 @@ import {
 	sectionPaperBibliography
 } from '../paper-bibliography';
 import type {
+	PaperArticleSourceView,
 	PaperBookSourceView,
 	PaperEssaySourceView,
 	PaperSourceView
@@ -111,6 +112,37 @@ describe('formatPaperBibliographyEntries', () => {
 		expect(entries[0]!.plain).toMatch(/^Adams/);
 		expect(entries[1]!.plain).toMatch(/^Miller/);
 		expect(entries[2]!.plain).toMatch(/^Zimmerman/);
+	});
+
+	it('formats a journal article instead of a book', () => {
+		const article: PaperArticleSourceView = {
+			kind: 'article',
+			sourceId: 'src-denton',
+			groupId: null,
+			usage: 'cited',
+			notes: null,
+			articleId: 'art-denton',
+			article: {
+				title: 'Inheritance in Paul and Ephesians',
+				journal_title: 'Evangelical Quarterly',
+				volume: '54',
+				issue: null,
+				year: 1982,
+				page_start: '157',
+				page_end: '162',
+				doi: null,
+				authors: [author('Denton', 'D. R.')]
+			},
+			authorsLabel: 'D. R. Denton'
+		};
+		const entries = formatPaperBibliographyEntries([
+			bookSource('b1', 'Zeta Studies', 'Zimmerman'),
+			article
+		]);
+		expect(entries.map((e) => e.plain.split('.')[0])).toEqual(['Denton, D', 'Zimmerman, Test']);
+		expect(entries[0]!.plain).toContain('Evangelical Quarterly 54 (1982): 157\u201362.');
+		expect(entries[0]!.plain).not.toMatch(/Chicago: Test Press/);
+		expect(entries[0]!.sourceType).toBe('journal-article');
 	});
 
 	it('drops unsigned essays (empty bibliography entries)', () => {

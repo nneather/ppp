@@ -4,13 +4,21 @@ export type CitationHtmlSegment = {
 };
 
 function unescapeCitationHtml(s: string): string {
-	// Inverse of `escape()` in format.ts / publication.ts — only these two entities are emitted.
-	return s.replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+	// Inverse of the entities the citation formatters emit. Quote marks are
+	// `&ldquo;` / `&rdquo;` (essay and journal titles). Ampersand must be last
+	// so `&amp;ldquo;` is not decoded into a quotation mark.
+	return s
+		.replace(/&lt;/g, '<')
+		.replace(/&ldquo;/g, '\u201c')
+		.replace(/&rdquo;/g, '\u201d')
+		.replace(/&ndash;/g, '\u2013')
+		.replace(/&mdash;/g, '\u2014')
+		.replace(/&amp;/g, '&');
 }
 
 /**
  * Parse `CitationFormatted.html` into flat text runs for non-HTML targets (.docx).
- * The Turabian formatters emit only `<i>…</i>` markup plus `&amp;` / `&lt;` entities,
+ * The Turabian formatters emit `<i>…</i>` plus a small set of entities,
  * so this stays a two-token split rather than a real HTML parser.
  */
 export function parseCitationHtmlSegments(html: string): CitationHtmlSegment[] {

@@ -1,18 +1,21 @@
 /**
  * Client-safe view-models for paper sources ([188]).
  *
- * A source is a live library citation target: a catalog book (owned or
- * not-owned stub) XOR an essay inside a catalog book. Citation inputs are
- * hydrated server-side by `server/paper-loaders.ts` so rows can copy
- * Turabian footnote / short form / bibliography without extra fetches.
+ * A source is a catalog book, an essay inside a book, or a journal article.
+ * Citation inputs are hydrated server-side by `server/paper-loaders.ts` so
+ * rows can copy Turabian footnote / short form / bibliography without extra fetches.
  */
-import type { BookCitationInput, EssayCitationInput } from '$lib/library/turabian';
+import type {
+	BookCitationInput,
+	EssayCitationInput,
+	JournalArticleCitationInput
+} from '$lib/library/turabian';
 import type { StudyUsage } from './source-usage';
 
-/** Live junction row whose catalog book or essay was soft-deleted. */
+/** Live junction row whose catalog book, essay, or article was soft-deleted. */
 export type OrphanPaperSource = {
 	sourceId: string;
-	kind: 'book' | 'essay';
+	kind: 'book' | 'essay' | 'article';
 	notes: string | null;
 };
 
@@ -43,7 +46,18 @@ export type PaperEssaySourceView = {
 	authorsLabel: string | null;
 };
 
-export type PaperSourceView = PaperBookSourceView | PaperEssaySourceView;
+export type PaperArticleSourceView = {
+	kind: 'article';
+	sourceId: string;
+	groupId: string | null;
+	usage: StudyUsage;
+	notes: string | null;
+	articleId: string;
+	article: JournalArticleCitationInput;
+	authorsLabel: string | null;
+};
+
+export type PaperSourceView = PaperBookSourceView | PaperEssaySourceView | PaperArticleSourceView;
 
 /** Live research group on a paper (sorted by sort_order by the loader). */
 export type PaperGroupView = {
@@ -84,19 +98,26 @@ export function groupPaperSources<T extends { groupId: string | null }>(
 
 export function paperSourceTitle(source: PaperSourceView): string {
 	if (source.kind === 'book') return source.citation.title?.trim() || '(untitled)';
+	if (source.kind === 'article') return source.article.title.trim() || '(untitled article)';
 	return source.essay.essay_title.trim() || '(untitled essay)';
 }
 
-/** Book id behind the source (the essay's parent volume for essays). */
-export function paperSourceBookId(source: PaperSourceView): string {
-	return source.kind === 'book' ? source.citation.id : source.parentBookId;
+/** Book id behind the source. Essays use the parent volume. Articles have none. */
+export function paperSourceBookId(source: PaperSourceView): string | null {
+	if (source.kind === 'book') return source.citation.id;
+	if (source.kind === 'essay') return source.parentBookId;
+	return null;
 }
 
-/** Catalog identity for set exclude / import (essay wins over its parent book). */
+/** Catalog identity for set exclude / import. Articles are not set members. */
 export function paperSourceCatalog(source: PaperSourceView): {
 	bookId: string | null;
 	essayId: string | null;
+	articleId: string | null;
 } {
-	if (source.kind === 'essay') return { bookId: null, essayId: source.essayId };
-	return { bookId: source.citation.id, essayId: null };
+	if (source.kind === 'essay') return { bookId: null, essayId: source.essayId, articleId: null };
+	if (source.kind === 'article') {
+		return { bookId: null, essayId: null, articleId: source.articleId };
+	}
+	return { bookId: source.citation.id, essayId: null, articleId: null };
 }

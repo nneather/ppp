@@ -32,7 +32,8 @@ export type CitationSourceType =
 	| 'standalone-commentary'
 	| 'reference-work-edited'
 	| 'reference-work-single-author'
-	| 'book-with-editor';
+	| 'book-with-editor'
+	| 'journal-article';
 
 /** Hydrated book shape for pure citation formatters — no DB access inside formatters. */
 export type BookCitationInput = {

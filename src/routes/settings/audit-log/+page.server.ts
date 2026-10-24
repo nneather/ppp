@@ -36,7 +36,9 @@ export const _STUDIES_TABLES = [
 	'paper_passages',
 	'resource_sets',
 	'resource_set_sections',
-	'resource_set_members'
+	'resource_set_members',
+	'journal_articles',
+	'journal_article_authors'
 ] as const;
 
 export const _CONTACTS_TABLES = [
@@ -122,6 +124,8 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'resource_sets',
 	'resource_set_sections',
 	'resource_set_members',
+	'journal_articles',
+	'journal_article_authors',
 	// contacts
 	'households',
 	'contacts',

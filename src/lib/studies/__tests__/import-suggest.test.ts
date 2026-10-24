@@ -115,6 +115,26 @@ describe('import checklist', () => {
 		expect(importGroupName('paper', 'Psalm 110 exegesis')).toBe('From: Psalm 110 exegesis');
 	});
 
+	it('keeps a journal article as its own checklist row', () => {
+		const rows = buildImportChecklist(
+			[
+				{
+					bookId: null,
+					essayId: null,
+					articleId: 'art-1',
+					title: 'Inheritance in Paul and Ephesians',
+					notes: null
+				}
+			],
+			[],
+			[],
+			['art-1']
+		);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.key).toBe('a:art-1');
+		expect(rows[0]?.attached).toBe(true);
+	});
+
 	it('marks already-attached rows and keeps notes', () => {
 		const rows = buildImportChecklist(
 			[

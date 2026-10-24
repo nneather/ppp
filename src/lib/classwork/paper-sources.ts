@@ -1,4 +1,5 @@
 export type {
+	PaperArticleSourceView,
 	PaperBookSourceView,
 	PaperEssaySourceView,
 	PaperSourceView,

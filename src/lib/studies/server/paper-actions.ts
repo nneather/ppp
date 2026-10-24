@@ -347,15 +347,27 @@ type AttachOpts = {
 	usage?: StudyUsage;
 };
 
+function catalogTarget(target: {
+	book_id?: string | null;
+	essay_id?: string | null;
+	article_id?: string | null;
+}): { col: 'book_id' | 'essay_id' | 'article_id'; val: string } | null {
+	if (target.book_id) return { col: 'book_id', val: target.book_id };
+	if (target.essay_id) return { col: 'essay_id', val: target.essay_id };
+	if (target.article_id) return { col: 'article_id', val: target.article_id };
+	return null;
+}
+
 async function attachSource(
 	supabase: SupabaseClient,
 	userId: string,
 	parent: StudyParent,
-	target: { book_id: string | null; essay_id: string | null },
+	target: { book_id: string | null; essay_id: string | null; article_id?: string | null },
 	opts: AttachOpts = {}
 ): Promise<{ ok: true; sourceId: string; revived: boolean } | { ok: false; message: string }> {
-	const col = target.book_id ? 'book_id' : 'essay_id';
-	const val = target.book_id ?? target.essay_id!;
+	const catalog = catalogTarget(target);
+	if (!catalog) return { ok: false, message: 'Pick a catalog row.' };
+	const { col, val } = catalog;
 
 	let lookup = supabase
 		.from('study_sources')
@@ -407,6 +419,7 @@ async function attachSource(
 			sermon_id: parent.kind === 'sermon' ? parent.id : null,
 			book_id: target.book_id,
 			essay_id: target.essay_id,
+			article_id: target.article_id ?? null,
 			group_id: opts.groupId ?? null,
 			notes: opts.writeNotes ? (opts.notes ?? null) : null,
 			usage: opts.usage ?? 'candidate',
@@ -456,12 +469,13 @@ export async function addPaperSourceAction(
 
 	const book_id = trimOrNull(fd.get('book_id'));
 	const essay_id = trimOrNull(fd.get('essay_id'));
-	const provided = [book_id, essay_id].filter((v) => v !== null);
+	const article_id = trimOrNull(fd.get('article_id'));
+	const provided = [book_id, essay_id, article_id].filter((v) => v !== null);
 	if (provided.length !== 1 || !UUID_RE.test(provided[0]!)) {
 		return fail(400, {
 			kind: 'addPaperSource' as const,
 			...ids,
-			message: 'Pick exactly one book or essay.'
+			message: 'Pick exactly one book, essay, or article.'
 		});
 	}
 
@@ -470,8 +484,8 @@ export async function addPaperSourceAction(
 		return fail(400, { kind: 'addPaperSource' as const, ...ids, message: parentOk.message });
 	}
 
-	const table = book_id ? 'books' : 'essays';
-	const targetId = book_id ?? essay_id!;
+	const table = book_id ? 'books' : essay_id ? 'essays' : 'journal_articles';
+	const targetId = book_id ?? essay_id ?? article_id!;
 	const { data: target, error: targetErr } = await supabase
 		.from(table)
 		.select('id')
@@ -486,13 +500,14 @@ export async function addPaperSourceAction(
 		return fail(404, {
 			kind: 'addPaperSource' as const,
 			...ids,
-			message: book_id ? 'Book not found.' : 'Essay not found.'
+			message: book_id ? 'Book not found.' : essay_id ? 'Essay not found.' : 'Article not found.'
 		});
 	}
 
 	const attached = await attachSource(supabase, userId, parent, {
 		book_id,
-		essay_id
+		essay_id,
+		article_id
 	});
 	if (!attached.ok) {
 		return fail(400, { kind: 'addPaperSource' as const, ...ids, message: attached.message });
@@ -959,6 +974,7 @@ const IMPORT_ITEM_CAP = 200;
 type ImportItem = {
 	book_id: string | null;
 	essay_id: string | null;
+	article_id: string | null;
 	notes: string | null;
 	writeNotes: boolean;
 };
@@ -986,17 +1002,21 @@ function parseImportItems(raw: FormDataEntryValue | null): { ok: true; items: Im
 		}
 		const book_id = trimOrNull((row as { book_id?: unknown }).book_id as FormDataEntryValue);
 		const essay_id = trimOrNull((row as { essay_id?: unknown }).essay_id as FormDataEntryValue);
-		if ((book_id && essay_id) || (!book_id && !essay_id)) {
-			return { ok: false, message: 'Each import row needs a book or an essay.' };
+		const article_id = trimOrNull((row as { article_id?: unknown }).article_id as FormDataEntryValue);
+		const picked = [book_id, essay_id, article_id].filter((id) => id !== null);
+		if (picked.length !== 1) {
+			return { ok: false, message: 'Each import row needs a book, an essay, or an article.' };
 		}
 		if (book_id && !UUID_RE.test(book_id)) return { ok: false, message: 'Invalid book.' };
 		if (essay_id && !UUID_RE.test(essay_id)) return { ok: false, message: 'Invalid essay.' };
+		if (article_id && !UUID_RE.test(article_id)) return { ok: false, message: 'Invalid article.' };
 		const notesRaw = (row as { notes?: unknown }).notes;
 		const notes = typeof notesRaw === 'string' ? trimOrNull(notesRaw) : null;
 		const writeFlag = (row as { write_notes?: unknown }).write_notes === true;
 		items.push({
 			book_id,
 			essay_id,
+			article_id,
 			notes,
 			writeNotes: writeFlag || typeof notesRaw === 'string'
 		});
@@ -1093,7 +1113,7 @@ export async function importPaperSourcesAction(
 			supabase,
 			userId,
 			parent,
-			{ book_id: item.book_id, essay_id: item.essay_id },
+			{ book_id: item.book_id, essay_id: item.essay_id, article_id: item.article_id },
 			{
 				groupId: group.groupId,
 				notes: item.notes,
@@ -1150,7 +1170,7 @@ export async function restorePaperSourceAction(supabase: SupabaseClient, fd: For
 	}
 	const { data, error } = await supabase
 		.from('study_sources')
-		.select('id, paper_id, sermon_id, book_id, essay_id, deleted_at')
+		.select('id, paper_id, sermon_id, book_id, essay_id, article_id, deleted_at')
 		.eq('id', sourceId)
 		.maybeSingle();
 	if (error) {
@@ -1163,6 +1183,7 @@ export async function restorePaperSourceAction(supabase: SupabaseClient, fd: For
 		sermon_id: string | null;
 		book_id: string | null;
 		essay_id: string | null;
+		article_id: string | null;
 		deleted_at: string | null;
 	} | null;
 	const parentId = row?.paper_id ?? row?.sermon_id ?? null;
@@ -1172,12 +1193,16 @@ export async function restorePaperSourceAction(supabase: SupabaseClient, fd: For
 	if (row.deleted_at === null) {
 		return { kind: 'restorePaperSource' as const, success: true as const, sourceId };
 	}
-	const col = row.book_id ? 'book_id' : 'essay_id';
-	const val = row.book_id ?? row.essay_id;
-	if (!val) {
+	const catalog = catalogTarget(row);
+	if (!catalog) {
 		return fail(400, { kind: 'restorePaperSource' as const, sourceId, message: 'Source has no catalog row.' });
 	}
-	let liveQuery = supabase.from('study_sources').select('id').eq(col, val).is('deleted_at', null).limit(1);
+	let liveQuery = supabase
+		.from('study_sources')
+		.select('id')
+		.eq(catalog.col, catalog.val)
+		.is('deleted_at', null)
+		.limit(1);
 	liveQuery = row.paper_id ? liveQuery.eq('paper_id', row.paper_id) : liveQuery.eq('sermon_id', parentId);
 	const { data: live, error: liveErr } = await liveQuery;
 	if (liveErr) {

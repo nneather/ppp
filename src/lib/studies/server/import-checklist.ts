@@ -6,8 +6,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
 	buildImportChecklist,
 	importGroupName,
+	type ImportCandidate,
 	type ImportChecklistRow
 } from '$lib/studies/import-suggest';
+import type { PaperSourceView } from '$lib/studies/paper-sources';
 import {
 	PASSAGE_SECTION_GROUP_NAME,
 	passageSectionImportCandidates
@@ -36,14 +38,66 @@ export type ImportChecklistPayload = {
 	error: string | null;
 };
 
-function attachedIds(sources: { kind: string; citation?: { id: string }; essayId?: string }[]) {
+function attachedIds(sources: {
+	kind: string;
+	citation?: { id: string };
+	essayId?: string;
+	articleId?: string;
+}[]) {
 	const attachedBookIds = sources
 		.filter((source) => source.kind === 'book')
 		.map((source) => source.citation!.id);
 	const attachedEssayIds = sources
 		.filter((source) => source.kind === 'essay')
 		.map((source) => source.essayId!);
-	return { attachedBookIds, attachedEssayIds };
+	const attachedArticleIds = sources
+		.filter((source) => source.kind === 'article')
+		.map((source) => source.articleId!);
+	return { attachedBookIds, attachedEssayIds, attachedArticleIds };
+}
+
+function priorSourceCandidate(source: PaperSourceView): ImportCandidate {
+	if (source.kind === 'essay') {
+		return {
+			bookId: null,
+			essayId: source.essayId,
+			articleId: null,
+			title: source.essay.essay_title,
+			notes: source.notes,
+			authors: source.authorsLabel,
+			seriesAbbreviation: source.volume.series_abbreviation,
+			volumeCount:
+				source.volume.total_volumes && source.volume.total_volumes > 1
+					? source.volume.total_volumes
+					: null
+		};
+	}
+	if (source.kind === 'article') {
+		return {
+			bookId: null,
+			essayId: null,
+			articleId: source.articleId,
+			title: source.article.title,
+			notes: source.notes,
+			authors: source.authorsLabel,
+			hint: source.article.journal_title,
+			seriesAbbreviation: null,
+			volumeCount: null
+		};
+	}
+	return {
+		bookId: source.citation.id,
+		essayId: null,
+		articleId: null,
+		title: source.citation.title ?? 'Untitled',
+		notes: source.notes,
+		authors: source.authorsLabel,
+		seriesAbbreviation: source.citation.series_abbreviation,
+		volumeCount:
+			source.citation.total_volumes && source.citation.total_volumes > 1
+				? source.citation.total_volumes
+				: null
+	};
 }
 
 export async function loadImportChecklistPayload(
@@ -53,7 +107,7 @@ export async function loadImportChecklistPayload(
 	passageDisplay: string | null
 ): Promise<ImportChecklistPayload> {
 	const sourcesRes = await loadStudySourceViews(supabase, parent);
-	const { attachedBookIds, attachedEssayIds } = attachedIds(sourcesRes.sources);
+	const { attachedBookIds, attachedEssayIds, attachedArticleIds } = attachedIds(sourcesRes.sources);
 
 	if (target.kind === 'set') {
 		const detail = await loadResourceSetDetail(supabase, target.id);
@@ -134,36 +188,10 @@ export async function loadImportChecklistPayload(
 			};
 		}
 		const rows = buildImportChecklist(
-			priorSources.sources.map((source) => {
-				if (source.kind === 'essay') {
-					return {
-						bookId: null,
-						essayId: source.essayId,
-						title: source.essay.essay_title,
-						notes: source.notes,
-						authors: source.authorsLabel,
-						seriesAbbreviation: source.volume.series_abbreviation,
-						volumeCount:
-							source.volume.total_volumes && source.volume.total_volumes > 1
-								? source.volume.total_volumes
-								: null
-					};
-				}
-				return {
-					bookId: source.citation.id,
-					essayId: null,
-					title: source.citation.title ?? 'Untitled',
-					notes: source.notes,
-					authors: source.authorsLabel,
-					seriesAbbreviation: source.citation.series_abbreviation,
-					volumeCount:
-						source.citation.total_volumes && source.citation.total_volumes > 1
-							? source.citation.total_volumes
-							: null
-				};
-			}),
+			priorSources.sources.map((source) => priorSourceCandidate(source)),
 			attachedBookIds,
-			attachedEssayIds
+			attachedEssayIds,
+			attachedArticleIds
 		);
 		return {
 			key: `paper:${priorPaper.paper.id}`,

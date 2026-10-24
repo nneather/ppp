@@ -4,19 +4,17 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
-	import {
-		copyCitationToClipboard,
-		formatBibliography,
-		formatEssayBibliography,
-		formatEssayFootnote,
-		formatFootnote,
-		type CitationFormatted
-	} from '$lib/library/turabian';
+	import { copyCitationToClipboard, type CitationFormatted } from '$lib/library/turabian';
 	import {
 		paperSourceTitle,
 		type PaperGroupView,
 		type PaperSourceView
 	} from '$lib/classwork/paper-sources';
+	import {
+		studySourceBibliography,
+		studySourceFootnote,
+		studySourceShortForm
+	} from '$lib/studies/source-citation';
 	import { nextStudyUsage, STUDY_USAGE_LABELS } from '$lib/studies/source-usage';
 	import { untrack } from 'svelte';
 	import NotebookPen from '@lucide/svelte/icons/notebook-pen';
@@ -66,29 +64,21 @@
 
 	const pageOpts = $derived({ page: page.trim() || undefined });
 
-	const footnote = $derived(
-		source.kind === 'book'
-			? formatFootnote(source.citation, pageOpts)
-			: formatEssayFootnote(source.essay, source.volume, pageOpts)
-	);
-	const shortForm = $derived(
-		source.kind === 'book'
-			? formatFootnote(source.citation, { ...pageOpts, shortForm: 'short' })
-			: formatEssayFootnote(source.essay, source.volume, { ...pageOpts, shortForm: 'short' })
-	);
-	const bibliography = $derived(
-		source.kind === 'book'
-			? formatBibliography(source.citation)
-			: formatEssayBibliography(source.essay, source.volume)
-	);
+	const footnote = $derived(studySourceFootnote(source, pageOpts.page));
+	const shortForm = $derived(studySourceShortForm(source, pageOpts.page));
+	const bibliography = $derived(studySourceBibliography(source));
 
 	const title = $derived(paperSourceTitle(source));
 	const href = $derived(
 		source.kind === 'book'
 			? `/library/books/${source.citation.id}`
-			: `/library/books/${source.parentBookId}#essay-${source.essayId}`
+			: source.kind === 'essay'
+				? `/library/books/${source.parentBookId}#essay-${source.essayId}`
+				: null
 	);
-	const notOwned = $derived(source.kind === 'book' ? !source.owned : !source.parentOwned);
+	const notOwned = $derived(
+		source.kind === 'book' ? !source.owned : source.kind === 'essay' ? !source.parentOwned : false
+	);
 
 	async function copy(formatted: CitationFormatted, label: string) {
 		if (!formatted.plain) {
@@ -143,7 +133,11 @@
 	<div class="flex items-start justify-between gap-3">
 		<div class="min-w-0 flex-1">
 			<p class="text-sm font-medium break-words">
-				<a href={href} class="hover:underline">{title}</a>
+				{#if href}
+					<a href={href} class="hover:underline">{title}</a>
+				{:else}
+					{title}
+				{/if}
 			</p>
 			<div class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
 				{#if source.authorsLabel}
@@ -153,9 +147,12 @@
 				{#if source.kind === 'essay'}
 					<span>in <span class="italic">{source.volume.title ?? '(untitled)'}</span></span>
 					<span aria-hidden="true">·</span>
+				{:else if source.kind === 'article'}
+					<span class="italic">{source.article.journal_title}</span>
+					<span aria-hidden="true">·</span>
 				{/if}
 				<Badge variant="outline" class="px-1.5 py-0 text-[10px] uppercase tracking-wide">
-					{source.kind === 'book' ? 'Book' : 'Essay'}
+					{source.kind === 'book' ? 'Book' : source.kind === 'essay' ? 'Essay' : 'Article'}
 				</Badge>
 				{#if notOwned}
 					<Badge variant="secondary" class="px-1.5 py-0 text-[10px]">Not owned</Badge>

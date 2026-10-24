@@ -1,6 +1,6 @@
 /**
  * Study-scoped compiled bibliography ([188], sectioned export [248]): flat
- * Turabian alpha by default, books and essays merged. Research groups are
+ * Turabian alpha by default, books, essays, and journal articles merged. Research groups are
  * ignored until `sectionPaperBibliography` / `compileSectionedBibliography`.
  * Library's `formatCompiledBibliography` is books-only, so the merge + shared
  * sort key live here rather than widening the library helper.
@@ -11,6 +11,7 @@ import {
 	bibliographySortLastName,
 	formatBibliography,
 	formatEssayBibliography,
+	formatJournalArticleBibliography,
 	type BibliographySortKey,
 	type CitationFormatted
 } from '$lib/library/turabian';
@@ -42,6 +43,31 @@ function essaySortKey(source: Extract<PaperSourceView, { kind: 'essay' }>): Bibl
 	};
 }
 
+function articleSortKey(source: Extract<PaperSourceView, { kind: 'article' }>): BibliographySortKey {
+	return {
+		lastName: bibliographySortLastName(source.article.authors),
+		year: source.article.year ?? null,
+		title: titleSortKey(source.article.title)
+	};
+}
+
+function bibliographyEntry(source: PaperSourceView): {
+	key: BibliographySortKey;
+	entry: CitationFormatted;
+} {
+	switch (source.kind) {
+		case 'book':
+			return { key: bibliographySortKey(source.citation), entry: formatBibliography(source.citation) };
+		case 'essay':
+			return { key: essaySortKey(source), entry: formatEssayBibliography(source.essay, source.volume) };
+		case 'article':
+			return {
+				key: articleSortKey(source),
+				entry: formatJournalArticleBibliography(source.article)
+			};
+	}
+}
+
 function compareSortKeys(a: BibliographySortKey, b: BibliographySortKey): number {
 	const last = a.lastName.localeCompare(b.lastName);
 	if (last !== 0) return last;
@@ -56,12 +82,7 @@ function compareSortKeys(a: BibliographySortKey, b: BibliographySortKey): number
  * entry and are dropped (they are note-only citations, e.g. BDAG s.v.).
  */
 export function formatPaperBibliographyEntries(sources: PaperSourceView[]): CitationFormatted[] {
-	const entries = sources
-		.map((s) =>
-			s.kind === 'book'
-				? { key: bibliographySortKey(s.citation), entry: formatBibliography(s.citation) }
-				: { key: essaySortKey(s), entry: formatEssayBibliography(s.essay, s.volume) }
-		)
+	const entries = sources.map((s) => bibliographyEntry(s))
 		.sort((a, b) => compareSortKeys(a.key, b.key))
 		.map((k) => k.entry)
 		.filter((e) => e.plain.length > 0);

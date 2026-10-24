@@ -1651,6 +1651,120 @@ export type Database = {
           },
         ]
       }
+      journal_article_authors: {
+        Row: {
+          article_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          person_id: string
+          role: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          person_id: string
+          role?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          person_id?: string
+          role?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_article_authors_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "journal_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_article_authors_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_article_authors_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_articles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          doi: string | null
+          id: string
+          issue: string | null
+          journal_title: string
+          page_end: string | null
+          page_start: string | null
+          title: string
+          updated_at: string
+          volume: string | null
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          doi?: string | null
+          id?: string
+          issue?: string | null
+          journal_title: string
+          page_end?: string | null
+          page_start?: string | null
+          title: string
+          updated_at?: string
+          volume?: string | null
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          doi?: string | null
+          id?: string
+          issue?: string | null
+          journal_title?: string
+          page_end?: string | null
+          page_start?: string | null
+          title?: string
+          updated_at?: string
+          volume?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_articles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       library_ocr_usage: {
         Row: {
           call_count: number
@@ -3112,6 +3226,7 @@ export type Database = {
       }
       study_sources: {
         Row: {
+          article_id: string | null
           book_id: string | null
           created_at: string
           created_by: string | null
@@ -3127,6 +3242,7 @@ export type Database = {
           usage: string
         }
         Insert: {
+          article_id?: string | null
           book_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3142,6 +3258,7 @@ export type Database = {
           usage?: string
         }
         Update: {
+          article_id?: string | null
           book_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3190,6 +3307,13 @@ export type Database = {
             columns: ["paper_id"]
             isOneToOne: false
             referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_sources_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "journal_articles"
             referencedColumns: ["id"]
           },
           {

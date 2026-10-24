@@ -648,7 +648,7 @@
 			onCopied={flashCopyToast}
 			onRemove={removeFromStudy}
 			onRemoveFromSet={removeFromSet}
-			originSetId={originSetId(source)}
+			originSetId={source.kind === 'article' ? null : originSetId(source)}
 			footnotePage={source.kind === 'book' ? (footnotePages[source.citation.id] ?? '') : ''}
 			onSaved={refresh}
 		/>

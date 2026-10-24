@@ -219,6 +219,7 @@
 			.map((r) => ({
 				book_id: r.bookId,
 				essay_id: r.essayId,
+				article_id: r.articleId ?? null,
 				notes: r.notes,
 				write_notes: checklist?.copyNotes === true
 			}));

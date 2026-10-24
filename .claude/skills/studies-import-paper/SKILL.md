@@ -62,14 +62,14 @@ Same last name is not the same person (library Foerster ≠ TDNT Werner Foerster
 
 It is not permission to mark a missing **book** not-owned. List those titles and ask which he owns. Owned → `owned = true`. Not owned → `owned = false`.
 
-Journal articles are not that question. A paper source is a book or an essay, so store the article as a not-owned book-shaped stub and put the **full journal citation** on `study_sources.notes` (and `books.personal_notes`). The compiled bibliography will not format it as a journal article. Say so.
+Journal articles are not that question, and they are not books. Insert a `journal_articles` row (title, journal, volume, issue, year, pages, DOI) plus `journal_article_authors`, then attach `study_sources.article_id`. Reuse a live article with the same title and journal. Do not insert a book stub, and do not put the citation in `notes`.
 
 One confirm message:
 
 1. Paper: title, status, passage, due date, notes.
 2. Shelf matches, including imprint or year differences.
 3. Numbered ownership question for missing books only.
-4. Journal-article stubs.
+4. Journal articles that will be added (author, journal, year). They are not an ownership question.
 
 Write after he answers. If he already said which ones he owns, do not ask again.
 
@@ -87,7 +87,7 @@ Follow [library-add-books](../library-add-books/SKILL.md) for people, publishers
 
 Bibliography headings become `study_research_groups` (`Articles and Monographs`, `Commentaries`, `Theology`), in that order.
 
-Each entry is one `study_sources` row: `usage = 'cited'`, `book_id` XOR `essay_id`, `sort_order` following the bibliography, `group_id` set.
+Each entry is one `study_sources` row: `usage = 'cited'`, `book_id` XOR `essay_id` XOR `article_id`, `sort_order` following the bibliography, `group_id` set.
 
 ## Migration
 
