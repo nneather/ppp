@@ -1,6 +1,6 @@
 # Personal Operations System — Studies Module Build Tracker
 
-_Last updated: 2026-10-23 | Module: Studies | By verse reads Calvin, Bavinck, van Mastricht, Turretin, Leiden, then volume and page ([301](decisions/301-systematics-verse-reading-order.md))_
+_Last updated: 2026-10-24 | Module: Studies | By verse reads Calvin, Bavinck, van Mastricht, Turretin, Leiden, then volume and page ([301](decisions/301-systematics-verse-reading-order.md)). NT305 inheritance paper is published with its bibliography ([306](decisions/306-inheritance-paper-bibliography.md))._
 
 **Read before any session:** [docs/MODULE_KICKOFF_PLAYBOOK.md](MODULE_KICKOFF_PLAYBOOK.md), [243](decisions/243-studies-session-0.md), papers retro [188](decisions/188-classwork-research-papers-session-0.md) / [189](decisions/189-classwork-papers-session-1.md) / [190](decisions/190-classwork-papers-session-2.md), sermons [090](decisions/090-sermons-session-0.md) / [095](decisions/095-sermons-by-book-stats.md). Brainstorm: [brainstorms/2026-10-19-papers-research-tool.md](../brainstorms/2026-10-19-papers-research-tool.md).
 
@@ -167,4 +167,5 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 - [x] Commentary standing: park on the book or essay (Matthew Henry seeded). Active counts exclude parked rows. A sermon can hide one locally ([303](decisions/303-commentary-shelf-standing.md)).
 - [x] Phone commentary rows lead with the series. Stars and Attach / Dismiss share the next line ([304](decisions/304-sermon-commentary-mobile.md)).
 - [x] Ranking a commentary on a sermon saves the stars without reloading. The shelf re-sorts on the next load ([305](decisions/305-sermon-commentary-rating-stay.md)).
+- [x] NT305 “Our Share of the Inheritance” (Colossians 1:12) is published, with the bibliography cited and not-owned works added ([306](decisions/306-inheritance-paper-bibliography.md)).
 - [x] Attach on a systematic hit marks that hit only. It does not add the volume or reload the sermon ([302](decisions/302-systematic-hit-attach.md)).
