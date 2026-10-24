@@ -43,6 +43,18 @@
 
 	const canAttach = $derived(Boolean(parentField && parentId));
 	const rowKey = $derived(hit.essayId ?? hit.bookId);
+	/**
+	 * Phone width cannot hold title, series, stars, and two buttons on one line.
+	 * The series abbreviation is what you scan; the title stays the desktop lead.
+	 */
+	const mobilePrimary = $derived(hit.seriesLabel ?? hit.title);
+	const mobileSecondary = $derived.by(() => {
+		if (!hit.seriesLabel) return hit.authorShort;
+		const parts = [hit.authorShort, hit.title !== hit.seriesLabel ? hit.title : null].filter(
+			(part): part is string => Boolean(part)
+		);
+		return parts.length > 0 ? parts.join(' · ') : null;
+	});
 
 	function ratingLabel(rating: number | null): string {
 		if (rating == null) return '—';
@@ -83,15 +95,28 @@
 	};
 </script>
 
-<div class="flex items-start gap-2">
+<div class="flex flex-col gap-1.5 py-1 md:flex-row md:items-start md:gap-2 md:py-0">
 	<a
 		href={hit.href}
-		class="flex min-w-0 flex-1 items-start gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60"
+		class="flex min-w-0 flex-1 items-start gap-3 rounded-md px-2 py-1 text-sm transition-colors hover:bg-muted/60 md:py-1.5"
 	>
 		<span class="min-w-0 flex-1">
-			<span class="block truncate font-medium tracking-tight">{hit.title}</span>
+			<span class="block truncate font-medium tracking-tight md:hidden" title={mobilePrimary}>
+				{mobilePrimary}
+			</span>
+			<span class="hidden truncate font-medium tracking-tight md:block">{hit.title}</span>
+			{#if mobileSecondary}
+				<span
+					class="mt-0.5 block truncate text-xs text-muted-foreground md:hidden"
+					title={mobileSecondary}
+				>
+					{mobileSecondary}
+				</span>
+			{/if}
 			{#if hit.authorShort}
-				<span class="mt-0.5 block truncate text-xs text-muted-foreground">{hit.authorShort}</span>
+				<span class="mt-0.5 hidden truncate text-xs text-muted-foreground md:block">
+					{hit.authorShort}
+				</span>
 			{/if}
 		</span>
 		<span
@@ -105,9 +130,9 @@
 				.join(', ')}
 		>
 			{#if hit.seriesLabel}
-				<span class="max-w-[7.5rem] truncate font-medium" title={hit.seriesLabel}
-					>{hit.seriesLabel}</span
-				>
+				<span class="hidden max-w-[7.5rem] truncate font-medium md:inline" title={hit.seriesLabel}>
+					{hit.seriesLabel}
+				</span>
 			{/if}
 			{#if !isOwner}
 				<span class="inline-flex items-center gap-0.5">
@@ -131,99 +156,114 @@
 		</span>
 	</a>
 	{#if isOwner}
-		<form
-			bind:this={ratingForm}
-			method="POST"
-			action="?/setCommentaryRating"
-			use:enhance={ratingEnhance}
-			class="shrink-0 pt-1"
-		>
-			{#each hit.memberBookIds as bookId (bookId)}
-				<input type="hidden" name="book_id" value={bookId} />
-			{/each}
-			<input bind:this={ratingInput} type="hidden" name="rating" value={shownRating ?? ''} />
-			<BookRatingScale
-				variant="compact"
-				name={null}
-				id={`commentary-rating-${rowKey}`}
-				value={shownRating}
-				disabled={ratingPending}
-				onchange={onRate}
-			/>
-		</form>
-		<div class="flex w-36 shrink-0 flex-col gap-1 pt-1">
-			{#if canAttach}
-				{#if attached}
-					<span
-						class="inline-flex h-7 w-full items-center justify-center rounded-md border border-border text-xs text-muted-foreground"
+		<!-- `md:contents` puts stars and actions back on the desktop row. -->
+		<div class="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 md:contents">
+			<form
+				bind:this={ratingForm}
+				method="POST"
+				action="?/setCommentaryRating"
+				use:enhance={ratingEnhance}
+				class="shrink-0 md:pt-1"
+			>
+				{#each hit.memberBookIds as bookId (bookId)}
+					<input type="hidden" name="book_id" value={bookId} />
+				{/each}
+				<input bind:this={ratingInput} type="hidden" name="rating" value={shownRating ?? ''} />
+				<BookRatingScale
+					variant="compact"
+					name={null}
+					id={`commentary-rating-${rowKey}`}
+					value={shownRating}
+					disabled={ratingPending}
+					onchange={onRate}
+				/>
+			</form>
+			<div
+				class="grid min-w-0 flex-1 grid-cols-[repeat(auto-fit,minmax(0,1fr))] gap-1 md:flex md:w-36 md:flex-none md:flex-col md:pt-1"
+			>
+				{#if canAttach}
+					{#if attached}
+						<span
+							class="inline-flex h-7 w-full items-center justify-center rounded-md border border-border px-2 text-xs text-muted-foreground"
+						>
+							Attached
+						</span>
+					{:else}
+						<form
+							method="POST"
+							action="?/addPaperSource"
+							use:enhance={attachEnhance}
+							class="min-w-0 md:w-full"
+						>
+							<input type="hidden" name={parentField} value={parentId} />
+							{#if hit.kind === 'essay' && hit.essayId}
+								<input type="hidden" name="essay_id" value={hit.essayId} />
+							{:else}
+								<input type="hidden" name="book_id" value={hit.bookId} />
+							{/if}
+							<Button
+								type="submit"
+								variant="outline"
+								size="sm"
+								class="w-full"
+								label="Attach"
+								disabled={attachPending}
+							/>
+						</form>
+					{/if}
+				{/if}
+				{#if onDismissLocal && !hit.shelfDismissed}
+					{#if locallyDismissed}
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							class="w-full"
+							label="Restore"
+							onclick={onRestoreLocal}
+						/>
+					{:else}
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							class="w-full"
+							label="Dismiss"
+							onclick={onDismissLocal}
+						/>
+					{/if}
+				{:else if !canAttach}
+					<form
+						method="POST"
+						action="?/setCommentaryShelf"
+						use:enhance={shelfEnhance}
+						class="min-w-0 md:w-full"
 					>
-						Attached
-					</span>
-				{:else}
-					<form method="POST" action="?/addPaperSource" use:enhance={attachEnhance} class="w-full">
-						<input type="hidden" name={parentField} value={parentId} />
-						{#if hit.kind === 'essay' && hit.essayId}
-							<input type="hidden" name="essay_id" value={hit.essayId} />
+						{#if hit.kind === 'essay'}
+							{#each hit.memberEssayIds as essayId (essayId)}
+								<input type="hidden" name="essay_id" value={essayId} />
+							{/each}
 						{:else}
-							<input type="hidden" name="book_id" value={hit.bookId} />
+							{#each hit.memberBookIds as bookId (bookId)}
+								<input type="hidden" name="book_id" value={bookId} />
+							{/each}
 						{/if}
+						<input
+							type="hidden"
+							name="shelf_dismissed"
+							value={hit.shelfDismissed ? 'false' : 'true'}
+						/>
 						<Button
 							type="submit"
 							variant="outline"
 							size="sm"
-							class="w-full"
-							label="Attach"
-							disabled={attachPending}
+							class="h-auto w-full px-2 py-1 text-center leading-tight whitespace-normal"
+							label={hit.shelfDismissed ? 'Use by default' : 'Dismiss by default'}
+							disabled={shelfPending}
 						/>
 					</form>
 				{/if}
-			{/if}
-			{#if onDismissLocal && !hit.shelfDismissed}
-				{#if locallyDismissed}
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						class="w-full"
-						label="Restore"
-						onclick={onRestoreLocal}
-					/>
-				{:else}
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						class="w-full"
-						label="Dismiss"
-						onclick={onDismissLocal}
-					/>
-				{/if}
-			{:else if !canAttach}
-				<form method="POST" action="?/setCommentaryShelf" use:enhance={shelfEnhance} class="w-full">
-					{#if hit.kind === 'essay'}
-						{#each hit.memberEssayIds as essayId (essayId)}
-							<input type="hidden" name="essay_id" value={essayId} />
-						{/each}
-					{:else}
-						{#each hit.memberBookIds as bookId (bookId)}
-							<input type="hidden" name="book_id" value={bookId} />
-						{/each}
-					{/if}
-					<input
-						type="hidden"
-						name="shelf_dismissed"
-						value={hit.shelfDismissed ? 'false' : 'true'}
-					/>
-					<Button
-						type="submit"
-						variant="outline"
-						size="sm"
-						class="h-auto w-full px-2 py-1 text-center leading-tight whitespace-normal"
-						label={hit.shelfDismissed ? 'Use by default' : 'Dismiss by default'}
-						disabled={shelfPending}
-					/>
-				</form>
-			{/if}
+			</div>
 		</div>
 	{/if}
 </div>

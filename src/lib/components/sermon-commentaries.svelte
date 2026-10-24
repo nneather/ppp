@@ -273,9 +273,9 @@
 					{:else if visible.length === 0}
 						<p class="text-xs text-muted-foreground">Dismissed. Show dismissed to attach one.</p>
 					{:else}
-						<ul class="space-y-0.5">
+						<ul class="divide-y divide-border/70">
 							{#each visible as hit (`${hit.kind}-${hit.essayId ?? hit.bookId}`)}
-								<li class={rowConcealed(hit) ? 'rounded-md bg-muted/40' : ''}>
+								<li class={rowConcealed(hit) ? 'bg-muted/40' : ''}>
 									<CommentaryShelfHit
 										{hit}
 										{isOwner}
