@@ -120,6 +120,7 @@ Functions live under `supabase/functions/`:
 | `send-invoice`         | Authenticated owner only. Sends the PDF via [Resend](https://resend.com) to the client’s email. Expects `{ invoice_id, pdf_base64, custom_message }`. |
 | `ocr_scripture_refs`   | Library: user JWT + `GET /auth/v1/user`; downloads `library-scripture-images` via service role; calls **Anthropic Messages API** (vision); returns `{ rawText, candidates }` — never writes DB rows. |
 | `email-inbound-task`   | Resend inbound webhook (`email.received`). Svix-signed (no user JWT). Fetches body via Receiving API; inserts a MYN task into `INBOUND_TASK_PROJECT_ID` (Personal). |
+| `transcribe_study_note` | Studies: owner JWT + `GET /auth/v1/user`. Downloads one `studies-audio` object with the service role, calls OpenAI `gpt-transcribe`, deletes the object, returns `{ text }`. Never writes a note. |
 
 ### Secrets (set on the hosted project)
 
@@ -148,6 +149,17 @@ supabase secrets set ANTHROPIC_OCR_MODEL=claude-sonnet-4-6
 - **`SITE_URL`** — Production app origin (no trailing slash). Used by all three Edge Functions for CORS allowlisting (`Access-Control-Allow-Origin` only when `Origin` matches). Also accepts optional **`CORS_ALLOWED_ORIGINS`** (comma-separated extra origins) and `*.vercel.app` preview deploys.
 - **`ANTHROPIC_API_KEY`** — Required for scripture OCR. Mirror in `.env.local` only if you run `supabase functions serve` locally.
 - **`ANTHROPIC_OCR_MODEL`** — Optional override for the Claude model id (vision-capable Sonnet family).
+
+**Study voice (`transcribe_study_note`):**
+
+```bash
+supabase secrets set OPENAI_API_KEY=sk-...
+# optional — defaults to gpt-transcribe
+supabase secrets set OPENAI_TRANSCRIBE_MODEL=gpt-transcribe
+```
+
+- **`OPENAI_API_KEY`** — Required before Record returns text. Mirror in `.env.local` only for `supabase functions serve`. Never ship it to the browser.
+- **`OPENAI_TRANSCRIBE_MODEL`** — Optional model id. Default `gpt-transcribe`.
 
 - **`RESEND_API_KEY`** — Required for `send-invoice` and `email-inbound-task` (Receiving API). **Production:** default `from` is `Parker Neathery <invoicing@npneathery.com>` (verified `npneathery.com`); override with optional secret **`INVOICE_RESEND_FROM`** (full Resend `from` string, e.g. `"Display" <addr@yourdomain.com>`). `reply_to` stays `parker@npneathery.com` in code. For a **non-verified** Resend setup, point `INVOICE_RESEND_FROM` at `onboarding@resend.dev` or change the default in [`send-invoice/index.ts`](./functions/send-invoice/index.ts).
 - **`SENDER_*`** — Used on the PDF letterhead (`generate-invoice-pdf`). Optional lines can be omitted. If unset, defaults match N. P. Neathery Consulting (name, tagline, address, phone). `SENDER_EMAIL` is optional on the PDF. Override **`INVOICE_SERVICE_LABEL`**, **`INVOICE_PAYABLE_TO`**, **`INVOICE_TERMS`**, or **`INVOICE_THANK_YOU`** to customize the “FOR” line and footer text.

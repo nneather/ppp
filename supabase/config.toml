@@ -377,6 +377,10 @@ verify_jwt = false
 [functions.email-inbound-task]
 verify_jwt = false
 
+# Auth enforced in-function via GET /auth/v1/user. Owner only. Deletes the clip after reading it.
+[functions.transcribe_study_note]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

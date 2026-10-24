@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-24 — A study can add a source from a DOI, ISBN, or title, and copy its notes out grouped by source ([312](docs/decisions/312-studies-add-source.md)).
+**Last updated:** 2026-10-24 — Record on a study fills the capture line for review. The clip is deleted after it is transcribed ([313](docs/decisions/313-studies-voice-capture.md)).
 
 **How to use this file — read this first:**
 
@@ -38,7 +38,7 @@ Nearest hard dates:
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | Scores, Standings, and Teams. Standings and the follow list use conference dropdowns; college football is subdivision then conference ([300](docs/decisions/300-sports-navigation.md)). |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. Dashboard panel is the next three; header → list, row → sermon ([293](docs/decisions/293-dashboard-upcoming-sermons.md)). |
-| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Notes lead the page. Add source takes a DOI, ISBN, or title. Copy notes is plain text. Footnote and Short mark cited. |
+| Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Notes lead the page. Add source takes a DOI, ISBN, or title. Record fills the capture line for review. Copy notes is plain text. Footnote and Short mark cited. |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. Phone: desktop sidebar + dashboard glance ([292](docs/decisions/292-mobile-tab-studies.md)). |
 | Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Due lists group Quarterly → Semester → Annual, with up/down to step one frequency ([296](docs/decisions/296-due-frequency-nudge.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [313 — Voice into the capture line](docs/decisions/313-studies-voice-capture.md) (2026-10-24) — Record on a paper or sermon. OpenAI `gpt-transcribe` fills the line for review. The clip is deleted after it is read.
 - [312 — Add a source while reading](docs/decisions/312-studies-add-source.md) (2026-10-24) — DOI, ISBN, or title adds a candidate. Copy notes is grouped plain text. Footnote and Short mark cited. Other studies load on demand.
 - [311 — Studies notes capture](docs/decisions/311-studies-notes-capture.md) (2026-10-24) — A note on a paper or sermon can name a source, a page, and a verse. The source becomes consulted, then cited when the footnote is copied. Sources collapse to a count.
 - [310 — Journal articles as sources](docs/decisions/310-journal-articles.md) (2026-10-24) — A paper or sermon cites `journal_articles`, not a book stub. Denton, Buchem, and Fox use the article footnote and bibliography.
 - [309 — Five archived OT papers](docs/decisions/309-ot-exegesis-papers.md) (2026-10-24) — Proverbs 31, Genesis 22, a Deuteronomy word study, Exodus 23, and 1 Kings 12 are archived with bibliographies cited. Lovell is owned.
-- [308 — Commentary lists show owned volumes](docs/decisions/308-commentary-lists-owned.md) (2026-10-24) — Sermon shelf, By book, and Commentaries sets omit not-owned volumes. An essay follows the parent book. Papers that already cite those volumes keep them.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Studies add-source [312](docs/decisions/312-studies-add-source.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **873/873**; `npm run build` green (2026-10-24). No new migration.
+**Repo gate:** Studies voice [313](docs/decisions/313-studies-voice-capture.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **880/880**; `npm run build` green (2026-10-24). Migration `20261024235000_studies_audio_bucket.sql` applied. `transcribe_study_note` deployed. `OPENAI_API_KEY` is not set yet.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
@@ -101,21 +101,6 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 ## Session prompts (copy-paste) — LIVE only
 
 *Completed prompts are deleted; their detail lives in the cited decision doc. Deferred items are pointers in "Next up," not full blocks. **Full fences** (avoid chat split): [docs/session-prompts/](docs/session-prompts/).*
-
-### Studies — voice into the capture line — from [311](docs/decisions/311-studies-notes-capture.md)
-
-```
-Session: studies — notes capture, session 3
-Tracker: docs/POS_Studies_Build_Tracker.md, follow-on
-Read: AGENTS.md, docs/decisions/311-studies-notes-capture.md, supabase/README.md
-Supabase: hosted. New Edge Function. Phase 0 first: which transcriber, and whether the audio is deleted after the line is filled.
-Goal: Record on the capture line, transcribe in an Edge Function, and leave the text in the line for review. Do not auto-save.
-Acceptance:
- - [ ] Phase 0 locks the provider and audio retention
- - [ ] Record control on the existing textarea. The transcript replaces or appends the line. Enter still saves.
- - [ ] Owner-only. The service role stays on the function.
- - [ ] npm run check, npm run test, npm run build
-```
 
 ### Library — ISBN prefill: Google Books cross-check — from [151](docs/decisions/151-book-metadata-source-strategy.md)
 
@@ -208,8 +193,7 @@ Acceptance:
 1. **Calvin review list** — 103 flagged index rows (Prefatory Address, plus Acts 14:16–17) in [docs/calvin-index-needs-review.md](docs/calvin-index-needs-review.md). van Mastricht is still not chosen ([267](docs/decisions/267-systematics-index-sources.md)). Do not start Bavinck.
 
 ### Next / parallel
-5. **Studies — voice capture** — next after the add-source sheet ([312](docs/decisions/312-studies-add-source.md)). Prompt above ([311](docs/decisions/311-studies-notes-capture.md)).
-5b. **Systematics capture** — Calvin index imported ([297](docs/decisions/297-calvin-index-import.md)). Next is van Mastricht, then Bavinck; sources in [267](docs/decisions/267-systematics-index-sources.md) and [docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md).
+5. **Systematics capture** — Calvin index imported ([297](docs/decisions/297-calvin-index-import.md)). Next is van Mastricht, then Bavinck; sources in [267](docs/decisions/267-systematics-index-sources.md) and [docs/systematics-capture-checklist.md](docs/systematics-capture-checklist.md).
 6. **Library — ISBN prefill Google Books cross-check** ([151](docs/decisions/151-book-metadata-source-strategy.md)) — prompt above.
 7. **Security hardening (051 R2)** — open medium findings; prompt above.
 8. **Optional** — OCR matrix when next touching a scripture batch ([030](docs/decisions/030-ocr-pdf-input.md)).

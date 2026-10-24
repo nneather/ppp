@@ -23,7 +23,20 @@ function stubEl(attrs: Record<string, string>, props: Partial<StubEl> = {}): Stu
 
 function stubDoc(overlays: StubEl[], active: StubEl | null = null): BusyDocument {
 	return {
-		querySelectorAll: () => overlays,
+		querySelectorAll: (selectors: string) =>
+			overlays.filter((el) => {
+				if (selectors.includes('data-ppp-recording') && el.hasAttribute('data-ppp-recording')) {
+					return true;
+				}
+				if (selectors.includes('sheet-content') && el.getAttribute('data-slot') === 'sheet-content') {
+					return true;
+				}
+				if (selectors.includes('dialog-content') && el.getAttribute('data-slot') === 'dialog-content') {
+					return true;
+				}
+				if (selectors.includes('role="dialog"') && el.getAttribute('role') === 'dialog') return true;
+				return false;
+			}),
 		activeElement: active
 	};
 }
@@ -59,6 +72,11 @@ describe('isUserBusy', () => {
 	it('ignores aria-hidden dialogs', () => {
 		const dialog = stubEl({ role: 'dialog', 'aria-hidden': 'true' });
 		expect(isUserBusy(stubDoc([dialog]))).toBe(false);
+	});
+
+	it('detects an in-progress recording', () => {
+		const recording = stubEl({ 'data-ppp-recording': '' });
+		expect(isUserBusy(stubDoc([recording]))).toBe(true);
 	});
 
 	it('detects focused text input', () => {

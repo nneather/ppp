@@ -175,4 +175,4 @@ Partial unique `(set_id, book_id)` and `(set_id, essay_id)` while live — one o
 - [x] Attach on a systematic hit marks that hit only. It does not add the volume or reload the sermon ([302](decisions/302-systematic-hit-attach.md)).
 - [x] Notes capture: `study_notes` on a paper or sermon, optional source / page / verse. A note marks consulted. Cite marks cited. Sources collapse to a count. Duplicate-paper warning. Submitted Proverbs 31 soft-deleted ([311](decisions/311-studies-notes-capture.md)).
 - [x] Add a source while reading (DOI / ISBN / title), Copy notes, row copy → cited, other studies, MCP `search_study_notes` ([312](decisions/312-studies-add-source.md)).
-- [ ] Voice into the capture line. Phase 0 locks the transcriber and whether the audio is kept ([311](decisions/311-studies-notes-capture.md)).
+- [x] Voice into the capture line. OpenAI `gpt-transcribe`. The clip is deleted after the function reads it ([313](decisions/313-studies-voice-capture.md)).

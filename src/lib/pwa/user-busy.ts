@@ -30,6 +30,15 @@ function isOpenOverlay(el: Element): boolean {
 	return true;
 }
 
+function hasActiveRecording(doc: BusyDocument): boolean {
+	const nodes = doc.querySelectorAll('[data-ppp-recording]');
+	for (let i = 0; i < nodes.length; i++) {
+		const el = nodes[i];
+		if (el?.hasAttribute('data-ppp-recording')) return true;
+	}
+	return false;
+}
+
 function hasOpenSheetOrDialog(doc: BusyDocument): boolean {
 	const nodes = doc.querySelectorAll(
 		'[data-slot="sheet-content"], [data-slot="dialog-content"], [role="dialog"]'
@@ -71,6 +80,7 @@ export function isUserBusy(
 	doc: BusyDocument | null = typeof document !== 'undefined' ? document : null
 ): boolean {
 	if (!doc) return false;
+	if (hasActiveRecording(doc)) return true;
 	if (hasOpenSheetOrDialog(doc)) return true;
 	return isEditableControl(doc.activeElement);
 }
