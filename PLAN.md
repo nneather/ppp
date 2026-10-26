@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-24 — Record on a study fills the capture line for review. The clip is deleted after it is transcribed ([313](docs/decisions/313-studies-voice-capture.md)).
+**Last updated:** 2026-10-26 — Five shelf books: Loftus, Chiang, Mouw, McLaughlin, and Nelson's Minister's Manual ([314](docs/decisions/314-library-oct26-shelf-batch.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [314 — Oct 26 shelf batch](docs/decisions/314-library-oct26-shelf-batch.md) (2026-10-26) — Loftus, Chiang (Vintage 2016), Mouw (revised 2002), McLaughlin, and Nelson's NKJV minister's manual. No study sets.
 - [313 — Voice into the capture line](docs/decisions/313-studies-voice-capture.md) (2026-10-24) — Record on a paper or sermon. OpenAI `gpt-transcribe` fills the line for review. The clip is deleted after it is read.
 - [312 — Add a source while reading](docs/decisions/312-studies-add-source.md) (2026-10-24) — DOI, ISBN, or title adds a candidate. Copy notes is grouped plain text. Footnote and Short mark cited. Other studies load on demand.
 - [311 — Studies notes capture](docs/decisions/311-studies-notes-capture.md) (2026-10-24) — A note on a paper or sermon can name a source, a page, and a verse. The source becomes consulted, then cited when the footnote is copied. Sources collapse to a count.
 - [310 — Journal articles as sources](docs/decisions/310-journal-articles.md) (2026-10-24) — A paper or sermon cites `journal_articles`, not a book stub. Denton, Buchem, and Fox use the article footnote and bibliography.
-- [309 — Five archived OT papers](docs/decisions/309-ot-exegesis-papers.md) (2026-10-24) — Proverbs 31, Genesis 22, a Deuteronomy word study, Exodus 23, and 1 Kings 12 are archived with bibliographies cited. Lovell is owned.
 
 ---
 
