@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-10-26 — Five shelf books: Loftus, Chiang, Mouw, McLaughlin, and Nelson's Minister's Manual ([314](docs/decisions/314-library-oct26-shelf-batch.md)).
+**Last updated:** 2026-10-29 — Robertson, Fallacies 3rd, Whitacre, Weiß KEK, and Smith WUNT II ([315](docs/decisions/315-library-oct29-shelf-batch.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [315 — Oct 29 shelf batch](docs/decisions/315-library-oct29-shelf-batch.md) (2026-10-29) — Robertson 4th (1934, no ISBN), Fallacies 3rd plus the Baker US 2nd corrected, Whitacre Baker Academic reprint, Weiß KEK 13, Smith WUNT II 335. No new set rows.
 - [314 — Oct 26 shelf batch](docs/decisions/314-library-oct26-shelf-batch.md) (2026-10-26) — Loftus, Chiang (Vintage 2016), Mouw (revised 2002), McLaughlin, and Nelson's NKJV minister's manual. No study sets.
 - [313 — Voice into the capture line](docs/decisions/313-studies-voice-capture.md) (2026-10-24) — Record on a paper or sermon. OpenAI `gpt-transcribe` fills the line for review. The clip is deleted after it is read.
 - [312 — Add a source while reading](docs/decisions/312-studies-add-source.md) (2026-10-24) — DOI, ISBN, or title adds a candidate. Copy notes is grouped plain text. Footnote and Short mark cited. Other studies load on demand.
 - [311 — Studies notes capture](docs/decisions/311-studies-notes-capture.md) (2026-10-24) — A note on a paper or sermon can name a source, a page, and a verse. The source becomes consulted, then cited when the footnote is copied. Sources collapse to a count.
-- [310 — Journal articles as sources](docs/decisions/310-journal-articles.md) (2026-10-24) — A paper or sermon cites `journal_articles`, not a book stub. Denton, Buchem, and Fox use the article footnote and bibliography.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Studies voice [313](docs/decisions/313-studies-voice-capture.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **880/880**; `npm run build` green (2026-10-24). Migration `20261024235000_studies_audio_bucket.sql` applied. `transcribe_study_note` deployed. `OPENAI_API_KEY` is not set yet.
+**Repo gate:** Oct 29 shelf [315](docs/decisions/315-library-oct29-shelf-batch.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **880/880** (2026-10-29). DML-only, no build. Voice capture [313](docs/decisions/313-studies-voice-capture.md) build was green 2026-10-24; `OPENAI_API_KEY` is not set yet.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
