@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-11-07 — Wright and Brown BST, WBC 23B, Goldingay, Eaton, Caragounis, Porter encyclopedia, Smith ([316](docs/decisions/316-library-nov7-shelf-batch.md)).
+**Last updated:** 2026-11-11 — Berlin OTL *Lamentations* hardcover 2002 ([317](docs/decisions/317-library-nov11-berlin-lamentations.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [317 — Berlin OTL Lamentations](docs/decisions/317-library-nov11-berlin-lamentations.md) (2026-11-11) — Hardcover 2002, `9780664218492`. Coverage Lamentations. Already on Commentaries: Lamentations by the bible-book rule. No new set row.
 - [316 — Nov 7 shelf batch](docs/decisions/316-library-nov7-shelf-batch.md) (2026-11-07) — Wright and Brown BST, WBC 23B with Garrett and House essays, Goldingay NICOT, Eaton TOTC 16, Caragounis, Porter encyclopedia (Biblical Reference), Smith *God's Good Design*. Hymnal already shelved. No new set rows.
 - [315 — Oct 29 shelf batch](docs/decisions/315-library-oct29-shelf-batch.md) (2026-10-29) — Robertson 4th (1934, no ISBN), Fallacies 3rd plus the Baker US 2nd corrected, Whitacre Baker Academic reprint, Weiß KEK 13, Smith WUNT II 335. No new set rows.
 - [314 — Oct 26 shelf batch](docs/decisions/314-library-oct26-shelf-batch.md) (2026-10-26) — Loftus, Chiang (Vintage 2016), Mouw (revised 2002), McLaughlin, and Nelson's NKJV minister's manual. No study sets.
 - [313 — Voice into the capture line](docs/decisions/313-studies-voice-capture.md) (2026-10-24) — Record on a paper or sermon. OpenAI `gpt-transcribe` fills the line for review. The clip is deleted after it is read.
-- [312 — Add a source while reading](docs/decisions/312-studies-add-source.md) (2026-10-24) — DOI, ISBN, or title adds a candidate. Copy notes is grouped plain text. Footnote and Short mark cited. Other studies load on demand.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Nov 7 shelf [316](docs/decisions/316-library-nov7-shelf-batch.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **880/880** (2026-11-07). DML-only, no build. Voice capture [313](docs/decisions/313-studies-voice-capture.md) build was green 2026-10-24; `OPENAI_API_KEY` is not set yet.
+**Repo gate:** Berlin OTL [317](docs/decisions/317-library-nov11-berlin-lamentations.md) — `npm run check` **0 errors / 0 warnings**; `npm run test` **880/880** (2026-11-11). DML-only, no build. Voice capture [313](docs/decisions/313-studies-voice-capture.md) build was green 2026-10-24; `OPENAI_API_KEY` is not set yet.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
