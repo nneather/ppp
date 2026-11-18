@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidate } from '$app/navigation';
+	import { page } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import PaperImportDialog from '$lib/components/paper-import-dialog.svelte';
@@ -105,6 +106,10 @@
 	);
 
 	let importOpen = $state(false);
+	// A freshly created paper lands here with ?import=1. Open the importer once.
+	onMount(() => {
+		if (isOwner && page.url.searchParams.get('import') === '1') importOpen = true;
+	});
 	let importMeta = $state<{
 		suggestions: SetSuggestion[];
 		importSets: ImportSetSection[];
@@ -699,6 +704,17 @@
 			<p class="mt-1 text-sm text-muted-foreground">
 				Search the library above — owned books, research stubs, and essays all count.
 			</p>
+			{#if isOwner}
+				<Button
+					type="button"
+					variant="outline"
+					class="mt-3 gap-2"
+					onclick={() => (importOpen = true)}
+				>
+					<FolderInput class="size-4" />
+					Import a group of resources
+				</Button>
+			{/if}
 		</div>
 	{:else if groups.length === 0}
 		<ul class="mt-4 space-y-2">

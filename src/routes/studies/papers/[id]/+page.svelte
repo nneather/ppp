@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto, invalidate, replaceState } from '$app/navigation';
+	import { page } from '$app/state';
+	import { onMount } from 'svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import PaperFormSheet from '$lib/components/paper-form-sheet.svelte';
@@ -27,6 +29,15 @@
 	const f = $derived((form ?? null) as FormShape | null);
 
 	const paperKey = $derived(`app:classwork:paper:${data.paper.id}`);
+
+	// Drop ?import=1 after the panel has used it so a refresh doesn't reopen it.
+	onMount(() => {
+		if (page.url.searchParams.get('import') === '1') {
+			const u = new URL(page.url);
+			u.searchParams.delete('import');
+			queueMicrotask(() => replaceState(u, page.state));
+		}
+	});
 
 	let readingSourceId = $state<string | null>(null);
 	const primaryBibleBook = $derived(
