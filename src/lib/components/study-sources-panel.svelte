@@ -2,6 +2,8 @@
 	import { enhance } from '$app/forms';
 	import { invalidate } from '$app/navigation';
 	import { page } from '$app/state';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import PaperImportDialog from '$lib/components/paper-import-dialog.svelte';
@@ -425,6 +427,42 @@
 	});
 	const buckets = $derived(groupPaperSources(sources, groups));
 
+	// Collapsible sections. Few sources: all open. Many: all closed until
+	// toggled. Choices are remembered per paper/sermon in localStorage.
+	const SECTIONS_OPEN_BELOW = 13;
+	const sectionStoreKey = $derived(`ppp.studies.sections.${parentKind}.${parentId}`);
+	let sectionOpen = $state<Record<string, boolean>>({});
+	const sectionKey = (id: string | null | undefined) => id ?? 'ungrouped';
+	const isSectionOpen = (key: string) =>
+		sectionOpen[key] ?? sourceRows.length < SECTIONS_OPEN_BELOW;
+	onMount(() => {
+		try {
+			const raw = localStorage.getItem(sectionStoreKey);
+			if (raw) sectionOpen = JSON.parse(raw) as Record<string, boolean>;
+		} catch {
+			/* ignore bad storage */
+		}
+	});
+	function setSectionOpen(key: string, value: boolean) {
+		sectionOpen = { ...sectionOpen, [key]: value };
+		try {
+			localStorage.setItem(sectionStoreKey, JSON.stringify(sectionOpen));
+		} catch {
+			/* storage unavailable */
+		}
+	}
+	function setAllSections(value: boolean) {
+		const next: Record<string, boolean> = {};
+		for (const b of buckets) next[sectionKey(b.group?.id)] = value;
+		sectionOpen = next;
+		try {
+			localStorage.setItem(sectionStoreKey, JSON.stringify(next));
+		} catch {
+			/* storage unavailable */
+		}
+	}
+	const allSectionsOpen = $derived(buckets.every((b) => isSectionOpen(sectionKey(b.group?.id))));
+
 	const newGroupEnhance: SubmitFunction = () => {
 		newGroupPending = true;
 		return async ({ result, update }) => {
@@ -563,6 +601,16 @@
 			<span class="ml-1 font-normal text-muted-foreground">({totalSourceCount})</span>
 		</h2>
 		<div class="flex flex-wrap items-center gap-2">
+			{#if groups.length > 0}
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					onclick={() => setAllSections(!allSectionsOpen)}
+				>
+					{allSectionsOpen ? 'Collapse all' : 'Expand all'}
+				</Button>
+			{/if}
 			{#if isOwner}
 				<Button type="button" variant="outline" class="gap-2" onclick={() => (importOpen = true)}>
 					<FolderInput class="size-4" />
@@ -726,21 +774,45 @@
 		{#each buckets as bucket (bucket.group?.id ?? 'ungrouped')}
 			{#if bucket.group === null}
 				{#if bucket.sources.length > 0}
+					{@const open = isSectionOpen('ungrouped')}
 					<div class="mt-5">
-						<h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+						<button
+							type="button"
+							class="flex w-full items-center gap-1.5 py-1 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+							aria-expanded={open}
+							aria-controls="sources-section-ungrouped"
+							onclick={() => setSectionOpen('ungrouped', !open)}
+						>
+							{#if open}<ChevronDownIcon class="size-4" />{:else}<ChevronRightIcon class="size-4" />{/if}
 							Ungrouped
 							<span class="ml-1 font-normal">({bucket.sources.length})</span>
-						</h3>
-						<ul class="mt-2 space-y-2">
-							{#each bucket.sources as source (source.sourceId)}
-								{@render sourceRow(source)}
-							{/each}
-						</ul>
+						</button>
+						{#if open}
+							<ul id="sources-section-ungrouped" class="mt-2 space-y-2">
+								{#each bucket.sources as source (source.sourceId)}
+									{@render sourceRow(source)}
+								{/each}
+							</ul>
+						{/if}
 					</div>
 				{/if}
 			{:else}
 				{@const groupIndex = groups.findIndex((group) => group.id === bucket.group?.id)}
+				{@const gKey = sectionKey(bucket.group.id)}
+				{@const gOpen = isSectionOpen(gKey)}
 				<div class="mt-5">
+					<div class="flex items-start gap-1">
+						<button
+							type="button"
+							class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+							aria-expanded={gOpen}
+							aria-controls={`sources-section-${gKey}`}
+							aria-label={`${gOpen ? 'Collapse' : 'Expand'} ${bucket.group.name} (${bucket.sources.length})`}
+							onclick={() => setSectionOpen(gKey, !gOpen)}
+						>
+							{#if gOpen}<ChevronDownIcon class="size-4" />{:else}<ChevronRightIcon class="size-4" />{/if}
+						</button>
+						<div class="min-w-0 flex-1">
 					<PaperGroupHeader
 						group={bucket.group}
 						sources={bucket.sources}
@@ -752,12 +824,16 @@
 						onDelete={askDeleteGroup}
 						onSaved={refresh}
 					/>
-					{#if bucket.sources.length === 0}
+						</div>
+					</div>
+					{#if !gOpen}
+						<!-- collapsed -->
+					{:else if bucket.sources.length === 0}
 						<p class="mt-2 text-xs text-muted-foreground">
 							No sources in this group — use the group selector on a source row.
 						</p>
 					{:else}
-						<ul class="mt-2 space-y-2">
+						<ul id={`sources-section-${gKey}`} class="mt-2 space-y-2">
 							{#each bucket.sources as source (source.sourceId)}
 								{@render sourceRow(source)}
 							{/each}
