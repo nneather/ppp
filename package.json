@@ -61,7 +61,7 @@
 		"dotenv-cli": "^11.0.0",
 		"postgres": "^3.4.9",
 		"prettier": "^3.8.1",
-		"prettier-plugin-svelte": "^3.4.1",
+		"prettier-plugin-svelte": "^4.1.1",
 		"prettier-plugin-tailwindcss": "^0.8.1",
 		"rollup-plugin-visualizer": "^7.0.1",
 		"shadcn-svelte": "^1.2.7",
