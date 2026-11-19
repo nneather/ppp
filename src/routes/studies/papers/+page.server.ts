@@ -58,7 +58,9 @@ export const actions: Actions = {
 		if (!user) return fail(401, { kind: 'createPaper' as const, message: 'Unauthorized' });
 		const result = await createPaperAction(locals.supabase, user.id, await request.formData());
 		if ('success' in result && result.success) {
-			redirect(303, `/studies/papers/${result.paperId}`);
+			// ?import=1 opens the "Import sources" dialog so a new paper starts by
+			// pulling in a group of resources (commentaries on a book, language tools…).
+			redirect(303, `/studies/papers/${result.paperId}?import=1`);
 		}
 		return result;
 	},
@@ -85,7 +87,9 @@ export const actions: Actions = {
 			await request.formData()
 		);
 		if ('success' in result && result.success) {
-			redirect(303, `/studies/papers/${result.paperId}`);
+			// ?import=1 opens the "Import sources" dialog so a new paper starts by
+			// pulling in a group of resources (commentaries on a book, language tools…).
+			redirect(303, `/studies/papers/${result.paperId}?import=1`);
 		}
 		return result;
 	}

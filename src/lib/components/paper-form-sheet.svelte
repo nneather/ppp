@@ -8,6 +8,8 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as Select from '$lib/components/ui/select';
+	import SearchableSelect from '$lib/components/searchable-select.svelte';
+	import { assignmentsForCourse, reconcileAssignmentForCourse } from '$lib/classwork/paper-pickers';
 	import {
 		PAPER_STATUSES,
 		PAPER_STATUS_LABELS,
@@ -16,8 +18,6 @@
 		type PaperRow,
 		type PaperStatus
 	} from '$lib/types/classwork';
-
-	const NONE = '__none__';
 
 	let {
 		open = $bindable(false),
@@ -57,36 +57,54 @@
 	const formAction = $derived(mode === 'create' ? '?/createPaper' : '?/updatePaper');
 	const sheetTitle = $derived(mode === 'create' ? 'New paper' : 'Edit paper');
 
-	const takenIds = $derived(new Set(linkedAssignmentIds.filter((id) => id !== paper?.assignment_id)));
-	const assignmentCandidates = $derived(assignments.filter((a) => !takenIds.has(a.id)));
+	const takenIds = $derived(
+		new Set(linkedAssignmentIds.filter((id) => id !== paper?.assignment_id))
+	);
+	const assignmentCandidates = $derived(
+		assignmentsForCourse(assignments, courseId).filter((a) => !takenIds.has(a.id))
+	);
 
 	const linkedAssignment = $derived(
 		assignmentId ? (assignments.find((a) => a.id === assignmentId) ?? null) : null
 	);
 
-	/** P1 stamp + lock: course/due derive from the assignment while linked. */
+	/** Due date follows the assignment while linked; the course is always editable (assignment list filters by it). */
 	const linked = $derived(linkedAssignment != null);
-	const effectiveCourseId = $derived(linked ? linkedAssignment!.course_id : courseId);
+	const effectiveCourseId = $derived(courseId);
 	const effectiveDueDate = $derived(linked ? linkedAssignment!.due_date : dueDate);
 
-	const assignmentLabel = $derived.by(() => {
-		if (!assignmentId) return 'No assignment (independent)';
-		return linkedAssignment?.title ?? 'Select assignment';
-	});
+	const courseOptions = $derived(
+		courses.map((c) => ({ value: c.id, label: c.code ? `${c.code} · ${c.name}` : c.name }))
+	);
+	const assignmentOptions = $derived(
+		assignmentCandidates.map((a) => ({
+			value: a.id,
+			label: a.title,
+			hint: courseId ? a.due_date : (a.course_code ?? a.course_name)
+		}))
+	);
 
-	const courseLabel = $derived.by(() => {
-		if (!effectiveCourseId) return 'No course';
-		const c = courses.find((x) => x.id === effectiveCourseId);
-		if (!c) return 'No course';
-		return c.code ? `${c.code} · ${c.name}` : c.name;
-	});
+	function onCourseChange(v: string) {
+		courseId = v;
+		assignmentId = reconcileAssignmentForCourse(assignmentId, courseId, assignments);
+	}
+	function onAssignmentChange(v: string) {
+		assignmentId = v;
+		const a = v ? assignments.find((x) => x.id === v) : null;
+		if (a) courseId = a.course_id;
+	}
 
 	function seedFromPaper() {
 		if (mode === 'edit' && paper) {
 			title = paper.title;
 			status = paper.status;
 			assignmentId = paper.assignment_id ?? '';
-			courseId = paper.course_id ?? '';
+			courseId =
+				(paper.assignment_id
+					? assignments.find((a) => a.id === paper!.assignment_id)?.course_id
+					: null) ??
+				paper.course_id ??
+				'';
 			dueDate = paper.due_date ?? '';
 			topic = paper.topic ?? '';
 			passageDisplay = paper.passage_display ?? '';
@@ -130,7 +148,9 @@
 			pending = false;
 			if (result.type === 'failure') {
 				const data = result.data as { needsConfirm?: boolean; message?: string } | undefined;
-				duplicateWarning = data?.needsConfirm ? (data.message ?? 'A similar paper already exists.') : null;
+				duplicateWarning = data?.needsConfirm
+					? (data.message ?? 'A similar paper already exists.')
+					: null;
 			} else {
 				duplicateWarning = null;
 			}
@@ -150,8 +170,8 @@
 		<Sheet.Header class="shrink-0 border-b border-border pb-4">
 			<Sheet.Title>{sheetTitle}</Sheet.Title>
 			<Sheet.Description class="text-sm text-muted-foreground">
-				Research papers carry the bibliography. When linked to an assignment, course and due
-				date follow the assignment.
+				Research papers carry the bibliography. When linked to an assignment, course and due date
+				follow the assignment.
 			</Sheet.Description>
 		</Sheet.Header>
 
@@ -214,58 +234,35 @@
 			</div>
 
 			<div class="space-y-2">
-				<Label>Assignment</Label>
-				<input type="hidden" name="assignment_id" value={assignmentId} />
-				<Select.Root
-					type="single"
-					value={assignmentId || NONE}
-					onValueChange={(v) => {
-						assignmentId = !v || v === NONE ? '' : v;
-					}}
-				>
-					<Select.Trigger class="w-full" size="lg">{assignmentLabel}</Select.Trigger>
-					<Select.Content>
-						<Select.Item value={NONE}>No assignment (independent)</Select.Item>
-						{#each assignmentCandidates as a (a.id)}
-							<Select.Item value={a.id}>
-								{a.title} · {a.course_code ?? a.course_name}
-							</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-				<p class="text-xs text-muted-foreground">
-					One paper per assignment. Assignments already linked to another paper are hidden.
-				</p>
+				<Label>Course</Label>
+				<input type="hidden" name="course_id" value={effectiveCourseId} />
+				<SearchableSelect
+					options={courseOptions}
+					value={courseId}
+					onChange={onCourseChange}
+					noneLabel="No course"
+					placeholder="Search courses…"
+					emptyMessage="No matching courses."
+				/>
 			</div>
 
 			<div class="space-y-2">
-				<Label>Course</Label>
-				<input type="hidden" name="course_id" value={effectiveCourseId} />
-				{#if linked}
-					<p
-						class="flex h-10 items-center rounded-md border border-border bg-muted/40 px-3 text-sm text-muted-foreground"
-					>
-						{courseLabel} — from assignment
-					</p>
-				{:else}
-					<Select.Root
-						type="single"
-						value={courseId || NONE}
-						onValueChange={(v) => {
-							courseId = !v || v === NONE ? '' : v;
-						}}
-					>
-						<Select.Trigger class="w-full" size="lg">{courseLabel}</Select.Trigger>
-						<Select.Content>
-							<Select.Item value={NONE}>No course</Select.Item>
-							{#each courses as c (c.id)}
-								<Select.Item value={c.id}>
-									{c.code ? `${c.code} · ${c.name}` : c.name}
-								</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				{/if}
+				<Label>Assignment</Label>
+				<input type="hidden" name="assignment_id" value={assignmentId} />
+				<SearchableSelect
+					options={assignmentOptions}
+					value={assignmentId}
+					onChange={onAssignmentChange}
+					noneLabel="No assignment (independent)"
+					placeholder="Search assignments…"
+					emptyMessage={courseId
+						? 'No available assignments for this course.'
+						: 'No matching assignments.'}
+				/>
+				<p class="text-xs text-muted-foreground">
+					{courseId ? 'Showing this course’s assignments. ' : ''}One paper per assignment;
+					assignments already linked to another paper are hidden.
+				</p>
 			</div>
 
 			<div class="space-y-2">
@@ -289,7 +286,7 @@
 					name="topic"
 					bind:value={topic}
 					rows={2}
-					class="flex min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					class="flex min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 				></textarea>
 			</div>
 
@@ -328,11 +325,13 @@
 					name="notes"
 					bind:value={notes}
 					rows={3}
-					class="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					class="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 				></textarea>
 			</div>
 
-			<div class="sticky bottom-0 mt-auto flex gap-2 border-t border-border bg-background pt-4 pb-1">
+			<div
+				class="sticky bottom-0 mt-auto flex gap-2 border-t border-border bg-background pt-4 pb-1"
+			>
 				<Button
 					type="button"
 					variant="outline"
