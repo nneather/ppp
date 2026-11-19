@@ -62,7 +62,7 @@
 		"postgres": "^3.4.9",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.4.1",
-		"prettier-plugin-tailwindcss": "^0.7.2",
+		"prettier-plugin-tailwindcss": "^0.8.1",
 		"rollup-plugin-visualizer": "^7.0.1",
 		"shadcn-svelte": "^1.2.7",
 		"svelte": "^5.54.0",
@@ -84,10 +84,10 @@
 		"zod": "^4.0.0"
 	},
 	"dependencies": {
-		"@supabase/ssr": "^0.10.0",
+		"@supabase/ssr": "^0.12.7",
 		"@supabase/supabase-js": "^2.102.1",
 		"@vercel/speed-insights": "^2.0.0",
-		"@zxing/browser": "^0.1.5",
+		"@zxing/browser": "^0.2.1",
 		"docx": "^9.7.1",
 		"pdfjs-dist": "^4.10.38"
 	}
