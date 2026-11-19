@@ -8,6 +8,22 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    # SvelteKit 3 needs a coordinated migration (vite 8, vite-plugin-svelte 7,
+    # TypeScript 6, adapter-auto 9, @vite-pwa/sveltekit 2 API change) and is blocked
+    # until bits-ui/runed support kit 3. Skip major bumps of these until then.
+    ignore:
+      - dependency-name: '@sveltejs/kit'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'vite'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@sveltejs/vite-plugin-svelte'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@sveltejs/adapter-auto'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@vite-pwa/sveltekit'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
