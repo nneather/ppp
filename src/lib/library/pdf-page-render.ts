@@ -1,20 +1,24 @@
 /**
  * Client-side PDF page rasterization for scripture OCR.
  * Loaded only when the user queues a PDF (dynamic import of pdfjs-dist).
+ *
+ * Uses the pdf.js *legacy* build: since v5 the modern build calls very new JS
+ * built-ins natively (e.g. Math.sumPrecise, Map#getOrInsertComputed) that older
+ * Safari/iOS lack; the legacy build ships the polyfills.
  */
 
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 
 const MAX_LONG_EDGE = 2048;
 const JPEG_QUALITY = 0.85;
 
-type PdfJsModule = typeof import('pdfjs-dist');
+type PdfJsModule = typeof import('pdfjs-dist/legacy/build/pdf.mjs');
 
 let pdfjsModule: PdfJsModule | null = null;
 
 async function getPdfJs(): Promise<PdfJsModule> {
 	if (!pdfjsModule) {
-		pdfjsModule = await import('pdfjs-dist');
+		pdfjsModule = await import('pdfjs-dist/legacy/build/pdf.mjs');
 		pdfjsModule.GlobalWorkerOptions.workerSrc = workerUrl;
 	}
 	return pdfjsModule;
@@ -51,12 +55,8 @@ export async function renderPdfPageToJpegBlob(
 	const canvas = document.createElement('canvas');
 	canvas.width = Math.max(1, Math.floor(viewport.width));
 	canvas.height = Math.max(1, Math.floor(viewport.height));
-	const ctx = canvas.getContext('2d');
-	if (!ctx) {
-		throw new Error('Canvas is not available for PDF rendering.');
-	}
-
-	await page.render({ canvasContext: ctx, viewport }).promise;
+	// pdf.js v5+: pass the canvas (canvasContext is legacy-only).
+	await page.render({ canvas, viewport }).promise;
 
 	const blob = await new Promise<Blob | null>((resolve) =>
 		canvas.toBlob(resolve, 'image/jpeg', quality)
