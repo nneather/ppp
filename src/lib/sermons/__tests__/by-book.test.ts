@@ -211,6 +211,48 @@ describe('collapseCommentaryHits', () => {
 		expect(collapsed).toHaveLength(2);
 	});
 
+	it('merges a series-less set that shares a title and author (Treasury of David)', () => {
+		const collapsed = collapseCommentaryHits([
+			hit({
+				title: 'The Treasury of David',
+				bookId: 't1',
+				authorKey: 'spurgeon',
+				authorShort: 'Spurgeon',
+				seriesId: null
+			}),
+			hit({
+				title: 'The Treasury of David',
+				bookId: 't2',
+				authorKey: 'spurgeon',
+				authorShort: 'Spurgeon',
+				seriesId: null
+			}),
+			hit({
+				title: 'The Treasury of David',
+				bookId: 't3',
+				authorKey: 'spurgeon',
+				authorShort: 'Spurgeon',
+				seriesId: null,
+				rating: 4
+			})
+		]);
+		expect(collapsed).toHaveLength(1);
+		expect(collapsed[0]?.title).toBe('The Treasury of David');
+		expect(collapsed[0]?.rating).toBe(4);
+		expect(collapsed[0]?.bookId).toBe('t3');
+		expect(collapsed[0]?.memberBookIds).toEqual(['t1', 't2', 't3']);
+	});
+
+	it('keeps same-title standalones by different authors, and authorless copies, separate', () => {
+		const collapsed = collapseCommentaryHits([
+			hit({ title: 'Romans', bookId: 'r1', authorKey: 'a', seriesId: null }),
+			hit({ title: 'Romans', bookId: 'r2', authorKey: 'b', seriesId: null }),
+			hit({ title: 'Commentary', bookId: 'c1', authorKey: null, seriesId: null }),
+			hit({ title: 'Commentary', bookId: 'c2', authorKey: null, seriesId: null })
+		]);
+		expect(collapsed).toHaveLength(4);
+	});
+
 	it('keeps every volume id and stays active until all members are parked', () => {
 		const mixed = collapseCommentaryHits([
 			hit({

@@ -53,13 +53,23 @@ export function sortShelfHits(hits: ByBookShelfHit[]): ByBookShelfHit[] {
 	return hits.slice().sort(compareCommentaryHits);
 }
 
+/** Same trim + case fold the collapsed title uses, so the key still matches after merge. */
+function commentaryTitleKey(title: string): string {
+	return title.trim().toLowerCase();
+}
+
 /**
  * Collapse multi-part / multi-edition commentaries that share a series + author set
- * into one hit (per Bible book). Standalone books (no series) stay one-per-bookId.
+ * into one hit (per Bible book). A series-less set with the same title and author
+ * collapses the same way (Treasury of David). Distinct standalones stay one-per-bookId.
  */
 export function commentaryCollapseKey(hit: ByBookShelfHit): string {
 	if (hit.seriesId) {
 		return `series:${hit.seriesId}:${hit.authorKey ?? ''}`;
+	}
+	const title = commentaryTitleKey(hit.title);
+	if (title && hit.authorKey) {
+		return `work:${hit.kind}:${title}:${hit.authorKey}`;
 	}
 	return `book:${hit.bookId}`;
 }

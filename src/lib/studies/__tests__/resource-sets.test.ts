@@ -292,6 +292,37 @@ describe('candidatesFromCommentaryHits', () => {
 		expect(out[0]?.seriesId).toBe('series-1');
 	});
 
+	it('collapses a series-less same-title set and keeps the newest created_at', () => {
+		const row = (
+			bookId: string,
+			createdAt: string
+		): ByBookShelfHit & { createdAt: string } => ({
+			kind: 'book',
+			bookId,
+			essayId: null,
+			title: 'The Treasury of David',
+			authorShort: 'Spurgeon',
+			seriesLabel: null,
+			seriesId: null,
+			authorKey: 'spurgeon',
+			rating: null,
+			genre: 'Commentary',
+			href: `/library/books/${bookId}`,
+			shelfDismissed: false,
+			memberBookIds: [bookId],
+			memberEssayIds: [],
+			createdAt
+		});
+		const out = candidatesFromCommentaryHits([
+			row('v1', '2020-01-01T00:00:00Z'),
+			row('v2', '2024-06-01T00:00:00Z')
+		]);
+		expect(out).toHaveLength(1);
+		expect(out[0]?.title).toBe('The Treasury of David');
+		expect(out[0]?.createdAt).toBe('2024-06-01T00:00:00Z');
+		expect(out[0]?.bookId).toBe('v1');
+	});
+
 	it('falls back to series name when abbreviation is absent', () => {
 		const hit: ByBookShelfHit & { createdAt: string; volumeNumber?: string } = {
 			kind: 'book',
