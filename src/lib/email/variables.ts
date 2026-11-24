@@ -15,6 +15,7 @@ export const EMAIL_VARIABLES: readonly EmailVariable[] = [
 	{ token: 'loan.checked_out_on', label: 'Checkout date', group: 'Loan' },
 	{ token: 'loan.due_on', label: 'Due date', group: 'Loan' },
 	{ token: 'loan.days_out', label: 'Days out', group: 'Loan' },
+	{ token: 'loan.books', label: 'Books still out', group: 'Loan' },
 	{ token: 'client.name', label: 'Name', group: 'Client' },
 	{ token: 'invoice.number', label: 'Number', group: 'Invoice' },
 	{ token: 'invoice.period', label: 'Period', group: 'Invoice' },
@@ -36,12 +37,12 @@ export const EMAIL_TEMPLATE_USES: readonly { key: string; label: string; detail:
 	{
 		key: LIBRARY_LOAN_CHECKOUT_KEY,
 		label: 'Checkout email',
-		detail: 'Sent as soon as a book is checked out.'
+		detail: 'Sent once when books are checked out, listing each one.'
 	},
 	{
 		key: LIBRARY_LOAN_REMINDER_KEY,
-		label: 'Repeating reminder',
-		detail: 'Sent on the interval until the book is returned.'
+		label: 'Due reminder',
+		detail: 'One email per person before the soonest due date, listing every book still out.'
 	},
 	{
 		key: INVOICING_INVOICE_KEY,
@@ -55,6 +56,8 @@ export function emailUseLabel(key: string): string {
 }
 
 export const DEFAULT_LOAN_INTERVAL_DAYS = 30;
+export const DEFAULT_LOAN_DUE_DAYS = 30;
+export const DEFAULT_REMINDER_LEAD_DAYS = 7;
 
 const TOKEN_RE = /\{\{\s*([a-z0-9_.]+)\s*\}\}/gi;
 

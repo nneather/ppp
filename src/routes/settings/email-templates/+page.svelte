@@ -50,6 +50,45 @@
 
 		<section class="mt-6 rounded-xl border border-border">
 			<div class="border-b border-border px-4 py-3">
+				<h2 class="text-sm font-medium">When books are due</h2>
+				<p class="mt-1 text-sm text-muted-foreground">
+					Checkout starts from these. You can still move one book's due date later.
+				</p>
+			</div>
+			<form method="POST" action="?/updateLoanDefaults" use:enhance class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-end">
+				<div class="flex flex-col gap-1">
+					<Label for="loan-due-days">Books are due after</Label>
+					<div class="flex items-center gap-2">
+						<Input
+							id="loan-due-days"
+							name="loan_due_days"
+							type="number"
+							min="1"
+							max="366"
+							value={data.loanDueDays}
+							class="w-24"
+						/>
+						<span class="text-sm text-muted-foreground">days</span>
+					</div>
+				</div>
+				<div class="flex flex-col gap-1">
+					<Label for="loan-lead-days">Remind this many days before</Label>
+					<Input
+						id="loan-lead-days"
+						name="loan_reminder_lead_days"
+						type="number"
+						min="0"
+						max="60"
+						value={data.loanReminderLeadDays}
+						class="w-24"
+					/>
+				</div>
+				<Button type="submit" variant="outline" label="Save" />
+			</form>
+		</section>
+
+		<section class="mt-6 rounded-xl border border-border">
+			<div class="border-b border-border px-4 py-3">
 				<h2 class="text-sm font-medium">Which template each email uses</h2>
 				<p class="mt-1 text-sm text-muted-foreground">Changing a menu saves.</p>
 			</div>

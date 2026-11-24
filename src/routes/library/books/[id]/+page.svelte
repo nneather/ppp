@@ -1591,6 +1591,7 @@
 		loans={data.loans}
 		isOwner={data.isOwner}
 		bookId={data.book.id}
+		bookTitle={data.book.title ?? 'This book'}
 		owned={data.book.owned}
 		copyCount={data.book.copy_count}
 		borrowedTo={data.book.borrowed_to}

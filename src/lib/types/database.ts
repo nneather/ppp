@@ -356,6 +356,7 @@ export type Database = {
       }
       book_loan_messages: {
         Row: {
+          contact_id: string
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -363,7 +364,7 @@ export type Database = {
           html_body: string
           id: string
           kind: string
-          loan_id: string
+          loan_id: string | null
           provider_id: string | null
           scheduled_for: string
           sent_at: string | null
@@ -373,6 +374,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          contact_id: string
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -380,7 +382,7 @@ export type Database = {
           html_body: string
           id?: string
           kind: string
-          loan_id: string
+          loan_id?: string | null
           provider_id?: string | null
           scheduled_for: string
           sent_at?: string | null
@@ -390,6 +392,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          contact_id?: string
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -397,7 +400,7 @@ export type Database = {
           html_body?: string
           id?: string
           kind?: string
-          loan_id?: string
+          loan_id?: string | null
           provider_id?: string | null
           scheduled_for?: string
           sent_at?: string | null
@@ -407,6 +410,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "book_loan_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "book_loan_messages_created_by_fkey"
             columns: ["created_by"]
@@ -438,6 +448,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           deleted_at: string | null
+          due_on: string
           id: string
           interval_days: number
           recipient_email: string
@@ -452,6 +463,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
+          due_on: string
           id?: string
           interval_days?: number
           recipient_email: string
@@ -466,6 +478,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
+          due_on?: string
           id?: string
           interval_days?: number
           recipient_email?: string
@@ -2470,6 +2483,8 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          loan_due_days: number
+          loan_reminder_lead_days: number
           role: string
           task_saved_views: Json
           updated_at: string
@@ -2484,6 +2499,8 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          loan_due_days?: number
+          loan_reminder_lead_days?: number
           role?: string
           task_saved_views?: Json
           updated_at?: string
@@ -2498,6 +2515,8 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          loan_due_days?: number
+          loan_reminder_lead_days?: number
           role?: string
           task_saved_views?: Json
           updated_at?: string

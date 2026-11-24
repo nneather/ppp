@@ -12,6 +12,7 @@ export type EmailMergeValues = {
 	'loan.checked_out_on': string;
 	'loan.due_on': string;
 	'loan.days_out': string;
+	'loan.books': string;
 	'client.name': string;
 	'invoice.number': string;
 	'invoice.period': string;
@@ -38,6 +39,7 @@ export function renderEmailTemplate(
 	return template.replace(TOKEN_RE, (raw, token: string) => {
 		if (!EMAIL_VARIABLE_TOKENS.has(token)) return raw;
 		const value = values[token as keyof EmailMergeValues] ?? '';
+		if (token === 'loan.books' && opts?.html) return value;
 		const escaped = escapeHtml(value);
 		return opts?.html ? escaped.replace(/\n/g, '<br>') : escaped.replace(/\n/g, ' ');
 	});
@@ -59,6 +61,30 @@ export function formatLoanDate(ymd: string): string {
 		day: 'numeric',
 		year: 'numeric'
 	}).format(mid);
+}
+
+export type LoanBookLine = {
+	title: string;
+	authors: string | null;
+	dueOn: string;
+};
+
+/** Already-safe HTML. The renderer must not escape `loan.books`. */
+export function loanBooksHtml(books: readonly LoanBookLine[]): string {
+	if (books.length === 0) return '';
+	const items = books.map((book) => {
+		const title = escapeHtml(book.title.trim() || 'Untitled');
+		const authors = book.authors?.trim() ? ` — ${escapeHtml(book.authors.trim())}` : '';
+		return `<li>${title}${authors} (due ${escapeHtml(formatLoanDate(book.dueOn))})</li>`;
+	});
+	return `<ul>${items.join('')}</ul>`;
+}
+
+/** A saved template that never picked up the list token still names every book. */
+export function withLoanBookList(template: string, renderedHtml: string, booksHtml: string): string {
+	if (/\{\{\s*loan\.books\s*\}\}/i.test(template)) return renderedHtml;
+	if (!booksHtml) return renderedHtml;
+	return `${renderedHtml}${booksHtml}`;
 }
 
 /** Checkout day plus the loan interval. That is the date the copy is due back. */

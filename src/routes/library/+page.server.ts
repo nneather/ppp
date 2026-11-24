@@ -12,6 +12,7 @@ import {
 	updateReadingStatusAction,
 	bulkUpdateBooksAction
 } from '$lib/library/server/book-actions';
+import { checkoutBookAction } from '$lib/library/server/loan-actions';
 import { bookListFiltersAreDefault, parseBookListFilters } from '$lib/library/server/url-params';
 import { LIBRARY_PAGE_SIZE } from '$lib/types/library';
 
@@ -27,6 +28,7 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 
 	const { series, bibleBookNames } = await parent();
 
+	const ownerPromise = supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
 	const listPromise = locals.perf.measure('db', () =>
 		loadBookListFiltered(supabase, [], filters, {
 			limit: filters.all === true ? undefined : LIBRARY_PAGE_SIZE,
@@ -47,10 +49,11 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 				)
 			: Promise.resolve([]);
 
-	const [{ books, filteredCount }, corpusTotal, essayHits] = await Promise.all([
+	const [{ books, filteredCount }, corpusTotal, essayHits, ownerRes] = await Promise.all([
 		listPromise,
 		corpusPromise,
-		essayHitsPromise
+		essayHitsPromise,
+		ownerPromise
 	]);
 	const totalCount = corpusTotal ?? filteredCount;
 
@@ -63,7 +66,8 @@ export const load: PageServerLoad = async ({ locals, url, parent, depends }) => 
 		bibleBookNames,
 		recentlyDeletedId,
 		filters,
-		totalCount
+		totalCount,
+		isOwner: ownerRes.data?.role === 'owner'
 	};
 };
 
@@ -91,6 +95,11 @@ export const actions: Actions = {
 		if (!user) return fail(401, { kind: 'updateReadingStatus' as const, message: 'Unauthorized' });
 		const fd = await request.formData();
 		return updateReadingStatusAction(locals.supabase, fd);
+	},
+	checkoutBook: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'checkoutBook' as const, message: 'Unauthorized' });
+		return checkoutBookAction(locals.supabase, user.id, await request.formData());
 	},
 	bulkUpdateBooks: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

@@ -10,6 +10,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import HotkeyLabel from '$lib/components/hotkey-label.svelte';
+	import LoanCheckoutSheet from '$lib/components/loan-checkout-sheet.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -56,6 +57,10 @@
 	import { cn } from '$lib/utils.js';
 
 	let { data, form }: PageProps = $props();
+	let loanCheckoutOpen = $state(false);
+	const loanCheckoutError = $derived(
+		form?.kind === 'checkoutBook' && form.success !== true ? (form.message ?? null) : null
+	);
 
 	let MultiCombobox = $state<typeof MultiComboboxComponent | null>(null);
 	let facetUiReady = $state(false);
@@ -877,6 +882,15 @@
 
 	<div class="mt-4 flex flex-wrap items-center gap-2">
 		<a href="/library/loans" class="text-sm text-muted-foreground underline underline-offset-2">Books out</a>
+		{#if data.isOwner}
+			<button
+				type="button"
+				class="text-sm text-muted-foreground underline underline-offset-2"
+				onclick={() => (loanCheckoutOpen = true)}
+			>
+				Check out
+			</button>
+		{/if}
 		<div class="relative flex-1 min-w-[14rem]">
 			<Search class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 			{#if listFetchPending}
@@ -1482,6 +1496,10 @@
 		</Sheet.Footer>
 	</Sheet.Content>
 </Sheet.Root>
+
+{#if data.isOwner}
+	<LoanCheckoutSheet bind:open={loanCheckoutOpen} errorMessage={loanCheckoutError} />
+{/if}
 
 {#if undoToastVisible && undoToastBookId}
 	<div

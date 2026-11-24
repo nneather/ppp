@@ -6,14 +6,29 @@ import {
 	createEmailTemplateAction,
 	softDeleteEmailTemplateAction
 } from '$lib/email/server/template-actions';
+import { updateLoanDefaultsAction } from '$lib/library/server/loan-actions';
+import { DEFAULT_LOAN_DUE_DAYS, DEFAULT_REMINDER_LEAD_DAYS } from '$lib/email/variables';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) redirect(303, '/login');
 	const supabase = locals.supabase;
-	const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+	const { data: profile } = await supabase
+		.from('profiles')
+		.select('role, loan_due_days, loan_reminder_lead_days')
+		.eq('id', user.id)
+		.maybeSingle();
 	const isOwner = profile?.role === 'owner';
-	if (!isOwner) return { notOwner: true as const, folders: [], templates: [], bindings: [] };
+	if (!isOwner) {
+		return {
+			notOwner: true as const,
+			folders: [],
+			templates: [],
+			bindings: [],
+			loanDueDays: DEFAULT_LOAN_DUE_DAYS,
+			loanReminderLeadDays: DEFAULT_REMINDER_LEAD_DAYS
+		};
+	}
 
 	const [foldersRes, templatesRes, bindingsRes] = await Promise.all([
 		supabase
@@ -36,7 +51,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		notOwner: false as const,
 		folders: foldersRes.data ?? [],
 		templates: templatesRes.data ?? [],
-		bindings: bindingsRes.data ?? []
+		bindings: bindingsRes.data ?? [],
+		loanDueDays: profile.loan_due_days,
+		loanReminderLeadDays: profile.loan_reminder_lead_days
 	};
 };
 
@@ -59,6 +76,11 @@ export const actions: Actions = {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'assignEmailTemplateUse' as const, message: 'Unauthorized' });
 		return assignEmailTemplateUseAction(locals.supabase, user.id, await request.formData());
+	},
+	updateLoanDefaults: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'updateLoanDefaults' as const, message: 'Unauthorized' });
+		return updateLoanDefaultsAction(locals.supabase, user.id, await request.formData());
 	},
 	deleteTemplate: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

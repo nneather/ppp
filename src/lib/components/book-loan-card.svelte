@@ -41,8 +41,8 @@
 			form.success !== true &&
 			form.kind !== 'checkoutBook' &&
 			form.kind !== 'updateLoanReminder' &&
-			(form.kind === 'returnBook' ||
-				form.kind === 'updateLoanInterval' ||
+			(			form.kind === 'returnBook' ||
+				form.kind === 'updateLoanDue' ||
 				form.kind === 'updateLoanEmail' ||
 				form.kind === 'retryLoanMessage')
 			? (form.message ?? null)
@@ -51,7 +51,6 @@
 
 	let reminderOpen = $state(false);
 	let reminderLoanId = $state<string | null>(null);
-	let pending = $state(false);
 
 	const roomLeft = $derived(owned && loans.length < copyCount);
 	const activeReminder = $derived(loans.find((loan) => loan.id === reminderLoanId)?.reminder ?? null);
@@ -97,7 +96,7 @@
 					{/if}
 				</p>
 				<p class="mt-1 text-muted-foreground">
-					Out since {formatLoanDate(loan.checkedOutOn)}
+					Due {formatLoanDate(loan.dueOn)} · out since {formatLoanDate(loan.checkedOutOn)}
 					{#if isOwner && loan.recipientEmail} · {loan.recipientEmail}{/if}
 				</p>
 				{#if isOwner}
@@ -110,7 +109,7 @@
 					{/if}
 					{#if loan.reminder}
 						<p class="mt-2 text-muted-foreground">
-							Next reminder {formatLoanDate(loan.reminder.scheduledFor)}
+							Reminder {formatLoanDate(loan.reminder.scheduledFor)}
 							{#if loan.reminder.status === 'failed'} · failed{/if}
 							{#if loan.reminder.status === 'sending'} · sending{/if}
 						</p>
@@ -126,33 +125,21 @@
 							{/if}
 						</div>
 					{/if}
-					<form
-						method="POST"
-						action="?/updateLoanInterval"
-						use:enhance={() => {
-							pending = true;
-							return async ({ update }) => {
-								pending = false;
-								await update();
-							};
-						}}
-						class="mt-3 flex items-end gap-2"
-					>
-						<input type="hidden" name="loan_id" value={loan.id} />
-						<div class="flex flex-col gap-1">
-							<Label for="interval-{loan.id}">Repeat every</Label>
-							<Input
-								id="interval-{loan.id}"
-								name="interval_days"
-								type="number"
-								min="1"
-								max="366"
-								value={loan.intervalDays}
-								class="w-24"
-							/>
-						</div>
-						<Button type="submit" variant="outline" size="sm" disabled={pending}>Days</Button>
-					</form>
+					<div class="mt-3 flex flex-wrap items-end gap-2">
+						<form method="POST" action="?/updateLoanDue" use:enhance>
+							<input type="hidden" name="loan_id" value={loan.id} />
+							<input type="hidden" name="extend_days" value="14" />
+							<Button type="submit" variant="outline" size="sm">+2 weeks</Button>
+						</form>
+						<form method="POST" action="?/updateLoanDue" use:enhance class="flex items-end gap-2">
+							<input type="hidden" name="loan_id" value={loan.id} />
+							<div class="flex flex-col gap-1">
+								<Label for="due-{loan.id}">Due date</Label>
+								<Input id="due-{loan.id}" name="due_on" type="date" value={loan.dueOn} class="w-36" />
+							</div>
+							<Button type="submit" variant="outline" size="sm">Save</Button>
+						</form>
+					</div>
 					<form
 						method="POST"
 						action="?/updateLoanEmail"
@@ -178,6 +165,11 @@
 {/if}
 
 {#if bookId}
-	<LoanCheckoutSheet bind:open={checkoutOpen} {bookId} errorMessage={checkoutError} />
+	<LoanCheckoutSheet
+		bind:open={checkoutOpen}
+		initialBooks={[{ id: bookId, title: bookTitle ?? 'This book' }]}
+		errorMessage={checkoutError}
+		useHotkey
+	/>
 {/if}
 <LoanReminderSheet bind:open={reminderOpen} reminder={activeReminder} errorMessage={reminderError} />

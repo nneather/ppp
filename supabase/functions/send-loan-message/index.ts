@@ -1,15 +1,17 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
-	addDaysYmd,
+	bookTitleSummary,
 	daysBetweenYmd,
 	emailHtmlToText,
 	formatLoanDate,
-	loanNeedsNextReminder,
+	loanBooksHtml,
+	nextReminderYmd,
 	ownerFirstName,
 	renderEmailTemplate,
 	sanitizeEmailHtml,
 	secretsMatch,
 	type LoanMergeValues,
+	withLoanBookList,
 	wrapLoanEmail,
 	ymdInChicago
 } from '../_shared/loan-email.ts';
@@ -28,20 +30,28 @@ type LoanRow = {
 	recipient_name: string;
 	recipient_email: string;
 	checked_out_on: string;
+	due_on: string;
 	returned_at: string | null;
-	interval_days: number;
 	created_by: string | null;
 	deleted_at: string | null;
 };
 
 type MessageRow = {
 	id: string;
-	loan_id: string;
+	loan_id: string | null;
+	contact_id: string;
 	kind: 'checkout' | 'reminder';
 	subject: string;
 	html_body: string;
 	scheduled_for: string;
 	status: string;
+};
+
+type BookLine = {
+	title: string;
+	authors: string | null;
+	checkedOutOn: string;
+	dueOn: string;
 };
 
 function resolveCorsOrigin(req: Request): string | null {
@@ -99,25 +109,27 @@ async function requireOwner(admin: Admin, userId: string): Promise<boolean> {
 
 function mergeFor(input: {
 	recipientName: string;
-	bookTitle: string;
-	bookAuthors: string | null;
-	checkedOutOn: string;
-	intervalDays: number;
+	books: readonly BookLine[];
 	asOfYmd: string;
 	ownerFullName: string | null;
 }): LoanMergeValues {
 	const [first, ...rest] = input.recipientName.trim().split(/\s+/);
-	const days = daysBetweenYmd(input.checkedOutOn, input.asOfYmd);
-	const due = addDaysYmd(input.checkedOutOn, input.intervalDays);
+	const books = [...input.books];
+	const earliestOut = [...books].sort((a, b) => a.checkedOutOn.localeCompare(b.checkedOutOn))[0];
+	const earliestDue = [...books].sort((a, b) => a.dueOn.localeCompare(b.dueOn))[0];
+	const checkedOutOn = earliestOut?.checkedOutOn ?? input.asOfYmd;
+	const days = daysBetweenYmd(checkedOutOn, input.asOfYmd);
+	const sole = books.length === 1 ? books[0] : null;
 	return {
 		'contact.first_name': first ?? '',
 		'contact.last_name': rest.join(' '),
 		'contact.full_name': input.recipientName.trim(),
-		'book.title': input.bookTitle.trim() || 'a book',
-		'book.authors': (input.bookAuthors ?? '').trim(),
-		'loan.checked_out_on': formatLoanDate(input.checkedOutOn),
-		'loan.due_on': due ? formatLoanDate(due) : '',
+		'book.title': bookTitleSummary(books.map((book) => book.title)),
+		'book.authors': (sole?.authors ?? '').trim(),
+		'loan.checked_out_on': formatLoanDate(checkedOutOn),
+		'loan.due_on': earliestDue ? formatLoanDate(earliestDue.dueOn) : '',
 		'loan.days_out': String(days != null && days > 0 ? days : 0),
+		'loan.books': loanBooksHtml(books),
 		'client.name': '',
 		'invoice.number': '',
 		'invoice.period': '',
@@ -125,6 +137,58 @@ function mergeFor(input: {
 		'invoice.message': '',
 		'owner.first_name': ownerFirstName(input.ownerFullName)
 	};
+}
+
+const LOAN_COLUMNS =
+	'id, book_id, contact_id, recipient_name, recipient_email, checked_out_on, due_on, returned_at, created_by, deleted_at';
+
+async function openLoansForContact(admin: Admin, contactId: string): Promise<LoanRow[]> {
+	const { data } = await admin
+		.from('book_loans')
+		.select(LOAN_COLUMNS)
+		.eq('contact_id', contactId)
+		.is('returned_at', null)
+		.is('deleted_at', null);
+	return (data ?? []) as LoanRow[];
+}
+
+async function linesFor(admin: Admin, loans: readonly LoanRow[]): Promise<BookLine[]> {
+	if (loans.length === 0) return [];
+	const { data } = await admin
+		.from('books')
+		.select('id, title, volume_number, author_display')
+		.in('id', [...new Set(loans.map((loan) => loan.book_id))]);
+	const byId = new Map(
+		((data ?? []) as { id: string; title: string | null; volume_number: string | null; author_display: string | null }[]).map(
+			(book) => [book.id, book]
+		)
+	);
+	return [...loans]
+		.sort((a, b) => a.due_on.localeCompare(b.due_on))
+		.map((loan) => {
+			const book = byId.get(loan.book_id);
+			const title = book?.title?.trim() || 'Untitled';
+			const volume = book?.volume_number?.trim();
+			return {
+				title: volume ? `${title}, vol. ${volume}` : title,
+				authors: book?.author_display ?? null,
+				checkedOutOn: loan.checked_out_on,
+				dueOn: loan.due_on
+			};
+		});
+}
+
+async function ownerProfile(
+	admin: Admin
+): Promise<{ full_name: string | null; loan_reminder_lead_days: number }> {
+	const { data } = await admin
+		.from('profiles')
+		.select('full_name, loan_reminder_lead_days')
+		.eq('role', 'owner')
+		.limit(1)
+		.maybeSingle();
+	const row = data as { full_name: string | null; loan_reminder_lead_days: number } | null;
+	return { full_name: row?.full_name ?? null, loan_reminder_lead_days: row?.loan_reminder_lead_days ?? 7 };
 }
 
 async function reminderTemplate(
@@ -149,15 +213,17 @@ async function reminderTemplate(
 	return row;
 }
 
-async function queueNextReminder(
-	admin: Admin,
-	loan: LoanRow,
-	ownerFullName: string | null,
-	bookTitle: string,
-	bookAuthors: string | null,
-	anchorYmd: string
-): Promise<void> {
-	const scheduled = addDaysYmd(anchorYmd, loan.interval_days);
+async function queueNextReminder(admin: Admin, loans: readonly LoanRow[]): Promise<void> {
+	const lead = loans[0];
+	if (!lead) return;
+	const owner = await ownerProfile(admin);
+	const today = ymdInChicago();
+	const lines = await linesFor(admin, loans);
+	const scheduled = nextReminderYmd(
+		lines.map((line) => line.dueOn),
+		owner.loan_reminder_lead_days,
+		today
+	);
 	if (!scheduled) return;
 	const template = await reminderTemplate(admin);
 	if (!template) {
@@ -165,23 +231,22 @@ async function queueNextReminder(
 		return;
 	}
 	const values = mergeFor({
-		recipientName: loan.recipient_name,
-		bookTitle,
-		bookAuthors,
-		checkedOutOn: loan.checked_out_on,
-		intervalDays: loan.interval_days,
+		recipientName: lead.recipient_name,
+		books: lines,
 		asOfYmd: scheduled,
-		ownerFullName
+		ownerFullName: owner.full_name
 	});
+	const rendered = renderEmailTemplate(template.html_body, values, { html: true });
 	const { error } = await admin.from('book_loan_messages').insert({
-		loan_id: loan.id,
+		loan_id: null,
+		contact_id: lead.contact_id,
 		kind: 'reminder',
 		template_id: template.id,
 		subject: renderEmailTemplate(template.subject, values).trim(),
-		html_body: sanitizeEmailHtml(renderEmailTemplate(template.html_body, values, { html: true })),
+		html_body: sanitizeEmailHtml(withLoanBookList(template.html_body, rendered, values['loan.books'])),
 		scheduled_for: scheduled,
 		status: 'queued',
-		created_by: loan.created_by
+		created_by: lead.created_by
 	});
 	if (error && error.code !== '23505') console.error('[send-loan-message] queue next', error);
 }
@@ -190,9 +255,11 @@ async function sendClaimed(
 	admin: Admin,
 	resendKey: string,
 	message: MessageRow,
-	loan: LoanRow
+	loans: readonly LoanRow[]
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-	if (loan.returned_at || loan.deleted_at) {
+	const open = loans.filter((loan) => !loan.returned_at && !loan.deleted_at);
+	const recipient = [...open].sort((a, b) => a.due_on.localeCompare(b.due_on))[0];
+	if (!recipient) {
 		await admin
 			.from('book_loan_messages')
 			.update({ status: 'cancelled', error: null })
@@ -206,7 +273,7 @@ async function sendClaimed(
 		headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify({
 			from: fromAddress(),
-			to: [loan.recipient_email],
+			to: [recipient.recipient_email],
 			reply_to: REPLY_TO,
 			subject: message.subject,
 			html,
@@ -244,25 +311,7 @@ async function sendClaimed(
 		.eq('id', message.id);
 
 	if (message.kind === 'reminder') {
-		const { data: book } = await admin
-			.from('books')
-			.select('title, author_display')
-			.eq('id', loan.book_id)
-			.maybeSingle();
-		const { data: owner } = await admin
-			.from('profiles')
-			.select('full_name')
-			.eq('role', 'owner')
-			.limit(1)
-			.maybeSingle();
-		await queueNextReminder(
-			admin,
-			loan,
-			(owner as { full_name: string | null } | null)?.full_name ?? null,
-			(book as { title: string | null } | null)?.title ?? '',
-			(book as { author_display: string | null } | null)?.author_display ?? null,
-			ymdInChicago(new Date(sentAt))
-		);
+		await queueNextReminder(admin, open);
 	}
 	return { ok: true };
 }
@@ -274,7 +323,7 @@ async function claimAndSend(
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
 	const { data: existing } = await admin
 		.from('book_loan_messages')
-		.select('id, loan_id, kind, subject, html_body, scheduled_for, status')
+		.select('id, loan_id, contact_id, kind, subject, html_body, scheduled_for, status')
 		.eq('id', messageId)
 		.is('deleted_at', null)
 		.maybeSingle();
@@ -298,77 +347,55 @@ async function claimAndSend(
 		return { ok: false, error: 'That email is already on its way.', status: 409 };
 	}
 
-	const { data: loanRow } = await admin
-		.from('book_loans')
-		.select(
-			'id, book_id, contact_id, recipient_name, recipient_email, checked_out_on, returned_at, interval_days, created_by, deleted_at'
-		)
-		.eq('id', message.loan_id)
-		.maybeSingle();
-	const loan = loanRow as LoanRow | null;
-	if (!loan) {
+	const loans = await openLoansForContact(admin, message.contact_id);
+	if (loans.length === 0 && message.kind === 'checkout' && message.loan_id) {
+		const { data: loanRow } = await admin
+			.from('book_loans')
+			.select(LOAN_COLUMNS)
+			.eq('id', message.loan_id)
+			.maybeSingle();
+		const loan = loanRow as LoanRow | null;
+		if (loan && !loan.returned_at && !loan.deleted_at) loans.push(loan);
+	}
+	if (loans.length === 0) {
 		await admin
 			.from('book_loan_messages')
-			.update({ status: 'failed', error: 'Loan not found.' })
+			.update({ status: 'cancelled', error: null })
 			.eq('id', message.id);
-		return { ok: false, error: 'Loan not found.', status: 404 };
+		return { ok: true };
 	}
-	return sendClaimed(admin, resendKey, message, loan);
+	return sendClaimed(admin, resendKey, message, loans);
 }
 
 async function repairOpenReminders(admin: Admin): Promise<void> {
 	const { data: loans } = await admin
 		.from('book_loans')
-		.select(
-			'id, book_id, contact_id, recipient_name, recipient_email, checked_out_on, returned_at, interval_days, created_by, deleted_at'
-		)
+		.select(LOAN_COLUMNS)
 		.is('returned_at', null)
 		.is('deleted_at', null);
 	const open = (loans ?? []) as LoanRow[];
 	if (open.length === 0) return;
 
-	const ids = open.map((loan) => loan.id);
+	const byContact = new Map<string, LoanRow[]>();
+	for (const loan of open) {
+		const group = byContact.get(loan.contact_id) ?? [];
+		group.push(loan);
+		byContact.set(loan.contact_id, group);
+	}
+	const contactIds = [...byContact.keys()];
 	const { data: messages } = await admin
 		.from('book_loan_messages')
-		.select('loan_id, kind, status, scheduled_for, sent_at')
-		.in('loan_id', ids)
+		.select('contact_id, status')
+		.in('contact_id', contactIds)
 		.eq('kind', 'reminder')
-		.is('deleted_at', null);
-	const rows = (messages ?? []) as {
-		loan_id: string;
-		kind: string;
-		status: string;
-		scheduled_for: string;
-		sent_at: string | null;
-	}[];
-
-	const bookIds = [...new Set(open.map((loan) => loan.book_id))];
-	const [{ data: books }, { data: owner }] = await Promise.all([
-		admin.from('books').select('id, title, author_display').in('id', bookIds),
-		admin.from('profiles').select('full_name').eq('role', 'owner').limit(1).maybeSingle()
-	]);
-	const bookById = new Map(
-		((books ?? []) as { id: string; title: string | null; author_display: string | null }[]).map((b) => [
-			b.id,
-			b
-		])
+		.is('deleted_at', null)
+		.in('status', ['queued', 'sending', 'failed']);
+	const covered = new Set(
+		((messages ?? []) as { contact_id: string }[]).map((row) => row.contact_id)
 	);
-	const ownerName = (owner as { full_name: string | null } | null)?.full_name ?? null;
-
-	for (const loan of open) {
-		const mine = rows.filter((row) => row.loan_id === loan.id);
-		if (!loanNeedsNextReminder(false, mine)) continue;
-		const sent = mine
-			.filter((row) => row.status === 'sent')
-			.sort((a, b) => (a.scheduled_for < b.scheduled_for ? 1 : -1));
-		const latest = sent[0];
-		const anchor = latest
-			? latest.sent_at
-				? ymdInChicago(new Date(latest.sent_at))
-				: latest.scheduled_for
-			: loan.checked_out_on;
-		const book = bookById.get(loan.book_id);
-		await queueNextReminder(admin, loan, ownerName, book?.title ?? '', book?.author_display ?? null, anchor);
+	for (const [contactId, group] of byContact) {
+		if (covered.has(contactId)) continue;
+		await queueNextReminder(admin, group);
 	}
 }
 

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-11-24 — Email templates page: one menu per email, save on change ([325](docs/decisions/325-email-template-page.md)).
+**Last updated:** 2026-11-24 — Batch checkout and a movable due date ([327](docs/decisions/327-batch-checkout-due-dates.md)).
 
 **How to use this file — read this first:**
 
@@ -34,13 +34,13 @@ Nearest hard dates:
 | Module | Tracker | State |
 |---|---|---|
 | Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete + analytics, one-offs, and list mark-paid. The send email is the `invoicing.invoice` template; the note typed at send fills `{{invoice.message}}` ([323](docs/decisions/323-email-template-uses.md)). **Open:** key rotation (#4, Sep 2026). |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2. Passage sections live. **Turretin and Calvin scripture indexes imported.** Nov 14 shelf is in ([318](docs/decisions/318-library-nov14-shelf-batch.md)). **Checkout** ties one copy to a contact and emails them ([321](docs/decisions/321-library-loans-email-templates.md)). `{{loan.due_on}}` is checkout plus the interval ([323](docs/decisions/323-email-template-uses.md)). **Open:** van Mastricht source; August shelf QA — Madison. |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2. Passage sections live. **Turretin and Calvin scripture indexes imported.** Nov 14 shelf is in ([318](docs/decisions/318-library-nov14-shelf-batch.md)). **Checkout** can send several books to one person in one email. Each copy has its own due date; one reminder per person lists what is still out ([327](docs/decisions/327-batch-checkout-due-dates.md)). **Open:** van Mastricht source; August shelf QA — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | Scores, Standings, and Teams. Standings and the follow list use conference dropdowns; college football is subdivision then conference ([300](docs/decisions/300-sports-navigation.md)). |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. Dashboard panel is the next three; header → list, row → sermon ([293](docs/decisions/293-dashboard-upcoming-sermons.md)). |
 | Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Notes lead the page. Add source takes a DOI, ISBN, or title. Record fills the capture line for review. Copy notes is plain text. Footnote and Short mark cited. Copy bibliography and .docx include candidates while every source is still a candidate ([320](docs/decisions/320-psalm-23-bibliography-export.md)). |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. Phone: desktop sidebar + dashboard glance ([292](docs/decisions/292-mobile-tab-studies.md)). |
-| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Due lists group Quarterly → Semester → Annual, with up/down to step one frequency ([296](docs/decisions/296-due-frequency-nudge.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
+| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Due lists group Quarterly → Semester → Annual, with up/down to step one frequency ([296](docs/decisions/296-due-frequency-nudge.md)). Each list is its own page, with quick links from Contacts ([326](docs/decisions/326-contact-list-pages.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [327 — Batch checkout and due dates](docs/decisions/327-batch-checkout-due-dates.md) (2026-11-24) — Several books, one person, one email. Each copy has a due date you can move. One reminder per person goes out before the soonest due date.
+- [326 — Contact lists get their own page](docs/decisions/326-contact-list-pages.md) (2026-11-24) — One list per page, with quick links from Contacts. Old list links still land there.
 - [325 — Clearer email template page](docs/decisions/325-email-template-page.md) (2026-11-24) — One menu per email, and it saves when you change it. The editor groups insert fields.
 - [324 — Postcards via Lob](docs/decisions/324-contacts-postcards.md) (2026-11-24) — Postcard screen: proofs, mail-to-me, and a batch.
-- [323 — Email template uses](docs/decisions/323-email-template-uses.md) (2026-11-24) — `{{loan.due_on}}` is checkout plus the interval. Invoice mail uses the template store. Each send is a dropdown, not a checkbox.
-- [322 — Christmas list address confirmation](docs/decisions/322-christmas-address-confirm.md) (2026-11-24) — List rows show the address and this year’s status. One tap confirms a complete address.
-- [321 — Library loans and email templates](docs/decisions/321-library-loans-email-templates.md) (2026-11-24) — Check a copy out to a contact. Checkout email sends now; a reminder repeats until the book is back. Templates are folders plus a TipTap editor.
+- [323 — Email template uses](docs/decisions/323-email-template-uses.md) (2026-11-24) — Invoice mail uses the template store. Each send is a dropdown, not a checkbox.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Clearer email template page [325](docs/decisions/325-email-template-page.md) — `npm run check` clean. Signed-in check: changing the invoice menu saved and was put back on Invoice.
+**Repo gate:** Batch checkout and due dates [327](docs/decisions/327-batch-checkout-due-dates.md) — `npm run check` and `npm run test` clean (2026-11-24). Migration `20261124210000` applied on ppp-prod. `send-loan-message` deployed after the schema change.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

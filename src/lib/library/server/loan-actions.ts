@@ -1,16 +1,24 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { ymdInChicago } from '$lib/invoicing/chicago-date';
-import { canCheckOutCopy, isLoanEmail, parseLoanInterval } from '$lib/email/loans';
+import { addDaysYmd, utcNoonFromYmd, ymdInChicago } from '$lib/invoicing/chicago-date';
+import {
+	bookTitleSummary,
+	canCheckOutCopy,
+	isLoanEmail,
+	nextReminderYmd,
+	parseLoanInterval,
+	parseReminderLead
+} from '$lib/email/loans';
 import {
 	contactFullName,
 	daysBetweenYmd,
 	formatLoanDate,
-	loanDueLabel,
+	loanBooksHtml,
 	ownerFirstName,
-	reminderDateAfter,
 	renderEmailTemplate,
-	type EmailMergeValues
+	withLoanBookList,
+	type EmailMergeValues,
+	type LoanBookLine
 } from '$lib/email/render';
 import { sanitizeEmailHtml } from '$lib/email/sanitize';
 import {
@@ -29,7 +37,7 @@ export type LoanActionKind =
 	| 'checkoutBook'
 	| 'returnBook'
 	| 'updateLoanReminder'
-	| 'updateLoanInterval'
+	| 'updateLoanDue'
 	| 'updateLoanEmail'
 	| 'retryLoanMessage';
 
@@ -94,26 +102,31 @@ async function templateForKey(supabase: Db, key: string): Promise<BoundTemplate 
 	return template;
 }
 
+export type LoanMergeBook = LoanBookLine & { checkedOutOn: string };
+
 export function buildLoanMergeValues(input: {
 	firstName: string;
 	lastName: string | null;
-	bookTitle: string | null;
-	bookAuthors: string | null;
-	checkedOutOn: string;
-	intervalDays: number;
+	books: readonly LoanMergeBook[];
 	asOfYmd: string;
 	ownerFullName: string | null | undefined;
 }): Partial<EmailMergeValues> {
-	const days = daysBetweenYmd(input.checkedOutOn, input.asOfYmd);
+	const books = [...input.books];
+	const earliestOut = [...books].sort((a, b) => a.checkedOutOn.localeCompare(b.checkedOutOn))[0];
+	const earliestDue = [...books].sort((a, b) => a.dueOn.localeCompare(b.dueOn))[0];
+	const checkedOutOn = earliestOut?.checkedOutOn ?? input.asOfYmd;
+	const days = daysBetweenYmd(checkedOutOn, input.asOfYmd);
+	const sole = books.length === 1 ? books[0] : null;
 	return {
 		'contact.first_name': input.firstName.trim(),
 		'contact.last_name': (input.lastName ?? '').trim(),
 		'contact.full_name': contactFullName(input.firstName, input.lastName),
-		'book.title': input.bookTitle?.trim() || 'a book',
-		'book.authors': (input.bookAuthors ?? '').trim(),
-		'loan.checked_out_on': formatLoanDate(input.checkedOutOn),
-		'loan.due_on': loanDueLabel(input.checkedOutOn, input.intervalDays),
+		'book.title': bookTitleSummary(books.map((book) => book.title)),
+		'book.authors': (sole?.authors ?? '').trim(),
+		'loan.checked_out_on': formatLoanDate(checkedOutOn),
+		'loan.due_on': earliestDue ? formatLoanDate(earliestDue.dueOn) : '',
 		'loan.days_out': String(days != null && days > 0 ? days : 0),
+		'loan.books': loanBooksHtml(books),
 		'owner.first_name': ownerFirstName(input.ownerFullName)
 	};
 }
@@ -125,10 +138,155 @@ function renderPair(
 ): { subject: string; html: string } | { error: string } {
 	const unknown = unknownEmailTokens(subject, html);
 	if (unknown.length > 0) return { error: `Unknown merge field: ${unknown.join(', ')}` };
+	const rendered = renderEmailTemplate(html, values, { html: true });
 	return {
 		subject: renderEmailTemplate(subject, values).trim(),
-		html: sanitizeEmailHtml(renderEmailTemplate(html, values, { html: true }))
+		html: sanitizeEmailHtml(withLoanBookList(html, rendered, values['loan.books'] ?? ''))
 	};
+}
+
+function bookIdsFrom(fd: FormData): string[] {
+	const ids = fd
+		.getAll('book_id')
+		.map((value) => String(value).trim())
+		.filter((id) => UUID_RE.test(id));
+	return [...new Set(ids)].slice(0, 20);
+}
+
+function isYmd(value: string): boolean {
+	return /^\d{4}-\d{2}-\d{2}$/.test(value) && utcNoonFromYmd(value) != null;
+}
+
+function titledBook(book: { title: string | null; volume_number: string | null }): string {
+	const title = book.title?.trim() || 'Untitled';
+	const volume = book.volume_number?.trim();
+	return volume ? `${title}, vol. ${volume}` : title;
+}
+
+type OpenLoanLine = {
+	id: string;
+	book_id: string;
+	checked_out_on: string;
+	due_on: string;
+	recipient_name: string;
+};
+
+async function openLoansForContact(supabase: Db, contactId: string): Promise<OpenLoanLine[]> {
+	const { data, error } = await supabase
+		.from('book_loans')
+		.select('id, book_id, checked_out_on, due_on, recipient_name')
+		.eq('contact_id', contactId)
+		.is('deleted_at', null)
+		.is('returned_at', null);
+	if (error) {
+		console.error('[loans] open for contact', error);
+		return [];
+	}
+	return data ?? [];
+}
+
+async function linesForLoans(
+	supabase: Db,
+	loans: readonly OpenLoanLine[]
+): Promise<LoanMergeBook[]> {
+	if (loans.length === 0) return [];
+	const { data, error } = await supabase
+		.from('books')
+		.select('id, title, volume_number, author_display')
+		.in('id', [...new Set(loans.map((loan) => loan.book_id))]);
+	if (error) console.error('[loans] book lines', error);
+	const byId = new Map((data ?? []).map((book) => [book.id, book]));
+	return [...loans]
+		.sort((a, b) => a.due_on.localeCompare(b.due_on) || a.checked_out_on.localeCompare(b.checked_out_on))
+		.map((loan) => {
+			const book = byId.get(loan.book_id);
+			return {
+				title: book ? titledBook(book) : 'Untitled',
+				authors: book?.author_display ?? null,
+				checkedOutOn: loan.checked_out_on,
+				dueOn: loan.due_on
+			};
+		});
+}
+
+/** Rewrite the one open reminder so it lists whatever is still out. */
+async function refreshContactReminder(supabase: Db, userId: string, contactId: string): Promise<void> {
+	const today = ymdInChicago();
+	const [loans, profileRes, contactRes, template, existingRes] = await Promise.all([
+		openLoansForContact(supabase, contactId),
+		supabase
+			.from('profiles')
+			.select('full_name, loan_reminder_lead_days')
+			.eq('id', userId)
+			.maybeSingle(),
+		supabase.from('contacts').select('first_name, last_name').eq('id', contactId).maybeSingle(),
+		templateForKey(supabase, LIBRARY_LOAN_REMINDER_KEY),
+		supabase
+			.from('book_loan_messages')
+			.select('id, status')
+			.eq('contact_id', contactId)
+			.eq('kind', 'reminder')
+			.is('deleted_at', null)
+			.in('status', ['queued', 'sending', 'failed'])
+			.order('scheduled_for')
+			.limit(1)
+	]);
+	const existing = existingRes.data?.[0] ?? null;
+	if (existingRes.error) console.error('[loans] open reminder', existingRes.error);
+
+	if (loans.length === 0) {
+		if (existing && existing.status !== 'sending') {
+			const { error } = await supabase
+				.from('book_loan_messages')
+				.update({ status: 'cancelled' })
+				.eq('id', existing.id);
+			if (error) console.error('[loans] cancel reminder', error);
+		}
+		return;
+	}
+	if (!template || !contactRes.data) return;
+	if (existing?.status === 'sending') return;
+
+	const lines = await linesForLoans(supabase, loans);
+	const scheduled = nextReminderYmd(
+		lines.map((line) => line.dueOn),
+		profileRes.data?.loan_reminder_lead_days ?? 7,
+		today
+	);
+	if (!scheduled) return;
+	const values = buildLoanMergeValues({
+		firstName: contactRes.data.first_name,
+		lastName: contactRes.data.last_name,
+		books: lines,
+		asOfYmd: scheduled,
+		ownerFullName: profileRes.data?.full_name
+	});
+	const copy = renderPair(template.subject, template.html_body, values);
+	if ('error' in copy) {
+		console.error('[loans] reminder copy', copy.error);
+		return;
+	}
+	const payload = {
+		subject: copy.subject,
+		html_body: copy.html,
+		scheduled_for: scheduled,
+		status: 'queued' as const,
+		error: null,
+		template_id: template.id
+	};
+	if (existing) {
+		const { error } = await supabase.from('book_loan_messages').update(payload).eq('id', existing.id);
+		if (error) console.error('[loans] refresh reminder', error);
+		return;
+	}
+	const { error } = await supabase.from('book_loan_messages').insert({
+		...payload,
+		loan_id: null,
+		contact_id: contactId,
+		kind: 'reminder',
+		created_by: userId
+	});
+	if (error && error.code !== '23505') console.error('[loans] queue reminder', error);
 }
 
 export async function checkoutBookAction(supabase: Db, userId: string, fd: FormData) {
@@ -136,20 +294,19 @@ export async function checkoutBookAction(supabase: Db, userId: string, fd: FormD
 	if (!(await requireOwner(supabase, userId))) {
 		return fail(403, { kind, message: 'Only the owner can check out a book.' });
 	}
-	const bookId = trim(fd, 'book_id');
+	const bookIds = bookIdsFrom(fd);
 	const contactId = trim(fd, 'contact_id');
-	if (!UUID_RE.test(bookId) || !UUID_RE.test(contactId)) {
+	if (bookIds.length === 0 || !UUID_RE.test(contactId)) {
 		return fail(400, { kind, message: 'Choose a book and a contact.' });
 	}
 
-	const [bookRes, contactRes, countRes, profileRes, checkoutTemplate, reminderTemplate] =
+	const [booksRes, contactRes, openRes, profileRes, checkoutTemplate, reminderTemplate] =
 		await Promise.all([
 			supabase
 				.from('books')
-				.select('id, title, owned, copy_count, author_display')
-				.eq('id', bookId)
-				.is('deleted_at', null)
-				.maybeSingle(),
+				.select('id, title, volume_number, owned, copy_count, author_display')
+				.in('id', bookIds)
+				.is('deleted_at', null),
 			supabase
 				.from('contacts')
 				.select('id, first_name, last_name, email')
@@ -158,16 +315,20 @@ export async function checkoutBookAction(supabase: Db, userId: string, fd: FormD
 				.maybeSingle(),
 			supabase
 				.from('book_loans')
-				.select('id', { count: 'exact', head: true })
-				.eq('book_id', bookId)
+				.select('book_id')
+				.in('book_id', bookIds)
 				.is('deleted_at', null)
 				.is('returned_at', null),
-			supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle(),
+			supabase
+				.from('profiles')
+				.select('full_name, loan_due_days')
+				.eq('id', userId)
+				.maybeSingle(),
 			templateForKey(supabase, LIBRARY_LOAN_CHECKOUT_KEY),
 			templateForKey(supabase, LIBRARY_LOAN_REMINDER_KEY)
 		]);
 
-	if (bookRes.error || !bookRes.data) {
+	if (booksRes.error || !booksRes.data || booksRes.data.length !== bookIds.length) {
 		return fail(404, { kind, message: 'Book not found.' });
 	}
 	if (contactRes.error || !contactRes.data) {
@@ -177,107 +338,109 @@ export async function checkoutBookAction(supabase: Db, userId: string, fd: FormD
 	if (!isLoanEmail(email)) {
 		return fail(400, { kind, message: 'Add an email address on the contact before checking a book out.' });
 	}
-	const openCount = countRes.count ?? 0;
-	if (
-		!canCheckOutCopy({
-			owned: bookRes.data.owned,
-			copyCount: bookRes.data.copy_count,
-			openLoanCount: openCount
-		})
-	) {
-		const why = bookRes.data.owned ? 'Every copy is already out.' : 'This book is not in the physical library.';
-		return fail(400, { kind, message: why });
+	const openByBook = new Map<string, number>();
+	for (const row of openRes.data ?? []) {
+		openByBook.set(row.book_id, (openByBook.get(row.book_id) ?? 0) + 1);
+	}
+	for (const book of booksRes.data) {
+		if (
+			!canCheckOutCopy({
+				owned: book.owned,
+				copyCount: book.copy_count,
+				openLoanCount: openByBook.get(book.id) ?? 0
+			})
+		) {
+			const why = book.owned
+				? `Every copy of ${book.title?.trim() || 'that book'} is already out.`
+				: 'One of these books is not in the physical library.';
+			return fail(400, { kind, message: why });
+		}
 	}
 	if (!checkoutTemplate || !reminderTemplate) {
 		return fail(400, { kind, message: 'The checkout or reminder template is missing. Edit it in Settings.' });
 	}
 
 	const today = ymdInChicago();
-	const interval = 30;
-	const reminderOn = reminderDateAfter(today, interval);
-	if (!reminderOn) return fail(400, { kind, message: 'Could not schedule the reminder.' });
+	const dueDays = profileRes.data?.loan_due_days ?? 30;
+	const requested = trim(fd, 'due_on');
+	const dueOn = isYmd(requested) ? requested : addDaysYmd(today, dueDays);
+	if (!dueOn) return fail(400, { kind, message: 'Choose a due date.' });
+	const span = daysBetweenYmd(today, dueOn);
+	const interval = span != null && span >= 1 && span <= 366 ? span : 1;
 
+	const books = booksRes.data;
 	const checkoutValues = buildLoanMergeValues({
 		firstName: contactRes.data.first_name,
 		lastName: contactRes.data.last_name,
-		bookTitle: bookRes.data.title,
-		bookAuthors: bookRes.data.author_display,
-		checkedOutOn: today,
-		intervalDays: interval,
+		books: books.map((book) => ({
+			title: titledBook(book),
+			authors: book.author_display,
+			checkedOutOn: today,
+			dueOn
+		})),
 		asOfYmd: today,
 		ownerFullName: profileRes.data?.full_name
 	});
-	const reminderValues = buildLoanMergeValues({
-		firstName: contactRes.data.first_name,
-		lastName: contactRes.data.last_name,
-		bookTitle: bookRes.data.title,
-		bookAuthors: bookRes.data.author_display,
-		checkedOutOn: today,
-		intervalDays: interval,
-		asOfYmd: reminderOn,
-		ownerFullName: profileRes.data?.full_name
-	});
 	const checkoutCopy = renderPair(checkoutTemplate.subject, checkoutTemplate.html_body, checkoutValues);
-	const reminderCopy = renderPair(reminderTemplate.subject, reminderTemplate.html_body, reminderValues);
 	if ('error' in checkoutCopy) return fail(400, { kind, message: checkoutCopy.error });
-	if ('error' in reminderCopy) return fail(400, { kind, message: reminderCopy.error });
 
 	const name = contactFullName(contactRes.data.first_name, contactRes.data.last_name) || email;
-	const { data: loan, error: loanError } = await supabase
-		.from('book_loans')
+	const inserted: string[] = [];
+	for (const bookId of bookIds) {
+		const { data: loan, error: loanError } = await supabase
+			.from('book_loans')
+			.insert({
+				book_id: bookId,
+				contact_id: contactId,
+				recipient_name: name,
+				recipient_email: email,
+				checked_out_on: today,
+				due_on: dueOn,
+				interval_days: interval,
+				created_by: userId
+			})
+			.select('id')
+			.single();
+		if (loanError || !loan) {
+			console.error('[loans] insert', loanError);
+			if (inserted.length > 0) {
+				await supabase
+					.from('book_loans')
+					.update({ deleted_at: new Date().toISOString() })
+					.in('id', inserted);
+			}
+			return fail(500, { kind, message: 'Could not check the books out.' });
+		}
+		inserted.push(loan.id);
+	}
+
+	const { data: message, error: messageError } = await supabase
+		.from('book_loan_messages')
 		.insert({
-			book_id: bookId,
+			loan_id: null,
 			contact_id: contactId,
-			recipient_name: name,
-			recipient_email: email,
-			checked_out_on: today,
-			interval_days: interval,
+			kind: 'checkout',
+			template_id: checkoutTemplate.id,
+			subject: checkoutCopy.subject,
+			html_body: checkoutCopy.html,
+			scheduled_for: today,
+			status: 'queued',
 			created_by: userId
 		})
 		.select('id')
 		.single();
-	if (loanError || !loan) {
-		console.error('[loans] insert', loanError);
-		return fail(500, { kind, message: 'Could not check the book out.' });
-	}
-
-	const { data: messages, error: messageError } = await supabase
-		.from('book_loan_messages')
-		.insert([
-			{
-				loan_id: loan.id,
-				kind: 'checkout',
-				template_id: checkoutTemplate.id,
-				subject: checkoutCopy.subject,
-				html_body: checkoutCopy.html,
-				scheduled_for: today,
-				status: 'queued',
-				created_by: userId
-			},
-			{
-				loan_id: loan.id,
-				kind: 'reminder',
-				template_id: reminderTemplate.id,
-				subject: reminderCopy.subject,
-				html_body: reminderCopy.html,
-				scheduled_for: reminderOn,
-				status: 'queued',
-				created_by: userId
-			}
-		])
-		.select('id, kind');
-	if (messageError || !messages) {
+	if (messageError || !message) {
 		console.error('[loans] messages', messageError);
-		await supabase.from('book_loans').update({ deleted_at: new Date().toISOString() }).eq('id', loan.id);
-		return fail(500, { kind, message: 'Could not queue the emails.' });
+		await supabase.from('book_loans').update({ deleted_at: new Date().toISOString() }).in('id', inserted);
+		return fail(500, { kind, message: 'Could not queue the email.' });
 	}
 
-	const checkoutMessage = messages.find((m) => m.kind === 'checkout');
-	const sendError = checkoutMessage ? await invokeSend(supabase, checkoutMessage.id) : 'Checkout email is missing.';
+	await refreshContactReminder(supabase, userId, contactId);
+	const sendError = await invokeSend(supabase, message.id);
 	return {
 		kind,
 		success: true as const,
-		loanId: loan.id,
+		loanId: inserted[0],
 		message: sendError ?? undefined
 	};
 }
@@ -297,7 +460,7 @@ export async function returnBookAction(supabase: Db, userId: string, fd: FormDat
 		.eq('id', loanId)
 		.is('deleted_at', null)
 		.is('returned_at', null)
-		.select('id')
+		.select('id, contact_id')
 		.maybeSingle();
 	if (error || !data) {
 		console.error('[loans] return', error);
@@ -307,9 +470,11 @@ export async function returnBookAction(supabase: Db, userId: string, fd: FormDat
 		.from('book_loan_messages')
 		.update({ status: 'cancelled' })
 		.eq('loan_id', loanId)
+		.eq('kind', 'checkout')
 		.is('deleted_at', null)
 		.in('status', ['queued', 'failed']);
 	if (cancelError) console.error('[loans] cancel', cancelError);
+	await refreshContactReminder(supabase, userId, data.contact_id);
 	return { kind, success: true as const, loanId };
 }
 
@@ -330,7 +495,7 @@ export async function updateLoanReminderAction(supabase: Db, userId: string, fd:
 
 	const { data: message, error } = await supabase
 		.from('book_loan_messages')
-		.select('id, loan_id, status, kind')
+		.select('id, contact_id, status, kind')
 		.eq('id', messageId)
 		.is('deleted_at', null)
 		.maybeSingle();
@@ -341,26 +506,18 @@ export async function updateLoanReminderAction(supabase: Db, userId: string, fd:
 		return fail(400, { kind, message: 'That reminder has already been sent.' });
 	}
 
-	const { data: loan } = await supabase
-		.from('book_loans')
-		.select('id, checked_out_on, interval_days, returned_at, contact_id, book_id')
-		.eq('id', message.loan_id)
-		.is('deleted_at', null)
-		.maybeSingle();
-	if (!loan || loan.returned_at) return fail(400, { kind, message: 'This book is already back.' });
+	const loans = await openLoansForContact(supabase, message.contact_id);
+	if (loans.length === 0) return fail(400, { kind, message: 'These books are already back.' });
 
-	const [contactRes, bookRes, profileRes] = await Promise.all([
-		supabase.from('contacts').select('first_name, last_name').eq('id', loan.contact_id).maybeSingle(),
-		supabase.from('books').select('title, author_display').eq('id', loan.book_id).maybeSingle(),
-		supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle()
+	const [contactRes, profileRes, lines] = await Promise.all([
+		supabase.from('contacts').select('first_name, last_name').eq('id', message.contact_id).maybeSingle(),
+		supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle(),
+		linesForLoans(supabase, loans)
 	]);
 	const values = buildLoanMergeValues({
 		firstName: contactRes.data?.first_name ?? '',
 		lastName: contactRes.data?.last_name ?? null,
-		bookTitle: bookRes.data?.title ?? '',
-		bookAuthors: bookRes.data?.author_display ?? null,
-		checkedOutOn: loan.checked_out_on,
-		intervalDays: loan.interval_days,
+		books: lines,
 		asOfYmd: scheduledFor,
 		ownerFullName: profileRes.data?.full_name
 	});
@@ -384,27 +541,62 @@ export async function updateLoanReminderAction(supabase: Db, userId: string, fd:
 	return { kind, success: true as const, messageId };
 }
 
-export async function updateLoanIntervalAction(supabase: Db, userId: string, fd: FormData) {
-	const kind = 'updateLoanInterval' as const;
+export async function updateLoanDueAction(supabase: Db, userId: string, fd: FormData) {
+	const kind = 'updateLoanDue' as const;
 	if (!(await requireOwner(supabase, userId))) {
-		return fail(403, { kind, message: 'Only the owner can change the interval.' });
+		return fail(403, { kind, message: 'Only the owner can change a due date.' });
 	}
 	const loanId = trim(fd, 'loan_id');
-	const interval = parseLoanInterval(trim(fd, 'interval_days'));
-	if (!UUID_RE.test(loanId) || interval == null) {
-		return fail(400, { kind, message: 'Interval must be between 1 and 366 days.' });
-	}
-	const { error } = await supabase
+	if (!UUID_RE.test(loanId)) return fail(400, { kind, message: 'Loan not found.' });
+	const { data: loan, error } = await supabase
 		.from('book_loans')
-		.update({ interval_days: interval })
+		.select('id, due_on, contact_id')
 		.eq('id', loanId)
 		.is('deleted_at', null)
-		.is('returned_at', null);
-	if (error) {
-		console.error('[loans] interval', error);
-		return fail(500, { kind, message: 'Could not save the interval.' });
+		.is('returned_at', null)
+		.maybeSingle();
+	if (error || !loan) return fail(404, { kind, message: 'Loan not found.' });
+
+	const requested = trim(fd, 'due_on');
+	const extend = trim(fd, 'extend_days');
+	const dueOn = isYmd(requested)
+		? requested
+		: extend === '14'
+			? addDaysYmd(loan.due_on, 14)
+			: null;
+	if (!dueOn) return fail(400, { kind, message: 'Choose a due date.' });
+
+	const { error: updateError } = await supabase
+		.from('book_loans')
+		.update({ due_on: dueOn })
+		.eq('id', loanId);
+	if (updateError) {
+		console.error('[loans] due', updateError);
+		return fail(500, { kind, message: 'Could not save the due date.' });
 	}
+	await refreshContactReminder(supabase, userId, loan.contact_id);
 	return { kind, success: true as const, loanId };
+}
+
+export async function updateLoanDefaultsAction(supabase: Db, userId: string, fd: FormData) {
+	const kind = 'updateLoanDefaults' as const;
+	if (!(await requireOwner(supabase, userId))) {
+		return fail(403, { kind, message: 'Only the owner can change loan defaults.' });
+	}
+	const dueDays = parseLoanInterval(trim(fd, 'loan_due_days'));
+	const leadDays = parseReminderLead(trim(fd, 'loan_reminder_lead_days'));
+	if (dueDays == null || leadDays == null) {
+		return fail(400, { kind, message: 'Due length is 1–366 days. The reminder lead is 0–60 days.' });
+	}
+	const { error } = await supabase
+		.from('profiles')
+		.update({ loan_due_days: dueDays, loan_reminder_lead_days: leadDays })
+		.eq('id', userId);
+	if (error) {
+		console.error('[loans] defaults', error);
+		return fail(500, { kind, message: 'Could not save the loan defaults.' });
+	}
+	return { kind, success: true as const };
 }
 
 export async function updateLoanEmailAction(supabase: Db, userId: string, fd: FormData) {

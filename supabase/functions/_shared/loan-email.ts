@@ -9,6 +9,7 @@ const TOKENS = new Set([
 	'loan.checked_out_on',
 	'loan.due_on',
 	'loan.days_out',
+	'loan.books',
 	'client.name',
 	'invoice.number',
 	'invoice.period',
@@ -29,6 +30,7 @@ export type LoanMergeValues = {
 	'loan.checked_out_on': string;
 	'loan.due_on': string;
 	'loan.days_out': string;
+	'loan.books': string;
 	'client.name': string;
 	'invoice.number': string;
 	'invoice.period': string;
@@ -105,6 +107,45 @@ export function formatLoanDate(ymd: string): string {
 	}).format(mid);
 }
 
+export function nextReminderYmd(
+	dueDates: readonly string[],
+	leadDays: number,
+	today: string
+): string | null {
+	const earliest = [...dueDates].filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort()[0];
+	if (!earliest) return null;
+	const lead = Number.isInteger(leadDays) && leadDays >= 0 && leadDays <= 60 ? leadDays : 0;
+	const scheduled = addDaysYmd(earliest, -lead);
+	if (!scheduled || scheduled < today) return today;
+	return scheduled;
+}
+
+export function bookTitleSummary(titles: readonly string[]): string {
+	const clean = titles.map((title) => title.trim()).filter((title) => title.length > 0);
+	if (clean.length === 0) return 'a book';
+	if (clean.length === 1) return clean[0] ?? 'a book';
+	const extra = clean.length - 1;
+	return `${clean[0]} and ${extra} ${extra === 1 ? 'other' : 'others'}`;
+}
+
+export function loanBooksHtml(
+	books: readonly { title: string; authors: string | null; dueOn: string }[]
+): string {
+	if (books.length === 0) return '';
+	const items = books.map((book) => {
+		const title = escapeHtml(book.title.trim() || 'Untitled');
+		const authors = book.authors?.trim() ? ` — ${escapeHtml(book.authors.trim())}` : '';
+		return `<li>${title}${authors} (due ${escapeHtml(formatLoanDate(book.dueOn))})</li>`;
+	});
+	return `<ul>${items.join('')}</ul>`;
+}
+
+export function withLoanBookList(template: string, renderedHtml: string, booksHtml: string): string {
+	if (/\{\{\s*loan\.books\s*\}\}/i.test(template)) return renderedHtml;
+	if (!booksHtml) return renderedHtml;
+	return `${renderedHtml}${booksHtml}`;
+}
+
 export function ownerFirstName(fullName: string | null | undefined): string {
 	const first = (fullName ?? '').trim().split(/\s+/)[0];
 	return first && first.length > 0 ? first : 'Parker';
@@ -118,6 +159,7 @@ export function renderEmailTemplate(
 	return template.replace(TOKEN_RE, (raw, token: string) => {
 		if (!TOKENS.has(token)) return raw;
 		const value = values[token as keyof LoanMergeValues] ?? '';
+		if (token === 'loan.books' && opts?.html) return value;
 		const escaped = escapeHtml(value);
 		return opts?.html ? escaped.replace(/\n/g, '<br>') : escaped.replace(/\n/g, ' ');
 	});

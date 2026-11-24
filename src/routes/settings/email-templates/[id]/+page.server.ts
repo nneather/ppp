@@ -34,23 +34,37 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	]);
 	if (!templateRes.data) error(404, 'Template not found.');
 	const today = ymdInChicago();
-	const previews = loans.slice(0, 12).map((loan) => {
-		const [first, ...rest] = loan.recipientName.split(' ');
+	const byContact = new Map<string, typeof loans>();
+	for (const loan of loans) {
+		const group = byContact.get(loan.contactId) ?? [];
+		group.push(loan);
+		byContact.set(loan.contactId, group);
+	}
+	const previews = [...byContact.values()].slice(0, 12).map((group) => {
+		const lead = group[0];
+		if (!lead) return null;
+		const [first, ...rest] = lead.recipientName.split(' ');
+		const label =
+			group.length === 1
+				? `${lead.bookTitle ?? 'Book'} · ${lead.recipientName}`
+				: `${lead.recipientName} · ${group.length} books`;
 		return {
-			id: loan.id,
-			label: `${loan.bookTitle ?? 'Book'} · ${loan.recipientName}`,
+			id: lead.contactId,
+			label,
 			values: buildLoanMergeValues({
 				firstName: first ?? '',
 				lastName: rest.join(' '),
-				bookTitle: loan.bookTitle ?? '',
-				bookAuthors: loan.bookAuthors,
-				checkedOutOn: loan.checkedOutOn,
-				intervalDays: loan.intervalDays,
-				asOfYmd: loan.reminder?.scheduledFor ?? today,
+				books: group.map((loan) => ({
+					title: loan.bookTitle ?? '',
+					authors: loan.bookAuthors,
+					checkedOutOn: loan.checkedOutOn,
+					dueOn: loan.dueOn
+				})),
+				asOfYmd: lead.reminder?.scheduledFor ?? today,
 				ownerFullName: profile.full_name
 			})
 		};
-	});
+	}).filter((row) => row != null);
 	const bound = new Set(
 		(bindingsRes.data ?? []).filter((b) => b.template_id === params.id).map((b) => b.binding_key)
 	);

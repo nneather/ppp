@@ -69,8 +69,8 @@ import {
 	checkoutBookAction,
 	retryLoanMessageAction,
 	returnBookAction,
+	updateLoanDueAction,
 	updateLoanEmailAction,
-	updateLoanIntervalAction,
 	updateLoanReminderAction
 } from '$lib/library/server/loan-actions';
 
@@ -445,10 +445,10 @@ export const actions: Actions = {
 		if (!user) return fail(401, { kind: 'updateLoanReminder' as const, message: 'Unauthorized' });
 		return updateLoanReminderAction(locals.supabase, user.id, await request.formData());
 	},
-	updateLoanInterval: async ({ request, locals }) => {
+	updateLoanDue: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user) return fail(401, { kind: 'updateLoanInterval' as const, message: 'Unauthorized' });
-		return updateLoanIntervalAction(locals.supabase, user.id, await request.formData());
+		if (!user) return fail(401, { kind: 'updateLoanDue' as const, message: 'Unauthorized' });
+		return updateLoanDueAction(locals.supabase, user.id, await request.formData());
 	},
 	updateLoanEmail: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

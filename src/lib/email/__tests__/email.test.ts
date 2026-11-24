@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { canCheckOutCopy, loanNeedsNextReminder, parseLoanInterval } from '$lib/email/loans';
-import { daysBetweenYmd, loanDueLabel, reminderDateAfter, renderEmailTemplate } from '$lib/email/render';
+import { bookTitleSummary, canCheckOutCopy, loanNeedsNextReminder, nextReminderYmd, parseLoanInterval } from '$lib/email/loans';
+import {
+	daysBetweenYmd,
+	loanBooksHtml,
+	loanDueLabel,
+	reminderDateAfter,
+	renderEmailTemplate,
+	withLoanBookList
+} from '$lib/email/render';
 import { inlineEmailButtonStyles, sanitizeEmailHtml } from '$lib/email/sanitize';
 import { unknownEmailTokens } from '$lib/email/variables';
 
@@ -48,6 +55,28 @@ describe('loan schedule', () => {
 		expect(canCheckOutCopy({ owned: true, copyCount: 2, openLoanCount: 1 })).toBe(true);
 		expect(canCheckOutCopy({ owned: true, copyCount: 2, openLoanCount: 2 })).toBe(false);
 		expect(canCheckOutCopy({ owned: false, copyCount: 1, openLoanCount: 0 })).toBe(false);
+	});
+
+	it('schedules one reminder from the earliest due date', () => {
+		expect(nextReminderYmd(['2026-12-24', '2026-12-31'], 7, '2026-12-01')).toBe('2026-12-17');
+		expect(nextReminderYmd(['2026-12-24'], 7, '2026-12-20')).toBe('2026-12-20');
+		expect(nextReminderYmd([], 7, '2026-12-01')).toBeNull();
+		expect(bookTitleSummary(['Institutes'])).toBe('Institutes');
+		expect(bookTitleSummary(['Institutes', 'Romans'])).toBe('Institutes and 1 other');
+		expect(bookTitleSummary(['Institutes', 'Romans', 'Galatians'])).toBe('Institutes and 2 others');
+	});
+
+	it('keeps the book list as html and appends it when the template omitted the token', () => {
+		const list = loanBooksHtml([
+			{ title: 'Institutes', authors: 'Calvin', dueOn: '2026-12-24' }
+		]);
+		expect(list).toContain('<ul>');
+		expect(list).toContain('Calvin');
+		expect(
+			renderEmailTemplate('{{loan.books}}', { 'loan.books': list }, { html: true })
+		).toBe(list);
+		expect(withLoanBookList('Hello', '<p>Hello</p>', list)).toBe(`<p>Hello</p>${list}`);
+		expect(withLoanBookList('{{loan.books}}', list, list)).toBe(list);
 	});
 
 	it('parses the standing interval and queues the next reminder only when none is open', () => {

@@ -16,6 +16,7 @@ export type LoanCardModel = {
 	recipientName: string;
 	recipientEmail: string;
 	checkedOutOn: string;
+	dueOn: string;
 	intervalDays: number;
 	checkoutMessageId: string | null;
 	checkoutStatus: string | null;
@@ -27,4 +28,9 @@ export type LoanContactHit = {
 	id: string;
 	name: string;
 	email: string | null;
+};
+
+export type LoanBookHit = {
+	id: string;
+	title: string;
 };
