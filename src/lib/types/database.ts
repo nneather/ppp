@@ -2299,6 +2299,166 @@ export type Database = {
           },
         ]
       }
+      postcard_designs: {
+        Row: {
+          back_message: string
+          back_mode: string
+          back_path: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          front_path: string | null
+          id: string
+          list_id: string
+          price_cents: number | null
+          return_city: string | null
+          return_line_1: string | null
+          return_line_2: string | null
+          return_name: string | null
+          return_state: string | null
+          return_zip: string | null
+          size: string
+          updated_at: string
+        }
+        Insert: {
+          back_message?: string
+          back_mode?: string
+          back_path?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          front_path?: string | null
+          id?: string
+          list_id: string
+          price_cents?: number | null
+          return_city?: string | null
+          return_line_1?: string | null
+          return_line_2?: string | null
+          return_name?: string | null
+          return_state?: string | null
+          return_zip?: string | null
+          size?: string
+          updated_at?: string
+        }
+        Update: {
+          back_message?: string
+          back_mode?: string
+          back_path?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          front_path?: string | null
+          id?: string
+          list_id?: string
+          price_cents?: number | null
+          return_city?: string | null
+          return_line_1?: string | null
+          return_line_2?: string | null
+          return_name?: string | null
+          return_state?: string | null
+          return_zip?: string | null
+          size?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "postcard_designs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "postcard_designs_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "contact_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      postcard_sends: {
+        Row: {
+          address_snapshot: Json
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          error: string | null
+          household_id: string | null
+          id: string
+          kind: string
+          list_id: string
+          lob_id: string | null
+          lob_url: string | null
+          mode: string
+          recipient_name: string
+          sent_on: string
+          size: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address_snapshot: Json
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          error?: string | null
+          household_id?: string | null
+          id?: string
+          kind: string
+          list_id: string
+          lob_id?: string | null
+          lob_url?: string | null
+          mode: string
+          recipient_name: string
+          sent_on: string
+          size: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          address_snapshot?: Json
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          error?: string | null
+          household_id?: string | null
+          id?: string
+          kind?: string
+          list_id?: string
+          lob_id?: string | null
+          lob_url?: string | null
+          mode?: string
+          recipient_name?: string
+          sent_on?: string
+          size?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "postcard_sends_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "postcard_sends_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "postcard_sends_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "contact_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           contact_cadence_days_default: number | null

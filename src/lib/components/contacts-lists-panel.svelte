@@ -378,6 +378,7 @@
 				</div>
 				<div class="flex shrink-0 flex-wrap gap-2">
 					{#if selectedList.kind === 'ad_hoc'}
+						<Button href="/contacts/postcards/{selectedList.id}" size="sm">Send postcards</Button>
 						<Button
 							type="button"
 							size="sm"

@@ -37,7 +37,7 @@
 
 ## Surprises (read these before the next session)
 
-- The system Chrome on Parker's Mac is **v90** (2021). It can't render Tailwind v4 and has no
+- `/Applications/Google Chrome.app` on this Mac is a stale **v90** (2021) leftover (Parker's real Chrome is current). It can't render Tailwind v4 and has no
   `Array.prototype.toSorted`. Use Playwright's cached Chromium
   (`~/Library/Caches/ms-playwright/chromium-*`) for headless screenshots.
 - The app shell scrolls inside an inner container, so full-page screenshots come back blank. Scroll
