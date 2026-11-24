@@ -106,7 +106,7 @@
 			selectedListIds = [];
 		}
 		childFirst = '';
-		childLast = '';
+		childLast = householdLastName();
 		childBirthday = '';
 		addMode = 'new';
 		peopleMsg = null;
@@ -144,6 +144,11 @@
 
 	/* ── People (adults) ───────────────────────────────────────────────── */
 	const members = $derived(household ? people.filter((p) => p.household_id === household.id) : []);
+
+	/** Same default the "Someone new" last name uses: the first person already in the household. */
+	function householdLastName(): string {
+		return members[0]?.last_name ?? '';
+	}
 	let addMode = $state<'new' | 'existing'>('new');
 	let newFirst = $state('');
 	let newLast = $state('');
@@ -179,7 +184,7 @@
 
 	function resetPeopleInputs() {
 		newFirst = '';
-		newLast = members[0]?.last_name ?? '';
+		newLast = householdLastName();
 		pickQuery = '';
 		pickId = '';
 		renameOn = true;
@@ -229,7 +234,7 @@
 			await update({ reset: false });
 			if (result.type === 'success') {
 				childFirst = '';
-				childLast = '';
+				childLast = householdLastName();
 				childBirthday = '';
 				await onSaved?.();
 			}

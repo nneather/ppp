@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-11-24 — Email templates space each paragraph once, the way a document does ([334](docs/decisions/334-email-paragraph-spacing.md)).
+**Last updated:** 2026-11-24 — A new child on a household starts with that household's last name ([335](docs/decisions/335-child-last-name-default.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [335 — Child last name defaults in](docs/decisions/335-child-last-name-default.md) (2026-11-24) — Adding a child starts with the same last name as adding a person.
 - [334 — Email paragraph spacing](docs/decisions/334-email-paragraph-spacing.md) (2026-11-24) — Each paragraph and list gets one space after it, in the editor and in the sent mail.
 - [333 — Checkout without an email](docs/decisions/333-checkout-without-email.md) (2026-11-24) — The checkout sheet can save an email on the contact, or check the books out with no mail. A full name selects that contact.
 - [332 — Add people to a household](docs/decisions/332-household-people.md) (2026-11-24) — Add or move a person on the household sheet, and rename the household to match.
 - [331 — Split comma contact lists](docs/decisions/331-split-comma-contact-lists.md) (2026-11-24) — `STL, Timothy` and the other combined import names are gone. Those households are on each named list.
-- [330 — Loan emails copy the invoice CC](docs/decisions/330-loan-email-cc.md) (2026-11-24) — Checkout and reminder mail CC the profile default CC list. The recipient is not copied again.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Email paragraph spacing [334](docs/decisions/334-email-paragraph-spacing.md) — `npm run check` and `npm run test` clean (2026-11-24, 926 tests). `send-loan-message` and `send-invoice` redeployed so the next send uses the document spacing.
+**Repo gate:** Child last name default [335](docs/decisions/335-child-last-name-default.md) — `npm run check` clean (2026-11-24). Verified on the Cravens household: the child Last field opens as Cravens.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
