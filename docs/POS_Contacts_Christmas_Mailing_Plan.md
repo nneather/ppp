@@ -179,9 +179,11 @@ by cloning the list.
 | Log outreach texts as touches | no | **no (2026-11-04)** |
 | Log mailed postcards as touches | `card` kind (no due-date effect) | |
 | Postcards: script or screen | script | **screen (2026-11-04)** |
-| Postcard size | 6x9 | |
-| Back of card | ppp-rendered message (A) | |
-| Send only addresses confirmed this year | yes | |
+| Return address | — | **Parker's home address (2026-11-24)** |
+| Lob price | ~$0.905 | **from $0.905/piece, Developer plan (confirmed 2026-11-24)** |
+| Postcard size | 6x9 | **5x7 (2026-11-24)** — Lob accepts it (HeLOS-proven); confirm on the test proof |
+| Back of card | ppp-rendered message (A) | **A, short message (2026-11-24)** |
+| Send only addresses confirmed this year | yes | **yes (2026-11-24)** |
 
 ## Year 2 (not now)
 
