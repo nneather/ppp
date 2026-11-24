@@ -108,3 +108,22 @@ export function isLoanEmail(value: string): boolean {
 	const email = value.trim();
 	return email.length >= 5 && email.length <= 320 && EMAIL_RE.test(email);
 }
+
+export type CheckoutEmailChoice =
+	| { kind: 'send'; email: string; saveOnContact: boolean }
+	| { kind: 'skip' }
+	| { kind: 'need' };
+
+/** Use the contact's email, a new one typed at checkout, or skip mail entirely. */
+export function resolveCheckoutEmail(opts: {
+	stored: string | null;
+	posted: string;
+	skip: boolean;
+}): CheckoutEmailChoice {
+	const stored = (opts.stored ?? '').trim();
+	if (isLoanEmail(stored)) return { kind: 'send', email: stored, saveOnContact: false };
+	if (opts.skip) return { kind: 'skip' };
+	const posted = opts.posted.trim();
+	if (isLoanEmail(posted)) return { kind: 'send', email: posted, saveOnContact: true };
+	return { kind: 'need' };
+}

@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
+	import { isLoanEmail } from '$lib/email/loans';
 	import type { LoanBookHit, LoanContactHit } from '$lib/types/loans';
 
 	let {
@@ -25,6 +26,8 @@
 	let bookQuery = $state('');
 	let bookHits = $state<LoanBookHit[]>([]);
 	let dueOn = $state('');
+	let contactEmail = $state('');
+	let skipEmail = $state(false);
 	let pending = $state(false);
 	let wasOpen = false;
 	let contactTimer: ReturnType<typeof setTimeout> | undefined;
@@ -36,6 +39,8 @@
 			query = '';
 			hits = [];
 			selected = null;
+			contactEmail = '';
+			skipEmail = false;
 			bookQuery = '';
 			bookHits = [];
 			void loadDefaultDue();
@@ -50,9 +55,24 @@
 		if (body.dueOn) dueOn = body.dueOn;
 	}
 
+	function sameContactName(a: string, b: string): boolean {
+		return a.trim().toLowerCase() === b.trim().toLowerCase();
+	}
+
+	function chooseContact(hit: LoanContactHit) {
+		selected = hit;
+		query = hit.name;
+		hits = [];
+		contactEmail = '';
+		skipEmail = false;
+	}
+
 	function search(value: string) {
 		query = value;
+		if (selected && sameContactName(value, selected.name)) return;
 		selected = null;
+		contactEmail = '';
+		skipEmail = false;
 		clearTimeout(contactTimer);
 		contactTimer = setTimeout(async () => {
 			const q = value.trim();
@@ -62,7 +82,14 @@
 			}
 			const res = await fetch(`/library/loan-contacts.json?q=${encodeURIComponent(q)}`);
 			if (!res.ok) return;
-			hits = (await res.json()) as LoanContactHit[];
+			if (!sameContactName(query, q)) return;
+			const found = (await res.json()) as LoanContactHit[];
+			const exact = found.filter((hit) => sameContactName(hit.name, q));
+			if (exact.length === 1 && exact[0]) {
+				chooseContact(exact[0]);
+				return;
+			}
+			hits = found;
 		}, 200);
 	}
 
@@ -83,6 +110,11 @@
 			bookHits = (await res.json()) as LoanBookHit[];
 		}, 200);
 	}
+
+	const needsEmail = $derived(Boolean(selected) && !isLoanEmail(selected?.email ?? ''));
+	const canSend = $derived(
+		Boolean(selected) && (!needsEmail || skipEmail || isLoanEmail(contactEmail))
+	);
 
 	function addBook(hit: LoanBookHit) {
 		if (books.some((book) => book.id === hit.id)) return;
@@ -176,11 +208,7 @@
 							<button
 								type="button"
 								class="flex w-full flex-col px-3 py-2 text-left text-sm hover:bg-muted"
-								onclick={() => {
-									selected = hit;
-									query = hit.name;
-									hits = [];
-								}}
+								onclick={() => chooseContact(hit)}
 							>
 								<span>{hit.name}</span>
 								<span class="text-xs text-muted-foreground">{hit.email ?? 'No email'}</span>
@@ -189,10 +217,31 @@
 					{/each}
 				</ul>
 			{/if}
-			{#if selected && !selected.email}
-				<p class="text-sm text-destructive" role="alert">
-					Add an email on this contact before checking a book out.
-				</p>
+			{#if needsEmail}
+				<div class="flex flex-col gap-1.5">
+					<Label for="loan-contact-email">Email</Label>
+					<Input
+						id="loan-contact-email"
+						name="contact_email"
+						type="email"
+						bind:value={contactEmail}
+						disabled={skipEmail}
+						placeholder="name@example.com"
+					/>
+					<p class="text-sm text-muted-foreground">
+						Saving this adds it to the contact and sends the checkout email.
+					</p>
+				</div>
+				<label class="flex items-center gap-2 text-sm">
+					<input
+						type="checkbox"
+						name="skip_email"
+						value="1"
+						bind:checked={skipEmail}
+						class="size-4 shrink-0 rounded border-border accent-foreground"
+					/>
+					Check out without an email
+				</label>
 			{/if}
 			{#if errorMessage}
 				<p class="text-sm text-destructive" role="alert">{errorMessage}</p>
@@ -202,7 +251,7 @@
 					type="submit"
 					hotkey={useHotkey && open ? 's' : undefined}
 					label={pending ? 'Checking out…' : 'Check out'}
-					disabled={pending || books.length === 0 || !selected?.email || !dueOn}
+					disabled={pending || books.length === 0 || !canSend || !dueOn}
 				/>
 				<Button
 					type="button"

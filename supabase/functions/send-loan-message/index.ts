@@ -29,7 +29,7 @@ type LoanRow = {
 	book_id: string;
 	contact_id: string;
 	recipient_name: string;
-	recipient_email: string;
+	recipient_email: string | null;
 	checked_out_on: string;
 	due_on: string;
 	returned_at: string | null;
@@ -231,9 +231,25 @@ async function reminderTemplate(
 	return row;
 }
 
+function addressOn(loan: LoanRow): string | null {
+	const email = (loan.recipient_email ?? '').trim();
+	if (email.length < 5 || email.length > 320) return null;
+	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+	return email;
+}
+
+function loanRecipient(loans: readonly LoanRow[]): { loan: LoanRow; email: string } | null {
+	const ranked = [...loans]
+		.map((loan) => ({ loan, email: addressOn(loan) }))
+		.filter((row): row is { loan: LoanRow; email: string } => row.email != null)
+		.sort((a, b) => a.loan.due_on.localeCompare(b.loan.due_on));
+	return ranked[0] ?? null;
+}
+
 async function queueNextReminder(admin: Admin, loans: readonly LoanRow[]): Promise<void> {
-	const lead = loans[0];
-	if (!lead) return;
+	const recipient = loanRecipient(loans);
+	if (!recipient) return;
+	const lead = recipient.loan;
 	const owner = await ownerProfile(admin);
 	const today = ymdInChicago();
 	const lines = await linesFor(admin, loans);
@@ -277,7 +293,7 @@ async function sendClaimed(
 	loans: readonly LoanRow[]
 ): Promise<{ ok: true } | { ok: false; error: string }> {
 	const open = loans.filter((loan) => !loan.returned_at && !loan.deleted_at);
-	const recipient = [...open].sort((a, b) => a.due_on.localeCompare(b.due_on))[0];
+	const recipient = loanRecipient(open);
 	if (!recipient) {
 		await admin
 			.from('book_loan_messages')
@@ -287,10 +303,10 @@ async function sendClaimed(
 	}
 
 	const html = wrapLoanEmail(message.html_body);
-	const cc = ccBesidesRecipient(await ownerDefaultCc(admin), recipient.recipient_email);
+	const cc = ccBesidesRecipient(await ownerDefaultCc(admin), recipient.email);
 	const payload: Record<string, unknown> = {
 		from: fromAddress(),
-		to: [recipient.recipient_email],
+		to: [recipient.email],
 		reply_to: REPLY_TO,
 		subject: message.subject,
 		html,

@@ -109,7 +109,7 @@ export async function loadOpenLoans(
 			bookAuthors: authors.get(loan.book_id) ?? null,
 			contactId: loan.contact_id,
 			recipientName: loan.recipient_name,
-			recipientEmail: opts.includePrivate ? loan.recipient_email : '',
+			recipientEmail: opts.includePrivate ? (loan.recipient_email ?? '') : '',
 			checkedOutOn: loan.checked_out_on,
 			dueOn: loan.due_on,
 			intervalDays: loan.interval_days,
@@ -137,16 +137,24 @@ export async function countOpenLoansByContact(supabase: Db): Promise<Record<stri
 }
 
 export async function searchLoanContacts(supabase: Db, q: string): Promise<LoanContactHit[]> {
-	const safe = q.trim().replace(/[%_,.()]/g, '');
-	if (safe.length < 1) return [];
-	const pattern = `%${safe}%`;
-	const { data, error } = await supabase
+	const tokens = q
+		.trim()
+		.replace(/[%_,.()]/g, '')
+		.split(/\s+/)
+		.filter((token) => token.length > 0)
+		.slice(0, 4);
+	if (tokens.length === 0) return [];
+	let query = supabase
 		.from('contacts')
 		.select('id, first_name, last_name, email')
-		.is('deleted_at', null)
-		.or(`first_name.ilike.${pattern},last_name.ilike.${pattern},email.ilike.${pattern}`)
-		.order('last_name', { ascending: true })
-		.limit(12);
+		.is('deleted_at', null);
+	for (const token of tokens) {
+		const pattern = `%${token}%`;
+		query = query.or(
+			`first_name.ilike.${pattern},last_name.ilike.${pattern},email.ilike.${pattern}`
+		);
+	}
+	const { data, error } = await query.order('last_name', { ascending: true }).limit(12);
 	if (error) {
 		console.error('[loans] contact search', error);
 		return [];

@@ -451,7 +451,7 @@ export type Database = {
           due_on: string
           id: string
           interval_days: number
-          recipient_email: string
+          recipient_email: string | null
           recipient_name: string
           returned_at: string | null
           updated_at: string
@@ -466,7 +466,7 @@ export type Database = {
           due_on: string
           id?: string
           interval_days?: number
-          recipient_email: string
+          recipient_email?: string | null
           recipient_name: string
           returned_at?: string | null
           updated_at?: string
@@ -481,7 +481,7 @@ export type Database = {
           due_on?: string
           id?: string
           interval_days?: number
-          recipient_email?: string
+          recipient_email?: string | null
           recipient_name?: string
           returned_at?: string | null
           updated_at?: string

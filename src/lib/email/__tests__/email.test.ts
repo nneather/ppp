@@ -4,6 +4,7 @@ import {
 	canCheckOutCopy,
 	ccBesidesRecipient,
 	loanNeedsNextReminder,
+	resolveCheckoutEmail,
 	nextReminderYmd,
 	parseLoanInterval
 } from '$lib/email/loans';
@@ -86,6 +87,19 @@ describe('loan schedule', () => {
 		).toBe(list);
 		expect(withLoanBookList('Hello', '<p>Hello</p>', list)).toBe(`<p>Hello</p>${list}`);
 		expect(withLoanBookList('{{loan.books}}', list, list)).toBe(list);
+	});
+
+	it('saves a new checkout email, or skips mail when asked', () => {
+		expect(
+			resolveCheckoutEmail({ stored: 'ada@example.com', posted: '', skip: true })
+		).toEqual({ kind: 'send', email: 'ada@example.com', saveOnContact: false });
+		expect(
+			resolveCheckoutEmail({ stored: null, posted: 'ada@example.com', skip: false })
+		).toEqual({ kind: 'send', email: 'ada@example.com', saveOnContact: true });
+		expect(resolveCheckoutEmail({ stored: '', posted: '', skip: true })).toEqual({ kind: 'skip' });
+		expect(resolveCheckoutEmail({ stored: null, posted: 'nope', skip: false })).toEqual({
+			kind: 'need'
+		});
 	});
 
 	it('copies the profile CC and skips the person the message is already to', () => {

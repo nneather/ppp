@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-11-24 — Combined import lists (`STL, Timothy` and the rest) are split onto 229, STL, and Timothy ([331](docs/decisions/331-split-comma-contact-lists.md)).
+**Last updated:** 2026-11-24 — A checkout can save an email on the contact, or go out with no email and no reminder ([333](docs/decisions/333-checkout-without-email.md)). Typing a full name selects that contact.
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [333 — Checkout without an email](docs/decisions/333-checkout-without-email.md) (2026-11-24) — The checkout sheet can save an email on the contact, or check the books out with no mail. A full name selects that contact.
+- [332 — Add people to a household](docs/decisions/332-household-people.md) (2026-11-24) — Add or move a person on the household sheet, and rename the household to match.
 - [331 — Split comma contact lists](docs/decisions/331-split-comma-contact-lists.md) (2026-11-24) — `STL, Timothy` and the other combined import names are gone. Those households are on each named list.
 - [330 — Loan emails copy the invoice CC](docs/decisions/330-loan-email-cc.md) (2026-11-24) — Checkout and reminder mail CC the profile default CC list. The recipient is not copied again.
 - [329 — Loan book list byline](docs/decisions/329-loan-book-list-byline.md) (2026-11-24) — Each book in the email is an italic title, "by" the author, and its due date.
-- [328 — Reminder lead in the email](docs/decisions/328-loan-reminder-lead-token.md) (2026-11-24) — `{{loan.reminder_lead}}` is how many days before the due date the reminder goes out. Checkout and reminder emails list every book.
-- [327 — Batch checkout and due dates](docs/decisions/327-batch-checkout-due-dates.md) (2026-11-24) — Several books, one person, one email. Each copy has a due date you can move. One reminder per person goes out before the soonest due date.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Loan email CC [330](docs/decisions/330-loan-email-cc.md) — `npm run test` clean (2026-11-24). `send-loan-message` redeployed so checkout and reminder mail CC the invoice default list.
+**Repo gate:** Checkout without an email [333](docs/decisions/333-checkout-without-email.md) — `npm run check` and `npm run test` clean (2026-11-24). Migration `20261124230000` applied. `send-loan-message` redeployed so a loan with no address is not mailed.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 
