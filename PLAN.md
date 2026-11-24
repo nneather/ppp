@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-11-24 — Checkout and reminder emails CC the same addresses invoices do ([330](docs/decisions/330-loan-email-cc.md)).
+**Last updated:** 2026-11-24 — Combined import lists (`STL, Timothy` and the rest) are split onto 229, STL, and Timothy ([331](docs/decisions/331-split-comma-contact-lists.md)).
 
 **How to use this file — read this first:**
 
@@ -40,7 +40,7 @@ Nearest hard dates:
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. Dashboard panel is the next three; header → list, row → sermon ([293](docs/decisions/293-dashboard-upcoming-sermons.md)). |
 | Studies | [docs/POS_Studies_Build_Tracker.md](docs/POS_Studies_Build_Tracker.md) | Sessions 0–4 shipped. Notes lead the page. Add source takes a DOI, ISBN, or title. Record fills the capture line for review. Copy notes is plain text. Footnote and Short mark cited. Copy bibliography and .docx include candidates while every source is still a candidate ([320](docs/decisions/320-psalm-23-bibliography-export.md)). |
 | Classwork | [docs/POS_Classwork_Build_Tracker.md](docs/POS_Classwork_Build_Tracker.md) | ✅ Sessions 0–2 + papers history + Canvas import + quick complete ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Papers UI is `/studies/papers`; classwork keeps a Papers link. Phone: desktop sidebar + dashboard glance ([292](docs/decisions/292-mobile-tab-studies.md)). |
-| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Due lists group Quarterly → Semester → Annual, with up/down to step one frequency ([296](docs/decisions/296-due-frequency-nudge.md)). Each list is its own page, with quick links from Contacts ([326](docs/decisions/326-contact-list-pages.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
+| Contacts / CRM | [docs/POS_Contacts_Build_Tracker.md](docs/POS_Contacts_Build_Tracker.md) | ✅ Sessions 1–3 + period cadence + roster sort / search / current check + **saved default grouping** ([231](docs/decisions/231-contacts-default-grouping.md)). Due lists group Quarterly → Semester → Annual, with up/down to step one frequency ([296](docs/decisions/296-due-frequency-nudge.md)). Each list is its own page, with quick links from Contacts ([326](docs/decisions/326-contact-list-pages.md)). Combined import lists are split onto 229, STL, and Timothy ([331](docs/decisions/331-split-comma-contact-lists.md)). Open: Christmas Has-address seed (Nov); mailing send later; **≠ library `people`.** |
 | MCP | [scripts/ppp-mcp/README.md](scripts/ppp-mcp/README.md) | ✅ Read-only v1 + Monday-protocol finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)) + study tools ([248](docs/decisions/248-studies-session-4.md)). `suggest_sources` includes `passage_sections` ([251](docs/decisions/251-studies-passage-section-import.md)). `list_systematics_for_passage` ([253](docs/decisions/253-systematics-by-passage-s1-s5.md)). Reload the MCP client to pick that up. |
 
 Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/rules/). Full decision archive: [docs/decisions/](docs/decisions/).
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [331 — Split comma contact lists](docs/decisions/331-split-comma-contact-lists.md) (2026-11-24) — `STL, Timothy` and the other combined import names are gone. Those households are on each named list.
 - [330 — Loan emails copy the invoice CC](docs/decisions/330-loan-email-cc.md) (2026-11-24) — Checkout and reminder mail CC the profile default CC list. The recipient is not copied again.
 - [329 — Loan book list byline](docs/decisions/329-loan-book-list-byline.md) (2026-11-24) — Each book in the email is an italic title, "by" the author, and its due date.
 - [328 — Reminder lead in the email](docs/decisions/328-loan-reminder-lead-token.md) (2026-11-24) — `{{loan.reminder_lead}}` is how many days before the due date the reminder goes out. Checkout and reminder emails list every book.
 - [327 — Batch checkout and due dates](docs/decisions/327-batch-checkout-due-dates.md) (2026-11-24) — Several books, one person, one email. Each copy has a due date you can move. One reminder per person goes out before the soonest due date.
-- [326 — Contact lists get their own page](docs/decisions/326-contact-list-pages.md) (2026-11-24) — One list per page, with quick links from Contacts. Old list links still land there.
 
 ---
 
