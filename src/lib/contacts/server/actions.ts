@@ -444,10 +444,11 @@ async function maybeCreateHouseholdOfOne(
 	if (opts.existingHouseholdId) {
 		return { householdId: opts.existingHouseholdId, error: null };
 	}
-	if (!addressHasAny(opts.address)) {
-		return { householdId: null, error: null };
-	}
 
+	// Every new contact gets a household (decided 2026-11-24): card lists are
+	// household rosters, so a contact without one can't be put on them.
+	// The address date is stamped only when an address was actually entered.
+	const hasAddress = addressHasAny(opts.address);
 	const name = householdNameFromContact({
 		first_name: opts.first_name,
 		last_name: opts.last_name
@@ -457,7 +458,7 @@ async function maybeCreateHouseholdOfOne(
 		.insert({
 			name,
 			...opts.address,
-			address_updated_on: ymdInChicago(),
+			address_updated_on: hasAddress ? ymdInChicago() : null,
 			created_by: userId
 		} as never)
 		.select('id')

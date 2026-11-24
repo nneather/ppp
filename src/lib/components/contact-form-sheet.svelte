@@ -70,8 +70,10 @@
 	const sheetTitle = $derived(mode === 'create' ? 'New contact' : 'Edit contact');
 
 	const householdSelectValue = $derived(householdId || NONE);
+	/** Creating with no household picked makes a household-of-one for this person. */
+	const noneLabel = $derived(mode === 'create' ? 'New household (just them)' : 'No household');
 	const householdLabel = $derived.by(() => {
-		if (!householdId) return 'No household';
+		if (!householdId) return noneLabel;
 		return households.find((h) => h.id === householdId)?.name ?? 'Select household';
 	});
 
@@ -177,7 +179,8 @@
 						href="/library/loans?contact={contact.id}"
 						class="text-muted-foreground underline underline-offset-2"
 					>
-						Has {booksOut} {booksOut === 1 ? 'book' : 'books'} out
+						Has {booksOut}
+						{booksOut === 1 ? 'book' : 'books'} out
 					</a>
 				</p>
 			{/if}
@@ -221,7 +224,7 @@
 				>
 					<Select.Trigger class="w-full" size="lg">{householdLabel}</Select.Trigger>
 					<Select.Content class="max-h-72">
-						<Select.Item value={NONE}>No household</Select.Item>
+						<Select.Item value={NONE}>{noneLabel}</Select.Item>
 						{#each households as h (h.id)}
 							<Select.Item value={h.id}>{h.name}</Select.Item>
 						{/each}
@@ -308,7 +311,8 @@
 							}
 						}}
 					>
-						<Select.Trigger class="w-full" size="lg">{CONTACT_STATUS_LABELS[status]}</Select.Trigger>
+						<Select.Trigger class="w-full" size="lg">{CONTACT_STATUS_LABELS[status]}</Select.Trigger
+						>
 						<Select.Content>
 							{#each CONTACT_STATUSES as s (s)}
 								<Select.Item value={s}>{CONTACT_STATUS_LABELS[s]}</Select.Item>
@@ -325,13 +329,15 @@
 					name="notes"
 					bind:value={notes}
 					rows={3}
-					class="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					class="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 				></textarea>
 			</div>
 
-			<ContactListToggles lists={lists} bind:selectedIds={selectedListIds} />
+			<ContactListToggles {lists} bind:selectedIds={selectedListIds} />
 
-			<div class="sticky bottom-0 mt-auto flex gap-2 border-t border-border bg-background pt-4 pb-1">
+			<div
+				class="sticky bottom-0 mt-auto flex gap-2 border-t border-border bg-background pt-4 pb-1"
+			>
 				<Button
 					type="button"
 					variant="outline"
