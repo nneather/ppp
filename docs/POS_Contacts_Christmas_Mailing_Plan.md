@@ -87,8 +87,8 @@ from an unfamiliar number.
 
 ### Parker's steps (do early; nothing here blocks Phases 0–2)
 
-1. **Create a personal Lob account** at lob.com (Developer plan, free; pay per piece). Use a personal email, **not
-   the 229 account**.
+1. ~~**Create a Lob account**~~ — done 2026-11-24. **Signed up with Parker's company email** because Lob rejects
+   personal email domains; **billing is Parker's own card**, so it stays a personal account in practice.
 2. Add a **payment method** in the Lob dashboard.
 3. Copy the **test** and **live API keys** (Dashboard → Settings → API Keys) into `ppp/.env.local`:
    ```
