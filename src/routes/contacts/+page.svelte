@@ -384,9 +384,7 @@
 		);
 	});
 
-	const contactPrimary = $derived(
-		applicableSortKeys(data.filters.sort, 'contact')[0] ?? 'name'
-	);
+	const contactPrimary = $derived(applicableSortKeys(data.filters.sort, 'contact')[0] ?? 'name');
 	const householdPrimary = $derived(
 		applicableSortKeys(data.filters.sort, 'household')[0] ?? 'name'
 	);
@@ -417,7 +415,11 @@
 		if (spec.includes('giving') && contactPrimary !== 'giving' && c.giving_grade) {
 			parts.push(`Giving ${c.giving_grade}`);
 		}
-		if (spec.includes('relationship') && contactPrimary !== 'relationship' && c.relationship_grade) {
+		if (
+			spec.includes('relationship') &&
+			contactPrimary !== 'relationship' &&
+			c.relationship_grade
+		) {
 			parts.push(`Rel ${c.relationship_grade}`);
 		}
 		return parts.join(' · ');
@@ -432,7 +434,11 @@
 		if (spec.includes('giving') && householdPrimary !== 'giving' && h.giving_grade) {
 			parts.push(`Giving ${h.giving_grade}`);
 		}
-		if (spec.includes('relationship') && householdPrimary !== 'relationship' && h.relationship_grade) {
+		if (
+			spec.includes('relationship') &&
+			householdPrimary !== 'relationship' &&
+			h.relationship_grade
+		) {
 			parts.push(`Rel ${h.relationship_grade}`);
 		}
 		const addr = formatHouseholdAddress(h);
@@ -548,9 +554,9 @@
 	<li class="list-none bg-muted/50 px-3 py-1">
 		<p
 			id={letterAnchorId(entity, header)}
-			class="scroll-mt-40 flex items-baseline justify-between gap-3 text-xs font-semibold text-muted-foreground"
+			class="flex scroll-mt-40 items-baseline justify-between gap-3 text-xs font-semibold text-muted-foreground"
 		>
-			<span class={header.length <= 2 ? 'uppercase tracking-wide' : ''}>{header}</span>
+			<span class={header.length <= 2 ? 'tracking-wide uppercase' : ''}>{header}</span>
 			<span class="font-normal tabular-nums">{count}</span>
 		</p>
 	</li>
@@ -559,20 +565,20 @@
 {#snippet rosterSearch(placeholder: string, resultLabel: string, shown: number, total: number)}
 	<div class="relative min-w-0 flex-1">
 		<Search
-			class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+			class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
 		/>
 		<Input
 			type="search"
-			placeholder={placeholder}
+			{placeholder}
 			value={searchQ}
 			oninput={onSearchInput}
-			class="h-9 pl-9 pr-9"
+			class="h-9 pr-9 pl-9"
 			aria-label={placeholder}
 		/>
 		{#if searchActive}
 			<button
 				type="button"
-				class="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+				class="absolute top-1/2 right-1.5 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
 				aria-label="Clear search"
 				onclick={clearSearch}
 			>
@@ -589,7 +595,7 @@
 	</p>
 {/snippet}
 
-<div class="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 pb-tabbar">
+<div class="mx-auto max-w-3xl px-4 py-6 pb-tabbar md:px-6 md:py-8">
 	<PageHeader title="Contacts">
 		{#snippet actions()}
 			{#if data.isOwner}
@@ -676,11 +682,7 @@
 			</div>
 			<div class="flex flex-wrap items-center gap-2">
 				<div class="flex gap-1 rounded-lg border border-border p-0.5">
-					{#each [
-						{ value: 'active' as const, label: 'Active' },
-						{ value: 'retired' as const, label: 'Retired' },
-						{ value: 'all' as const, label: 'All' }
-					] as opt (opt.value)}
+					{#each [{ value: 'active' as const, label: 'Active' }, { value: 'retired' as const, label: 'Retired' }, { value: 'all' as const, label: 'All' }] as opt (opt.value)}
 						<button
 							type="button"
 							class={cn(
@@ -723,120 +725,121 @@
 				aria-label="Meet pace"
 				bind:open={dueOpen}
 			>
-				<summary class="cursor-pointer select-none text-sm font-medium text-foreground">
+				<summary class="cursor-pointer text-sm font-medium text-foreground select-none">
 					Due this period: {data.duePace.remaining} remaining of {data.duePace.total}
 				</summary>
 				{#if dueOpen}
-				{#if data.periodHistory.length > 0}
-					<details class="mt-2 text-xs text-muted-foreground">
-						<summary class="cursor-pointer select-none">Past periods</summary>
-						<ul class="mt-1 space-y-0.5 pl-1">
-							{#each data.periodHistory as h (h.period_key)}
-								<li>
-									{h.period_key}: {h.hit} hit · {h.skipped} skipped · {h.missed} missed
-								</li>
-							{/each}
-						</ul>
-					</details>
-				{/if}
-				{#if data.dueContacts.length > 0}
-					<div class="mt-2 space-y-3 border-t border-border pt-2">
-						{#each dueGroups as group (group.frequency)}
-							<section aria-label={group.label}>
-								<p
-									class="flex items-baseline justify-between gap-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-								>
-									<span>{group.label}</span>
-									<span class="font-normal tracking-normal tabular-nums">{group.rows.length}</span>
-								</p>
-								<ul class="divide-y divide-border">
-									{#each group.rows as d (d.id)}
-										{@const upTo = stepScheduledFrequency(d.frequency, 'up')}
-										{@const downTo = stepScheduledFrequency(d.frequency, 'down')}
-										<li class="flex items-center justify-between gap-2 py-1.5">
-											<div class="min-w-0">
-												<p class="truncate text-sm font-medium">{d.display_name}</p>
-												<p class="truncate text-xs text-muted-foreground">
-													due {formatTouch(d.period_end)} · last {formatTouch(d.last_touched_on)}
-												</p>
-											</div>
-											{#if data.isOwner}
-												<div class="flex shrink-0 items-center gap-1">
-													{#if upTo}
-														<form
-															method="POST"
-															action="?/nudgeContactFrequency"
-															use:enhance={quickLogEnhance}
-														>
-															<input type="hidden" name="contact_id" value={d.contact_id} />
-															{#if d.household_id}
-																<input type="hidden" name="household_id" value={d.household_id} />
-															{/if}
-															<input type="hidden" name="direction" value="up" />
-															<Button
-																type="submit"
-																size="icon-sm"
-																variant="outline"
-																aria-label={`Increase to ${CONTACT_FREQUENCY_SHORT_LABELS[upTo]}`}
-																title={`Increase to ${CONTACT_FREQUENCY_SHORT_LABELS[upTo]}`}
-															>
-																<ChevronUp class="size-4" />
-															</Button>
-														</form>
-													{/if}
-													{#if downTo}
-														<form
-															method="POST"
-															action="?/nudgeContactFrequency"
-															use:enhance={quickLogEnhance}
-														>
-															<input type="hidden" name="contact_id" value={d.contact_id} />
-															{#if d.household_id}
-																<input type="hidden" name="household_id" value={d.household_id} />
-															{/if}
-															<input type="hidden" name="direction" value="down" />
-															<Button
-																type="submit"
-																size="icon-sm"
-																variant="outline"
-																aria-label={`Decrease to ${CONTACT_FREQUENCY_SHORT_LABELS[downTo]}`}
-																title={`Decrease to ${CONTACT_FREQUENCY_SHORT_LABELS[downTo]}`}
-															>
-																<ChevronDown class="size-4" />
-															</Button>
-														</form>
-													{/if}
-													<form
-														method="POST"
-														action="?/logContactQuick"
-														use:enhance={quickLogEnhance}
-													>
-														<input type="hidden" name="contact_id" value={d.contact_id} />
-														{#if d.household_id}
-															<input type="hidden" name="household_id" value={d.household_id} />
-														{/if}
-														<Button type="submit" size="sm" variant="secondary" label="Log" />
-													</form>
-													<form
-														method="POST"
-														action="?/skipContactPeriod"
-														use:enhance={quickLogEnhance}
-													>
-														<input type="hidden" name="contact_id" value={d.contact_id} />
-														{#if d.household_id}
-															<input type="hidden" name="household_id" value={d.household_id} />
-														{/if}
-														<Button type="submit" size="sm" variant="outline" label="Skip" />
-													</form>
+					{#if data.periodHistory.length > 0}
+						<details class="mt-2 text-xs text-muted-foreground">
+							<summary class="cursor-pointer select-none">Past periods</summary>
+							<ul class="mt-1 space-y-0.5 pl-1">
+								{#each data.periodHistory as h (h.period_key)}
+									<li>
+										{h.period_key}: {h.hit} hit · {h.skipped} skipped · {h.missed} missed
+									</li>
+								{/each}
+							</ul>
+						</details>
+					{/if}
+					{#if data.dueContacts.length > 0}
+						<div class="mt-2 space-y-3 border-t border-border pt-2">
+							{#each dueGroups as group (group.frequency)}
+								<section aria-label={group.label}>
+									<p
+										class="flex items-baseline justify-between gap-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+									>
+										<span>{group.label}</span>
+										<span class="font-normal tracking-normal tabular-nums">{group.rows.length}</span
+										>
+									</p>
+									<ul class="divide-y divide-border">
+										{#each group.rows as d (d.id)}
+											{@const upTo = stepScheduledFrequency(d.frequency, 'up')}
+											{@const downTo = stepScheduledFrequency(d.frequency, 'down')}
+											<li class="flex items-center justify-between gap-2 py-1.5">
+												<div class="min-w-0">
+													<p class="truncate text-sm font-medium">{d.display_name}</p>
+													<p class="truncate text-xs text-muted-foreground">
+														due {formatTouch(d.period_end)} · last {formatTouch(d.last_touched_on)}
+													</p>
 												</div>
-											{/if}
-										</li>
-									{/each}
-								</ul>
-							</section>
-						{/each}
-					</div>
-				{/if}
+												{#if data.isOwner}
+													<div class="flex shrink-0 items-center gap-1">
+														{#if upTo}
+															<form
+																method="POST"
+																action="?/nudgeContactFrequency"
+																use:enhance={quickLogEnhance}
+															>
+																<input type="hidden" name="contact_id" value={d.contact_id} />
+																{#if d.household_id}
+																	<input type="hidden" name="household_id" value={d.household_id} />
+																{/if}
+																<input type="hidden" name="direction" value="up" />
+																<Button
+																	type="submit"
+																	size="icon-sm"
+																	variant="outline"
+																	aria-label={`Increase to ${CONTACT_FREQUENCY_SHORT_LABELS[upTo]}`}
+																	title={`Increase to ${CONTACT_FREQUENCY_SHORT_LABELS[upTo]}`}
+																>
+																	<ChevronUp class="size-4" />
+																</Button>
+															</form>
+														{/if}
+														{#if downTo}
+															<form
+																method="POST"
+																action="?/nudgeContactFrequency"
+																use:enhance={quickLogEnhance}
+															>
+																<input type="hidden" name="contact_id" value={d.contact_id} />
+																{#if d.household_id}
+																	<input type="hidden" name="household_id" value={d.household_id} />
+																{/if}
+																<input type="hidden" name="direction" value="down" />
+																<Button
+																	type="submit"
+																	size="icon-sm"
+																	variant="outline"
+																	aria-label={`Decrease to ${CONTACT_FREQUENCY_SHORT_LABELS[downTo]}`}
+																	title={`Decrease to ${CONTACT_FREQUENCY_SHORT_LABELS[downTo]}`}
+																>
+																	<ChevronDown class="size-4" />
+																</Button>
+															</form>
+														{/if}
+														<form
+															method="POST"
+															action="?/logContactQuick"
+															use:enhance={quickLogEnhance}
+														>
+															<input type="hidden" name="contact_id" value={d.contact_id} />
+															{#if d.household_id}
+																<input type="hidden" name="household_id" value={d.household_id} />
+															{/if}
+															<Button type="submit" size="sm" variant="secondary" label="Log" />
+														</form>
+														<form
+															method="POST"
+															action="?/skipContactPeriod"
+															use:enhance={quickLogEnhance}
+														>
+															<input type="hidden" name="contact_id" value={d.contact_id} />
+															{#if d.household_id}
+																<input type="hidden" name="household_id" value={d.household_id} />
+															{/if}
+															<Button type="submit" size="sm" variant="outline" label="Skip" />
+														</form>
+													</div>
+												{/if}
+											</li>
+										{/each}
+									</ul>
+								</section>
+							{/each}
+						</div>
+					{/if}
 				{/if}
 			</details>
 		{/if}
@@ -869,10 +872,7 @@
 									<p class="flex min-w-0 items-center gap-1.5">
 										<span class="truncate font-medium">{c.display_name}</span>
 										{#if c.period_current}
-											<span
-												class="inline-flex shrink-0"
-												title="Up to date this period"
-											>
+											<span class="inline-flex shrink-0" title="Up to date this period">
 												<CircleCheck
 													class="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
 													aria-hidden="true"
@@ -934,7 +934,9 @@
 		</ul>
 
 		{#if data.isOwner && !searchActive}
-			<details class="mt-4 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
+			<details
+				class="mt-4 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground"
+			>
 				<summary class="cursor-pointer font-medium text-foreground">Import sheet / vCard</summary>
 				<form
 					method="POST"
@@ -945,7 +947,12 @@
 				>
 					<label class="block text-xs text-muted-foreground">
 						Sheet1 CSV
-						<input type="file" name="sheet1" accept=".csv,text/csv" class="mt-1 block w-full text-xs" />
+						<input
+							type="file"
+							name="sheet1"
+							accept=".csv,text/csv"
+							class="mt-1 block w-full text-xs"
+						/>
 					</label>
 					<label class="block text-xs text-muted-foreground">
 						People for Things CSV (optional → Potential Invite)
@@ -967,7 +974,12 @@
 				>
 					<label class="block text-xs text-muted-foreground">
 						Mac Contacts .vcf (birthday + empty email/phone)
-						<input type="file" name="vcard" accept=".vcf,text/vcard" class="mt-1 block w-full text-xs" />
+						<input
+							type="file"
+							name="vcard"
+							accept=".vcf,text/vcard"
+							class="mt-1 block w-full text-xs"
+						/>
 					</label>
 					<Button type="submit" size="sm" variant="outline" label="Apply vCard" />
 				</form>
@@ -1067,6 +1079,10 @@
 			todayYmd={data.todayYmd}
 			isOwner={data.isOwner}
 			form={f}
+			onEditHousehold={(id) => {
+				const h = data.households.find((x) => x.id === id);
+				if (h) openEditHousehold(h);
+			}}
 		/>
 	{/if}
 </div>
@@ -1078,36 +1094,30 @@
 		contact={editingContact}
 		households={data.households}
 		lists={data.lists}
-		memberListIds={editingContact
-			? (data.listIdsByContactId[editingContact.id] ?? [])
-			: []}
+		memberListIds={editingContact ? (data.listIdsByContactId[editingContact.id] ?? []) : []}
 		errorMessage={contactSheetError}
 		booksOut={editingContact ? (data.booksOutByContactId[editingContact.id] ?? 0) : 0}
-		onSaved={onSaved}
+		{onSaved}
 	/>
 	<HouseholdFormSheet
 		bind:open={householdSheetOpen}
 		mode={householdSheetMode}
 		household={editingHousehold}
 		lists={data.lists}
-		memberListIds={editingHousehold
-			? (data.listIdsByHouseholdId[editingHousehold.id] ?? [])
-			: []}
+		memberListIds={editingHousehold ? (data.listIdsByHouseholdId[editingHousehold.id] ?? []) : []}
 		gradeChanges={editingHousehold
 			? (data.gradeChangesByHouseholdId[editingHousehold.id] ?? [])
 			: []}
-		children={editingHousehold
-			? (data.childrenByHouseholdId[editingHousehold.id] ?? [])
-			: []}
+		children={editingHousehold ? (data.childrenByHouseholdId[editingHousehold.id] ?? []) : []}
 		errorMessage={householdSheetError}
-		onSaved={onSaved}
+		{onSaved}
 	/>
 	<LogContactDialog
 		bind:open={logDialogOpen}
 		contact={logContact}
 		todayYmd={data.todayYmd}
 		errorMessage={logDialogError}
-		onSaved={onSaved}
+		{onSaved}
 	/>
 
 	<form

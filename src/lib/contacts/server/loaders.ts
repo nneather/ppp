@@ -27,6 +27,12 @@ import {
 	type ContactDueCandidate
 } from '$lib/contacts/due';
 import {
+	addressStatus,
+	formatAddressOneLine,
+	type AddressFields
+} from '$lib/contacts/address-status';
+import { ymdInChicago } from '$lib/invoicing/chicago-date';
+import {
 	householdHasMailingAddress,
 	type HouseholdListCandidate
 } from '$lib/contacts/list-candidates';
@@ -116,7 +122,11 @@ export async function loadHouseholds(supabase: SupabaseClient): Promise<{
 			.select(HOUSEHOLD_COLUMNS)
 			.is('deleted_at', null)
 			.order('name', { ascending: true }),
-		supabase.from('contacts').select('household_id').is('deleted_at', null).not('household_id', 'is', null)
+		supabase
+			.from('contacts')
+			.select('household_id')
+			.is('deleted_at', null)
+			.not('household_id', 'is', null)
 	]);
 
 	if (hhRes.error) {
@@ -198,7 +208,9 @@ export async function loadContacts(
 	// `filters.q` is applied client-side so typing stays instant on the ~200-row roster.
 
 	const contactIds = rows.map((r) => r.id);
-	const householdIds = [...new Set(rows.map((r) => r.household_id).filter((id): id is string => id != null))];
+	const householdIds = [
+		...new Set(rows.map((r) => r.household_id).filter((id): id is string => id != null))
+	];
 
 	const [touchesRes, householdsRes, skipsRes] = await Promise.all([
 		contactIds.length
@@ -290,10 +302,7 @@ export async function loadContacts(
 			email: raw.email,
 			phone: raw.phone,
 			cadence_days: raw.cadence_days,
-			effective_cadence_days: effectiveCadenceDays(
-				raw.cadence_days,
-				opts.profileCadenceDefault
-			),
+			effective_cadence_days: effectiveCadenceDays(raw.cadence_days, opts.profileCadenceDefault),
 			frequency: freq,
 			no_reminders: freq === 'common' || raw.no_reminders,
 			status,
@@ -350,13 +359,15 @@ export async function loadContactLists(supabase: SupabaseClient): Promise<{
 		countByList.set(lid, (countByList.get(lid) ?? 0) + 1);
 	}
 
-	const lists: ContactListDef[] = ((listsRes.data ?? []) as {
-		id: string;
-		name: string;
-		notes: string | null;
-		sort_order: number;
-		kind: string;
-	}[]).map((l) => ({
+	const lists: ContactListDef[] = (
+		(listsRes.data ?? []) as {
+			id: string;
+			name: string;
+			notes: string | null;
+			sort_order: number;
+			kind: string;
+		}[]
+	).map((l) => ({
 		id: l.id,
 		name: l.name,
 		notes: l.notes,
@@ -436,9 +447,7 @@ export async function loadHouseholdListCandidates(
 	const [hhRes, membersRes] = await Promise.all([
 		supabase
 			.from('households')
-			.select(
-				'id, name, address_line_1, address_line_2, city, state, postal_code, country'
-			)
+			.select('id, name, address_line_1, address_line_2, city, state, postal_code, country')
 			.is('deleted_at', null)
 			.order('name', { ascending: true }),
 		supabase
@@ -538,10 +547,15 @@ export async function loadContactListMembers(
 		householdIds.length
 			? supabase
 					.from('households')
-					.select('id, name')
+					.select(
+						'id, name, address_line_1, address_line_2, city, state, postal_code, address_updated_on'
+					)
 					.in('id', householdIds)
 					.is('deleted_at', null)
-			: Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+			: Promise.resolve({
+					data: [] as ({ id: string; name: string } & AddressFields)[],
+					error: null
+				}),
 		householdIds.length
 			? supabase
 					.from('contacts')
@@ -569,10 +583,13 @@ export async function loadContactListMembers(
 		contactLabel.set(row.id, contactDisplayName(row));
 	}
 	const hhLabel = new Map<string, string>();
+	const hhAddress = new Map<string, AddressFields>();
 	for (const h of householdsRes.data ?? []) {
-		const row = h as { id: string; name: string };
+		const row = h as { id: string; name: string } & AddressFields;
 		hhLabel.set(row.id, row.name);
+		hhAddress.set(row.id, row);
 	}
+	const todayYmd = ymdInChicago();
 
 	const liveByHousehold = new Map<string, { status: ContactStatus }[]>();
 	for (const m of hhMembersRes.data ?? []) {
@@ -602,6 +619,7 @@ export async function loadContactListMembers(
 				hiddenRetiredOnlyCount += 1;
 				if (!includeIneligible) continue;
 			}
+			const addr = hhAddress.get(r.household_id);
 			members.push({
 				id: r.id,
 				list_id: r.list_id,
@@ -609,7 +627,10 @@ export async function loadContactListMembers(
 				household_id: r.household_id,
 				label: hhLabel.get(r.household_id) ?? 'Unknown household',
 				kind: 'household',
-				cardEligible: eligible
+				cardEligible: eligible,
+				address: addr ? formatAddressOneLine(addr) : '',
+				addressStatus: addr ? addressStatus(addr, todayYmd) : 'none',
+				addressUpdatedOn: addr?.address_updated_on ?? null
 			});
 		}
 	}
@@ -649,7 +670,9 @@ export async function loadContactsDue(
 	}
 
 	const rows = (contactsRes.data ?? []) as ContactDb[];
-	const scheduled = rows.filter((r) => isContactFrequency(r.frequency) && isScheduledFrequency(r.frequency));
+	const scheduled = rows.filter(
+		(r) => isContactFrequency(r.frequency) && isScheduledFrequency(r.frequency)
+	);
 	const contactIds = scheduled.map((r) => r.id);
 	const householdIds = [
 		...new Set(scheduled.map((r) => r.household_id).filter((id): id is string => id != null))
@@ -751,9 +774,7 @@ export async function loadContactsDue(
 	const due = allDue.slice(0, limit);
 
 	// Total obligations = unique households (or contacts) with scheduled freq
-	const obligationKeys = new Set(
-		candidates.map((c) => c.household_id ?? `contact:${c.id}`)
-	);
+	const obligationKeys = new Set(candidates.map((c) => c.household_id ?? `contact:${c.id}`));
 	const pace = computePaceSummary(allDue, obligationKeys.size);
 
 	return {
@@ -920,10 +941,7 @@ export async function searchContacts(
 
 	const [contactsRes, householdsRes] = await Promise.all([
 		supabase.from('contacts').select(CONTACT_COLUMNS).is('deleted_at', null),
-		supabase
-			.from('households')
-			.select(HOUSEHOLD_COLUMNS)
-			.is('deleted_at', null)
+		supabase.from('households').select(HOUSEHOLD_COLUMNS).is('deleted_at', null)
 	]);
 
 	if (contactsRes.error) {
@@ -995,10 +1013,7 @@ export async function searchContacts(
 		});
 	}
 
-	hits.sort(
-		(a, b) =>
-			a.display_name.localeCompare(b.display_name) || a.id.localeCompare(b.id)
-	);
+	hits.sort((a, b) => a.display_name.localeCompare(b.display_name) || a.id.localeCompare(b.id));
 
 	return { contacts: hits.slice(0, limit), error: null };
 }

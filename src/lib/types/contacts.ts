@@ -1,5 +1,7 @@
 /** Closed enums and view-models for the contacts / CRM module. */
 
+import type { AddressStatus } from '$lib/contacts/address-status';
+
 /** @deprecated Rolling cadence — replaced by ContactFrequency ([210]). Kept for legacy columns. */
 export const DEFAULT_CONTACT_CADENCE_DAYS = 90;
 
@@ -21,13 +23,7 @@ export const CONTACT_TOUCH_KIND_LABELS: Record<ContactTouchKind, string> = {
 };
 
 /** Calendar-period meet frequency (sheet C/Q/S/A/N). */
-export const CONTACT_FREQUENCIES = [
-	'common',
-	'quarterly',
-	'semiannual',
-	'annual',
-	'none'
-] as const;
+export const CONTACT_FREQUENCIES = ['common', 'quarterly', 'semiannual', 'annual', 'none'] as const;
 export type ContactFrequency = (typeof CONTACT_FREQUENCIES)[number];
 
 export const CONTACT_FREQUENCY_LABELS: Record<ContactFrequency, string> = {
@@ -173,6 +169,11 @@ export type ContactListMemberRow = {
 	 * unless `includeIneligible` is set on the loader.
 	 */
 	cardEligible?: boolean;
+	/** Household members only: one-line mailing address ('' when none). */
+	address?: string;
+	/** Household members only: confirmed this year / unconfirmed / no full address. */
+	addressStatus?: AddressStatus;
+	addressUpdatedOn?: string | null;
 };
 
 /** Roster sort keys (`?sort=frequency,list`). Name is the default / final tiebreaker. */

@@ -14,6 +14,7 @@ import {
 	nudgeContactFrequencyAction,
 	logHouseholdTouchAction,
 	logListCardsAction,
+	setHouseholdAddressConfirmedAction,
 	skipContactPeriodAction,
 	setContactsDefaultSortAction,
 	softDeleteContactAction,
@@ -105,14 +106,10 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 			: (listsRes.lists[0]?.id ?? null);
 
 	const onListHouseholdIds = new Set(
-		selectedListId
-			? (membershipMapsRes.maps.householdIdsByListId[selectedListId] ?? [])
-			: []
+		selectedListId ? (membershipMapsRes.maps.householdIdsByListId[selectedListId] ?? []) : []
 	);
 	const onListContactIds = new Set(
-		selectedListId
-			? (membershipMapsRes.maps.contactIdsByListId[selectedListId] ?? [])
-			: []
+		selectedListId ? (membershipMapsRes.maps.contactIdsByListId[selectedListId] ?? []) : []
 	);
 
 	const [membersRes, householdCandidatesRes, childrenRes, gradeChangesRes] = await Promise.all([
@@ -254,8 +251,7 @@ export const actions: Actions = {
 	},
 	softDeleteHousehold: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user)
-			return fail(401, { kind: 'softDeleteHousehold' as const, message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'softDeleteHousehold' as const, message: 'Unauthorized' });
 		return softDeleteHouseholdAction(locals.supabase, await request.formData());
 	},
 	logContactQuick: async ({ request, locals }) => {
@@ -265,8 +261,7 @@ export const actions: Actions = {
 	},
 	logContactDetailed: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user)
-			return fail(401, { kind: 'logContactDetailed' as const, message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'logContactDetailed' as const, message: 'Unauthorized' });
 		return logContactDetailedAction(locals.supabase, user.id, await request.formData());
 	},
 	logHouseholdTouch: async ({ request, locals }) => {
@@ -278,6 +273,12 @@ export const actions: Actions = {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'logListCards' as const, message: 'Unauthorized' });
 		return logListCardsAction(locals.supabase, user.id, await request.formData());
+	},
+	setHouseholdAddressConfirmed: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'setHouseholdAddressConfirmed' as const, message: 'Unauthorized' });
+		return setHouseholdAddressConfirmedAction(locals.supabase, await request.formData());
 	},
 	setContactsDefaultSort: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
@@ -292,11 +293,7 @@ export const actions: Actions = {
 				kind: 'updateContactCadenceDefault' as const,
 				message: 'Unauthorized'
 			});
-		return updateContactCadenceDefaultAction(
-			locals.supabase,
-			user.id,
-			await request.formData()
-		);
+		return updateContactCadenceDefaultAction(locals.supabase, user.id, await request.formData());
 	},
 	createContactList: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
@@ -316,8 +313,7 @@ export const actions: Actions = {
 	},
 	addContactListMember: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user)
-			return fail(401, { kind: 'addContactListMember' as const, message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'addContactListMember' as const, message: 'Unauthorized' });
 		return addContactListMemberAction(locals.supabase, user.id, await request.formData());
 	},
 	addContactListMembersBatch: async ({ request, locals }) => {
@@ -327,11 +323,7 @@ export const actions: Actions = {
 				kind: 'addContactListMembersBatch' as const,
 				message: 'Unauthorized'
 			});
-		return addContactListMembersBatchAction(
-			locals.supabase,
-			user.id,
-			await request.formData()
-		);
+		return addContactListMembersBatchAction(locals.supabase, user.id, await request.formData());
 	},
 	softDeleteContactListMember: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
@@ -344,8 +336,7 @@ export const actions: Actions = {
 	},
 	skipContactPeriod: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user)
-			return fail(401, { kind: 'skipContactPeriod' as const, message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'skipContactPeriod' as const, message: 'Unauthorized' });
 		return skipContactPeriodAction(locals.supabase, user.id, await request.formData());
 	},
 	nudgeContactFrequency: async ({ request, locals }) => {
@@ -361,8 +352,7 @@ export const actions: Actions = {
 	},
 	createHouseholdChild: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user)
-			return fail(401, { kind: 'createHouseholdChild' as const, message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'createHouseholdChild' as const, message: 'Unauthorized' });
 		return createHouseholdChildAction(locals.supabase, user.id, await request.formData());
 	},
 	softDeleteHouseholdChild: async ({ request, locals }) => {
@@ -387,8 +377,7 @@ export const actions: Actions = {
 			});
 		}
 		const sheet1Csv = await sheet1.text();
-		const peopleForThingsCsv =
-			pft instanceof File && pft.size > 0 ? await pft.text() : null;
+		const peopleForThingsCsv = pft instanceof File && pft.size > 0 ? await pft.text() : null;
 		const result = await importSheet1AndPotentialInvite(locals.supabase, user.id, {
 			sheet1Csv,
 			peopleForThingsCsv
@@ -397,8 +386,7 @@ export const actions: Actions = {
 	},
 	applyVCardImport: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
-		if (!user)
-			return fail(401, { kind: 'applyVCardImport' as const, message: 'Unauthorized' });
+		if (!user) return fail(401, { kind: 'applyVCardImport' as const, message: 'Unauthorized' });
 		return applyVCardImportAction(locals.supabase, user.id, await request.formData());
 	}
 };

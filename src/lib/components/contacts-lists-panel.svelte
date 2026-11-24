@@ -11,10 +11,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select';
-	import type {
-		ContactListCandidate,
-		HouseholdListCandidate
-	} from '$lib/contacts/list-candidates';
+	import type { ContactListCandidate, HouseholdListCandidate } from '$lib/contacts/list-candidates';
 	import {
 		CONTACT_LIST_KIND_LABELS,
 		CONTACT_LIST_KINDS,
@@ -22,6 +19,7 @@
 		type ContactListKind,
 		type ContactListMemberRow
 	} from '$lib/types/contacts';
+	import Check from '@lucide/svelte/icons/check';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -36,8 +34,11 @@
 		contactCandidates = [],
 		todayYmd,
 		isOwner,
-		form
+		form,
+		onEditHousehold
 	}: {
+		/** Opens the household sheet (address edits stamp `address_updated_on`). */
+		onEditHousehold?: (householdId: string) => void;
 		lists: ContactListDef[];
 		selectedListId: string | null;
 		members: ContactListMemberRow[];
@@ -90,9 +91,7 @@
 		form?.kind === 'cloneContactList' && form.success !== true ? (form.message ?? null) : null
 	);
 	const deleteErr = $derived(
-		form?.kind === 'softDeleteContactList' && form.success !== true
-			? (form.message ?? null)
-			: null
+		form?.kind === 'softDeleteContactList' && form.success !== true ? (form.message ?? null) : null
 	);
 	const batchErr = $derived(
 		(form?.kind === 'addContactListMembersBatch' || form?.kind === 'addContactListMember') &&
@@ -115,6 +114,67 @@
 	);
 
 	const selectedList = $derived(lists.find((l) => l.id === selectedListId) ?? null);
+
+	/* ── Address confirmation (Christmas cards) ─────────────────────────── */
+	const ADDRESS_FILTERS = ['all', 'confirmed', 'unconfirmed', 'none'] as const;
+	type AddressFilter = (typeof ADDRESS_FILTERS)[number];
+	const ADDRESS_FILTER_LABELS: Record<AddressFilter, string> = {
+		all: 'All',
+		confirmed: 'Confirmed',
+		unconfirmed: 'Needs confirm',
+		none: 'No address'
+	};
+	let addressFilter = $state<AddressFilter>('all');
+	/** household_id → prior address_updated_on, for Undo after a Confirm this session. */
+	let undoPrev = $state<Record<string, string | null>>({});
+
+	const hasHouseholds = $derived(members.some((m) => m.kind === 'household'));
+	const addressCounts = $derived.by(() => {
+		const c: Record<AddressFilter, number> = {
+			all: members.length,
+			confirmed: 0,
+			unconfirmed: 0,
+			none: 0
+		};
+		for (const m of members) if (m.kind === 'household' && m.addressStatus) c[m.addressStatus] += 1;
+		return c;
+	});
+	const visibleMembers = $derived(
+		members
+			.filter(
+				(m) =>
+					addressFilter === 'all' || (m.kind === 'household' && m.addressStatus === addressFilter)
+			)
+			.sort((a, b) => a.label.localeCompare(b.label))
+	);
+	const confirmErr = $derived(
+		form?.kind === 'setHouseholdAddressConfirmed' && form.success !== true
+			? (form.message ?? null)
+			: null
+	);
+
+	function shortDate(ymd: string): string {
+		const [, mo, d] = ymd.split('-');
+		return `${Number(mo)}/${Number(d)}`;
+	}
+
+	const confirmEnhance: SubmitFunction = ({ formData }) => {
+		const hid = String(formData.get('household_id') ?? '');
+		const isUndo = formData.get('undo') === '1';
+		return async ({ result, update }) => {
+			await update({ reset: false, invalidateAll: false });
+			if (result.type === 'success') {
+				if (isUndo) {
+					const { [hid]: _drop, ...rest } = undoPrev;
+					undoPrev = rest;
+				} else {
+					const prev = (result.data as { previous?: string | null } | undefined)?.previous;
+					undoPrev = { ...undoPrev, [hid]: prev ?? null };
+				}
+				await invalidate('app:contacts:list');
+			}
+		};
+	};
 
 	function openCreate() {
 		createName = '';
@@ -187,9 +247,7 @@
 
 	function submitDelete() {
 		if (!deleteTarget || !deleteFormEl) return;
-		const idInput = deleteFormEl.querySelector(
-			'input[name="list_id"]'
-		) as HTMLInputElement | null;
+		const idInput = deleteFormEl.querySelector('input[name="list_id"]') as HTMLInputElement | null;
 		if (!idInput) return;
 		idInput.value = deleteTarget.id;
 		deleteFormEl.requestSubmit();
@@ -241,11 +299,7 @@
 			<li
 				class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-card-foreground"
 			>
-				<button
-					type="button"
-					class="min-w-0 flex-1 text-left"
-					onclick={() => selectList(list.id)}
-				>
+				<button type="button" class="min-w-0 flex-1 text-left" onclick={() => selectList(list.id)}>
 					<p class="flex flex-wrap items-center gap-1.5 truncate text-sm font-medium">
 						{list.name}
 						<Badge variant="secondary">{CONTACT_LIST_KIND_LABELS[list.kind]}</Badge>
@@ -311,8 +365,8 @@
 						<Badge variant="outline">{CONTACT_LIST_KIND_LABELS[selectedList.kind]}</Badge>
 					</h2>
 					<p class="mt-1 text-sm text-muted-foreground">
-						Christmas cards use households. Contact membership is for future email lists.
-						Households with no active members are hidden (membership kept).
+						Christmas cards use households. Contact membership is for future email lists. Households
+						with no active members are hidden (membership kept).
 					</p>
 					{#if hiddenRetiredOnlyCount > 0}
 						<p class="mt-2 text-xs text-muted-foreground">
@@ -366,17 +420,89 @@
 				onAdded={onMembersAdded}
 			/>
 
-			<ul class="mt-4 space-y-2">
-				{#each members as m (m.id)}
-					<li
-						class="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
-					>
-						<div class="min-w-0">
+			{#if hasHouseholds}
+				<div
+					class="mt-4 flex flex-wrap items-center gap-1.5"
+					role="group"
+					aria-label="Address filter"
+				>
+					{#each ADDRESS_FILTERS as fl (fl)}
+						<Button
+							type="button"
+							size="sm"
+							variant={addressFilter === fl ? 'default' : 'outline'}
+							onclick={() => (addressFilter = fl)}
+						>
+							{ADDRESS_FILTER_LABELS[fl]}
+							<span class="tabular-nums opacity-70">{addressCounts[fl]}</span>
+						</Button>
+					{/each}
+				</div>
+				{#if confirmErr}
+					<p class="mt-2 text-sm text-destructive" role="alert">{confirmErr}</p>
+				{/if}
+			{/if}
+
+			<ul class="mt-3 divide-y divide-border rounded-lg border border-border">
+				{#each visibleMembers as m (m.id)}
+					<li class="flex items-center gap-2 px-3 py-1.5">
+						<div class="min-w-0 flex-1">
 							<p class="truncate text-sm font-medium">{m.label}</p>
-							<p class="text-xs text-muted-foreground">
-								{m.kind === 'household' ? 'Household' : 'Contact'}
-							</p>
+							{#if m.kind === 'household'}
+								<p class="truncate text-xs text-muted-foreground">
+									{m.address || '— no address'}
+								</p>
+							{:else}
+								<p class="text-xs text-muted-foreground">Contact</p>
+							{/if}
 						</div>
+						{#if m.kind === 'household' && m.household_id}
+							{@const hid = m.household_id}
+							{#if m.addressStatus === 'confirmed'}
+								<Badge variant="secondary" class="shrink-0 text-emerald-700 dark:text-emerald-400">
+									✓ {m.addressUpdatedOn ? shortDate(m.addressUpdatedOn) : ''}
+								</Badge>
+								{#if hid in undoPrev}
+									<form
+										method="POST"
+										action="?/setHouseholdAddressConfirmed"
+										use:enhance={confirmEnhance}
+									>
+										<input type="hidden" name="household_id" value={hid} />
+										<input type="hidden" name="undo" value="1" />
+										<input type="hidden" name="restore_to" value={undoPrev[hid] ?? ''} />
+										<Button type="submit" size="sm" variant="ghost">Undo</Button>
+									</form>
+								{/if}
+							{:else if m.addressStatus === 'unconfirmed'}
+								<Badge
+									variant="outline"
+									class="hidden shrink-0 text-amber-700 sm:inline-flex dark:text-amber-400"
+								>
+									Unconfirmed
+								</Badge>
+								<form
+									method="POST"
+									action="?/setHouseholdAddressConfirmed"
+									use:enhance={confirmEnhance}
+								>
+									<input type="hidden" name="household_id" value={hid} />
+									<Button type="submit" size="sm" variant="secondary" class="gap-1">
+										<Check class="size-3.5" /> Confirm
+									</Button>
+								</form>
+							{/if}
+							{#if onEditHousehold}
+								<Button
+									type="button"
+									size="sm"
+									variant="ghost"
+									onclick={() => onEditHousehold?.(hid)}
+								>
+									{m.addressStatus === 'none' ? 'Add address' : 'Edit'}
+								</Button>
+							{/if}
+						{/if}
 						<form
 							method="POST"
 							action="?/softDeleteContactListMember"
@@ -395,7 +521,9 @@
 						</form>
 					</li>
 				{:else}
-					<li class="text-sm text-muted-foreground">No members on this list yet.</li>
+					<li class="px-3 py-2 text-sm text-muted-foreground">
+						{members.length ? 'No households match this filter.' : 'No members on this list yet.'}
+					</li>
 				{/each}
 			</ul>
 		</section>

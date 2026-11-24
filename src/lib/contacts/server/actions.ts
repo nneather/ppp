@@ -21,6 +21,10 @@ import {
 	isRelationshipGrade,
 	parseFrequency
 } from '$lib/contacts/names';
+import {
+	addressIsComplete,
+	type AddressFields as MailingAddressFields
+} from '$lib/contacts/address-status';
 import { activePeriodForFrequency, isScheduledFrequency } from '$lib/contacts/period';
 import { parseContactSort, storedContactSortValue } from '$lib/contacts/sort';
 import type {
@@ -50,7 +54,12 @@ async function loadHouseholdFanoutMembers(
 	supabase: SupabaseClient,
 	householdId: string
 ): Promise<{
-	members: { id: string; household_id: string | null; status: ContactStatus; frequency: ContactFrequency }[];
+	members: {
+		id: string;
+		household_id: string | null;
+		status: ContactStatus;
+		frequency: ContactFrequency;
+	}[];
 	error: string | null;
 }> {
 	const { data, error } = await supabase
@@ -318,8 +327,7 @@ export async function updateHouseholdAction(
 			prev.country !== address.country);
 
 	const gradesChanged =
-		prev != null &&
-		(prev.giving_grade !== giving || prev.relationship_grade !== rel);
+		prev != null && (prev.giving_grade !== giving || prev.relationship_grade !== rel);
 
 	const patch: Record<string, unknown> = {
 		name,
@@ -462,11 +470,7 @@ async function maybeCreateHouseholdOfOne(
 	return { householdId: (inserted as { id: string }).id, error: null };
 }
 
-export async function createContactAction(
-	supabase: SupabaseClient,
-	userId: string,
-	fd: FormData
-) {
+export async function createContactAction(supabase: SupabaseClient, userId: string, fd: FormData) {
 	const first_name = trimOrNull(fd.get('first_name'));
 	if (!first_name) {
 		return fail(400, { kind: 'createContact' as const, message: 'First name is required.' });
@@ -554,11 +558,7 @@ export async function createContactAction(
 	};
 }
 
-export async function updateContactAction(
-	supabase: SupabaseClient,
-	userId: string,
-	fd: FormData
-) {
+export async function updateContactAction(supabase: SupabaseClient, userId: string, fd: FormData) {
 	const contactId = trimOrNull(fd.get('contact_id'));
 	if (!contactId || !UUID_RE.test(contactId)) {
 		return fail(400, { kind: 'updateContact' as const, message: 'Invalid contact.' });
@@ -741,8 +741,7 @@ export async function logContactQuickAction(
 	}
 
 	const householdIdRaw = trimOrNull(fd.get('household_id'));
-	const householdId =
-		householdIdRaw && UUID_RE.test(householdIdRaw) ? householdIdRaw : null;
+	const householdId = householdIdRaw && UUID_RE.test(householdIdRaw) ? householdIdRaw : null;
 
 	const touched_on = ymdInChicago();
 	let ids = [contactId];
@@ -897,11 +896,7 @@ export async function logHouseholdTouchAction(
  * Christmas-card (list) bulk log — kind=card for every live member of every
  * C2-eligible household currently on the list. Does not affect due-to-meet.
  */
-export async function logListCardsAction(
-	supabase: SupabaseClient,
-	userId: string,
-	fd: FormData
-) {
+export async function logListCardsAction(supabase: SupabaseClient, userId: string, fd: FormData) {
 	const listId = trimOrNull(fd.get('list_id'));
 	if (!listId || !UUID_RE.test(listId)) {
 		return fail(400, { kind: 'logListCards' as const, message: 'Invalid list.' });
@@ -1381,7 +1376,10 @@ export async function addContactListMembersBatchAction(
 	}
 
 	const field = kindRaw === 'household' ? 'household_id' : 'contact_id';
-	const rawIds = fd.getAll(field).map((v) => String(v).trim()).filter(Boolean);
+	const rawIds = fd
+		.getAll(field)
+		.map((v) => String(v).trim())
+		.filter(Boolean);
 	const ids = [...new Set(rawIds)].filter((id) => UUID_RE.test(id));
 
 	if (ids.length === 0) {
@@ -1441,14 +1439,9 @@ export async function syncEntityListMemberships(
 		desiredListIds: string[];
 	}
 ): Promise<{ error: string | null }> {
-	const desired = [
-		...new Set(opts.desiredListIds.filter((id) => UUID_RE.test(id)))
-	];
+	const desired = [...new Set(opts.desiredListIds.filter((id) => UUID_RE.test(id)))];
 
-	let liveQ = supabase
-		.from('contact_list_members')
-		.select('id, list_id')
-		.is('deleted_at', null);
+	let liveQ = supabase.from('contact_list_members').select('id, list_id').is('deleted_at', null);
 	if (opts.kind === 'contact') {
 		liveQ = liveQ.eq('contact_id', opts.entityId);
 	} else {
@@ -1506,10 +1499,7 @@ function parseDesiredListIds(fd: FormData): string[] {
 	];
 }
 
-export async function softDeleteContactListMemberAction(
-	supabase: SupabaseClient,
-	fd: FormData
-) {
+export async function softDeleteContactListMemberAction(supabase: SupabaseClient, fd: FormData) {
 	const memberId = trimOrNull(fd.get('member_id'));
 	if (!memberId || !UUID_RE.test(memberId)) {
 		return fail(400, {
@@ -1543,6 +1533,61 @@ export async function softDeleteContactListMemberAction(
 
 export { parseDesiredListIds };
 
+/**
+ * Mark a household's mailing address as checked today (Christmas-card confirm),
+ * or undo that by restoring the prior `address_updated_on` (`restore_to`, may be empty).
+ * Only a complete address can be confirmed.
+ */
+export async function setHouseholdAddressConfirmedAction(supabase: SupabaseClient, fd: FormData) {
+	const kind = 'setHouseholdAddressConfirmed' as const;
+	const householdId = trimOrNull(fd.get('household_id'));
+	if (!householdId || !UUID_RE.test(householdId)) {
+		return fail(400, { kind, message: 'Invalid household.' });
+	}
+	const undo = fd.get('undo') === '1';
+	const restoreRaw = trimOrNull(fd.get('restore_to'));
+	if (undo && restoreRaw && !DATE_RE.test(restoreRaw)) {
+		return fail(400, { kind, householdId, message: 'Invalid restore date.' });
+	}
+
+	const { data: hh, error: readErr } = await supabase
+		.from('households')
+		.select('address_line_1, address_line_2, city, state, postal_code, address_updated_on')
+		.eq('id', householdId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (readErr || !hh) {
+		return fail(404, { kind, householdId, message: readErr?.message ?? 'Household not found.' });
+	}
+	if (!undo && !addressIsComplete(hh as MailingAddressFields)) {
+		return fail(400, {
+			kind,
+			householdId,
+			message: 'Add a full address (street, city, state, zip) before confirming.'
+		});
+	}
+
+	const next = undo ? (restoreRaw ?? null) : ymdInChicago();
+	const { error: updErr } = await supabase
+		.from('households')
+		.update({ address_updated_on: next } as never)
+		.eq('id', householdId)
+		.is('deleted_at', null);
+	if (updErr) {
+		console.error('[contacts] setHouseholdAddressConfirmed', updErr);
+		return fail(500, { kind, householdId, message: updErr.message });
+	}
+
+	return {
+		kind,
+		success: true as const,
+		householdId,
+		/** Prior value, so the UI can offer Undo. */
+		previous: (hh as MailingAddressFields).address_updated_on,
+		undone: undo
+	};
+}
+
 /** Skip this contact's current period (not a successful meet). */
 export async function skipContactPeriodAction(
 	supabase: SupabaseClient,
@@ -1555,8 +1600,7 @@ export async function skipContactPeriodAction(
 	}
 
 	const householdIdRaw = trimOrNull(fd.get('household_id'));
-	const householdId =
-		householdIdRaw && UUID_RE.test(householdIdRaw) ? householdIdRaw : null;
+	const householdId = householdIdRaw && UUID_RE.test(householdIdRaw) ? householdIdRaw : null;
 
 	const { data: contact, error: loadErr } = await supabase
 		.from('contacts')
