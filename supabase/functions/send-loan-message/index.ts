@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
 	bookTitleSummary,
+	ccBesidesRecipient,
 	daysBetweenYmd,
 	emailHtmlToText,
 	formatLoanDate,
@@ -183,6 +184,18 @@ async function linesFor(admin: Admin, loans: readonly LoanRow[]): Promise<BookLi
 		});
 }
 
+async function ownerDefaultCc(admin: Admin): Promise<string[]> {
+	const { data } = await admin
+		.from('profiles')
+		.select('default_cc_emails')
+		.eq('role', 'owner')
+		.limit(1)
+		.maybeSingle();
+	const raw = (data as { default_cc_emails?: unknown } | null)?.default_cc_emails;
+	if (!Array.isArray(raw)) return [];
+	return raw.filter((item): item is string => typeof item === 'string');
+}
+
 async function ownerProfile(
 	admin: Admin
 ): Promise<{ full_name: string | null; loan_reminder_lead_days: number }> {
@@ -274,17 +287,20 @@ async function sendClaimed(
 	}
 
 	const html = wrapLoanEmail(message.html_body);
+	const cc = ccBesidesRecipient(await ownerDefaultCc(admin), recipient.recipient_email);
+	const payload: Record<string, unknown> = {
+		from: fromAddress(),
+		to: [recipient.recipient_email],
+		reply_to: REPLY_TO,
+		subject: message.subject,
+		html,
+		text: emailHtmlToText(html)
+	};
+	if (cc.length > 0) payload.cc = cc;
 	const resendRes = await fetch('https://api.resend.com/emails', {
 		method: 'POST',
 		headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			from: fromAddress(),
-			to: [recipient.recipient_email],
-			reply_to: REPLY_TO,
-			subject: message.subject,
-			html,
-			text: emailHtmlToText(html)
-		})
+		body: JSON.stringify(payload)
 	});
 
 	if (!resendRes.ok) {

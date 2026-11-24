@@ -39,7 +39,7 @@
 		<Dialog.Header>
 			<Dialog.Title>Default CC emails</Dialog.Title>
 			<Dialog.Description>
-				These addresses are pre-filled in the CC field every time you send an invoice.
+				These addresses are copied on every invoice, and on library checkout and reminder emails.
 			</Dialog.Description>
 		</Dialog.Header>
 

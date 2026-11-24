@@ -306,7 +306,7 @@
 					Universal invoicing defaults
 				</h2>
 				<p class="mt-2 text-sm text-muted-foreground">
-					Pre-filled in the CC field whenever you send an invoice.
+					Pre-filled when you send an invoice, and copied on library checkout and reminder emails.
 				</p>
 			</div>
 			<Button

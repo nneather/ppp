@@ -62,6 +62,27 @@ export function nextReminderYmd(
 	return scheduled;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * The profile default CC, minus the person already on To.
+ * Keep this in step with `ccBesidesRecipient` in `supabase/functions/_shared/loan-email.ts`.
+ */
+export function ccBesidesRecipient(cc: readonly string[], recipient: string): string[] {
+	const to = recipient.trim().toLowerCase();
+	const seen = new Set<string>();
+	const out: string[] = [];
+	for (const raw of cc) {
+		const addr = raw.trim();
+		if (!EMAIL_RE.test(addr)) continue;
+		const key = addr.toLowerCase();
+		if (key === to || seen.has(key)) continue;
+		seen.add(key);
+		out.push(addr);
+	}
+	return out;
+}
+
 /** One title, or "Title and N others", so a subject still reads for a batch. */
 export function bookTitleSummary(titles: readonly string[]): string {
 	const clean = titles.map((title) => title.trim()).filter((title) => title.length > 0);
@@ -82,8 +103,6 @@ export function loanNeedsNextReminder(
 	if (returned) return false;
 	return !messages.some((m) => m.kind === 'reminder' && OPEN_REMINDER.has(m.status));
 }
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function isLoanEmail(value: string): boolean {
 	const email = value.trim();

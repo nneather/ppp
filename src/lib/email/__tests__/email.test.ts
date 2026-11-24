@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { bookTitleSummary, canCheckOutCopy, loanNeedsNextReminder, nextReminderYmd, parseLoanInterval } from '$lib/email/loans';
+import {
+	bookTitleSummary,
+	canCheckOutCopy,
+	ccBesidesRecipient,
+	loanNeedsNextReminder,
+	nextReminderYmd,
+	parseLoanInterval
+} from '$lib/email/loans';
 import {
 	daysBetweenYmd,
 	loanBooksHtml,
@@ -79,6 +86,15 @@ describe('loan schedule', () => {
 		).toBe(list);
 		expect(withLoanBookList('Hello', '<p>Hello</p>', list)).toBe(`<p>Hello</p>${list}`);
 		expect(withLoanBookList('{{loan.books}}', list, list)).toBe(list);
+	});
+
+	it('copies the profile CC and skips the person the message is already to', () => {
+		expect(
+			ccBesidesRecipient(
+				['Parker.Neathery@gmail.com', 'friend@example.com', 'not-an-email'],
+				'friend@example.com'
+			)
+		).toEqual(['Parker.Neathery@gmail.com']);
 	});
 
 	it('parses the standing interval and queues the next reminder only when none is open', () => {

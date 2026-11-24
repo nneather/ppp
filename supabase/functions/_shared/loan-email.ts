@@ -122,6 +122,24 @@ export function nextReminderYmd(
 	return scheduled;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Profile default CC, minus the person already on To. Keep in step with `src/lib/email/loans.ts`. */
+export function ccBesidesRecipient(cc: readonly string[], recipient: string): string[] {
+	const to = recipient.trim().toLowerCase();
+	const seen = new Set<string>();
+	const out: string[] = [];
+	for (const raw of cc) {
+		const addr = raw.trim();
+		if (!EMAIL_RE.test(addr)) continue;
+		const key = addr.toLowerCase();
+		if (key === to || seen.has(key)) continue;
+		seen.add(key);
+		out.push(addr);
+	}
+	return out;
+}
+
 export function bookTitleSummary(titles: readonly string[]): string {
 	const clean = titles.map((title) => title.trim()).filter((title) => title.length > 0);
 	if (clean.length === 0) return 'a book';
