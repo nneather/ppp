@@ -24,7 +24,7 @@
   the address and postcard tools key off households. The pain was navigation, not data. A new kind
   would be a migration and a second category for the same job.
 - **The list page re-exports the `/contacts` form actions** (`export { actions } from
-  '../../+page.server'`). The household sheet, add panel, log-cards dialog and confirm buttons all
+'../../+page.server'`). The household sheet, add panel, log-cards dialog and confirm buttons all
   post to `?/…`, so they work unchanged.
 - **Clone stays on the Lists index** (the copy icon), not the list page.
 
