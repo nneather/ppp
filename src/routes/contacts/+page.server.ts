@@ -4,6 +4,8 @@ import { ymdInChicago } from '$lib/invoicing/chicago-date';
 import {
 	addContactListMemberAction,
 	addContactListMembersBatchAction,
+	addHouseholdPersonAction,
+	removeHouseholdPersonAction,
 	cloneContactListAction,
 	createContactAction,
 	createContactListAction,
@@ -31,6 +33,7 @@ import {
 	loadContactLists,
 	loadContacts,
 	loadContactsDue,
+	loadContactsLite,
 	loadHouseholds,
 	loadHouseholdSheetExtras,
 	loadListMembershipMaps,
@@ -102,10 +105,14 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	});
 	const historyRes = await loadPeriodHistory(supabase, { todayYmd });
 
-	const extras = await loadHouseholdSheetExtras(supabase);
+	const [extras, contactsLite] = await Promise.all([
+		loadHouseholdSheetExtras(supabase),
+		loadContactsLite(supabase)
+	]);
 
 	return {
 		contacts: contactsRes.contacts,
+		contactsLite,
 		households: householdsRes.households,
 		lists: listsRes.lists,
 		childrenByHouseholdId: extras.childrenByHouseholdId,
@@ -260,6 +267,17 @@ export const actions: Actions = {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { kind: 'cloneContactList' as const, message: 'Unauthorized' });
 		return cloneContactListAction(locals.supabase, user.id, await request.formData());
+	},
+	addHouseholdPerson: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'addHouseholdPerson' as const, message: 'Unauthorized' });
+		return addHouseholdPersonAction(locals.supabase, user.id, await request.formData());
+	},
+	removeHouseholdPerson: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user)
+			return fail(401, { kind: 'removeHouseholdPerson' as const, message: 'Unauthorized' });
+		return removeHouseholdPersonAction(locals.supabase, user.id, await request.formData());
 	},
 	createHouseholdChild: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

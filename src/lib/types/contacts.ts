@@ -155,6 +155,16 @@ export type ContactListDef = {
 	memberCount: number;
 };
 
+/** Minimal live contact — household People section + "existing contact" search. */
+export type ContactLite = {
+	id: string;
+	first_name: string;
+	last_name: string | null;
+	household_id: string | null;
+	frequency: string | null;
+	status: string;
+};
+
 export type ContactListMemberRow = {
 	id: string;
 	list_id: string;

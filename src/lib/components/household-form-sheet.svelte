@@ -10,9 +10,11 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import { formatYmdMediumChicago } from '$lib/invoicing/chicago-date';
+	import { contactDisplayName, suggestHouseholdName } from '$lib/contacts/names';
 	import {
 		GIVING_GRADES,
 		RELATIONSHIP_GRADES,
+		type ContactLite,
 		type ContactListDef,
 		type GivingGrade,
 		type HouseholdChildRow,
@@ -31,9 +33,14 @@
 		memberListIds = [],
 		gradeChanges = [],
 		children = [],
+		people = [],
+		householdNameById = {},
 		errorMessage = null,
 		onSaved
 	}: {
+		/** Every live contact (household People section + "existing contact" search). */
+		people?: ContactLite[];
+		householdNameById?: Record<string, string>;
 		open?: boolean;
 		mode: 'create' | 'edit';
 		household?: HouseholdRow | null;
@@ -101,6 +108,10 @@
 		childFirst = '';
 		childLast = '';
 		childBirthday = '';
+		addMode = 'new';
+		peopleMsg = null;
+		peopleErr = null;
+		resetPeopleInputs();
 	}
 
 	$effect(() => {
@@ -131,6 +142,88 @@
 		};
 	};
 
+	/* ── People (adults) ───────────────────────────────────────────────── */
+	const members = $derived(household ? people.filter((p) => p.household_id === household.id) : []);
+	let addMode = $state<'new' | 'existing'>('new');
+	let newFirst = $state('');
+	let newLast = $state('');
+	let pickQuery = $state('');
+	let pickId = $state('');
+	let renameOn = $state(true);
+	let peopleMsg = $state<string | null>(null);
+	let peopleErr = $state<string | null>(null);
+
+	const pickMatches = $derived.by(() => {
+		const q = pickQuery.trim().toLowerCase();
+		if (!q || !household) return [];
+		return people
+			.filter(
+				(p) => p.household_id !== household.id && contactDisplayName(p).toLowerCase().includes(q)
+			)
+			.slice(0, 6);
+	});
+	const picked = $derived(people.find((p) => p.id === pickId) ?? null);
+	const incoming = $derived(
+		addMode === 'new'
+			? newFirst.trim()
+				? { first_name: newFirst.trim(), last_name: newLast.trim() || null }
+				: null
+			: picked
+	);
+	const suggestedName = $derived(
+		incoming
+			? suggestHouseholdName([...members.filter((m) => m.status === 'active'), incoming])
+			: ''
+	);
+	const offerRename = $derived(!!suggestedName && suggestedName !== name.trim());
+
+	function resetPeopleInputs() {
+		newFirst = '';
+		newLast = members[0]?.last_name ?? '';
+		pickQuery = '';
+		pickId = '';
+		renameOn = true;
+	}
+
+	const onPeopleMutation: SubmitFunction = () => {
+		peopleErr = null;
+		peopleMsg = null;
+		return async ({ result, update }) => {
+			await update({ reset: false, invalidateAll: false });
+			if (result.type === 'failure') {
+				peopleErr = (result.data?.message as string | undefined) ?? 'Could not save.';
+				return;
+			}
+			if (result.type === 'success') {
+				const d = (result.data ?? {}) as {
+					message?: string | null;
+					household?: Record<string, string | null> | null;
+					listIds?: string[];
+				};
+				// Re-seed the main form from the household's real state. A merge can
+				// change the name, address, grades, notes and lists; stale fields here
+				// would let a later "Update household" quietly undo it.
+				const h = d.household;
+				if (h) {
+					name = h.name ?? name;
+					addressLine1 = h.address_line_1 ?? '';
+					addressLine2 = h.address_line_2 ?? '';
+					city = h.city ?? '';
+					stateAbbr = h.state ?? '';
+					postalCode = h.postal_code ?? '';
+					country = h.country ?? '';
+					notes = h.notes ?? '';
+					givingGrade = (h.giving_grade as GivingGrade | null) ?? '';
+					relationshipGrade = (h.relationship_grade as RelationshipGrade | null) ?? '';
+				}
+				if (d.listIds) selectedListIds = [...d.listIds];
+				peopleMsg = d.message ?? null;
+				resetPeopleInputs();
+				await onSaved?.();
+			}
+		};
+	};
+
 	const onChildMutation: SubmitFunction = () => {
 		return async ({ result, update }) => {
 			await update({ reset: false });
@@ -149,7 +242,7 @@
 		<Sheet.Header class="shrink-0 border-b border-border pb-4">
 			<Sheet.Title>{sheetTitle}</Sheet.Title>
 			<Sheet.Description class="text-sm text-muted-foreground">
-				Envelope name + mailing address. Assign contacts via the contact Sheet.
+				Envelope name + mailing address. Add or move people under People.
 			</Sheet.Description>
 		</Sheet.Header>
 
@@ -174,13 +267,7 @@
 
 			<div class="space-y-2">
 				<Label for="hh_name">Name</Label>
-				<Input
-					id="hh_name"
-					name="name"
-					bind:value={name}
-					required
-					placeholder="The Jones Family"
-				/>
+				<Input id="hh_name" name="name" bind:value={name} required placeholder="The Jones Family" />
 			</div>
 
 			<div class="space-y-2">
@@ -229,9 +316,9 @@
 							givingGrade =
 								!v || v === NONE
 									? ''
-									: ((GIVING_GRADES as readonly string[]).includes(v)
-											? (v as GivingGrade)
-											: '');
+									: (GIVING_GRADES as readonly string[]).includes(v)
+										? (v as GivingGrade)
+										: '';
 						}}
 					>
 						<Select.Trigger class="w-full" size="lg">{givingLabel}</Select.Trigger>
@@ -253,9 +340,9 @@
 							relationshipGrade =
 								!v || v === NONE
 									? ''
-									: ((RELATIONSHIP_GRADES as readonly string[]).includes(v)
-											? (v as RelationshipGrade)
-											: '');
+									: (RELATIONSHIP_GRADES as readonly string[]).includes(v)
+										? (v as RelationshipGrade)
+										: '';
 						}}
 					>
 						<Select.Trigger class="w-full" size="lg">{relLabel}</Select.Trigger>
@@ -276,13 +363,15 @@
 					name="notes"
 					bind:value={notes}
 					rows={2}
-					class="flex min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					class="flex min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 				></textarea>
 			</div>
 
-			<ContactListToggles lists={lists} bind:selectedIds={selectedListIds} />
+			<ContactListToggles {lists} bind:selectedIds={selectedListIds} />
 
-			<div class="sticky bottom-0 mt-auto flex gap-2 border-t border-border bg-background pt-4 pb-1">
+			<div
+				class="sticky bottom-0 mt-auto flex gap-2 border-t border-border bg-background pt-4 pb-1"
+			>
 				<Button
 					type="button"
 					variant="outline"
@@ -325,6 +414,149 @@
 					</ul>
 				</details>
 			{/if}
+
+			<section class="mx-1 mb-3 space-y-2 rounded-md border border-border p-3">
+				<p class="text-sm font-medium">People</p>
+				{#if members.length > 1}
+					<p class="text-xs text-muted-foreground">
+						Remove gives that person their own household (no address, no lists).
+					</p>
+				{/if}
+				{#if members.length > 0}
+					<ul class="space-y-1.5">
+						{#each members as m (m.id)}
+							<li class="flex items-center justify-between gap-2 text-sm">
+								<span class="min-w-0 truncate">
+									{contactDisplayName(m)}
+									{#if m.status !== 'active'}
+										<span class="text-xs text-muted-foreground">· retired</span>
+									{/if}
+								</span>
+								{#if members.length > 1}
+									<form
+										method="POST"
+										action="?/removeHouseholdPerson"
+										use:enhance={onPeopleMutation}
+									>
+										<input type="hidden" name="contact_id" value={m.id} />
+										<Button type="submit" variant="outline" size="sm" label="Remove" />
+									</form>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="text-xs text-muted-foreground">Nobody in this household yet.</p>
+				{/if}
+				{#if peopleErr}
+					<p class="text-xs text-destructive" role="alert">{peopleErr}</p>
+				{/if}
+				{#if peopleMsg}
+					<p class="text-xs text-emerald-700 dark:text-emerald-400" role="status">{peopleMsg}</p>
+				{/if}
+
+				<form
+					method="POST"
+					action="?/addHouseholdPerson"
+					use:enhance={onPeopleMutation}
+					class="space-y-2 border-t border-border pt-2"
+				>
+					<input type="hidden" name="household_id" value={household.id} />
+					<input type="hidden" name="mode" value={addMode} />
+					<div class="flex gap-4 text-xs" role="radiogroup" aria-label="Add person">
+						<label class="flex items-center gap-1.5">
+							<input type="radio" bind:group={addMode} value="new" /> Someone new
+						</label>
+						<label class="flex items-center gap-1.5">
+							<input type="radio" bind:group={addMode} value="existing" /> Existing contact
+						</label>
+					</div>
+
+					{#if addMode === 'new'}
+						<div class="grid grid-cols-2 gap-2">
+							<div class="space-y-1">
+								<Label for="person_first" class="text-xs">First</Label>
+								<Input id="person_first" name="first_name" bind:value={newFirst} />
+							</div>
+							<div class="space-y-1">
+								<Label for="person_last" class="text-xs">Last</Label>
+								<Input id="person_last" name="last_name" bind:value={newLast} />
+							</div>
+						</div>
+					{:else}
+						<input type="hidden" name="contact_id" value={pickId} />
+						{#if picked}
+							<div
+								class="flex items-center justify-between gap-2 rounded-md bg-muted px-2 py-1.5 text-sm"
+							>
+								<span class="min-w-0 truncate">
+									{contactDisplayName(picked)}
+									{#if picked.household_id && householdNameById[picked.household_id] && householdNameById[picked.household_id] !== contactDisplayName(picked)}
+										<span class="text-xs text-muted-foreground">
+											· from {householdNameById[picked.household_id]}
+										</span>
+									{/if}
+								</span>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									label="Change"
+									onclick={() => (pickId = '')}
+								/>
+							</div>
+						{:else}
+							<Input
+								type="search"
+								placeholder="Search contacts…"
+								aria-label="Search contacts"
+								bind:value={pickQuery}
+							/>
+							{#if pickMatches.length}
+								<ul class="divide-y divide-border rounded-md border border-border">
+									{#each pickMatches as p (p.id)}
+										<li>
+											<button
+												type="button"
+												class="w-full px-2 py-1.5 text-left text-sm hover:bg-muted"
+												onclick={() => (pickId = p.id)}
+											>
+												{contactDisplayName(p)}
+												{#if p.household_id && householdNameById[p.household_id] && householdNameById[p.household_id] !== contactDisplayName(p)}
+													<span class="text-xs text-muted-foreground">
+														· {householdNameById[p.household_id]}
+													</span>
+												{/if}
+											</button>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						{/if}
+						<p class="text-xs text-muted-foreground">
+							If their old household ends up empty, it's merged in: lists, children, and its address
+							if this one has none.
+						</p>
+					{/if}
+
+					{#if offerRename}
+						<label class="flex items-center gap-2 text-xs">
+							<input type="checkbox" name="rename" bind:checked={renameOn} />
+							Rename household to “{suggestedName}”
+						</label>
+						<input type="hidden" name="rename_to" value={suggestedName} />
+					{/if}
+
+					<div class="flex justify-end">
+						<Button
+							type="submit"
+							size="sm"
+							label="Add person"
+							disabled={addMode === 'new' ? !newFirst.trim() : !pickId}
+						/>
+					</div>
+				</form>
+			</section>
 
 			<section class="mx-1 mb-4 space-y-2 rounded-md border border-border p-3">
 				<p class="text-sm font-medium">Children</p>
@@ -381,12 +613,7 @@
 						<Input id="child_bday" name="birthday" type="date" bind:value={childBirthday} />
 					</div>
 					<div class="flex items-end">
-						<Button
-							type="submit"
-							size="sm"
-							label="Add child"
-							disabled={!childFirst.trim()}
-						/>
+						<Button type="submit" size="sm" label="Add child" disabled={!childFirst.trim()} />
 					</div>
 				</form>
 			</section>

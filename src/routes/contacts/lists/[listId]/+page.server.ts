@@ -5,6 +5,7 @@ import { contactDisplayName } from '$lib/contacts/names';
 import {
 	loadContactListMembers,
 	loadContactLists,
+	loadContactsLite,
 	loadHouseholdListCandidates,
 	loadHouseholds,
 	loadHouseholdSheetExtras,
@@ -29,7 +30,7 @@ export const load: PageServerLoad = async ({ locals, params, depends }) => {
 	const listId = params.listId;
 	if (!UUID_RE.test(listId)) error(404, 'List not found');
 
-	const [profileRes, listsRes, mapsRes, householdsRes, extras, membersRes, contactsRes] =
+	const [profileRes, listsRes, mapsRes, householdsRes, extras, membersRes, contactsLite] =
 		await Promise.all([
 			supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
 			loadContactLists(supabase),
@@ -37,11 +38,7 @@ export const load: PageServerLoad = async ({ locals, params, depends }) => {
 			loadHouseholds(supabase),
 			loadHouseholdSheetExtras(supabase),
 			loadContactListMembers(supabase, listId),
-			supabase
-				.from('contacts')
-				.select('id, first_name, last_name')
-				.is('deleted_at', null)
-				.order('first_name', { ascending: true })
+			loadContactsLite(supabase)
 		]);
 
 	if ((profileRes.data?.role as string | undefined) !== 'owner') error(403, 'Owner only');
@@ -54,9 +51,7 @@ export const load: PageServerLoad = async ({ locals, params, depends }) => {
 		listId,
 		onListHouseholdIds
 	});
-	const contactCandidates: ContactListCandidate[] = (
-		(contactsRes.data ?? []) as { id: string; first_name: string; last_name: string | null }[]
-	).map((c) => ({
+	const contactCandidates: ContactListCandidate[] = contactsLite.map((c) => ({
 		id: c.id,
 		display_name: contactDisplayName(c),
 		onList: onListContactIds.has(c.id)
@@ -69,6 +64,7 @@ export const load: PageServerLoad = async ({ locals, params, depends }) => {
 		hiddenRetiredOnlyCount: membersRes.hiddenRetiredOnlyCount,
 		householdCandidates: householdCandidatesRes.candidates,
 		contactCandidates,
+		contactsLite,
 		households: householdsRes.households,
 		listIdsByHouseholdId: mapsRes.maps.listIdsByHouseholdId,
 		childrenByHouseholdId: extras.childrenByHouseholdId,
@@ -81,7 +77,6 @@ export const load: PageServerLoad = async ({ locals, params, depends }) => {
 			mapsRes.error ??
 			householdCandidatesRes.error ??
 			extras.error ??
-			contactsRes.error?.message ??
 			null
 	};
 };

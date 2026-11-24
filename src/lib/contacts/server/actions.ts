@@ -2002,3 +2002,371 @@ export async function softDeleteHouseholdChildAction(supabase: SupabaseClient, f
 	}
 	return { kind: 'softDeleteHouseholdChild' as const, success: true as const, childId };
 }
+
+// ─── Household people (adults) ─────────────────────────────────────────────
+
+const HH_COLS = [
+	'name',
+	'address_line_1',
+	'address_line_2',
+	'city',
+	'state',
+	'postal_code',
+	'country',
+	'address_updated_on',
+	'notes',
+	'giving_grade',
+	'relationship_grade'
+] as const;
+const HH_ADDRESS_COLS = [
+	'address_line_1',
+	'address_line_2',
+	'city',
+	'state',
+	'postal_code',
+	'country',
+	'address_updated_on'
+] as const;
+type HhRow = Record<(typeof HH_COLS)[number], string | null> & { id: string };
+
+async function loadHh(supabase: SupabaseClient, id: string): Promise<HhRow | null> {
+	const { data } = await supabase
+		.from('households')
+		.select(`id, ${HH_COLS.join(', ')}`)
+		.eq('id', id)
+		.is('deleted_at', null)
+		.maybeSingle();
+	return (data as unknown as HhRow | null) ?? null;
+}
+
+/** Live contacts in a household, or an error (never silently "0"). */
+async function liveContactIds(
+	supabase: SupabaseClient,
+	householdId: string
+): Promise<{ ids: string[]; error: string | null }> {
+	const { data, error } = await supabase
+		.from('contacts')
+		.select('id')
+		.eq('household_id', householdId)
+		.is('deleted_at', null);
+	if (error) return { ids: [], error: error.message };
+	return { ids: ((data ?? []) as { id: string }[]).map((r) => r.id), error: null };
+}
+
+/** The household's state after a change, so the open sheet can re-seed itself. */
+async function householdSnapshot(supabase: SupabaseClient, householdId: string) {
+	const hh = await loadHh(supabase, householdId);
+	const { data: mem } = await supabase
+		.from('contact_list_members')
+		.select('list_id')
+		.eq('household_id', householdId)
+		.is('deleted_at', null);
+	return {
+		household: hh,
+		listIds: ((mem ?? []) as { list_id: string }[]).map((m) => m.list_id)
+	};
+}
+
+/**
+ * Add an adult to a household: a brand-new contact, or an existing contact moved
+ * in. If the existing contact is the last person in their old household, that
+ * household is merged in first (decided 2026-11-24): list memberships (no
+ * duplicates), children, live postcard sends, grade history, notes, empty
+ * grades, and its address if this household has none. The contact moves LAST,
+ * so a failure part-way leaves them where they were and a retry finishes the
+ * job — every merge step is safe to repeat.
+ */
+export async function addHouseholdPersonAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const kind = 'addHouseholdPerson' as const;
+	const householdId = trimOrNull(fd.get('household_id'));
+	if (!householdId || !UUID_RE.test(householdId)) {
+		return fail(400, { kind, message: 'Invalid household.' });
+	}
+	const target = await loadHh(supabase, householdId);
+	if (!target) return fail(404, { kind, householdId, message: 'Household not found.' });
+
+	const mode = trimOrNull(fd.get('mode')) === 'existing' ? 'existing' : 'new';
+	const notes: string[] = [];
+
+	if (mode === 'new') {
+		const first_name = trimOrNull(fd.get('first_name'));
+		if (!first_name) return fail(400, { kind, householdId, message: 'First name is required.' });
+		const last_name = trimOrNull(fd.get('last_name'));
+		// Same check-in rhythm as the person already here; else the create default.
+		const { data: mates } = await supabase
+			.from('contacts')
+			.select('frequency')
+			.eq('household_id', householdId)
+			.eq('status', 'active')
+			.is('deleted_at', null)
+			.limit(1);
+		const mateFreq = (mates?.[0] as { frequency: string | null } | undefined)?.frequency;
+		const frequency: ContactFrequency =
+			mateFreq && isContactFrequency(mateFreq) ? mateFreq : 'quarterly';
+		const { error } = await supabase.from('contacts').insert({
+			first_name,
+			last_name,
+			household_id: householdId,
+			frequency,
+			no_reminders: frequency === 'common',
+			cadence_days: null,
+			status: 'active',
+			created_by: userId
+		} as never);
+		if (error) return fail(500, { kind, householdId, message: error.message });
+	} else {
+		const contactId = trimOrNull(fd.get('contact_id'));
+		if (!contactId || !UUID_RE.test(contactId)) {
+			return fail(400, { kind, householdId, message: 'Pick a contact.' });
+		}
+		const { data: c, error: cErr } = await supabase
+			.from('contacts')
+			.select('id, household_id')
+			.eq('id', contactId)
+			.is('deleted_at', null)
+			.maybeSingle();
+		if (cErr) return fail(500, { kind, householdId, message: cErr.message });
+		if (!c) return fail(404, { kind, householdId, message: 'Contact not found.' });
+		const oldId = (c as { household_id: string | null }).household_id;
+		if (oldId === householdId) {
+			return fail(400, { kind, householdId, message: 'Already in this household.' });
+		}
+
+		let mergeOld = false;
+		if (oldId) {
+			const live = await liveContactIds(supabase, oldId);
+			if (live.error) return fail(500, { kind, householdId, message: live.error });
+			mergeOld = live.ids.every((id) => id === contactId); // they're the last one there
+			if (mergeOld) {
+				const merged = await foldHouseholdInto(supabase, oldId, target);
+				if (merged.error) return fail(500, { kind, householdId, message: merged.error });
+				notes.push(...merged.notes);
+			}
+		}
+
+		const { error: moveErr } = await supabase
+			.from('contacts')
+			.update({ household_id: householdId } as never)
+			.eq('id', contactId);
+		if (moveErr) return fail(500, { kind, householdId, message: moveErr.message });
+
+		if (oldId && mergeOld) {
+			// Re-check before deleting: only an empty household is ever soft-deleted.
+			const after = await liveContactIds(supabase, oldId);
+			if (after.error) return fail(500, { kind, householdId, message: after.error });
+			if (after.ids.length === 0) {
+				const { error: delErr } = await supabase
+					.from('households')
+					.update({ deleted_at: new Date().toISOString() } as never)
+					.eq('id', oldId);
+				if (delErr) return fail(500, { kind, householdId, message: delErr.message });
+			}
+		}
+	}
+
+	let renamedTo: string | null = null;
+	const newName = trimOrNull(fd.get('rename_to'));
+	if (fd.get('rename') === 'on' && newName && newName !== target.name) {
+		const { error } = await supabase
+			.from('households')
+			.update({ name: newName } as never)
+			.eq('id', householdId);
+		if (error) return fail(500, { kind, householdId, message: error.message });
+		renamedTo = newName;
+	}
+
+	return {
+		kind,
+		success: true as const,
+		householdId,
+		renamedTo,
+		...(await householdSnapshot(supabase, householdId)),
+		message: notes.length ? notes.join(' ') : null
+	};
+}
+
+/**
+ * Copy/move everything from `oldId` onto `target`. Idempotent: re-running after
+ * a partial failure finds nothing left to move and fills nothing twice. Does
+ * NOT move contacts or delete the old household — the caller does that last.
+ */
+async function foldHouseholdInto(
+	supabase: SupabaseClient,
+	oldId: string,
+	target: HhRow
+): Promise<{ notes: string[]; error: string | null }> {
+	const notes: string[] = [];
+	const o = await loadHh(supabase, oldId);
+	if (!o) return { notes, error: null };
+	const now = new Date().toISOString();
+
+	// Lists: move each membership; if the target is already on that list, drop the old one.
+	const [oldMem, tgtMem] = await Promise.all([
+		supabase
+			.from('contact_list_members')
+			.select('id, list_id')
+			.eq('household_id', oldId)
+			.is('deleted_at', null),
+		supabase
+			.from('contact_list_members')
+			.select('list_id')
+			.eq('household_id', target.id)
+			.is('deleted_at', null)
+	]);
+	if (oldMem.error || tgtMem.error)
+		return { notes, error: (oldMem.error ?? tgtMem.error)!.message };
+	const onTarget = new Set(((tgtMem.data ?? []) as { list_id: string }[]).map((m) => m.list_id));
+	for (const m of (oldMem.data ?? []) as { id: string; list_id: string }[]) {
+		const { error } = onTarget.has(m.list_id)
+			? await supabase
+					.from('contact_list_members')
+					.update({ deleted_at: now } as never)
+					.eq('id', m.id)
+			: await supabase
+					.from('contact_list_members')
+					.update({ household_id: target.id } as never)
+					.eq('id', m.id);
+		if (error) return { notes, error: error.message };
+		onTarget.add(m.list_id);
+	}
+
+	// Postcards already mailed (or reserved) to the old household count for the
+	// merged one too — otherwise the never-mail-twice guard would let it be mailed again.
+	const [oldSends, tgtSends] = await Promise.all([
+		supabase
+			.from('postcard_sends')
+			.select('id, list_id')
+			.eq('household_id', oldId)
+			.eq('kind', 'batch')
+			.in('status', ['pending', 'created'])
+			.is('deleted_at', null),
+		supabase
+			.from('postcard_sends')
+			.select('list_id')
+			.eq('household_id', target.id)
+			.eq('kind', 'batch')
+			.in('status', ['pending', 'created'])
+			.is('deleted_at', null)
+	]);
+	if (oldSends.error || tgtSends.error)
+		return { notes, error: (oldSends.error ?? tgtSends.error)!.message };
+	const mailedTarget = new Set(
+		((tgtSends.data ?? []) as { list_id: string }[]).map((r) => r.list_id)
+	);
+	for (const r of (oldSends.data ?? []) as { id: string; list_id: string }[]) {
+		if (mailedTarget.has(r.list_id)) continue; // both mailed on that list — keep history as is
+		const { error } = await supabase
+			.from('postcard_sends')
+			.update({ household_id: target.id } as never)
+			.eq('id', r.id);
+		if (error) return { notes, error: error.message };
+	}
+
+	// Children and grade history follow.
+	for (const table of ['household_children', 'household_grade_changes'] as const) {
+		const { error } = await supabase
+			.from(table)
+			.update({ household_id: target.id } as never)
+			.eq('household_id', oldId)
+			.is('deleted_at', null);
+		if (error) return { notes, error: error.message };
+	}
+
+	// Household fields: fill blanks only; never overwrite.
+	const patch: Record<string, string | null> = {};
+	if (o.address_line_1) {
+		if (!target.address_line_1) {
+			for (const k of HH_ADDRESS_COLS) patch[k] = o[k];
+			notes.push(`Took ${o.name}'s address.`);
+		} else if (o.address_line_1 !== target.address_line_1) {
+			notes.push(
+				`Kept this household's address; ${o.name} had ${[o.address_line_1, o.city, o.state].filter(Boolean).join(', ')}.`
+			);
+		}
+	}
+	if (!target.giving_grade && o.giving_grade) patch.giving_grade = o.giving_grade;
+	if (!target.relationship_grade && o.relationship_grade)
+		patch.relationship_grade = o.relationship_grade;
+	if (o.notes?.trim() && !(target.notes ?? '').includes(o.notes.trim())) {
+		patch.notes = [target.notes?.trim(), o.notes.trim()].filter(Boolean).join('\n\n');
+	}
+	if (Object.keys(patch).length) {
+		const { error } = await supabase
+			.from('households')
+			.update(patch as never)
+			.eq('id', target.id);
+		if (error) return { notes, error: error.message };
+		Object.assign(target, patch);
+	}
+
+	notes.unshift(`Merged ${o.name}'s household in.`);
+	return { notes, error: null };
+}
+
+/**
+ * Take an adult out of a household. They get a household of their own again,
+ * with no address and no lists. Blocked for the last person.
+ */
+export async function removeHouseholdPersonAction(
+	supabase: SupabaseClient,
+	userId: string,
+	fd: FormData
+) {
+	const kind = 'removeHouseholdPerson' as const;
+	const contactId = trimOrNull(fd.get('contact_id'));
+	if (!contactId || !UUID_RE.test(contactId)) {
+		return fail(400, { kind, message: 'Invalid contact.' });
+	}
+	const { data: c, error: cErr } = await supabase
+		.from('contacts')
+		.select('id, first_name, last_name, household_id')
+		.eq('id', contactId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (cErr) return fail(500, { kind, message: cErr.message });
+	const row = c as {
+		first_name: string;
+		last_name: string | null;
+		household_id: string | null;
+	} | null;
+	if (!row?.household_id) return fail(404, { kind, message: 'Contact not in a household.' });
+	const live = await liveContactIds(supabase, row.household_id);
+	if (live.error) return fail(500, { kind, message: live.error });
+	if (live.ids.length < 2) {
+		return fail(400, {
+			kind,
+			householdId: row.household_id,
+			message: "They're the only person in this household."
+		});
+	}
+	const { data: hh, error: hhErr } = await supabase
+		.from('households')
+		.insert({ name: householdNameFromContact(row), created_by: userId } as never)
+		.select('id')
+		.single();
+	if (hhErr || !hh)
+		return fail(500, { kind, message: hhErr?.message ?? 'Could not create household.' });
+	const newId = (hh as { id: string }).id;
+	const { error } = await supabase
+		.from('contacts')
+		.update({ household_id: newId } as never)
+		.eq('id', contactId);
+	if (error) {
+		// Don't leave an empty orphan behind.
+		await supabase
+			.from('households')
+			.update({ deleted_at: new Date().toISOString() } as never)
+			.eq('id', newId);
+		return fail(500, { kind, message: error.message });
+	}
+	return {
+		kind,
+		success: true as const,
+		householdId: row.household_id,
+		...(await householdSnapshot(supabase, row.household_id))
+	};
+}

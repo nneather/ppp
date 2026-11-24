@@ -7,6 +7,7 @@ import {
 	type ContactListFilter,
 	type ContactListMemberRow,
 	type ContactListRow,
+	type ContactLite,
 	type ContactSearchHit,
 	type ContactStatus,
 	type ContactsListFilters,
@@ -110,6 +111,18 @@ export function parseContactsListFilters(url: URL): ContactsListFilters {
 	const listId = url.searchParams.get('list_filter')?.trim() || null;
 	const sort = parseContactSort(url.searchParams.get('sort'));
 	return { status, q, listId, sort };
+}
+
+/** Every live contact, minimal columns — household People section + "existing contact" search. */
+
+export async function loadContactsLite(supabase: SupabaseClient): Promise<ContactLite[]> {
+	const { data, error } = await supabase
+		.from('contacts')
+		.select('id, first_name, last_name, household_id, frequency, status')
+		.is('deleted_at', null)
+		.order('first_name', { ascending: true });
+	if (error) console.error('[contacts] loadContactsLite', error);
+	return (data ?? []) as ContactLite[];
 }
 
 export async function loadHouseholds(supabase: SupabaseClient): Promise<{

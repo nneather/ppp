@@ -7,6 +7,9 @@
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+	const householdNameById = $derived(
+		Object.fromEntries(data.households.map((h) => [h.id, h.name])) as Record<string, string>
+	);
 
 	type FormShape = { kind?: string; message?: string; success?: boolean; count?: number };
 	const f = $derived((form ?? null) as FormShape | null);
@@ -63,6 +66,8 @@
 	memberListIds={editing ? (data.listIdsByHouseholdId[editing.id] ?? []) : []}
 	gradeChanges={editing ? (data.gradeChangesByHouseholdId[editing.id] ?? []) : []}
 	children={editing ? (data.childrenByHouseholdId[editing.id] ?? []) : []}
+	people={data.contactsLite}
+	{householdNameById}
 	errorMessage={sheetError}
 	onSaved={() => invalidate('app:contacts:list')}
 />

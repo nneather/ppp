@@ -61,6 +61,9 @@
 	const Q_DEBOUNCE_MS = 300;
 
 	let { data, form }: PageProps = $props();
+	const householdNameById = $derived(
+		Object.fromEntries(data.households.map((h) => [h.id, h.name])) as Record<string, string>
+	);
 
 	type FormShape = {
 		kind?: string;
@@ -1111,6 +1114,8 @@
 			? (data.gradeChangesByHouseholdId[editingHousehold.id] ?? [])
 			: []}
 		children={editingHousehold ? (data.childrenByHouseholdId[editingHousehold.id] ?? []) : []}
+		people={data.contactsLite}
+		{householdNameById}
 		errorMessage={householdSheetError}
 		{onSaved}
 	/>

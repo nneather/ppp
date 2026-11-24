@@ -15,10 +15,7 @@ import {
 import { formatCadenceLabel } from '$lib/contacts/cadence';
 
 /** Display name: first + optional last. */
-export function contactDisplayName(c: {
-	first_name: string;
-	last_name: string | null;
-}): string {
+export function contactDisplayName(c: { first_name: string; last_name: string | null }): string {
 	const last = c.last_name?.trim();
 	if (last) return `${c.first_name.trim()} ${last}`;
 	return c.first_name.trim();
@@ -30,6 +27,28 @@ export function householdNameFromContact(c: {
 	last_name: string | null;
 }): string {
 	return contactDisplayName(c);
+}
+
+/**
+ * Envelope-style household name from its adults:
+ * same last name → "Jordan and Taylor Gibbs"; different → "Ben Kroese and Claire Kilgore";
+ * three or more → "A, B and C Smith".
+ */
+export function suggestHouseholdName(
+	people: { first_name: string; last_name: string | null }[]
+): string {
+	const ps = people.filter((p) => p.first_name.trim());
+	if (ps.length === 0) return '';
+	if (ps.length === 1) return contactDisplayName(ps[0]);
+	const join = (xs: string[]) =>
+		xs.length <= 2 ? xs.join(' and ') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
+	const lasts = new Set(ps.map((p) => p.last_name?.trim() ?? ''));
+	if (lasts.size === 1) {
+		const last = [...lasts][0];
+		const firsts = join(ps.map((p) => p.first_name.trim()));
+		return last ? `${firsts} ${last}` : firsts;
+	}
+	return join(ps.map((p) => contactDisplayName(p)));
 }
 
 /** Effective cadence: contact override → profile default → app constant (90). */
