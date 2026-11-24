@@ -75,8 +75,8 @@ export function loanBooksHtml(books: readonly LoanBookLine[]): string {
 	if (books.length === 0) return '';
 	const items = books.map((book) => {
 		const title = escapeHtml(book.title.trim() || 'Untitled');
-		const authors = book.authors?.trim() ? ` — ${escapeHtml(book.authors.trim())}` : '';
-		return `<li>${title}${authors} (due ${escapeHtml(formatLoanDate(book.dueOn))})</li>`;
+		const authors = book.authors?.trim() ? ` by ${escapeHtml(book.authors.trim())}` : '';
+		return `<li><em>${title}</em>${authors} (due ${escapeHtml(formatLoanDate(book.dueOn))})</li>`;
 	});
 	return `<ul>${items.join('')}</ul>`;
 }

@@ -73,8 +73,7 @@ describe('loan schedule', () => {
 		const list = loanBooksHtml([
 			{ title: 'Institutes', authors: 'Calvin', dueOn: '2026-12-24' }
 		]);
-		expect(list).toContain('<ul>');
-		expect(list).toContain('Calvin');
+		expect(list).toBe('<ul><li><em>Institutes</em> by Calvin (due Dec 24, 2026)</li></ul>');
 		expect(
 			renderEmailTemplate('{{loan.books}}', { 'loan.books': list }, { html: true })
 		).toBe(list);
