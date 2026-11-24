@@ -444,8 +444,14 @@
 									name="custom_message"
 									bind:value={emailBody}
 									rows={5}
+									aria-describedby="custom_message_hint"
 									class="flex min-h-[120px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 								></textarea>
+								<p id="custom_message_hint" class="text-xs text-muted-foreground">
+									This note fills {'{{invoice.message}}'} in the
+									<a href="/settings/email-templates" class="underline underline-offset-2">invoice email template</a>.
+									The PDF is still attached.
+								</p>
 							</div>
 							<Dialog.Footer class="flex-col gap-2 sm:flex-row sm:justify-end">
 								<Button

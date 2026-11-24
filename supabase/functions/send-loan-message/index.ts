@@ -102,11 +102,13 @@ function mergeFor(input: {
 	bookTitle: string;
 	bookAuthors: string | null;
 	checkedOutOn: string;
+	intervalDays: number;
 	asOfYmd: string;
 	ownerFullName: string | null;
 }): LoanMergeValues {
 	const [first, ...rest] = input.recipientName.trim().split(/\s+/);
 	const days = daysBetweenYmd(input.checkedOutOn, input.asOfYmd);
+	const due = addDaysYmd(input.checkedOutOn, input.intervalDays);
 	return {
 		'contact.first_name': first ?? '',
 		'contact.last_name': rest.join(' '),
@@ -114,7 +116,13 @@ function mergeFor(input: {
 		'book.title': input.bookTitle.trim() || 'a book',
 		'book.authors': (input.bookAuthors ?? '').trim(),
 		'loan.checked_out_on': formatLoanDate(input.checkedOutOn),
+		'loan.due_on': due ? formatLoanDate(due) : '',
 		'loan.days_out': String(days != null && days > 0 ? days : 0),
+		'client.name': '',
+		'invoice.number': '',
+		'invoice.period': '',
+		'invoice.total': '',
+		'invoice.message': '',
 		'owner.first_name': ownerFirstName(input.ownerFullName)
 	};
 }
@@ -161,6 +169,7 @@ async function queueNextReminder(
 		bookTitle,
 		bookAuthors,
 		checkedOutOn: loan.checked_out_on,
+		intervalDays: loan.interval_days,
 		asOfYmd: scheduled,
 		ownerFullName
 	});
@@ -169,7 +178,7 @@ async function queueNextReminder(
 		kind: 'reminder',
 		template_id: template.id,
 		subject: renderEmailTemplate(template.subject, values).trim(),
-		html_body: sanitizeEmailHtml(renderEmailTemplate(template.html_body, values)),
+		html_body: sanitizeEmailHtml(renderEmailTemplate(template.html_body, values, { html: true })),
 		scheduled_for: scheduled,
 		status: 'queued',
 		created_by: loan.created_by

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-11-24 — Library checkout and editable email templates ([321](docs/decisions/321-library-loans-email-templates.md)).
+**Last updated:** 2026-11-24 — Invoice mail uses the template store, plus a due-date field and a uses list ([323](docs/decisions/323-email-template-uses.md)).
 
 **How to use this file — read this first:**
 
@@ -33,8 +33,8 @@ Nearest hard dates:
 
 | Module | Tracker | State |
 |---|---|---|
-| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete (Sessions 1–6) + ad-hoc polish. PDF send confirmed ([185](docs/decisions/185-invoice-pdf-received-resolved.md)). Historical FOL + TWH hours ([196](docs/decisions/196-invoicing-historical-fol-twh-hours.md)). Analytics + **YTD range** + first-class one-offs ([197](docs/decisions/197-invoicing-analytics.md)/[201](docs/decisions/201-invoicing-analytics-range-one-offs.md)). List **one-tap mark-paid** + undo ([202](docs/decisions/202-invoicing-list-mark-paid.md)). **Open:** key rotation (#4, Sep 2026); optional invoice period reconstruction. |
-| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2. Passage sections live. **Turretin and Calvin scripture indexes imported.** Nov 14 shelf is in ([318](docs/decisions/318-library-nov14-shelf-batch.md)). **Checkout** ties one copy to a contact and emails them ([321](docs/decisions/321-library-loans-email-templates.md)). **Open:** van Mastricht source; August shelf QA — Madison. |
+| Invoicing | [docs/POS_Invoicing_Build_Tracker.md](docs/POS_Invoicing_Build_Tracker.md) | ✅ Code complete + analytics, one-offs, and list mark-paid. The send email is the `invoicing.invoice` template; the note typed at send fills `{{invoice.message}}` ([323](docs/decisions/323-email-template-uses.md)). **Open:** key rotation (#4, Sep 2026). |
+| Library | [docs/POS_Library_Build_Tracker.md](docs/POS_Library_Build_Tracker.md) | ✅ Trip build + Wave 2. Passage sections live. **Turretin and Calvin scripture indexes imported.** Nov 14 shelf is in ([318](docs/decisions/318-library-nov14-shelf-batch.md)). **Checkout** ties one copy to a contact and emails them ([321](docs/decisions/321-library-loans-email-templates.md)). `{{loan.due_on}}` is checkout plus the interval ([323](docs/decisions/323-email-template-uses.md)). **Open:** van Mastricht source; August shelf QA — Madison. |
 | Projects | [docs/POS_Projects_Build_Tracker.md](docs/POS_Projects_Build_Tracker.md) | ✅ v1 complete + fall MYN polish + desktop home dashboard + **Outlook-style right Now pane** ([206](docs/decisions/206-outlook-right-now-pane.md)) + MCP week/health finetune ([184](docs/decisions/184-mcp-monday-protocol-finetune.md)). **Weekly Status auto-completes when check-in is done** ([242](docs/decisions/242-ritual-checkin-flexible-assignments.md)). Owner E2E smoke 2026-07-22 passed. Viewer access owner-only by design. |
 | Sports | [docs/POS_Sports_Build_Tracker.md](docs/POS_Sports_Build_Tracker.md) | Scores, Standings, and Teams. Standings and the follow list use conference dropdowns; college football is subdivision then conference ([300](docs/decisions/300-sports-navigation.md)). |
 | Sermons | [docs/POS_Sermons_Build_Tracker.md](docs/POS_Sermons_Build_Tracker.md) | ✅ v1 + venue logistics. List and by-book now live under Studies ([244](docs/decisions/244-studies-session-1.md)). Venues stay in settings. Dashboard panel is the next three; header → list, row → sermon ([293](docs/decisions/293-dashboard-upcoming-sermons.md)). |
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [323 — Email template uses](docs/decisions/323-email-template-uses.md) (2026-11-24) — `{{loan.due_on}}` is checkout plus the interval. Invoice mail uses the template store. Each send is a dropdown, not a checkbox.
+- [322 — Christmas list address confirmation](docs/decisions/322-christmas-address-confirm.md) (2026-11-24) — List rows show the address and this year’s status. One tap confirms a complete address.
 - [321 — Library loans and email templates](docs/decisions/321-library-loans-email-templates.md) (2026-11-24) — Check a copy out to a contact. Checkout email sends now; a reminder repeats until the book is back. Templates are folders plus a TipTap editor.
 - [320 — Psalm 23 bibliography export](docs/decisions/320-psalm-23-bibliography-export.md) (2026-11-23) — Copy bibliography and .docx include candidates when every source is still a candidate. A disabled download link looks disabled.
 - [319 — Treasury of David commentary collapse](docs/decisions/319-treasury-of-david-commentary-collapse.md) (2026-11-23) — the three series-less volumes show as one Psalms commentary. No new series. Volume numbers and MacDonald vs Hendrickson still unset.
-- [318 — Nov 14 shelf batch](docs/decisions/318-library-nov14-shelf-batch.md) (2026-11-14) — Goldingay BCOTWP Psalms (3 vols), Firth ApOTC 14, Webb NSBT 10, Lloyd-Jones on Ephesians 5:18–6:9, Elliot 1978. Psalms commentaries follow the bible-book rule. No new set rows.
-- [317 — Berlin OTL Lamentations](docs/decisions/317-library-nov11-berlin-lamentations.md) (2026-11-11) — Hardcover 2002, `9780664218492`. Coverage Lamentations. Already on Commentaries: Lamentations by the bible-book rule. No new set row.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Library loans and email templates [321](docs/decisions/321-library-loans-email-templates.md) — `npm run check` clean. `npm run test` **897 passed**. Schema is on prod (`20261124145249`, `20261124145857`). `send-loan-message` is deployed. `LOAN_REMINDER_CRON_SECRET` is set on Supabase and GitHub. Signed-in check: template preview renders, and checkout blocks a contact with no email. No email was sent.
+**Repo gate:** Email template uses [323](docs/decisions/323-email-template-uses.md) — `npm run check` clean. `npm run test` **898 passed**. Seed `20261124193000` is on prod. `send-invoice` and `send-loan-message` are deployed. No invoice or loan email was sent.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

@@ -16,7 +16,8 @@
 		owned = true,
 		copyCount = 1,
 		borrowedTo = null,
-		form = null
+		form = null,
+		checkoutOpen = $bindable(false)
 	}: {
 		loans: LoanCardModel[];
 		isOwner: boolean;
@@ -26,6 +27,7 @@
 		copyCount?: number;
 		borrowedTo?: string | null;
 		form?: { kind?: string; success?: boolean; message?: string } | null;
+		checkoutOpen?: boolean;
 	} = $props();
 
 	const checkoutError = $derived(
@@ -47,15 +49,22 @@
 			: null
 	);
 
-	let checkoutOpen = $state(false);
 	let reminderOpen = $state(false);
 	let reminderLoanId = $state<string | null>(null);
 	let pending = $state(false);
 
 	const roomLeft = $derived(owned && loans.length < copyCount);
 	const activeReminder = $derived(loans.find((loan) => loan.id === reminderLoanId)?.reminder ?? null);
+	const quietEmpty = $derived(
+		loans.length === 0 && !borrowedTo && !actionError && !checkoutError
+	);
 </script>
 
+{#if quietEmpty}
+	{#if !bookId}
+		<p class="mt-4 text-sm text-muted-foreground">Nothing is out.</p>
+	{/if}
+{:else}
 <section class="mt-4 rounded-xl border border-border bg-card p-4">
 	<div class="flex items-center justify-between gap-2">
 		<h2 class="text-sm font-medium text-foreground">Checked out</h2>
@@ -68,17 +77,13 @@
 
 	{#if loans.length === 0 && borrowedTo}
 		<p class="mt-2 text-sm text-muted-foreground">On loan to {borrowedTo}</p>
-	{:else if loans.length === 0}
-		<p class="mt-2 text-sm text-muted-foreground">
-			{owned ? 'Nothing is out.' : 'Not in the physical library.'}
-		</p>
 	{/if}
 
 	{#if actionError}
 		<p class="mt-2 text-sm text-destructive" role="alert">{actionError}</p>
 	{/if}
 
-	<ul class="mt-3 flex flex-col gap-3">
+	<ul class="mt-3 flex flex-col gap-3 empty:mt-0">
 		{#each loans as loan (loan.id)}
 			<li class="rounded-lg border border-border/70 px-3 py-3 text-sm">
 				<p class="font-medium text-foreground">
@@ -170,6 +175,7 @@
 		{/each}
 	</ul>
 </section>
+{/if}
 
 {#if bookId}
 	<LoanCheckoutSheet bind:open={checkoutOpen} {bookId} errorMessage={checkoutError} />

@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sanitizeEmailHtml } from '$lib/email/sanitize';
-import { LIBRARY_LOAN_CHECKOUT_KEY, LIBRARY_LOAN_REMINDER_KEY, unknownEmailTokens } from '$lib/email/variables';
+import { EMAIL_TEMPLATE_USES, emailUseLabel, unknownEmailTokens } from '$lib/email/variables';
 import type { Database } from '$lib/types/database';
 
 type Db = SupabaseClient<Database>;
@@ -92,11 +92,29 @@ export async function saveEmailTemplateAction(supabase: Db, userId: string, fd: 
 		return fail(500, { kind, message: 'Could not save the template.' });
 	}
 
-	const wantCheckout = fd.get('bind_checkout') === 'on';
-	const wantReminder = fd.get('bind_reminder') === 'on';
-	if (wantCheckout) await moveBinding(supabase, LIBRARY_LOAN_CHECKOUT_KEY, id, userId);
-	if (wantReminder) await moveBinding(supabase, LIBRARY_LOAN_REMINDER_KEY, id, userId);
 	return { kind, success: true as const, templateId: id };
+}
+
+export async function assignEmailTemplateUseAction(supabase: Db, userId: string, fd: FormData) {
+	const kind = 'assignEmailTemplateUse' as const;
+	if (!(await requireOwner(supabase, userId))) {
+		return fail(403, { kind, message: 'Only the owner can edit templates.' });
+	}
+	const key = trim(fd, 'binding_key');
+	const templateId = trim(fd, 'template_id');
+	if (!EMAIL_TEMPLATE_USES.some((use) => use.key === key)) {
+		return fail(400, { kind, message: 'That email use is not in the catalog.' });
+	}
+	if (!UUID_RE.test(templateId)) return fail(400, { kind, message: 'Pick a template.' });
+	const { data: template, error } = await supabase
+		.from('email_templates')
+		.select('id')
+		.eq('id', templateId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (error || !template) return fail(400, { kind, message: 'That template is gone.' });
+	await moveBinding(supabase, key, templateId, userId);
+	return { kind, success: true as const };
 }
 
 async function moveBinding(supabase: Db, key: string, templateId: string, userId: string) {
@@ -132,9 +150,10 @@ export async function softDeleteEmailTemplateAction(supabase: Db, userId: string
 		.eq('template_id', id)
 		.is('deleted_at', null);
 	if ((bindings ?? []).length > 0) {
+		const labels = (bindings ?? []).map((row) => emailUseLabel(row.binding_key));
 		return fail(400, {
 			kind,
-			message: 'This template is used for checkout or reminders. Point that role at another template first.'
+			message: `This template is used for ${labels.join(', ')}. Point that use at another template first.`
 		});
 	}
 	const { error } = await supabase

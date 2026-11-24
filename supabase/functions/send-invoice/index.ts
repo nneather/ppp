@@ -1,4 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+	emailHtmlToText,
+	ownerFirstName,
+	renderEmailTemplate,
+	sanitizeEmailHtml,
+	wrapLoanEmail,
+	type LoanMergeValues
+} from '../_shared/loan-email.ts';
 
 function resolveCorsOrigin(req: Request): string | null {
 	const origin = req.headers.get('Origin');
@@ -112,6 +120,31 @@ async function requireOwner(
 		.maybeSingle();
 	if (error || !data) return false;
 	return (data as { role: string }).role === 'owner';
+}
+
+const INVOICE_TEMPLATE_KEY = 'invoicing.invoice';
+
+async function loadInvoiceTemplate(
+	admin: ReturnType<typeof createClient>
+): Promise<{ subject: string; html_body: string } | null> {
+	const { data: binding, error: bindingError } = await admin
+		.from('email_template_bindings')
+		.select('template_id')
+		.eq('binding_key', INVOICE_TEMPLATE_KEY)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (bindingError || !binding) return null;
+	const templateId = (binding as { template_id: string }).template_id;
+	const { data: template, error } = await admin
+		.from('email_templates')
+		.select('subject, html_body, is_active')
+		.eq('id', templateId)
+		.is('deleted_at', null)
+		.maybeSingle();
+	if (error || !template) return null;
+	const row = template as { subject: string; html_body: string; is_active: boolean };
+	if (!row.is_active) return null;
+	return { subject: row.subject, html_body: row.html_body };
 }
 
 /** Resolves the current user id via GoTrue (supports ES256); avoids local JWT verify in Edge. */
@@ -341,25 +374,63 @@ Deno.serve(async (req) => {
 	}
 
 	const total = num(invoice.total);
-	const messageEscaped = escapeHtml(customMessage.trim() || 'Please see the attached invoice.');
-	const customMessageHtml = `<p style="margin:0;white-space:pre-wrap;">${messageEscaped.replace(/\n/g, '<br/>')}</p>`;
+	const note = customMessage.trim() || 'Please see the attached invoice.';
+	const period = `${formatDateYmd(invoice.period_start)} – ${formatDateYmd(invoice.period_end)}`;
+	const { data: profileRow } = await admin
+		.from('profiles')
+		.select('full_name')
+		.eq('id', userId)
+		.maybeSingle();
+	const ownerName = (profileRow as { full_name?: string | null } | null)?.full_name ?? null;
+	const invoiceTemplate = await loadInvoiceTemplate(admin);
 
-	const html = buildEmailHtml({
-		invoiceNumber: invoice.invoice_number,
-		clientName: client.name,
-		periodStart: invoice.period_start,
-		periodEnd: invoice.period_end,
-		total,
-		customMessageHtml
-	});
-	const text = buildEmailText({
-		invoiceNumber: invoice.invoice_number,
-		clientName: client.name,
-		periodStart: invoice.period_start,
-		periodEnd: invoice.period_end,
-		total,
-		customMessage
-	});
+	let subject: string;
+	let html: string;
+	let text: string;
+	if (invoiceTemplate) {
+		const values: LoanMergeValues = {
+			'contact.first_name': '',
+			'contact.last_name': '',
+			'contact.full_name': '',
+			'book.title': '',
+			'book.authors': '',
+			'loan.checked_out_on': '',
+			'loan.due_on': '',
+			'loan.days_out': '',
+			'client.name': client.name,
+			'invoice.number': invoice.invoice_number,
+			'invoice.period': period,
+			'invoice.total': money(total),
+			'invoice.message': note,
+			'owner.first_name': ownerFirstName(ownerName)
+		};
+		const body = sanitizeEmailHtml(
+			renderEmailTemplate(invoiceTemplate.html_body, values, { html: true })
+		);
+		subject = `${subjectPrefix}${renderEmailTemplate(invoiceTemplate.subject, values).trim()}`;
+		html = wrapLoanEmail(body);
+		text = emailHtmlToText(body);
+	} else {
+		const messageEscaped = escapeHtml(note);
+		const customMessageHtml = `<p style="margin:0;white-space:pre-wrap;">${messageEscaped.replace(/\n/g, '<br/>')}</p>`;
+		html = buildEmailHtml({
+			invoiceNumber: invoice.invoice_number,
+			clientName: client.name,
+			periodStart: invoice.period_start,
+			periodEnd: invoice.period_end,
+			total,
+			customMessageHtml
+		});
+		text = buildEmailText({
+			invoiceNumber: invoice.invoice_number,
+			clientName: client.name,
+			periodStart: invoice.period_start,
+			periodEnd: invoice.period_end,
+			total,
+			customMessage: note
+		});
+		subject = `${subjectPrefix}Invoice ${invoice.invoice_number} — ${client.name}`;
+	}
 
 	const safeFileBase = invoice.invoice_number.replace(/[^a-zA-Z0-9._-]+/g, '_');
 	const filename = `${safeFileBase || 'invoice'}.pdf`;
@@ -372,7 +443,7 @@ Deno.serve(async (req) => {
 		reply_to: ['parker@npneathery.com'],
 		headers: { 'Reply-To': 'parker@npneathery.com' },
 		to: toList,
-		subject: `${subjectPrefix}Invoice ${invoice.invoice_number} — ${client.name}`,
+		subject,
 		html,
 		text,
 		attachments: [{ filename, content: pdfBase64, content_type: 'application/pdf' }]

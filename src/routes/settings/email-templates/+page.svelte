@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { LIBRARY_LOAN_CHECKOUT_KEY, LIBRARY_LOAN_REMINDER_KEY } from '$lib/email/variables';
+	import { EMAIL_TEMPLATE_USES, emailUseLabel } from '$lib/email/variables';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -17,11 +17,10 @@
 	);
 
 	function roleFor(templateId: string): string {
-		const keys = data.bindings.filter((b) => b.template_id === templateId).map((b) => b.binding_key);
-		const labels = [];
-		if (keys.includes(LIBRARY_LOAN_CHECKOUT_KEY)) labels.push('Checkout');
-		if (keys.includes(LIBRARY_LOAN_REMINDER_KEY)) labels.push('Reminder');
-		return labels.join(' · ');
+		return data.bindings
+			.filter((b) => b.template_id === templateId)
+			.map((b) => emailUseLabel(b.binding_key))
+			.join(' · ');
 	}
 </script>
 
@@ -45,6 +44,35 @@
 		{#if message}
 			<p class="mt-4 text-sm text-destructive" role="alert">{message}</p>
 		{/if}
+
+		<section class="mt-6 flex flex-col gap-4 rounded-xl border border-border p-4">
+			<div>
+				<h2 class="text-sm font-medium">Where templates are used</h2>
+				<p class="mt-1 text-sm text-muted-foreground">
+					Each send points at one template. Picking a different template moves that send. A send always has a template, so there is nothing to uncheck.
+				</p>
+			</div>
+			{#each EMAIL_TEMPLATE_USES as use (use.key)}
+				{@const current = data.bindings.find((b) => b.binding_key === use.key)?.template_id ?? ''}
+				<form method="POST" action="?/assignUse" use:enhance class="flex flex-col gap-2 sm:flex-row sm:items-end">
+					<input type="hidden" name="binding_key" value={use.key} />
+					<div class="min-w-0 flex-1">
+						<Label for="use-{use.key}">{use.label}</Label>
+						<p class="text-xs text-muted-foreground">{use.detail}</p>
+					</div>
+					<select
+						id="use-{use.key}"
+						name="template_id"
+						class="h-9 rounded-md border border-input bg-background px-2 text-sm sm:w-56"
+					>
+						{#each data.templates as template (template.id)}
+							<option value={template.id} selected={template.id === current}>{template.name}</option>
+						{/each}
+					</select>
+					<Button type="submit" variant="outline" size="sm">Use this template</Button>
+				</form>
+			{/each}
+		</section>
 
 		{#each data.folders as folder (folder.id)}
 			<section class="mt-6">
@@ -121,7 +149,7 @@
 		<ConfirmDialog
 			bind:open={deleteOpen}
 			title="Delete this template?"
-			description="Queued emails keep the copy they already have. A template that is the checkout or reminder email cannot be deleted until another one takes that role."
+			description="Queued emails keep the copy they already have. A template that a send still points at cannot be deleted until another template takes that use."
 			confirmLabel="Delete"
 			destructive
 			onConfirm={() => deleteForm?.requestSubmit()}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import Receipt from '@lucide/svelte/icons/receipt';
+	import Settings from '@lucide/svelte/icons/settings';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
@@ -286,6 +287,16 @@
 					<DashboardSportsGlance games={data.sportsGlanceGames} />
 				</div>
 				<div class="md:order-3">{@render invoicingTile()}</div>
+				<a
+					href="/settings"
+					class="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground shadow-sm md:hidden"
+				>
+					<span class="flex items-center gap-2">
+						<Settings class="size-4 text-muted-foreground" />
+						Settings
+					</span>
+					<span class="text-primary">Open →</span>
+				</a>
 		</div>
 
 		<aside

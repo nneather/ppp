@@ -77,6 +77,7 @@
 	import OutlineSectionList from '$lib/components/outline-section-list.svelte';
 	import ScriptureIndexSummary from '$lib/components/scripture-index-summary.svelte';
 	import BookLoanCard from '$lib/components/book-loan-card.svelte';
+	import { canCheckOutCopy } from '$lib/email/loans';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -92,6 +93,14 @@
 	}
 
 	let bookActionsSheetOpen = $state(false);
+	let loanCheckoutOpen = $state(false);
+	const canCheckOut = $derived(
+		canCheckOutCopy({
+			owned: data.book.owned,
+			copyCount: data.book.copy_count,
+			openLoanCount: data.loans.length
+		}) && data.isOwner
+	);
 	let personEditOpen = $state(false);
 	let personEditTarget = $state<PersonRow | null>(null);
 	let catalogPeople = $state<PersonRow[]>([]);
@@ -1404,6 +1413,15 @@
 			<Trash2 class="size-4" />
 			{deletePending ? 'Deleting…' : 'Delete'}
 		</Button>
+		<Button
+			type="button"
+			variant="outline"
+			size="icon"
+			onclick={() => (bookActionsSheetOpen = true)}
+			aria-label="More book actions"
+		>
+			<MoreHorizontal class="size-4" />
+		</Button>
 	</div>
 	<div class="flex items-stretch gap-2 md:hidden">
 		<Button
@@ -1576,6 +1594,7 @@
 		owned={data.book.owned}
 		copyCount={data.book.copy_count}
 		borrowedTo={data.book.borrowed_to}
+		bind:checkoutOpen={loanCheckoutOpen}
 		{form}
 	/>
 
@@ -1595,6 +1614,19 @@
 				<Sheet.Title class="text-base">Book actions</Sheet.Title>
 			</Sheet.Header>
 			<div class="flex flex-col gap-2 p-4">
+				{#if canCheckOut}
+					<Button
+						type="button"
+						variant="outline"
+						class="h-11 w-full justify-center"
+						onclick={() => {
+							bookActionsSheetOpen = false;
+							loanCheckoutOpen = true;
+						}}
+					>
+						Check out
+					</Button>
+				{/if}
 				<Button
 					variant="outline"
 					class="h-11 w-full justify-center gap-2"

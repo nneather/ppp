@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { saveEmailTemplateAction } from '$lib/email/server/template-actions';
 import { buildLoanMergeValues } from '$lib/library/server/loan-actions';
 import { loadOpenLoans } from '$lib/library/server/loan-loaders';
-import { LIBRARY_LOAN_CHECKOUT_KEY, LIBRARY_LOAN_REMINDER_KEY } from '$lib/email/variables';
+import { emailUseLabel } from '$lib/email/variables';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
 
 const UUID_RE =
@@ -45,6 +45,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				bookTitle: loan.bookTitle ?? '',
 				bookAuthors: loan.bookAuthors,
 				checkedOutOn: loan.checkedOutOn,
+				intervalDays: loan.intervalDays,
 				asOfYmd: loan.reminder?.scheduledFor ?? today,
 				ownerFullName: profile.full_name
 			})
@@ -57,8 +58,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		notOwner: false as const,
 		template: templateRes.data,
 		folders: foldersRes.data ?? [],
-		bindCheckout: bound.has(LIBRARY_LOAN_CHECKOUT_KEY),
-		bindReminder: bound.has(LIBRARY_LOAN_REMINDER_KEY),
+		uses: [...bound].map((key) => emailUseLabel(key)),
 		previews,
 		ownerFullName: profile.full_name
 	};

@@ -1,4 +1,4 @@
-/** Date and merge helpers for send-loan-message. Kept here because the Edge bundler does not import src/lib. */
+/** Date and merge helpers for loan and invoice mail. Kept here because the Edge bundler does not import src/lib. Keep the token list in step with src/lib/email/variables.ts. */
 
 const TOKENS = new Set([
 	'contact.first_name',
@@ -7,7 +7,13 @@ const TOKENS = new Set([
 	'book.title',
 	'book.authors',
 	'loan.checked_out_on',
+	'loan.due_on',
 	'loan.days_out',
+	'client.name',
+	'invoice.number',
+	'invoice.period',
+	'invoice.total',
+	'invoice.message',
 	'owner.first_name'
 ]);
 
@@ -21,7 +27,13 @@ export type LoanMergeValues = {
 	'book.title': string;
 	'book.authors': string;
 	'loan.checked_out_on': string;
+	'loan.due_on': string;
 	'loan.days_out': string;
+	'client.name': string;
+	'invoice.number': string;
+	'invoice.period': string;
+	'invoice.total': string;
+	'invoice.message': string;
 	'owner.first_name': string;
 };
 
@@ -98,11 +110,16 @@ export function ownerFirstName(fullName: string | null | undefined): string {
 	return first && first.length > 0 ? first : 'Parker';
 }
 
-export function renderEmailTemplate(template: string, values: LoanMergeValues): string {
+export function renderEmailTemplate(
+	template: string,
+	values: Partial<LoanMergeValues>,
+	opts?: { html?: boolean }
+): string {
 	return template.replace(TOKEN_RE, (raw, token: string) => {
 		if (!TOKENS.has(token)) return raw;
-		const value = values[token as keyof LoanMergeValues];
-		return escapeHtml(value ?? '');
+		const value = values[token as keyof LoanMergeValues] ?? '';
+		const escaped = escapeHtml(value);
+		return opts?.html ? escaped.replace(/\n/g, '<br>') : escaped.replace(/\n/g, ' ');
 	});
 }
 

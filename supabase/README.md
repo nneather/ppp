@@ -117,7 +117,7 @@ Functions live under `supabase/functions/`:
 | Function               | Purpose                                                                                                                                               |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `generate-invoice-pdf` | Authenticated owner only. Loads invoice + line items + client, builds a PDF with `pdf-lib`, returns `{ pdf: "<base64>" }`.                            |
-| `send-invoice`         | Authenticated owner only. Sends the PDF via [Resend](https://resend.com) to the client’s email. Expects `{ invoice_id, pdf_base64, custom_message }`. |
+| `send-invoice`         | Authenticated owner only. Sends the PDF via [Resend](https://resend.com). Subject and body come from the `invoicing.invoice` template; `custom_message` fills `{{invoice.message}}`. Falls back to the built-in card if that template is missing. Expects `{ invoice_id, pdf_base64, custom_message }`. |
 | `send-loan-message`    | Library loans. Owner JWT sends one `{ message_id }` (checkout, retry, or send now). `{ drain: true }` plus header `x-loan-cron-secret` sends queued rows due today in Chicago and queues the next reminder. |
 | `ocr_scripture_refs`   | Library: user JWT + `GET /auth/v1/user`; downloads `library-scripture-images` via service role; calls **Anthropic Messages API** (vision); returns `{ rawText, candidates }` — never writes DB rows. |
 | `email-inbound-task`   | Resend inbound webhook (`email.received`). Svix-signed (no user JWT). Fetches body via Receiving API; inserts a MYN task into `INBOUND_TASK_PROJECT_ID` (Personal). |

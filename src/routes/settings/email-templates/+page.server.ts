@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
+	assignEmailTemplateUseAction,
 	createEmailFolderAction,
 	createEmailTemplateAction,
 	softDeleteEmailTemplateAction
@@ -53,6 +54,11 @@ export const actions: Actions = {
 			redirect(303, `/settings/email-templates/${result.templateId}`);
 		}
 		return result;
+	},
+	assignUse: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'assignEmailTemplateUse' as const, message: 'Unauthorized' });
+		return assignEmailTemplateUseAction(locals.supabase, user.id, await request.formData());
 	},
 	deleteTemplate: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();

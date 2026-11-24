@@ -6,6 +6,7 @@ import {
 	contactFullName,
 	daysBetweenYmd,
 	formatLoanDate,
+	loanDueLabel,
 	ownerFirstName,
 	reminderDateAfter,
 	renderEmailTemplate,
@@ -99,9 +100,10 @@ export function buildLoanMergeValues(input: {
 	bookTitle: string | null;
 	bookAuthors: string | null;
 	checkedOutOn: string;
+	intervalDays: number;
 	asOfYmd: string;
 	ownerFullName: string | null | undefined;
-}): EmailMergeValues {
+}): Partial<EmailMergeValues> {
 	const days = daysBetweenYmd(input.checkedOutOn, input.asOfYmd);
 	return {
 		'contact.first_name': input.firstName.trim(),
@@ -110,6 +112,7 @@ export function buildLoanMergeValues(input: {
 		'book.title': input.bookTitle?.trim() || 'a book',
 		'book.authors': (input.bookAuthors ?? '').trim(),
 		'loan.checked_out_on': formatLoanDate(input.checkedOutOn),
+		'loan.due_on': loanDueLabel(input.checkedOutOn, input.intervalDays),
 		'loan.days_out': String(days != null && days > 0 ? days : 0),
 		'owner.first_name': ownerFirstName(input.ownerFullName)
 	};
@@ -118,13 +121,13 @@ export function buildLoanMergeValues(input: {
 function renderPair(
 	subject: string,
 	html: string,
-	values: EmailMergeValues
+	values: Partial<EmailMergeValues>
 ): { subject: string; html: string } | { error: string } {
 	const unknown = unknownEmailTokens(subject, html);
 	if (unknown.length > 0) return { error: `Unknown merge field: ${unknown.join(', ')}` };
 	return {
 		subject: renderEmailTemplate(subject, values).trim(),
-		html: sanitizeEmailHtml(renderEmailTemplate(html, values))
+		html: sanitizeEmailHtml(renderEmailTemplate(html, values, { html: true }))
 	};
 }
 
@@ -200,6 +203,7 @@ export async function checkoutBookAction(supabase: Db, userId: string, fd: FormD
 		bookTitle: bookRes.data.title,
 		bookAuthors: bookRes.data.author_display,
 		checkedOutOn: today,
+		intervalDays: interval,
 		asOfYmd: today,
 		ownerFullName: profileRes.data?.full_name
 	});
@@ -209,6 +213,7 @@ export async function checkoutBookAction(supabase: Db, userId: string, fd: FormD
 		bookTitle: bookRes.data.title,
 		bookAuthors: bookRes.data.author_display,
 		checkedOutOn: today,
+		intervalDays: interval,
 		asOfYmd: reminderOn,
 		ownerFullName: profileRes.data?.full_name
 	});
@@ -338,7 +343,7 @@ export async function updateLoanReminderAction(supabase: Db, userId: string, fd:
 
 	const { data: loan } = await supabase
 		.from('book_loans')
-		.select('id, checked_out_on, returned_at, contact_id, book_id')
+		.select('id, checked_out_on, interval_days, returned_at, contact_id, book_id')
 		.eq('id', message.loan_id)
 		.is('deleted_at', null)
 		.maybeSingle();
@@ -355,6 +360,7 @@ export async function updateLoanReminderAction(supabase: Db, userId: string, fd:
 		bookTitle: bookRes.data?.title ?? '',
 		bookAuthors: bookRes.data?.author_display ?? null,
 		checkedOutOn: loan.checked_out_on,
+		intervalDays: loan.interval_days,
 		asOfYmd: scheduledFor,
 		ownerFullName: profileRes.data?.full_name
 	});

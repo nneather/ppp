@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canCheckOutCopy, loanNeedsNextReminder, parseLoanInterval } from '$lib/email/loans';
-import { daysBetweenYmd, reminderDateAfter, renderEmailTemplate } from '$lib/email/render';
+import { daysBetweenYmd, loanDueLabel, reminderDateAfter, renderEmailTemplate } from '$lib/email/render';
 import { inlineEmailButtonStyles, sanitizeEmailHtml } from '$lib/email/sanitize';
 import { unknownEmailTokens } from '$lib/email/variables';
 
@@ -11,6 +11,14 @@ describe('email templates', () => {
 			{ 'contact.first_name': 'Ada <b>', 'book.title': 'Institutes' }
 		);
 		expect(html).toBe('<p>Hi Ada &lt;b&gt;, Institutes {{nope.thing}}</p>');
+	});
+
+	it('formats the due date and keeps line breaks in the body', () => {
+		expect(loanDueLabel('2026-01-01', 30)).toBe('Jan 31, 2026');
+		expect(
+			renderEmailTemplate('{{invoice.message}}', { 'invoice.message': 'Line one\nLine two' }, { html: true })
+		).toBe('Line one<br>Line two');
+		expect(unknownEmailTokens('{{loan.due_on}}', '{{invoice.total}}')).toEqual([]);
 	});
 
 	it('rejects tokens outside the catalog', () => {

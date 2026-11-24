@@ -17,8 +17,6 @@
 	let subject = $state('');
 	let html = $state('');
 	let folderId = $state('');
-	let wantCheckout = $state(false);
-	let wantReminder = $state(false);
 	let previewId = $state('sample');
 	let insertToken = $state<((token: string) => void) | null>(null);
 	let subjectFocused = $state(false);
@@ -40,16 +38,24 @@
 		'book.title': 'The Institutes of the Christian Religion',
 		'book.authors': 'John Calvin',
 		'loan.checked_out_on': 'Nov 24, 2026',
+		'loan.due_on': 'Dec 24, 2026',
 		'loan.days_out': '30',
+		'client.name': 'Covenant Seminary',
+		'invoice.number': '2026-014',
+		'invoice.period': 'Nov 1, 2026 – Nov 30, 2026',
+		'invoice.total': '$1,200.00',
+		'invoice.message': 'Please see the attached invoice.',
 		'owner.first_name': data.notOwner ? 'Parker' : ownerFirstName(data.ownerFullName)
 	});
 
-	const previewValues = $derived(
-		previewId === 'sample'
-			? sample
-			: (data.notOwner ? sample : (data.previews.find((p) => p.id === previewId)?.values ?? sample))
+	const previewValues = $derived.by(() => {
+		if (previewId === 'sample' || data.notOwner) return sample;
+		const loan = data.previews.find((p) => p.id === previewId)?.values;
+		return loan ? { ...sample, ...loan } : sample;
+	});
+	const previewHtml = $derived(
+		sanitizeEmailHtml(renderEmailTemplate(html, previewValues, { html: true }))
 	);
-	const previewHtml = $derived(sanitizeEmailHtml(renderEmailTemplate(html, previewValues)));
 	const previewSubject = $derived(renderEmailTemplate(subject, previewValues));
 	const message = $derived(
 		form && 'message' in form && form.success !== true ? (form.message ?? null) : null
@@ -109,26 +115,14 @@
 						</Button>
 					{/each}
 				</div>
-				<label class="flex items-center gap-2 text-sm">
-					<input
-						type="checkbox"
-						name="bind_checkout"
-						checked={data.bindCheckout || wantCheckout}
-						disabled={data.bindCheckout}
-						onchange={(event) => (wantCheckout = event.currentTarget.checked)}
-					/>
-					Use as the checkout email
-				</label>
-				<label class="flex items-center gap-2 text-sm">
-					<input
-						type="checkbox"
-						name="bind_reminder"
-						checked={data.bindReminder || wantReminder}
-						disabled={data.bindReminder}
-						onchange={(event) => (wantReminder = event.currentTarget.checked)}
-					/>
-					Use as the repeating reminder
-				</label>
+				<p class="text-sm text-muted-foreground">
+					{#if data.uses.length > 0}
+						Used for {data.uses.join(', ')}.
+					{:else}
+						Not assigned to a send.
+					{/if}
+					<a href="/settings/email-templates" class="underline underline-offset-2">Change that on the templates page.</a>
+				</p>
 				{#if message}<p class="text-sm text-destructive" role="alert">{message}</p>{/if}
 				{#if saved}<p class="text-sm text-muted-foreground">Saved.</p>{/if}
 				<Button type="submit" hotkey="s" label="Save template" class="w-fit" />

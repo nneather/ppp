@@ -10,7 +10,13 @@ export type EmailMergeValues = {
 	'book.title': string;
 	'book.authors': string;
 	'loan.checked_out_on': string;
+	'loan.due_on': string;
 	'loan.days_out': string;
+	'client.name': string;
+	'invoice.number': string;
+	'invoice.period': string;
+	'invoice.total': string;
+	'invoice.message': string;
 	'owner.first_name': string;
 };
 
@@ -24,11 +30,16 @@ function escapeHtml(s: string): string {
 }
 
 /** Replace known tokens. Unknown tokens are left in place so save-time checks stay visible. */
-export function renderEmailTemplate(template: string, values: Partial<EmailMergeValues>): string {
+export function renderEmailTemplate(
+	template: string,
+	values: Partial<EmailMergeValues>,
+	opts?: { html?: boolean }
+): string {
 	return template.replace(TOKEN_RE, (raw, token: string) => {
 		if (!EMAIL_VARIABLE_TOKENS.has(token)) return raw;
-		const value = values[token as keyof EmailMergeValues];
-		return escapeHtml(value ?? '');
+		const value = values[token as keyof EmailMergeValues] ?? '';
+		const escaped = escapeHtml(value);
+		return opts?.html ? escaped.replace(/\n/g, '<br>') : escaped.replace(/\n/g, ' ');
 	});
 }
 
@@ -48,6 +59,12 @@ export function formatLoanDate(ymd: string): string {
 		day: 'numeric',
 		year: 'numeric'
 	}).format(mid);
+}
+
+/** Checkout day plus the loan interval. That is the date the copy is due back. */
+export function loanDueLabel(checkedOutOn: string, intervalDays: number): string {
+	const ymd = reminderDateAfter(checkedOutOn, intervalDays);
+	return ymd ? formatLoanDate(ymd) : '';
 }
 
 export function reminderDateAfter(fromYmd: string, intervalDays: number): string | null {

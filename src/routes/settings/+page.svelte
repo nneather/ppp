@@ -83,7 +83,7 @@
 			list.push({
 				href: '/settings/email-templates',
 				title: 'Email templates',
-				description: 'Checkout, reminders, and other messages you can edit',
+				description: 'Checkout, reminders, invoices, and other messages you can edit',
 				icon: Mail,
 				summary:
 					data.emailTemplateCount != null
