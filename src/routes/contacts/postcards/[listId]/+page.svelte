@@ -166,7 +166,7 @@
 <div class="mx-auto w-full max-w-6xl px-4 py-4">
 	<div class="flex flex-wrap items-center gap-2">
 		<a
-			href="/contacts?tab=lists&list={data.list.id}"
+			href="/contacts/lists/{data.list.id}"
 			class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
 		>
 			<ArrowLeft class="size-4" /> Contacts › {data.list.name}

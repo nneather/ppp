@@ -45,6 +45,7 @@
 	} from '$lib/contacts/sort';
 	import { cn } from '$lib/utils';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import Home from '@lucide/svelte/icons/home';
@@ -73,6 +74,8 @@
 	};
 	const f = $derived((form ?? null) as FormShape | null);
 	const dueGroups = $derived(groupContactsDueByFrequency(data.dueContacts));
+	/** Seasonal (ad hoc) lists, e.g. Christmas cards — one click from the top of Contacts. */
+	const quickLists = $derived(data.lists.filter((l) => l.kind === 'ad_hoc'));
 
 	let searchQ = $state(page.url.searchParams.get('q') ?? '');
 	let lastUrlQ = $state(page.url.searchParams.get('q') ?? '');
@@ -277,7 +280,6 @@
 		const params = contactsListFiltersToSearchParams({
 			tab: next.tab ?? data.tab,
 			filters,
-			selectedListId: data.selectedListId,
 			defaultSort: data.defaultSort
 		});
 		const qs = params.toString();
@@ -611,6 +613,21 @@
 			{/if}
 		{/snippet}
 	</PageHeader>
+
+	{#if data.isOwner && quickLists.length}
+		<nav aria-label="Quick lists" class="mt-2 flex flex-wrap items-center gap-1.5">
+			<span class="text-xs text-muted-foreground">Lists:</span>
+			{#each quickLists as l (l.id)}
+				<a
+					href="/contacts/lists/{l.id}"
+					class="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs font-medium hover:bg-muted"
+				>
+					{l.name}
+					<ChevronRight class="size-3" />
+				</a>
+			{/each}
+		</nav>
+	{/if}
 
 	{#if data.loadError}
 		<p class="mt-4 text-sm text-destructive" role="alert">{data.loadError}</p>
@@ -1068,22 +1085,7 @@
 			{/if}
 		</ul>
 	{:else}
-		<ContactsListsPanel
-			lists={data.lists}
-			selectedListId={data.selectedListId}
-			members={data.members}
-			hiddenRetiredOnlyCount={data.hiddenRetiredOnlyCount}
-			householdCandidates={data.householdCandidates}
-			contactCandidates={data.contactCandidates}
-			profileCadenceDefault={data.profileCadenceDefault}
-			todayYmd={data.todayYmd}
-			isOwner={data.isOwner}
-			form={f}
-			onEditHousehold={(id) => {
-				const h = data.households.find((x) => x.id === id);
-				if (h) openEditHousehold(h);
-			}}
-		/>
+		<ContactsListsPanel lists={data.lists} isOwner={data.isOwner} form={f} />
 	{/if}
 </div>
 

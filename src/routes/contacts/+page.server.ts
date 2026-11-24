@@ -28,12 +28,11 @@ import {
 	updateHouseholdAction
 } from '$lib/contacts/server/actions';
 import {
-	loadContactListMembers,
 	loadContactLists,
 	loadContacts,
 	loadContactsDue,
-	loadHouseholdListCandidates,
 	loadHouseholds,
+	loadHouseholdSheetExtras,
 	loadListMembershipMaps,
 	loadPeriodHistory,
 	parseContactsListFilters
@@ -41,10 +40,7 @@ import {
 import { importSheet1AndPotentialInvite } from '$lib/contacts/server/sheet-import-action';
 import { countOpenLoansByContact } from '$lib/library/server/loan-loaders';
 import { applyVCardImportAction } from '$lib/contacts/server/vcard-import-action';
-import type { ContactListCandidate } from '$lib/contacts/list-candidates';
-import { isGivingGrade, isRelationshipGrade } from '$lib/contacts/names';
 import { resolveContactSort } from '$lib/contacts/sort';
-import type { HouseholdChildRow, HouseholdGradeChangeRow } from '$lib/types/contacts';
 
 const TABS = ['contacts', 'households', 'lists'] as const;
 export type ContactsTab = (typeof TABS)[number];
@@ -66,17 +62,18 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const todayYmd = ymdInChicago();
 	const supabase = locals.supabase;
 
-	const [profileRes, householdsRes, listsRes, membershipMapsRes, booksOutByContactId] = await Promise.all([
-		supabase
-			.from('profiles')
-			.select('role, contact_cadence_days_default, contacts_default_sort')
-			.eq('id', user.id)
-			.maybeSingle(),
-		loadHouseholds(supabase),
-		loadContactLists(supabase),
-		loadListMembershipMaps(supabase),
-		countOpenLoansByContact(supabase)
-	]);
+	const [profileRes, householdsRes, listsRes, membershipMapsRes, booksOutByContactId] =
+		await Promise.all([
+			supabase
+				.from('profiles')
+				.select('role, contact_cadence_days_default, contacts_default_sort')
+				.eq('id', user.id)
+				.maybeSingle(),
+			loadHouseholds(supabase),
+			loadContactLists(supabase),
+			loadListMembershipMaps(supabase),
+			countOpenLoansByContact(supabase)
+		]);
 
 	if (profileRes.error) console.error('[contacts] profile', profileRes.error);
 	const role = (profileRes.data?.role as string | null) ?? null;
@@ -85,6 +82,12 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		(profileRes.data?.contact_cadence_days_default as number | null | undefined) ?? null;
 	const resolvedSort = resolveContactSort(url, profileRes.data?.contacts_default_sort);
 	filters.sort = resolvedSort.sort;
+
+	// Lists open on their own page now; keep old ?tab=lists&list=… links working.
+	const listParam = url.searchParams.get('list');
+	if (tab === 'lists' && listParam && listsRes.lists.some((l) => l.id === listParam)) {
+		redirect(303, `/contacts/lists/${listParam}`);
+	}
 
 	const contactsRes = await loadContacts(supabase, {
 		filters: tab === 'lists' ? { ...filters, status: 'all', q: null, listId: null } : filters,
@@ -99,103 +102,14 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	});
 	const historyRes = await loadPeriodHistory(supabase, { todayYmd });
 
-	const selectedParam = url.searchParams.get('list');
-	const selectedListId =
-		selectedParam && listsRes.lists.some((l) => l.id === selectedParam)
-			? selectedParam
-			: (listsRes.lists[0]?.id ?? null);
-
-	const onListHouseholdIds = new Set(
-		selectedListId ? (membershipMapsRes.maps.householdIdsByListId[selectedListId] ?? []) : []
-	);
-	const onListContactIds = new Set(
-		selectedListId ? (membershipMapsRes.maps.contactIdsByListId[selectedListId] ?? []) : []
-	);
-
-	const [membersRes, householdCandidatesRes, childrenRes, gradeChangesRes] = await Promise.all([
-		tab === 'lists' && selectedListId
-			? loadContactListMembers(supabase, selectedListId)
-			: Promise.resolve({
-					members: [],
-					hiddenRetiredOnlyCount: 0,
-					error: null as string | null
-				}),
-		tab === 'lists' && selectedListId
-			? loadHouseholdListCandidates(supabase, {
-					listId: selectedListId,
-					onListHouseholdIds
-				})
-			: Promise.resolve({ candidates: [], error: null as string | null }),
-		supabase
-			.from('household_children')
-			.select('id, household_id, first_name, last_name, birthday, notes, sort_order')
-			.is('deleted_at', null)
-			.order('sort_order', { ascending: true })
-			.order('first_name', { ascending: true }),
-		supabase
-			.from('household_grade_changes')
-			.select('id, household_id, changed_on, giving_grade, relationship_grade, note')
-			.is('deleted_at', null)
-			.order('changed_on', { ascending: false })
-	]);
-
-	if (childrenRes.error) console.error('[contacts] household_children', childrenRes.error);
-	if (gradeChangesRes.error)
-		console.error('[contacts] household_grade_changes', gradeChangesRes.error);
-
-	const childrenByHouseholdId: Record<string, HouseholdChildRow[]> = {};
-	for (const raw of childrenRes.data ?? []) {
-		const c = raw as HouseholdChildRow;
-		const list = childrenByHouseholdId[c.household_id] ?? [];
-		list.push(c);
-		childrenByHouseholdId[c.household_id] = list;
-	}
-
-	const gradeChangesByHouseholdId: Record<string, HouseholdGradeChangeRow[]> = {};
-	for (const raw of gradeChangesRes.data ?? []) {
-		const r = raw as {
-			id: string;
-			household_id: string;
-			changed_on: string;
-			giving_grade: string | null;
-			relationship_grade: string | null;
-			note: string | null;
-		};
-		const list = gradeChangesByHouseholdId[r.household_id] ?? [];
-		list.push({
-			id: r.id,
-			household_id: r.household_id,
-			changed_on: r.changed_on,
-			giving_grade: r.giving_grade && isGivingGrade(r.giving_grade) ? r.giving_grade : null,
-			relationship_grade:
-				r.relationship_grade && isRelationshipGrade(r.relationship_grade)
-					? r.relationship_grade
-					: null,
-			note: r.note
-		});
-		gradeChangesByHouseholdId[r.household_id] = list;
-	}
-
-	const contactCandidates: ContactListCandidate[] =
-		tab === 'lists'
-			? contactsRes.contacts.map((c) => ({
-					id: c.id,
-					display_name: c.display_name,
-					onList: onListContactIds.has(c.id)
-				}))
-			: [];
+	const extras = await loadHouseholdSheetExtras(supabase);
 
 	return {
 		contacts: contactsRes.contacts,
 		households: householdsRes.households,
 		lists: listsRes.lists,
-		selectedListId,
-		members: membersRes.members,
-		hiddenRetiredOnlyCount: membersRes.hiddenRetiredOnlyCount,
-		householdCandidates: householdCandidatesRes.candidates,
-		contactCandidates,
-		childrenByHouseholdId,
-		gradeChangesByHouseholdId,
+		childrenByHouseholdId: extras.childrenByHouseholdId,
+		gradeChangesByHouseholdId: extras.gradeChangesByHouseholdId,
 		listIdsByHouseholdId: membershipMapsRes.maps.listIdsByHouseholdId,
 		listIdsByContactId: membershipMapsRes.maps.listIdsByContactId,
 		dueContacts: dueRes.contacts,
@@ -213,13 +127,10 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 			contactsRes.error ??
 			householdsRes.error ??
 			listsRes.error ??
-			membersRes.error ??
 			membershipMapsRes.error ??
-			householdCandidatesRes.error ??
 			dueRes.error ??
 			historyRes.error ??
-			childrenRes.error?.message ??
-			gradeChangesRes.error?.message
+			extras.error
 	};
 };
 

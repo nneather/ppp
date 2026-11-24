@@ -1017,3 +1017,70 @@ export async function searchContacts(
 
 	return { contacts: hits.slice(0, limit), error: null };
 }
+
+/**
+ * Extra data the household sheet needs (children + grade history), keyed by
+ * household. Shared by /contacts and /contacts/lists/[listId].
+ */
+export async function loadHouseholdSheetExtras(supabase: SupabaseClient): Promise<{
+	childrenByHouseholdId: Record<string, HouseholdChildRow[]>;
+	gradeChangesByHouseholdId: Record<string, HouseholdGradeChangeRow[]>;
+	error: string | null;
+}> {
+	const [childrenRes, gradeChangesRes] = await Promise.all([
+		supabase
+			.from('household_children')
+			.select('id, household_id, first_name, last_name, birthday, notes, sort_order')
+			.is('deleted_at', null)
+			.order('sort_order', { ascending: true })
+			.order('first_name', { ascending: true }),
+		supabase
+			.from('household_grade_changes')
+			.select('id, household_id, changed_on, giving_grade, relationship_grade, note')
+			.is('deleted_at', null)
+			.order('changed_on', { ascending: false })
+	]);
+
+	if (childrenRes.error) console.error('[contacts] household_children', childrenRes.error);
+	if (gradeChangesRes.error)
+		console.error('[contacts] household_grade_changes', gradeChangesRes.error);
+
+	const childrenByHouseholdId: Record<string, HouseholdChildRow[]> = {};
+	for (const raw of childrenRes.data ?? []) {
+		const c = raw as HouseholdChildRow;
+		const list = childrenByHouseholdId[c.household_id] ?? [];
+		list.push(c);
+		childrenByHouseholdId[c.household_id] = list;
+	}
+
+	const gradeChangesByHouseholdId: Record<string, HouseholdGradeChangeRow[]> = {};
+	for (const raw of gradeChangesRes.data ?? []) {
+		const r = raw as {
+			id: string;
+			household_id: string;
+			changed_on: string;
+			giving_grade: string | null;
+			relationship_grade: string | null;
+			note: string | null;
+		};
+		const list = gradeChangesByHouseholdId[r.household_id] ?? [];
+		list.push({
+			id: r.id,
+			household_id: r.household_id,
+			changed_on: r.changed_on,
+			giving_grade: r.giving_grade && isGivingGrade(r.giving_grade) ? r.giving_grade : null,
+			relationship_grade:
+				r.relationship_grade && isRelationshipGrade(r.relationship_grade)
+					? r.relationship_grade
+					: null,
+			note: r.note
+		});
+		gradeChangesByHouseholdId[r.household_id] = list;
+	}
+
+	return {
+		childrenByHouseholdId,
+		gradeChangesByHouseholdId,
+		error: childrenRes.error?.message ?? gradeChangesRes.error?.message ?? null
+	};
+}

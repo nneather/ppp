@@ -1,25 +1,20 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { goto, invalidate } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
-	import ContactListAddPanel from '$lib/components/contact-list-add-panel.svelte';
-	import LogCardsDialog from '$lib/components/log-cards-dialog.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select';
-	import type { ContactListCandidate, HouseholdListCandidate } from '$lib/contacts/list-candidates';
 	import {
 		CONTACT_LIST_KIND_LABELS,
 		CONTACT_LIST_KINDS,
 		type ContactListDef,
-		type ContactListKind,
-		type ContactListMemberRow
+		type ContactListKind
 	} from '$lib/types/contacts';
-	import Check from '@lucide/svelte/icons/check';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -27,27 +22,12 @@
 
 	let {
 		lists,
-		selectedListId,
-		members,
-		hiddenRetiredOnlyCount,
-		householdCandidates = [],
-		contactCandidates = [],
-		todayYmd,
 		isOwner,
-		form,
-		onEditHousehold
+		form
 	}: {
-		/** Opens the household sheet (address edits stamp `address_updated_on`). */
-		onEditHousehold?: (householdId: string) => void;
 		lists: ContactListDef[];
-		selectedListId: string | null;
-		members: ContactListMemberRow[];
-		hiddenRetiredOnlyCount: number;
-		householdCandidates?: HouseholdListCandidate[];
-		contactCandidates?: ContactListCandidate[];
 		/** @deprecated Rolling cadence UI removed — meet frequency is per-contact. */
 		profileCadenceDefault?: number | null;
-		todayYmd: string;
 		isOwner: boolean;
 		form: {
 			kind?: string;
@@ -79,8 +59,6 @@
 	let deletePending = $state(false);
 	let deleteFormEl = $state<HTMLFormElement | null>(null);
 
-	let cardsDialogOpen = $state(false);
-
 	const createErr = $derived(
 		form?.kind === 'createContactList' && form.success !== true ? (form.message ?? null) : null
 	);
@@ -93,89 +71,6 @@
 	const deleteErr = $derived(
 		form?.kind === 'softDeleteContactList' && form.success !== true ? (form.message ?? null) : null
 	);
-	const batchErr = $derived(
-		(form?.kind === 'addContactListMembersBatch' || form?.kind === 'addContactListMember') &&
-			form.success !== true
-			? (form.message ?? null)
-			: null
-	);
-	const removeMemberErr = $derived(
-		form?.kind === 'softDeleteContactListMember' && form.success !== true
-			? (form.message ?? null)
-			: null
-	);
-	const batchOk = $derived(
-		form?.kind === 'addContactListMembersBatch' && form.success === true
-			? `Added ${form.count ?? 0} to the list.`
-			: null
-	);
-	const cardsErr = $derived(
-		form?.kind === 'logListCards' && form.success !== true ? (form.message ?? null) : null
-	);
-
-	const selectedList = $derived(lists.find((l) => l.id === selectedListId) ?? null);
-
-	/* ── Address confirmation (Christmas cards) ─────────────────────────── */
-	const ADDRESS_FILTERS = ['all', 'confirmed', 'unconfirmed', 'none'] as const;
-	type AddressFilter = (typeof ADDRESS_FILTERS)[number];
-	const ADDRESS_FILTER_LABELS: Record<AddressFilter, string> = {
-		all: 'All',
-		confirmed: 'Confirmed',
-		unconfirmed: 'Needs confirm',
-		none: 'No address'
-	};
-	let addressFilter = $state<AddressFilter>('all');
-	/** household_id → prior address_updated_on, for Undo after a Confirm this session. */
-	let undoPrev = $state<Record<string, string | null>>({});
-
-	const hasHouseholds = $derived(members.some((m) => m.kind === 'household'));
-	const addressCounts = $derived.by(() => {
-		const c: Record<AddressFilter, number> = {
-			all: members.length,
-			confirmed: 0,
-			unconfirmed: 0,
-			none: 0
-		};
-		for (const m of members) if (m.kind === 'household' && m.addressStatus) c[m.addressStatus] += 1;
-		return c;
-	});
-	const visibleMembers = $derived(
-		members
-			.filter(
-				(m) =>
-					addressFilter === 'all' || (m.kind === 'household' && m.addressStatus === addressFilter)
-			)
-			.sort((a, b) => a.label.localeCompare(b.label))
-	);
-	const confirmErr = $derived(
-		form?.kind === 'setHouseholdAddressConfirmed' && form.success !== true
-			? (form.message ?? null)
-			: null
-	);
-
-	function shortDate(ymd: string): string {
-		const [, mo, d] = ymd.split('-');
-		return `${Number(mo)}/${Number(d)}`;
-	}
-
-	const confirmEnhance: SubmitFunction = ({ formData }) => {
-		const hid = String(formData.get('household_id') ?? '');
-		const isUndo = formData.get('undo') === '1';
-		return async ({ result, update }) => {
-			await update({ reset: false, invalidateAll: false });
-			if (result.type === 'success') {
-				if (isUndo) {
-					const { [hid]: _drop, ...rest } = undoPrev;
-					undoPrev = rest;
-				} else {
-					const prev = (result.data as { previous?: string | null } | undefined)?.previous;
-					undoPrev = { ...undoPrev, [hid]: prev ?? null };
-				}
-				await invalidate('app:contacts:list');
-			}
-		};
-	};
-
 	function openCreate() {
 		createName = '';
 		createNotes = '';
@@ -201,10 +96,6 @@
 	function askDelete(row: ContactListDef) {
 		deleteTarget = row;
 		deleteOpen = true;
-	}
-
-	function selectList(id: string) {
-		void goto(`/contacts?tab=lists&list=${id}`, { keepFocus: true, noScroll: true });
 	}
 
 	const enhanceMutation: SubmitFunction = () => {
@@ -236,29 +127,12 @@
 		};
 	};
 
-	const cardsQuickEnhance: SubmitFunction = () => {
-		return async ({ result, update }) => {
-			await update({ reset: false });
-			if (result.type === 'success') {
-				await invalidate('app:contacts:list');
-			}
-		};
-	};
-
 	function submitDelete() {
 		if (!deleteTarget || !deleteFormEl) return;
 		const idInput = deleteFormEl.querySelector('input[name="list_id"]') as HTMLInputElement | null;
 		if (!idInput) return;
 		idInput.value = deleteTarget.id;
 		deleteFormEl.requestSubmit();
-	}
-
-	async function onCardsSaved() {
-		await invalidate('app:contacts:list');
-	}
-
-	async function onMembersAdded() {
-		await invalidate('app:contacts:list');
 	}
 </script>
 
@@ -287,9 +161,6 @@
 	{#if deleteErr}
 		<p class="mt-3 text-sm text-destructive" role="alert">{deleteErr}</p>
 	{/if}
-	{#if cardsErr && !cardsDialogOpen}
-		<p class="mt-3 text-sm text-destructive" role="alert">{cardsErr}</p>
-	{/if}
 	{#if cloneErr && !cloneOpen}
 		<p class="mt-3 text-sm text-destructive" role="alert">{cloneErr}</p>
 	{/if}
@@ -299,13 +170,10 @@
 			<li
 				class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-card-foreground"
 			>
-				<button type="button" class="min-w-0 flex-1 text-left" onclick={() => selectList(list.id)}>
+				<a href="/contacts/lists/{list.id}" class="min-w-0 flex-1 text-left">
 					<p class="flex flex-wrap items-center gap-1.5 truncate text-sm font-medium">
 						{list.name}
 						<Badge variant="secondary">{CONTACT_LIST_KIND_LABELS[list.kind]}</Badge>
-						{#if list.id === selectedListId}
-							<span class="text-xs font-normal text-primary">(selected)</span>
-						{/if}
 					</p>
 					<p class="text-xs text-muted-foreground">
 						{list.memberCount} member{list.memberCount === 1 ? '' : 's'}
@@ -313,7 +181,7 @@
 							· {list.notes}
 						{/if}
 					</p>
-				</button>
+				</a>
 				<div class="flex shrink-0 gap-1">
 					{#if list.kind === 'ad_hoc'}
 						<Button
@@ -355,180 +223,6 @@
 			</li>
 		{/each}
 	</ul>
-
-	{#if selectedList}
-		<section class="mt-8">
-			<div class="flex flex-wrap items-start justify-between gap-3">
-				<div class="min-w-0">
-					<h2 class="flex flex-wrap items-center gap-2 text-lg font-semibold tracking-tight">
-						{selectedList.name}
-						<Badge variant="outline">{CONTACT_LIST_KIND_LABELS[selectedList.kind]}</Badge>
-					</h2>
-					<p class="mt-1 text-sm text-muted-foreground">
-						Christmas cards use households. Contact membership is for future email lists. Households
-						with no active members are hidden (membership kept).
-					</p>
-					{#if hiddenRetiredOnlyCount > 0}
-						<p class="mt-2 text-xs text-muted-foreground">
-							{hiddenRetiredOnlyCount} retired-only household{hiddenRetiredOnlyCount === 1
-								? ''
-								: 's'} hidden.
-						</p>
-					{/if}
-				</div>
-				<div class="flex shrink-0 flex-wrap gap-2">
-					{#if selectedList.kind === 'ad_hoc'}
-						<Button href="/contacts/postcards/{selectedList.id}" size="sm">Send postcards</Button>
-						<Button
-							type="button"
-							size="sm"
-							variant="outline"
-							onclick={() => openClone(selectedList)}
-						>
-							Clone list
-						</Button>
-					{/if}
-					<form method="POST" action="?/logListCards" use:enhance={cardsQuickEnhance}>
-						<input type="hidden" name="list_id" value={selectedList.id} />
-						<Button type="submit" size="sm" variant="secondary">Log cards sent</Button>
-					</form>
-					<Button
-						type="button"
-						size="sm"
-						variant="outline"
-						onclick={() => (cardsDialogOpen = true)}
-					>
-						Details…
-					</Button>
-				</div>
-			</div>
-
-			{#if batchErr}
-				<p class="mt-3 text-sm text-destructive" role="alert">{batchErr}</p>
-			{/if}
-			{#if removeMemberErr}
-				<p class="mt-3 text-sm text-destructive" role="alert">{removeMemberErr}</p>
-			{/if}
-			{#if batchOk}
-				<p class="mt-3 text-sm text-emerald-700 dark:text-emerald-400" role="status">{batchOk}</p>
-			{/if}
-
-			<ContactListAddPanel
-				listId={selectedList.id}
-				{householdCandidates}
-				{contactCandidates}
-				errorMessage={batchErr}
-				onAdded={onMembersAdded}
-			/>
-
-			{#if hasHouseholds}
-				<div
-					class="mt-4 flex flex-wrap items-center gap-1.5"
-					role="group"
-					aria-label="Address filter"
-				>
-					{#each ADDRESS_FILTERS as fl (fl)}
-						<Button
-							type="button"
-							size="sm"
-							variant={addressFilter === fl ? 'default' : 'outline'}
-							onclick={() => (addressFilter = fl)}
-						>
-							{ADDRESS_FILTER_LABELS[fl]}
-							<span class="tabular-nums opacity-70">{addressCounts[fl]}</span>
-						</Button>
-					{/each}
-				</div>
-				{#if confirmErr}
-					<p class="mt-2 text-sm text-destructive" role="alert">{confirmErr}</p>
-				{/if}
-			{/if}
-
-			<ul class="mt-3 divide-y divide-border rounded-lg border border-border">
-				{#each visibleMembers as m (m.id)}
-					<li class="flex items-center gap-2 px-3 py-1.5">
-						<div class="min-w-0 flex-1">
-							<p class="truncate text-sm font-medium">{m.label}</p>
-							{#if m.kind === 'household'}
-								<p class="truncate text-xs text-muted-foreground">
-									{m.address || '— no address'}
-								</p>
-							{:else}
-								<p class="text-xs text-muted-foreground">Contact</p>
-							{/if}
-						</div>
-						{#if m.kind === 'household' && m.household_id}
-							{@const hid = m.household_id}
-							{#if m.addressStatus === 'confirmed'}
-								<Badge variant="secondary" class="shrink-0 text-emerald-700 dark:text-emerald-400">
-									✓ {m.addressUpdatedOn ? shortDate(m.addressUpdatedOn) : ''}
-								</Badge>
-								{#if hid in undoPrev}
-									<form
-										method="POST"
-										action="?/setHouseholdAddressConfirmed"
-										use:enhance={confirmEnhance}
-									>
-										<input type="hidden" name="household_id" value={hid} />
-										<input type="hidden" name="undo" value="1" />
-										<input type="hidden" name="restore_to" value={undoPrev[hid] ?? ''} />
-										<Button type="submit" size="sm" variant="ghost">Undo</Button>
-									</form>
-								{/if}
-							{:else if m.addressStatus === 'unconfirmed'}
-								<Badge
-									variant="outline"
-									class="hidden shrink-0 text-amber-700 sm:inline-flex dark:text-amber-400"
-								>
-									Unconfirmed
-								</Badge>
-								<form
-									method="POST"
-									action="?/setHouseholdAddressConfirmed"
-									use:enhance={confirmEnhance}
-								>
-									<input type="hidden" name="household_id" value={hid} />
-									<Button type="submit" size="sm" variant="secondary" class="gap-1">
-										<Check class="size-3.5" /> Confirm
-									</Button>
-								</form>
-							{/if}
-							{#if onEditHousehold}
-								<Button
-									type="button"
-									size="sm"
-									variant="ghost"
-									onclick={() => onEditHousehold?.(hid)}
-								>
-									{m.addressStatus === 'none' ? 'Add address' : 'Edit'}
-								</Button>
-							{/if}
-						{/if}
-						<form
-							method="POST"
-							action="?/softDeleteContactListMember"
-							use:enhance={enhanceMutation}
-						>
-							<input type="hidden" name="member_id" value={m.id} />
-							<Button
-								type="submit"
-								variant="outline"
-								size="icon-sm"
-								class="text-destructive"
-								aria-label="Remove member"
-							>
-								<Trash2 class="size-4" />
-							</Button>
-						</form>
-					</li>
-				{:else}
-					<li class="px-3 py-2 text-sm text-muted-foreground">
-						{members.length ? 'No households match this filter.' : 'No members on this list yet.'}
-					</li>
-				{/each}
-			</ul>
-		</section>
-	{/if}
 
 	<Dialog.Root bind:open={createOpen}>
 		<Dialog.Content class="sm:max-w-md">
@@ -701,13 +395,5 @@
 			: ''}
 		confirmLabel={deletePending ? 'Deleting…' : 'Delete'}
 		onConfirm={submitDelete}
-	/>
-
-	<LogCardsDialog
-		bind:open={cardsDialogOpen}
-		list={selectedList}
-		{todayYmd}
-		errorMessage={cardsErr}
-		onSaved={onCardsSaved}
 	/>
 {/if}
