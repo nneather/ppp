@@ -160,7 +160,7 @@
 					{/each}
 				</select>
 				<p class="mt-3 text-sm font-medium">{previewSubject}</p>
-				<div class="email-preview mt-2 rounded-md border border-border p-3 text-sm">{@html previewHtml}</div>
+				<div class="email-preview mt-2 rounded-md border border-border px-4 py-3">{@html previewHtml}</div>
 			</div>
 		</form>
 	{/if}

@@ -16,7 +16,7 @@ import {
 	renderEmailTemplate,
 	withLoanBookList
 } from '$lib/email/render';
-import { inlineEmailButtonStyles, sanitizeEmailHtml } from '$lib/email/sanitize';
+import { inlineEmailButtonStyles, sanitizeEmailHtml, styleEmailDocument } from '$lib/email/sanitize';
 import { unknownEmailTokens } from '$lib/email/variables';
 
 describe('email templates', () => {
@@ -53,6 +53,13 @@ describe('email templates', () => {
 		expect(clean).toContain('href="https://example.com" class="ppp-email-button"');
 		expect(clean).not.toContain('javascript');
 		expect(inlineEmailButtonStyles(clean)).toContain('background:#18181b');
+	});
+
+	it('puts a single space after each block instead of stacking paragraph margins', () => {
+		expect(styleEmailDocument('<p>Hey</p><ul><li><em>Title</em> by Calvin</li></ul><p>Sincerely,</p>')).toBe(
+			'<p style="margin:0;padding:0 0 12px">Hey</p><ul style="margin:0;padding:0 0 12px 20px"><li style="margin:0;padding:0"><em>Title</em> by Calvin</li></ul><p style="margin:0;padding:0 0 12px">Sincerely,</p>'
+		);
+		expect(styleEmailDocument('<p style="color:red">Hi</p>')).toBe('<p style="color:red">Hi</p>');
 	});
 });
 

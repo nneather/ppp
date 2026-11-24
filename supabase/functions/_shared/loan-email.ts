@@ -221,6 +221,24 @@ export function inlineEmailButtonStyles(html: string): string {
 	);
 }
 
+/** Keep in step with `styleEmailDocument` in src/lib/email/sanitize.ts. */
+const EMAIL_BLOCK_STYLE: Record<string, string> = {
+	p: 'margin:0;padding:0 0 12px',
+	h2: 'margin:0;padding:16px 0 6px;font-size:18px;line-height:1.3',
+	ul: 'margin:0;padding:0 0 12px 20px',
+	ol: 'margin:0;padding:0 0 12px 20px',
+	li: 'margin:0;padding:0'
+};
+
+export function styleEmailDocument(html: string): string {
+	return html.replace(/<(p|h2|ul|ol|li)\b([^>]*)>/gi, (full, rawTag: string, attrs: string) => {
+		const tag = rawTag.toLowerCase();
+		const style = EMAIL_BLOCK_STYLE[tag];
+		if (!style || /\bstyle\s*=/i.test(attrs)) return full;
+		return `<${tag} style="${style}"${attrs}>`;
+	});
+}
+
 export function emailHtmlToText(html: string): string {
 	return html
 		.replace(/<br\s*\/?>/gi, '\n')
@@ -236,7 +254,8 @@ export function emailHtmlToText(html: string): string {
 }
 
 export function wrapLoanEmail(html: string): string {
-	return `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.5;color:#18181b;">${inlineEmailButtonStyles(html)}</div>`;
+	const body = styleEmailDocument(inlineEmailButtonStyles(html));
+	return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#18181b;">${body}</div>`;
 }
 
 const OPEN_REMINDER = new Set(['queued', 'sending', 'failed']);

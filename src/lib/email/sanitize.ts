@@ -54,6 +54,29 @@ export function inlineEmailButtonStyles(html: string): string {
 	);
 }
 
+/**
+ * Space after a block, never before. Mail clients otherwise stack the browser's
+ * default top and bottom margins, which leaves a blank line between every paragraph.
+ * Keep these values in step with `.email-body-editor` / `.email-preview` in app.css
+ * and `styleEmailDocument` in the Edge copy.
+ */
+const EMAIL_BLOCK_STYLE: Record<string, string> = {
+	p: 'margin:0;padding:0 0 12px',
+	h2: 'margin:0;padding:16px 0 6px;font-size:18px;line-height:1.3',
+	ul: 'margin:0;padding:0 0 12px 20px',
+	ol: 'margin:0;padding:0 0 12px 20px',
+	li: 'margin:0;padding:0'
+};
+
+export function styleEmailDocument(html: string): string {
+	return html.replace(/<(p|h2|ul|ol|li)\b([^>]*)>/gi, (full, rawTag: string, attrs: string) => {
+		const tag = rawTag.toLowerCase();
+		const style = EMAIL_BLOCK_STYLE[tag];
+		if (!style || /\bstyle\s*=/i.test(attrs)) return full;
+		return `<${tag} style="${style}"${attrs}>`;
+	});
+}
+
 export function emailHtmlToText(html: string): string {
 	return html
 		.replace(/<br\s*\/?>/gi, '\n')

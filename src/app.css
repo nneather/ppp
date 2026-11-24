@@ -109,6 +109,12 @@
 	bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);
 }
 
+.email-body-editor .ProseMirror,
+.email-preview {
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	font-size: 15px;
+	line-height: 1.5;
+}
 .email-body-editor .ProseMirror {
 	min-height: 12rem;
 	padding: 0.75rem 1rem;
@@ -116,13 +122,36 @@
 }
 .email-body-editor .ProseMirror p,
 .email-preview p {
-	margin: 0.5rem 0;
+	margin: 0;
+	padding: 0 0 12px;
 }
 .email-body-editor .ProseMirror h2,
 .email-preview h2 {
-	margin: 0.75rem 0 0.25rem;
-	font-size: 1.125rem;
+	margin: 0;
+	padding: 16px 0 6px;
+	font-size: 18px;
+	line-height: 1.3;
 	font-weight: 600;
+}
+.email-body-editor .ProseMirror ul,
+.email-body-editor .ProseMirror ol,
+.email-preview ul,
+.email-preview ol {
+	margin: 0;
+	padding: 0 0 12px 20px;
+}
+.email-body-editor .ProseMirror li,
+.email-preview li {
+	margin: 0;
+	padding: 0;
+}
+.email-body-editor .ProseMirror p:last-child,
+.email-body-editor .ProseMirror ul:last-child,
+.email-body-editor .ProseMirror ol:last-child,
+.email-preview p:last-child,
+.email-preview ul:last-child,
+.email-preview ol:last-child {
+	padding-bottom: 0;
 }
 .email-body-editor a.ppp-email-button,
 .email-preview a.ppp-email-button {
