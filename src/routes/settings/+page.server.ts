@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const supabase = locals.supabase;
 
-	const [clientsRes, profileRes, booksRes, venuesRes, listsRes] = await Promise.all([
+	const [clientsRes, profileRes, booksRes, venuesRes, listsRes, templatesRes] = await Promise.all([
 		supabase.from('clients').select('id', { count: 'exact', head: true }).is('deleted_at', null),
 		supabase.from('profiles').select('role, task_saved_views').eq('id', user.id).maybeSingle(),
 		supabase.from('books').select('id', { count: 'exact', head: true }).is('deleted_at', null),
@@ -18,6 +18,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		supabase
 			.from('contact_lists')
 			.select('id', { count: 'exact', head: true })
+			.is('deleted_at', null),
+		supabase
+			.from('email_templates')
+			.select('id', { count: 'exact', head: true })
 			.is('deleted_at', null)
 	]);
 
@@ -26,6 +30,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (booksRes.error) console.error(booksRes.error);
 	if (venuesRes.error) console.error(venuesRes.error);
 	if (listsRes.error) console.error(listsRes.error);
+	if (templatesRes.error) console.error(templatesRes.error);
 
 	const role = (profileRes.data?.role as string | null) ?? null;
 	const isOwner = role === 'owner';
@@ -38,6 +43,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		bookCount: booksRes.error ? (null as number | null) : (booksRes.count ?? 0),
 		sermonVenueCount: venuesRes.error ? (null as number | null) : (venuesRes.count ?? 0),
 		contactListCount: listsRes.error ? (null as number | null) : (listsRes.count ?? 0),
+		emailTemplateCount: templatesRes.error ? (null as number | null) : (templatesRes.count ?? 0),
 		savedViewCount: profileRes.error ? (null as number | null) : savedViewCount,
 		isOwner,
 		settingsHubError: clientsRes.error ? 'Could not load client count.' : (null as string | null)

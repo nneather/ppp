@@ -38,6 +38,7 @@ import {
 	parseContactsListFilters
 } from '$lib/contacts/server/loaders';
 import { importSheet1AndPotentialInvite } from '$lib/contacts/server/sheet-import-action';
+import { countOpenLoansByContact } from '$lib/library/server/loan-loaders';
 import { applyVCardImportAction } from '$lib/contacts/server/vcard-import-action';
 import type { ContactListCandidate } from '$lib/contacts/list-candidates';
 import { isGivingGrade, isRelationshipGrade } from '$lib/contacts/names';
@@ -64,7 +65,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const todayYmd = ymdInChicago();
 	const supabase = locals.supabase;
 
-	const [profileRes, householdsRes, listsRes, membershipMapsRes] = await Promise.all([
+	const [profileRes, householdsRes, listsRes, membershipMapsRes, booksOutByContactId] = await Promise.all([
 		supabase
 			.from('profiles')
 			.select('role, contact_cadence_days_default, contacts_default_sort')
@@ -72,7 +73,8 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 			.maybeSingle(),
 		loadHouseholds(supabase),
 		loadContactLists(supabase),
-		loadListMembershipMaps(supabase)
+		loadListMembershipMaps(supabase),
+		countOpenLoansByContact(supabase)
 	]);
 
 	if (profileRes.error) console.error('[contacts] profile', profileRes.error);
@@ -209,6 +211,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		todayYmd,
 		profileCadenceDefault,
 		isOwner,
+		booksOutByContactId,
 		loadError:
 			contactsRes.error ??
 			householdsRes.error ??

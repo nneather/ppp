@@ -63,7 +63,16 @@ import {
 	softDeleteEssayAction,
 	updateEssayAction
 } from '$lib/library/server/essay-actions';
+import { loadOpenLoans } from '$lib/library/server/loan-loaders';
 import { updatePersonSettingsAction } from '$lib/library/server/people-settings-actions';
+import {
+	checkoutBookAction,
+	retryLoanMessageAction,
+	returnBookAction,
+	updateLoanEmailAction,
+	updateLoanIntervalAction,
+	updateLoanReminderAction
+} from '$lib/library/server/loan-actions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -99,8 +108,11 @@ export const load: PageServerLoad = async ({ params, locals, depends, parent }) 
 		? loadSetVolumeBooks(supabase, book.series_id)
 		: Promise.resolve([]);
 
+	const loans = await loadOpenLoans(supabase, { bookId: id, includePrivate: isOwner });
+
 	return {
 		book,
+		loans,
 		series,
 		bibleBookNames,
 		allBibleBookNames,
@@ -417,5 +429,35 @@ export const actions: Actions = {
 				message: 'Unauthorized'
 			});
 		return updatePersonSettingsAction(locals.supabase, user.id, await request.formData());
+	},
+	checkoutBook: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'checkoutBook' as const, message: 'Unauthorized' });
+		return checkoutBookAction(locals.supabase, user.id, await request.formData());
+	},
+	returnBook: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'returnBook' as const, message: 'Unauthorized' });
+		return returnBookAction(locals.supabase, user.id, await request.formData());
+	},
+	updateLoanReminder: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'updateLoanReminder' as const, message: 'Unauthorized' });
+		return updateLoanReminderAction(locals.supabase, user.id, await request.formData());
+	},
+	updateLoanInterval: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'updateLoanInterval' as const, message: 'Unauthorized' });
+		return updateLoanIntervalAction(locals.supabase, user.id, await request.formData());
+	},
+	updateLoanEmail: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'updateLoanEmail' as const, message: 'Unauthorized' });
+		return updateLoanEmailAction(locals.supabase, user.id, await request.formData());
+	},
+	retryLoanMessage: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { kind: 'retryLoanMessage' as const, message: 'Unauthorized' });
+		return retryLoanMessageAction(locals.supabase, user.id, await request.formData());
 	}
 };

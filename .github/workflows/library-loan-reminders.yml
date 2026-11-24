@@ -1,0 +1,33 @@
+name: Library loan reminders
+
+# Daily drain of checkout and reminder emails. Vercel Hobby cannot run this reliably ([220]).
+
+on:
+  schedule:
+    # 14:15 UTC is 8:15am CST / 9:15am CDT.
+    - cron: '15 14 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: library-loan-reminders
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send due loan emails
+        env:
+          PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          LOAN_REMINDER_CRON_SECRET: ${{ secrets.LOAN_REMINDER_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body -sS -X POST \
+            "$PUBLIC_SUPABASE_URL/functions/v1/send-loan-message" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "x-loan-cron-secret: $LOAN_REMINDER_CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            -d '{"drain":true}'

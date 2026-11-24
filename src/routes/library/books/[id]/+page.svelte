@@ -76,6 +76,7 @@
 	import OutlineSectionForm from '$lib/components/outline-section-form.svelte';
 	import OutlineSectionList from '$lib/components/outline-section-list.svelte';
 	import ScriptureIndexSummary from '$lib/components/scripture-index-summary.svelte';
+	import BookLoanCard from '$lib/components/book-loan-card.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -1568,6 +1569,16 @@
 		actions={bookDetailActions}
 	/>
 
+	<BookLoanCard
+		loans={data.loans}
+		isOwner={data.isOwner}
+		bookId={data.book.id}
+		owned={data.book.owned}
+		copyCount={data.book.copy_count}
+		borrowedTo={data.book.borrowed_to}
+		{form}
+	/>
+
 	{#if data.isOwner}
 		<PersonEditDialog
 			bind:open={personEditOpen}
@@ -1741,10 +1752,6 @@
 				{#if data.book.shelving_location}
 					<dt class="text-xs font-medium text-muted-foreground">Shelf</dt>
 					<dd class="min-w-0 text-foreground">{data.book.shelving_location}</dd>
-				{/if}
-				{#if data.book.borrowed_to}
-					<dt class="text-xs font-medium text-muted-foreground">On loan to</dt>
-					<dd class="min-w-0 text-foreground">{data.book.borrowed_to}</dd>
 				{/if}
 			</dl>
 

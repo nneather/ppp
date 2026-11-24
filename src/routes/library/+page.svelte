@@ -875,8 +875,8 @@
 		</p>
 	{/if}
 
-	<!-- Search + mobile filter trigger row -->
 	<div class="mt-4 flex flex-wrap items-center gap-2">
+		<a href="/library/loans" class="text-sm text-muted-foreground underline underline-offset-2">Books out</a>
 		<div class="relative flex-1 min-w-[14rem]">
 			<Search class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 			{#if listFetchPending}

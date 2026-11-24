@@ -31,6 +31,7 @@
 		lists = [],
 		memberListIds = [],
 		errorMessage = null,
+		booksOut = 0,
 		onSaved
 	}: {
 		open?: boolean;
@@ -40,6 +41,7 @@
 		lists?: ContactListDef[];
 		memberListIds?: string[];
 		errorMessage?: string | null;
+		booksOut?: number;
 		onSaved?: () => void | Promise<void>;
 	} = $props();
 
@@ -167,6 +169,16 @@
 					role="alert"
 				>
 					{errorMessage}
+				</p>
+			{/if}
+			{#if mode === 'edit' && contact && booksOut > 0}
+				<p class="text-sm">
+					<a
+						href="/library/loans?contact={contact.id}"
+						class="text-muted-foreground underline underline-offset-2"
+					>
+						Has {booksOut} {booksOut === 1 ? 'book' : 'books'} out
+					</a>
 				</p>
 			{/if}
 

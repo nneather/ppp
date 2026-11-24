@@ -1082,6 +1082,7 @@
 			? (data.listIdsByContactId[editingContact.id] ?? [])
 			: []}
 		errorMessage={contactSheetError}
+		booksOut={editingContact ? (data.booksOutByContactId[editingContact.id] ?? 0) : 0}
 		onSaved={onSaved}
 	/>
 	<HouseholdFormSheet

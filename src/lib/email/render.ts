@@ -1,0 +1,66 @@
+import { addDaysYmd, utcNoonFromYmd } from '$lib/invoicing/chicago-date';
+import { EMAIL_VARIABLE_TOKENS } from '$lib/email/variables';
+
+const TOKEN_RE = /\{\{\s*([a-z0-9_.]+)\s*\}\}/gi;
+
+export type EmailMergeValues = {
+	'contact.first_name': string;
+	'contact.last_name': string;
+	'contact.full_name': string;
+	'book.title': string;
+	'book.authors': string;
+	'loan.checked_out_on': string;
+	'loan.days_out': string;
+	'owner.first_name': string;
+};
+
+function escapeHtml(s: string): string {
+	return s
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+/** Replace known tokens. Unknown tokens are left in place so save-time checks stay visible. */
+export function renderEmailTemplate(template: string, values: Partial<EmailMergeValues>): string {
+	return template.replace(TOKEN_RE, (raw, token: string) => {
+		if (!EMAIL_VARIABLE_TOKENS.has(token)) return raw;
+		const value = values[token as keyof EmailMergeValues];
+		return escapeHtml(value ?? '');
+	});
+}
+
+export function daysBetweenYmd(startYmd: string, endYmd: string): number | null {
+	const start = utcNoonFromYmd(startYmd);
+	const end = utcNoonFromYmd(endYmd);
+	if (!start || !end) return null;
+	return Math.round((end.getTime() - start.getTime()) / 86_400_000);
+}
+
+export function formatLoanDate(ymd: string): string {
+	const mid = utcNoonFromYmd(ymd);
+	if (!mid) return ymd;
+	return new Intl.DateTimeFormat('en-US', {
+		timeZone: 'UTC',
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric'
+	}).format(mid);
+}
+
+export function reminderDateAfter(fromYmd: string, intervalDays: number): string | null {
+	if (!Number.isInteger(intervalDays) || intervalDays < 1 || intervalDays > 366) return null;
+	return addDaysYmd(fromYmd, intervalDays);
+}
+
+/** First word of the profile name. Blank profiles still sign the email. */
+export function ownerFirstName(fullName: string | null | undefined): string {
+	const first = (fullName ?? '').trim().split(/\s+/)[0];
+	return first && first.length > 0 ? first : 'Parker';
+}
+
+export function contactFullName(first: string | null, last: string | null): string {
+	return [first?.trim(), last?.trim()].filter((s) => s && s.length > 0).join(' ');
+}

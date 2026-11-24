@@ -74,7 +74,7 @@ Granular commands:
 | `npm run supabase:db:push`  | Push pending migrations to the linked project             |
 | `npm run supabase:db:push:dry:staging` / `db:push:staging` | Same for **ppp-staging** (uses `.env.staging`) |
 | `npm run test:rls` | Library RLS matrix on staging ([scripts/rls-smoke/README.md](../scripts/rls-smoke/README.md)) |
-| `npm run supabase:deploy-functions` | Deploy `generate-invoice-pdf`, `send-invoice`, `ocr_scripture_refs`, and `email-inbound-task` |
+| `npm run supabase:deploy-functions` | Deploy `generate-invoice-pdf`, `send-invoice`, `send-loan-message`, `ocr_scripture_refs`, `email-inbound-task`, and `transcribe_study_note` |
 
 **No local Docker stack** — do not use `supabase start` / `supabase db reset` in this repo; `[db.seed]` is disabled in `config.toml`.
 
@@ -118,6 +118,7 @@ Functions live under `supabase/functions/`:
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `generate-invoice-pdf` | Authenticated owner only. Loads invoice + line items + client, builds a PDF with `pdf-lib`, returns `{ pdf: "<base64>" }`.                            |
 | `send-invoice`         | Authenticated owner only. Sends the PDF via [Resend](https://resend.com) to the client’s email. Expects `{ invoice_id, pdf_base64, custom_message }`. |
+| `send-loan-message`    | Library loans. Owner JWT sends one `{ message_id }` (checkout, retry, or send now). `{ drain: true }` plus header `x-loan-cron-secret` sends queued rows due today in Chicago and queues the next reminder. |
 | `ocr_scripture_refs`   | Library: user JWT + `GET /auth/v1/user`; downloads `library-scripture-images` via service role; calls **Anthropic Messages API** (vision); returns `{ rawText, candidates }` — never writes DB rows. |
 | `email-inbound-task`   | Resend inbound webhook (`email.received`). Svix-signed (no user JWT). Fetches body via Receiving API; inserts a MYN task into `INBOUND_TASK_PROJECT_ID` (Personal). |
 | `transcribe_study_note` | Studies: owner JWT + `GET /auth/v1/user`. Downloads one `studies-audio` object with the service role, calls OpenAI `gpt-transcribe`, deletes the object, returns `{ text }`. Never writes a note. |
@@ -161,7 +162,8 @@ supabase secrets set OPENAI_TRANSCRIBE_MODEL=gpt-transcribe
 - **`OPENAI_API_KEY`** — Required before Record returns text. Mirror in `.env.local` only for `supabase functions serve`. Never ship it to the browser.
 - **`OPENAI_TRANSCRIBE_MODEL`** — Optional model id. Default `gpt-transcribe`.
 
-- **`RESEND_API_KEY`** — Required for `send-invoice` and `email-inbound-task` (Receiving API). **Production:** default `from` is `Parker Neathery <invoicing@npneathery.com>` (verified `npneathery.com`); override with optional secret **`INVOICE_RESEND_FROM`** (full Resend `from` string, e.g. `"Display" <addr@yourdomain.com>`). `reply_to` stays `parker@npneathery.com` in code. For a **non-verified** Resend setup, point `INVOICE_RESEND_FROM` at `onboarding@resend.dev` or change the default in [`send-invoice/index.ts`](./functions/send-invoice/index.ts).
+- **`RESEND_API_KEY`** — Required for `send-invoice`, `send-loan-message`, and `email-inbound-task` (Receiving API). **Production:** invoice default `from` is `Parker Neathery <invoicing@npneathery.com>` (verified `npneathery.com`); override with optional secret **`INVOICE_RESEND_FROM`**. Loan mail defaults to `Parker Neathery <parker@npneathery.com>`; override with **`LIBRARY_LOAN_RESEND_FROM`**. `reply_to` stays `parker@npneathery.com` in code. For a **non-verified** Resend setup, point the from-address secret at `onboarding@resend.dev` or change the default in the function.
+- **`LOAN_REMINDER_CRON_SECRET`** — Shared secret (at least 16 characters) for the daily GitHub Action [`.github/workflows/library-loan-reminders.yml`](../.github/workflows/library-loan-reminders.yml). Set the same value as the Actions secret `LOAN_REMINDER_CRON_SECRET`. The workflow also uses the existing `PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` secrets. Do not put `RESEND_API_KEY` in GitHub.
 - **`SENDER_*`** — Used on the PDF letterhead (`generate-invoice-pdf`). Optional lines can be omitted. If unset, defaults match N. P. Neathery Consulting (name, tagline, address, phone). `SENDER_EMAIL` is optional on the PDF. Override **`INVOICE_SERVICE_LABEL`**, **`INVOICE_PAYABLE_TO`**, **`INVOICE_TERMS`**, or **`INVOICE_THANK_YOU`** to customize the “FOR” line and footer text.
 - **`RESEND_WEBHOOK_SECRET`** — Svix signing secret from the Resend webhook for `email.received` → `email-inbound-task`.
 - **`INBOUND_TASK_PROJECT_ID`** — UUID of the destination project for forwarded mail (Personal root: `72de0d93-cfcd-46ef-aeab-9b3caf401a44`). Email Inbox project retired ([130](../docs/decisions/130-retire-email-inbox-default-personal.md)).

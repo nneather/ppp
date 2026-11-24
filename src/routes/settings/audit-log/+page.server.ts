@@ -69,6 +69,11 @@ export const _LIBRARY_TABLES = [
 	'book_passage_sections',
 	'book_outline_sections',
 	'book_topics',
+	'book_loans',
+	'book_loan_messages',
+	'email_template_folders',
+	'email_templates',
+	'email_template_bindings',
 	'user_permissions'
 ] as const;
 
@@ -103,6 +108,10 @@ export const _SOFT_DELETE_REVERTIBLE_TABLES = new Set<string>([
 	'book_passage_sections',
 	'book_outline_sections',
 	'book_topics',
+	'book_loans',
+	'email_template_folders',
+	'email_templates',
+	'email_template_bindings',
 	// projects
 	'projects',
 	'project_updates',
@@ -224,6 +233,15 @@ function entityLabelFor(
 			// audit row is still identifiable.
 			return `Untitled book #${record_id.slice(0, 8)}`;
 		}
+		case 'book_loans':
+			return get('recipient_name') ?? get('recipient_email');
+		case 'book_loan_messages':
+			return get('subject');
+		case 'email_templates':
+		case 'email_template_folders':
+			return get('name');
+		case 'email_template_bindings':
+			return get('binding_key');
 		case 'people': {
 			const first = get('first_name');
 			const last = get('last_name');

@@ -6,6 +6,7 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import Mic from '@lucide/svelte/icons/mic';
+	import Mail from '@lucide/svelte/icons/mail';
 	import Users from '@lucide/svelte/icons/users';
 	import { cn } from '$lib/utils';
 	import type { PageProps } from './$types';
@@ -78,6 +79,18 @@
 						: 'Lists'
 			}
 		];
+		if (data.isOwner) {
+			list.push({
+				href: '/settings/email-templates',
+				title: 'Email templates',
+				description: 'Checkout, reminders, and other messages you can edit',
+				icon: Mail,
+				summary:
+					data.emailTemplateCount != null
+						? `${data.emailTemplateCount} template${data.emailTemplateCount === 1 ? '' : 's'}`
+						: 'Owner-only'
+			});
+		}
 		if (data.isOwner) {
 			list.push({
 				href: '/settings/permissions',
