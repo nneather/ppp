@@ -46,7 +46,7 @@ export const EMAIL_TEMPLATE_USES: readonly { key: string; label: string; detail:
 	{
 		key: INVOICING_INVOICE_KEY,
 		label: 'Invoice email',
-		detail: 'Sent with the invoice PDF. The note typed at send time fills {{invoice.message}}.'
+		detail: 'Sent with the PDF. The note you type when you send is the message.'
 	}
 ];
 

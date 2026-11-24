@@ -114,7 +114,7 @@ export async function assignEmailTemplateUseAction(supabase: Db, userId: string,
 		.maybeSingle();
 	if (error || !template) return fail(400, { kind, message: 'That template is gone.' });
 	await moveBinding(supabase, key, templateId, userId);
-	return { kind, success: true as const };
+	return { kind, success: true as const, bindingKey: key };
 }
 
 async function moveBinding(supabase: Db, key: string, templateId: string, userId: string) {

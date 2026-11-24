@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-11-24 — Invoice mail uses the template store, plus a due-date field and a uses list ([323](docs/decisions/323-email-template-uses.md)).
+**Last updated:** 2026-11-24 — Email templates page: one menu per email, save on change ([325](docs/decisions/325-email-template-page.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [325 — Clearer email template page](docs/decisions/325-email-template-page.md) (2026-11-24) — One menu per email, and it saves when you change it. The editor groups insert fields.
+- [324 — Postcards via Lob](docs/decisions/324-contacts-postcards.md) (2026-11-24) — Postcard screen: proofs, mail-to-me, and a batch.
 - [323 — Email template uses](docs/decisions/323-email-template-uses.md) (2026-11-24) — `{{loan.due_on}}` is checkout plus the interval. Invoice mail uses the template store. Each send is a dropdown, not a checkbox.
 - [322 — Christmas list address confirmation](docs/decisions/322-christmas-address-confirm.md) (2026-11-24) — List rows show the address and this year’s status. One tap confirms a complete address.
 - [321 — Library loans and email templates](docs/decisions/321-library-loans-email-templates.md) (2026-11-24) — Check a copy out to a contact. Checkout email sends now; a reminder repeats until the book is back. Templates are folders plus a TipTap editor.
-- [320 — Psalm 23 bibliography export](docs/decisions/320-psalm-23-bibliography-export.md) (2026-11-23) — Copy bibliography and .docx include candidates when every source is still a candidate. A disabled download link looks disabled.
-- [319 — Treasury of David commentary collapse](docs/decisions/319-treasury-of-david-commentary-collapse.md) (2026-11-23) — the three series-less volumes show as one Psalms commentary. No new series. Volume numbers and MacDonald vs Hendrickson still unset.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Email template uses [323](docs/decisions/323-email-template-uses.md) — `npm run check` clean. `npm run test` **898 passed**. Seed `20261124193000` is on prod. `send-invoice` and `send-loan-message` are deployed. No invoice or loan email was sent.
+**Repo gate:** Clearer email template page [325](docs/decisions/325-email-template-page.md) — `npm run check` clean. Signed-in check: changing the invoice menu saved and was put back on Invoice.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

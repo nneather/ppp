@@ -16,11 +16,14 @@
 		form && 'message' in form && form.success !== true ? (form.message ?? null) : null
 	);
 
-	function roleFor(templateId: string): string {
+	const savedKey = $derived(
+		form && 'bindingKey' in form && form.success === true ? form.bindingKey : null
+	);
+
+	function rolesFor(templateId: string): string[] {
 		return data.bindings
 			.filter((b) => b.template_id === templateId)
-			.map((b) => emailUseLabel(b.binding_key))
-			.join(' · ');
+			.map((b) => emailUseLabel(b.binding_key));
 	}
 </script>
 
@@ -32,7 +35,7 @@
 	<a href="/settings" class="text-sm text-muted-foreground underline underline-offset-2">Settings</a>
 	<h1 class="mt-4 text-2xl font-semibold tracking-tight">Email templates</h1>
 	<p class="mt-1 text-sm text-muted-foreground">
-		Folders, HTML blocks, and merge fields. Editing a template changes future emails only.
+		The words in the checkout, reminder, and invoice emails. A change applies to future sends. Emails already queued keep their old copy.
 	</p>
 
 	{#if data.notOwner}
@@ -45,46 +48,61 @@
 			<p class="mt-4 text-sm text-destructive" role="alert">{message}</p>
 		{/if}
 
-		<section class="mt-6 flex flex-col gap-4 rounded-xl border border-border p-4">
-			<div>
-				<h2 class="text-sm font-medium">Where templates are used</h2>
-				<p class="mt-1 text-sm text-muted-foreground">
-					Each send points at one template. Picking a different template moves that send. A send always has a template, so there is nothing to uncheck.
-				</p>
+		<section class="mt-6 rounded-xl border border-border">
+			<div class="border-b border-border px-4 py-3">
+				<h2 class="text-sm font-medium">Which template each email uses</h2>
+				<p class="mt-1 text-sm text-muted-foreground">Changing a menu saves.</p>
 			</div>
-			{#each EMAIL_TEMPLATE_USES as use (use.key)}
-				{@const current = data.bindings.find((b) => b.binding_key === use.key)?.template_id ?? ''}
-				<form method="POST" action="?/assignUse" use:enhance class="flex flex-col gap-2 sm:flex-row sm:items-end">
-					<input type="hidden" name="binding_key" value={use.key} />
-					<div class="min-w-0 flex-1">
-						<Label for="use-{use.key}">{use.label}</Label>
-						<p class="text-xs text-muted-foreground">{use.detail}</p>
-					</div>
-					<select
-						id="use-{use.key}"
-						name="template_id"
-						class="h-9 rounded-md border border-input bg-background px-2 text-sm sm:w-56"
-					>
-						{#each data.templates as template (template.id)}
-							<option value={template.id} selected={template.id === current}>{template.name}</option>
-						{/each}
-					</select>
-					<Button type="submit" variant="outline" size="sm">Use this template</Button>
-				</form>
-			{/each}
+			<ul>
+				{#each EMAIL_TEMPLATE_USES as use (use.key)}
+					{@const current = data.bindings.find((b) => b.binding_key === use.key)?.template_id ?? ''}
+					<li class="border-b border-border px-4 py-3 last:border-b-0">
+						<form method="POST" action="?/assignUse" use:enhance class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+							<input type="hidden" name="binding_key" value={use.key} />
+							<div class="min-w-0">
+								<Label for="use-{use.key}">{use.label}</Label>
+								<p class="text-xs text-muted-foreground">{use.detail}</p>
+							</div>
+							<div class="flex items-center gap-2">
+								<select
+									id="use-{use.key}"
+									name="template_id"
+									class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm sm:w-52"
+									onchange={(event) => event.currentTarget.form?.requestSubmit()}
+								>
+									{#each data.templates as template (template.id)}
+										<option value={template.id} selected={template.id === current}>{template.name}</option>
+									{/each}
+								</select>
+								<button type="submit" class="sr-only">Save {use.label}</button>
+								{#if savedKey === use.key}
+									<span class="text-xs text-muted-foreground">Saved</span>
+								{/if}
+							</div>
+						</form>
+					</li>
+				{/each}
+			</ul>
 		</section>
 
+		<h2 class="mt-8 text-sm font-medium">Templates</h2>
+
 		{#each data.folders as folder (folder.id)}
-			<section class="mt-6">
-				<h2 class="text-sm font-medium">{folder.name}</h2>
+			<section class="mt-4">
+				<h3 class="text-sm text-muted-foreground">{folder.name}</h3>
 				<ul class="mt-2 flex flex-col gap-2">
 					{#each data.templates.filter((t) => t.folder_id === folder.id) as template (template.id)}
-						<li class="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-							<a href="/settings/email-templates/{template.id}" class="min-w-0">
+						<li class="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2">
+							<a href="/settings/email-templates/{template.id}" class="min-w-0 flex-1">
 								<span class="block font-medium">{template.name}</span>
-								<span class="block truncate text-xs text-muted-foreground">
-									{template.subject || 'No subject'}{roleFor(template.id) ? ` · ${roleFor(template.id)}` : ''}
-								</span>
+								<span class="block truncate text-xs text-muted-foreground">{template.subject || 'No subject'}</span>
+								{#if rolesFor(template.id).length > 0}
+									<span class="mt-1 flex flex-wrap gap-1">
+										{#each rolesFor(template.id) as role (role)}
+											<span class="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{role}</span>
+										{/each}
+									</span>
+								{/if}
 							</a>
 							<Button
 								type="button"
@@ -149,7 +167,7 @@
 		<ConfirmDialog
 			bind:open={deleteOpen}
 			title="Delete this template?"
-			description="Queued emails keep the copy they already have. A template that a send still points at cannot be deleted until another template takes that use."
+			description="Emails already queued keep their copy. If this template is still chosen above, pick another one for that email before deleting it."
 			confirmLabel="Delete"
 			destructive
 			onConfirm={() => deleteForm?.requestSubmit()}

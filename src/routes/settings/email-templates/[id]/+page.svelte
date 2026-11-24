@@ -62,6 +62,16 @@
 	);
 	const saved = $derived(form && 'success' in form && form.success === true);
 
+	const variableGroups = $derived.by(() => {
+		const groups: { group: string; labels: { token: string; label: string }[] }[] = [];
+		for (const variable of EMAIL_VARIABLES) {
+			const last = groups.at(-1);
+			if (last && last.group === variable.group) last.labels.push(variable);
+			else groups.push({ group: variable.group, labels: [variable] });
+		}
+		return groups;
+	});
+
 	function insert(token: string) {
 		const wrapped = `{{${token}}}`;
 		if (subjectFocused) subject += wrapped;
@@ -75,12 +85,25 @@
 
 <div class="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
 	<a href="/settings/email-templates" class="text-sm text-muted-foreground underline underline-offset-2">Email templates</a>
+	{#if !data.notOwner}
+		<h1 class="mt-4 text-2xl font-semibold tracking-tight">{data.template.name}</h1>
+		<p class="mt-1 text-sm text-muted-foreground">
+			{#if data.uses.length === 1}
+				This is the {data.uses[0].toLowerCase()}.
+			{:else if data.uses.length > 1}
+				Used for {data.uses.join(' and ')}.
+			{:else}
+				Not used by an email yet.
+			{/if}
+			<a href="/settings/email-templates" class="underline underline-offset-2">Change which email uses it.</a>
+		</p>
+	{/if}
 	{#if data.notOwner}
 		<div class="mt-6 rounded-xl border border-border bg-muted/30 px-4 py-6 text-sm" role="alert">
 			<p class="font-medium">Owner-only page</p>
 		</div>
 	{:else}
-		<form method="POST" action="?/save" use:enhance class="mt-4 grid gap-6 lg:grid-cols-2">
+		<form method="POST" action="?/save" use:enhance class="mt-6 grid gap-6 lg:grid-cols-2">
 			<div class="flex flex-col gap-3">
 				<input type="hidden" name="id" value={data.template.id} />
 				<input type="hidden" name="html_body" value={html} />
@@ -108,21 +131,19 @@
 					/>
 				</div>
 				<EmailBodyEditor bind:html onReady={(insertFn) => (insertToken = insertFn)} />
-				<div class="flex flex-wrap gap-1">
-					{#each EMAIL_VARIABLES as variable (variable.token)}
-						<Button type="button" variant="outline" size="sm" onclick={() => insert(variable.token)}>
-							{variable.group}: {variable.label}
-						</Button>
+				<div class="flex flex-col gap-2">
+					<p class="text-xs text-muted-foreground">Insert a field. Click the subject first to put it there.</p>
+					{#each variableGroups as group (group.group)}
+						<div class="flex flex-wrap items-center gap-1">
+							<span class="w-16 shrink-0 text-xs text-muted-foreground">{group.group}</span>
+							{#each group.labels as variable (variable.token)}
+								<Button type="button" variant="outline" size="sm" onclick={() => insert(variable.token)}>
+									{variable.label}
+								</Button>
+							{/each}
+						</div>
 					{/each}
 				</div>
-				<p class="text-sm text-muted-foreground">
-					{#if data.uses.length > 0}
-						Used for {data.uses.join(', ')}.
-					{:else}
-						Not assigned to a send.
-					{/if}
-					<a href="/settings/email-templates" class="underline underline-offset-2">Change that on the templates page.</a>
-				</p>
 				{#if message}<p class="text-sm text-destructive" role="alert">{message}</p>{/if}
 				{#if saved}<p class="text-sm text-muted-foreground">Saved.</p>{/if}
 				<Button type="submit" hotkey="s" label="Save template" class="w-fit" />
