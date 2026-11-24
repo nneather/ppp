@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { saveEmailTemplateAction } from '$lib/email/server/template-actions';
 import { buildLoanMergeValues } from '$lib/library/server/loan-actions';
 import { loadOpenLoans } from '$lib/library/server/loan-loaders';
-import { emailUseLabel } from '$lib/email/variables';
+import { DEFAULT_REMINDER_LEAD_DAYS, emailUseLabel } from '$lib/email/variables';
 import { ymdInChicago } from '$lib/invoicing/chicago-date';
 
 const UUID_RE =
@@ -16,7 +16,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const supabase = locals.supabase;
 	const { data: profile } = await supabase
 		.from('profiles')
-		.select('role, full_name')
+		.select('role, full_name, loan_reminder_lead_days')
 		.eq('id', user.id)
 		.maybeSingle();
 	if (profile?.role !== 'owner') return { notOwner: true as const };
@@ -61,6 +61,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 					dueOn: loan.dueOn
 				})),
 				asOfYmd: lead.reminder?.scheduledFor ?? today,
+				reminderLeadDays: profile.loan_reminder_lead_days ?? DEFAULT_REMINDER_LEAD_DAYS,
 				ownerFullName: profile.full_name
 			})
 		};

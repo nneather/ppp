@@ -397,6 +397,8 @@ Deno.serve(async (req) => {
 			'loan.checked_out_on': '',
 			'loan.due_on': '',
 			'loan.days_out': '',
+			'loan.reminder_lead': '',
+			'loan.books': '',
 			'client.name': client.name,
 			'invoice.number': invoice.invoice_number,
 			'invoice.period': period,

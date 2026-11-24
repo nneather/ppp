@@ -25,7 +25,10 @@ describe('email templates', () => {
 		expect(
 			renderEmailTemplate('{{invoice.message}}', { 'invoice.message': 'Line one\nLine two' }, { html: true })
 		).toBe('Line one<br>Line two');
-		expect(unknownEmailTokens('{{loan.due_on}}', '{{invoice.total}}')).toEqual([]);
+		expect(unknownEmailTokens('{{loan.due_on}}', '{{loan.reminder_lead}}')).toEqual([]);
+		expect(renderEmailTemplate('{{loan.reminder_lead}} days before', { 'loan.reminder_lead': '7' })).toBe(
+			'7 days before'
+		);
 	});
 
 	it('rejects tokens outside the catalog', () => {

@@ -1,6 +1,6 @@
 # PLAN.md — Parker's Platform (ppp)
 
-**Last updated:** 2026-11-24 — Batch checkout and a movable due date ([327](docs/decisions/327-batch-checkout-due-dates.md)).
+**Last updated:** 2026-11-24 — Checkout and reminder templates list every book, and `{{loan.reminder_lead}}` is the days-before setting ([328](docs/decisions/328-loan-reminder-lead-token.md)).
 
 **How to use this file — read this first:**
 
@@ -49,11 +49,11 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 ## Recent decisions (last 5 — full archive in `docs/decisions/`)
 
+- [328 — Reminder lead in the email](docs/decisions/328-loan-reminder-lead-token.md) (2026-11-24) — `{{loan.reminder_lead}}` is how many days before the due date the reminder goes out. Checkout and reminder emails list every book.
 - [327 — Batch checkout and due dates](docs/decisions/327-batch-checkout-due-dates.md) (2026-11-24) — Several books, one person, one email. Each copy has a due date you can move. One reminder per person goes out before the soonest due date.
 - [326 — Contact lists get their own page](docs/decisions/326-contact-list-pages.md) (2026-11-24) — One list per page, with quick links from Contacts. Old list links still land there.
 - [325 — Clearer email template page](docs/decisions/325-email-template-page.md) (2026-11-24) — One menu per email, and it saves when you change it. The editor groups insert fields.
 - [324 — Postcards via Lob](docs/decisions/324-contacts-postcards.md) (2026-11-24) — Postcard screen: proofs, mail-to-me, and a batch.
-- [323 — Email template uses](docs/decisions/323-email-template-uses.md) (2026-11-24) — Invoice mail uses the template store. Each send is a dropdown, not a checkbox.
 
 ---
 
@@ -85,7 +85,7 @@ Operating guide: [AGENTS.md](AGENTS.md). Cursor rules: [.cursor/rules/](.cursor/
 
 **Supabase workflow:** Hosted `db push` / `deploy-functions` only — [supabase/README.md](supabase/README.md). Library schema: **`npm run ship-library:apply`**. **API grants:** new tables need explicit `GRANT`s in the migration — Supabase auto-expose ends **2026-10-30** ([039](docs/decisions/039-supabase-postgrest-api-grants.md)). Verified clean 2026-09-26: 0 of 48 tables missing role SELECT, toggle still ON, Projects v1 backfilled.
 
-**Repo gate:** Batch checkout and due dates [327](docs/decisions/327-batch-checkout-due-dates.md) — `npm run check` and `npm run test` clean (2026-11-24). Migration `20261124210000` applied on ppp-prod. `send-loan-message` deployed after the schema change.
+**Repo gate:** Reminder lead token [328](docs/decisions/328-loan-reminder-lead-token.md) — `npm run check` and `npm run test` clean (2026-11-24). Migration `20261124220000` applied. `send-loan-message` deployed.
 
 **Data safety (R2 export):** Project is on the Supabase **Free plan** ([066](docs/decisions/066-operational-resilience-review.md)), so the R2 dumps are the **only** backup. **Pipeline live + restore proven** ([079](docs/decisions/079-ops-hardening-backups-restore-revoke.md)). `pg_dump -F c` to **private Cloudflare R2** via [`.github/workflows/backup.yml`](.github/workflows/backup.yml) (`workflow_dispatch` + **weekly** cron `0 8 * * 1`):
 

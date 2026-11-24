@@ -12,6 +12,7 @@ export type EmailMergeValues = {
 	'loan.checked_out_on': string;
 	'loan.due_on': string;
 	'loan.days_out': string;
+	'loan.reminder_lead': string;
 	'loan.books': string;
 	'client.name': string;
 	'invoice.number': string;

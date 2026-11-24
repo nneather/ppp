@@ -22,6 +22,7 @@ import {
 } from '$lib/email/render';
 import { sanitizeEmailHtml } from '$lib/email/sanitize';
 import {
+	DEFAULT_REMINDER_LEAD_DAYS,
 	LIBRARY_LOAN_CHECKOUT_KEY,
 	LIBRARY_LOAN_REMINDER_KEY,
 	unknownEmailTokens
@@ -109,6 +110,7 @@ export function buildLoanMergeValues(input: {
 	lastName: string | null;
 	books: readonly LoanMergeBook[];
 	asOfYmd: string;
+	reminderLeadDays?: number | null;
 	ownerFullName: string | null | undefined;
 }): Partial<EmailMergeValues> {
 	const books = [...input.books];
@@ -117,6 +119,11 @@ export function buildLoanMergeValues(input: {
 	const checkedOutOn = earliestOut?.checkedOutOn ?? input.asOfYmd;
 	const days = daysBetweenYmd(checkedOutOn, input.asOfYmd);
 	const sole = books.length === 1 ? books[0] : null;
+	const lead = input.reminderLeadDays;
+	const reminderLead =
+		lead != null && Number.isInteger(lead) && lead >= 0 && lead <= 60
+			? String(lead)
+			: String(DEFAULT_REMINDER_LEAD_DAYS);
 	return {
 		'contact.first_name': input.firstName.trim(),
 		'contact.last_name': (input.lastName ?? '').trim(),
@@ -126,6 +133,7 @@ export function buildLoanMergeValues(input: {
 		'loan.checked_out_on': formatLoanDate(checkedOutOn),
 		'loan.due_on': earliestDue ? formatLoanDate(earliestDue.dueOn) : '',
 		'loan.days_out': String(days != null && days > 0 ? days : 0),
+		'loan.reminder_lead': reminderLead,
 		'loan.books': loanBooksHtml(books),
 		'owner.first_name': ownerFirstName(input.ownerFullName)
 	};
@@ -250,7 +258,7 @@ async function refreshContactReminder(supabase: Db, userId: string, contactId: s
 	const lines = await linesForLoans(supabase, loans);
 	const scheduled = nextReminderYmd(
 		lines.map((line) => line.dueOn),
-		profileRes.data?.loan_reminder_lead_days ?? 7,
+		profileRes.data?.loan_reminder_lead_days ?? DEFAULT_REMINDER_LEAD_DAYS,
 		today
 	);
 	if (!scheduled) return;
@@ -259,6 +267,7 @@ async function refreshContactReminder(supabase: Db, userId: string, contactId: s
 		lastName: contactRes.data.last_name,
 		books: lines,
 		asOfYmd: scheduled,
+		reminderLeadDays: profileRes.data?.loan_reminder_lead_days,
 		ownerFullName: profileRes.data?.full_name
 	});
 	const copy = renderPair(template.subject, template.html_body, values);
@@ -321,7 +330,7 @@ export async function checkoutBookAction(supabase: Db, userId: string, fd: FormD
 				.is('returned_at', null),
 			supabase
 				.from('profiles')
-				.select('full_name, loan_due_days')
+				.select('full_name, loan_due_days, loan_reminder_lead_days')
 				.eq('id', userId)
 				.maybeSingle(),
 			templateForKey(supabase, LIBRARY_LOAN_CHECKOUT_KEY),
@@ -379,6 +388,7 @@ export async function checkoutBookAction(supabase: Db, userId: string, fd: FormD
 			dueOn
 		})),
 		asOfYmd: today,
+		reminderLeadDays: profileRes.data?.loan_reminder_lead_days,
 		ownerFullName: profileRes.data?.full_name
 	});
 	const checkoutCopy = renderPair(checkoutTemplate.subject, checkoutTemplate.html_body, checkoutValues);
@@ -511,7 +521,11 @@ export async function updateLoanReminderAction(supabase: Db, userId: string, fd:
 
 	const [contactRes, profileRes, lines] = await Promise.all([
 		supabase.from('contacts').select('first_name, last_name').eq('id', message.contact_id).maybeSingle(),
-		supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle(),
+		supabase
+			.from('profiles')
+			.select('full_name, loan_reminder_lead_days')
+			.eq('id', userId)
+			.maybeSingle(),
 		linesForLoans(supabase, loans)
 	]);
 	const values = buildLoanMergeValues({
@@ -519,6 +533,7 @@ export async function updateLoanReminderAction(supabase: Db, userId: string, fd:
 		lastName: contactRes.data?.last_name ?? null,
 		books: lines,
 		asOfYmd: scheduledFor,
+		reminderLeadDays: profileRes.data?.loan_reminder_lead_days,
 		ownerFullName: profileRes.data?.full_name
 	});
 	const rendered = renderPair(subject, html, values);

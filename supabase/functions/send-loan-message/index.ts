@@ -111,6 +111,7 @@ function mergeFor(input: {
 	recipientName: string;
 	books: readonly BookLine[];
 	asOfYmd: string;
+	reminderLeadDays: number;
 	ownerFullName: string | null;
 }): LoanMergeValues {
 	const [first, ...rest] = input.recipientName.trim().split(/\s+/);
@@ -120,6 +121,9 @@ function mergeFor(input: {
 	const checkedOutOn = earliestOut?.checkedOutOn ?? input.asOfYmd;
 	const days = daysBetweenYmd(checkedOutOn, input.asOfYmd);
 	const sole = books.length === 1 ? books[0] : null;
+	const lead = input.reminderLeadDays;
+	const reminderLead =
+		Number.isInteger(lead) && lead >= 0 && lead <= 60 ? String(lead) : '7';
 	return {
 		'contact.first_name': first ?? '',
 		'contact.last_name': rest.join(' '),
@@ -129,6 +133,7 @@ function mergeFor(input: {
 		'loan.checked_out_on': formatLoanDate(checkedOutOn),
 		'loan.due_on': earliestDue ? formatLoanDate(earliestDue.dueOn) : '',
 		'loan.days_out': String(days != null && days > 0 ? days : 0),
+		'loan.reminder_lead': reminderLead,
 		'loan.books': loanBooksHtml(books),
 		'client.name': '',
 		'invoice.number': '',
@@ -234,6 +239,7 @@ async function queueNextReminder(admin: Admin, loans: readonly LoanRow[]): Promi
 		recipientName: lead.recipient_name,
 		books: lines,
 		asOfYmd: scheduled,
+		reminderLeadDays: owner.loan_reminder_lead_days,
 		ownerFullName: owner.full_name
 	});
 	const rendered = renderEmailTemplate(template.html_body, values, { html: true });

@@ -15,6 +15,7 @@ export const EMAIL_VARIABLES: readonly EmailVariable[] = [
 	{ token: 'loan.checked_out_on', label: 'Checkout date', group: 'Loan' },
 	{ token: 'loan.due_on', label: 'Due date', group: 'Loan' },
 	{ token: 'loan.days_out', label: 'Days out', group: 'Loan' },
+	{ token: 'loan.reminder_lead', label: 'Remind this many days before due', group: 'Loan' },
 	{ token: 'loan.books', label: 'Books still out', group: 'Loan' },
 	{ token: 'client.name', label: 'Name', group: 'Client' },
 	{ token: 'invoice.number', label: 'Number', group: 'Invoice' },

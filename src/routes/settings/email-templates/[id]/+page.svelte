@@ -40,6 +40,7 @@
 		'loan.checked_out_on': 'Nov 24, 2026',
 		'loan.due_on': 'Dec 24, 2026',
 		'loan.days_out': '30',
+		'loan.reminder_lead': '7',
 		'loan.books':
 			'<ul><li>The Institutes of the Christian Religion — John Calvin (due Dec 24, 2026)</li></ul>',
 		'client.name': 'Covenant Seminary',

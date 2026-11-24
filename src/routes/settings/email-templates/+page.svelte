@@ -72,7 +72,7 @@
 					</div>
 				</div>
 				<div class="flex flex-col gap-1">
-					<Label for="loan-lead-days">Remind this many days before</Label>
+					<Label for="loan-lead-days">Remind this many days before due</Label>
 					<Input
 						id="loan-lead-days"
 						name="loan_reminder_lead_days"

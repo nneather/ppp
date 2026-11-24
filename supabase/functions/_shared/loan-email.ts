@@ -9,6 +9,7 @@ const TOKENS = new Set([
 	'loan.checked_out_on',
 	'loan.due_on',
 	'loan.days_out',
+	'loan.reminder_lead',
 	'loan.books',
 	'client.name',
 	'invoice.number',
@@ -30,6 +31,7 @@ export type LoanMergeValues = {
 	'loan.checked_out_on': string;
 	'loan.due_on': string;
 	'loan.days_out': string;
+	'loan.reminder_lead': string;
 	'loan.books': string;
 	'client.name': string;
 	'invoice.number': string;
