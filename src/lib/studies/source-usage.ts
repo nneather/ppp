@@ -29,3 +29,12 @@ export function includeInCompiledBibliography(
 	if (includeCandidates) return true;
 	return usage === 'consulted' || usage === 'cited';
 }
+
+/**
+ * A study that is still all candidates has nothing in the consulted+cited
+ * bibliography, so Copy and Download start with candidates included.
+ * One consulted or cited source keeps the narrower default.
+ */
+export function compiledBibliographyStartsWithCandidates(usages: readonly StudyUsage[]): boolean {
+	return usages.length > 0 && usages.every((usage) => usage === 'candidate');
+}

@@ -34,7 +34,10 @@
 		type PaperGroupView,
 		type PaperSourceView
 	} from '$lib/studies/paper-sources';
-	import { includeInCompiledBibliography } from '$lib/studies/source-usage';
+	import {
+		compiledBibliographyStartsWithCandidates,
+		includeInCompiledBibliography
+	} from '$lib/studies/source-usage';
 	import { copyCitationToClipboard } from '$lib/library/turabian';
 	import type { StudyNoteView } from '$lib/studies/study-note';
 	import type { BookListRow, EssaySearchHit } from '$lib/types/library';
@@ -133,7 +136,11 @@
 				importMetaLoading = false;
 			});
 	});
-	let includeCandidates = $state(false);
+	let includeCandidatesOverride = $state<boolean | null>(null);
+	const includeCandidates = $derived(
+		includeCandidatesOverride ??
+			compiledBibliographyStartsWithCandidates(sourceRows.map((source) => source.usage))
+	);
 	let sectionByGroup = $state(false);
 	let removedSourceIds = $state<string[]>([]);
 
@@ -618,7 +625,14 @@
 				</Button>
 			{/if}
 			<label class="flex items-center gap-1.5 text-xs text-muted-foreground">
-				<input type="checkbox" class="size-3.5" bind:checked={includeCandidates} />
+				<input
+					type="checkbox"
+					class="size-3.5"
+					checked={includeCandidates}
+					onchange={(event) => {
+						includeCandidatesOverride = event.currentTarget.checked;
+					}}
+				/>
 				Include candidates
 			</label>
 			<label class="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -649,7 +663,8 @@
 		</div>
 	</div>
 	<p class="mt-1 text-xs text-muted-foreground">
-		Bibliography defaults to consulted and cited. Section by group turns each research group into a
+		Bibliography defaults to consulted and cited. When every source is still a candidate, those are
+		included until you uncheck Include candidates. Section by group turns each research group into a
 		heading. Unsigned reference articles stay out.
 	</p>
 
